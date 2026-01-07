@@ -21,6 +21,11 @@
 @import "tailwindcss";
 
 /* ============================================
+   Tailwind CSS 4 다크모드 설정 (클래스 기반)
+   ============================================ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================
    CSS 변수 정의 - 라이트 모드 (기본)
    ============================================ */
 :root {
@@ -149,6 +154,35 @@ body {
 }
 
 /* ============================================
+   폼 요소 다크모드 스타일
+   ============================================ */
+
+/* select, input, textarea 공통 스타일 */
+select,
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="number"],
+textarea {
+  color-scheme: light;
+}
+
+.dark select,
+.dark input[type="date"],
+.dark input[type="time"],
+.dark input[type="datetime-local"],
+.dark input[type="number"],
+.dark textarea {
+  color-scheme: dark;
+}
+
+/* select option 스타일 */
+.dark option {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+/* ============================================
    Material Symbols 아이콘 기본 스타일
    ============================================ */
 .material-symbols-outlined {
@@ -166,4 +200,106 @@ body {
     'wght' 400,
     'GRAD' 0,
     'opsz' 24;
+}
+
+/* ============================================
+   애니메이션
+   ============================================ */
+
+/* 오른쪽에서 슬라이드 인 */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+/* 위에서 슬라이드 인 */
+@keyframes slide-in-down {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-down {
+  animation: slide-in-down 0.2s ease-out forwards;
+}
+
+/* 페이드 인 */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+/* 바운스 인 (중앙 팝업용) */
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.4s ease-out forwards;
+}
+
+/* 토스트 인 (위에서 아래로) */
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.4s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+}
+
+/* 토스트 프로그레스 바 */
+@keyframes toast-progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-toast-progress {
+  animation: toast-progress linear forwards;
 }

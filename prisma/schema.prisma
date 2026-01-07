@@ -37,16 +37,27 @@ model User {
   // 관계
   ownedProjects Project[]    @relation("ProjectOwner")
   teamMembers   TeamMember[]
-  assignedTasks Task[]       @relation("TaskAssignee")
+  taskAssignments TaskAssignee[] // 태스크 담당자 (다대다)
   createdTasks  Task[]       @relation("TaskCreator")
+  requestedRequirements Requirement[] @relation("RequirementRequester") // 내가 요청한 요구사항
+  assignedRequirements  Requirement[] @relation("RequirementAssignee")  // 나에게 할당된 요구사항
+  wbsAssignments WbsAssignee[] // WBS 담당자 (다대다)
+  reportedIssues Issue[] @relation("IssueReporter") // 내가 보고한 이슈
+  assignedIssues Issue[] @relation("IssueAssignee") // 나에게 할당된 이슈
 
   @@map("users")
 }
 
 enum UserRole {
-  ADMIN
-  MANAGER
-  MEMBER
+  EXECUTIVE    // 경영자
+  DIRECTOR     // 총괄
+  PMO          // PMO (Project Management Office)
+  PM           // PM (Project Manager)
+  PL           // PL (Project Leader)
+  DEVELOPER    // 개발자
+  DESIGNER     // 디자이너
+  OPERATOR     // 오퍼레이터
+  MEMBER       // 일반 멤버
 }
 
 // ============================================
@@ -69,8 +80,10 @@ model Project {
   owner        User          @relation("ProjectOwner", fields: [ownerId], references: [id])
   tasks        Task[]
   requirements Requirement[]
+  issues       Issue[]       // 이슈 목록
   teamMembers  TeamMember[]
   holidays     Holiday[]
+  wbsItems     WbsItem[]     // WBS 항목
 
   @@map("projects")
 }
@@ -100,20 +113,41 @@ model Task {
   updatedAt   DateTime     @updatedAt
 
   // 관계
-  projectId  String
-  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assigneeId String?
-  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  creatorId  String
-  creator    User    @relation("TaskCreator", fields: [creatorId], references: [id])
+  projectId     String
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignees     TaskAssignee[] // 담당자들 (다대다)
+  creatorId     String
+  creator       User    @relation("TaskCreator", fields: [creatorId], references: [id])
+  requirementId String?        // 연결된 요구사항 (선택)
+  requirement   Requirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
 
   @@map("tasks")
+}
+
+// ============================================
+// 태스크 담당자 모델 (다대다 조인 테이블)
+// 한 태스크에 여러 담당자 지정 가능
+// ============================================
+model TaskAssignee {
+  id         String   @id @default(uuid())
+  assignedAt DateTime @default(now()) // 담당자 지정일
+
+  // 관계
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId]) // 같은 태스크에 같은 사용자는 한 번만
+  @@map("task_assignees")
 }
 
 enum TaskStatus {
   PENDING     // 대기중
   IN_PROGRESS // 진행중
+  HOLDING     // 홀딩
   COMPLETED   // 완료
+  CANCELLED   // 취소
 }
 
 enum TaskPriority {
@@ -127,29 +161,43 @@ enum TaskPriority {
 // 요구사항 점검표용
 // ============================================
 model Requirement {
-  id          String            @id @default(uuid())
+  id          String              @id @default(uuid())
+  code        String?             // 요구사항 코드 (REQ-001 등)
   title       String
   description String?
-  status      RequirementStatus @default(REQUESTED)
-  requestDate DateTime          @default(now())
-  dueDate     DateTime?
-  isDelayed   Boolean           @default(false) // 지연 여부
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  status      RequirementStatus   @default(DRAFT)
+  priority    RequirementPriority @default(SHOULD)
+  category    String?             // 카테고리 (인증, UI/UX, API 등)
+  requestDate DateTime            @default(now())  // 요청일
+  dueDate     DateTime?           // 마감일
+  isDelayed   Boolean             @default(false)  // 지연 여부
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   // 관계
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requesterId String?             // 요청자 (누가 요청했는지)
+  requester   User?   @relation("RequirementRequester", fields: [requesterId], references: [id])
+  assigneeId  String?             // 담당자 (누구에게 요청했는지)
+  assignee    User?   @relation("RequirementAssignee", fields: [assigneeId], references: [id])
+  tasks       Task[]              // 연결된 태스크들
 
   @@map("requirements")
 }
 
 enum RequirementStatus {
-  REQUESTED // 요청됨
-  PENDING   // 검토 중
-  APPROVED  // 승인됨
-  COMPLETED // 완료
-  REJECTED  // 거절됨
+  DRAFT       // 초안
+  APPROVED    // 승인
+  REJECTED    // 반려
+  IMPLEMENTED // 구현완료
+}
+
+enum RequirementPriority {
+  MUST   // 필수
+  SHOULD // 중요
+  COULD  // 선택
+  WONT   // 보류
 }
 
 // ============================================
@@ -182,11 +230,12 @@ enum HolidayType {
 // 프로젝트별 팀 멤버 관리
 // ============================================
 model TeamMember {
-  id        String         @id @default(uuid())
-  role      TeamMemberRole @default(MEMBER)
-  joinedAt  DateTime       @default(now())
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id         String         @id @default(uuid())
+  role       TeamMemberRole @default(MEMBER)
+  customRole String?        // 커스텀 역할명 (예: PMO, 프로젝트 총괄, PL 등)
+  joinedAt   DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   // 관계
   projectId String
@@ -202,4 +251,122 @@ enum TeamMemberRole {
   OWNER   // 프로젝트 소유자
   MANAGER // 관리자
   MEMBER  // 일반 멤버
+}
+
+// ============================================
+// WBS 항목 모델
+// 계층형 WBS 구조 (대분류 > 중분류 > 소분류 > 단위업무)
+// ============================================
+model WbsItem {
+  id          String        @id @default(uuid())
+  code        String        // WBS 코드 (예: 1, 1.1, 1.1.1, 1.1.1.1)
+  name        String        // 항목명
+  description String?       // 설명
+  level       WbsLevel      // 계층 레벨 (1~4)
+  order       Int           @default(0) // 같은 레벨 내 순서
+  status      TaskStatus    @default(PENDING) // 진행 상태
+  progress    Int           @default(0) // 진행률 0-100
+  startDate   DateTime?     // 시작일
+  endDate     DateTime?     // 종료일
+  weight      Int           @default(1) // 가중치 (진행률 계산용)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // 계층 관계 (자기 참조)
+  parentId    String?
+  parent      WbsItem?      @relation("WbsHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    WbsItem[]     @relation("WbsHierarchy")
+
+  // 프로젝트 관계
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // 담당자 (다대다)
+  assignees   WbsAssignee[]
+
+  @@unique([projectId, code]) // 프로젝트 내 WBS 코드 유일성
+  @@map("wbs_items")
+}
+
+// ============================================
+// WBS 레벨 Enum
+// 4단계 계층 구조
+// ============================================
+enum WbsLevel {
+  LEVEL1  // 대분류 (분석, 설계, 개발, 테스트, 이행)
+  LEVEL2  // 중분류
+  LEVEL3  // 소분류
+  LEVEL4  // 단위업무
+}
+
+// ============================================
+// WBS 담당자 모델 (다대다 조인 테이블)
+// 한 WBS 항목에 여러 담당자 지정 가능
+// ============================================
+model WbsAssignee {
+  id         String   @id @default(uuid())
+  assignedAt DateTime @default(now())
+
+  // 관계
+  wbsItemId  String
+  wbsItem    WbsItem  @relation(fields: [wbsItemId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([wbsItemId, userId])
+  @@map("wbs_assignees")
+}
+
+// ============================================
+// 이슈 모델
+// 이슈사항 점검표용
+// ============================================
+model Issue {
+  id          String         @id @default(uuid())
+  code        String?        // 이슈 코드 (ISS-001 등)
+  title       String
+  description String?
+  status      IssueStatus    @default(OPEN)
+  priority    IssuePriority  @default(MEDIUM)
+  category    IssueCategory  @default(BUG)
+  reportDate  DateTime       @default(now())  // 보고일
+  dueDate     DateTime?      // 목표 해결일
+  resolvedDate DateTime?     // 실제 해결일
+  isDelayed   Boolean        @default(false)  // 지연 여부
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // 관계
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporterId  String?        // 보고자 (누가 보고했는지)
+  reporter    User?   @relation("IssueReporter", fields: [reporterId], references: [id])
+  assigneeId  String?        // 담당자 (누가 처리할지)
+  assignee    User?   @relation("IssueAssignee", fields: [assigneeId], references: [id])
+
+  @@map("issues")
+}
+
+enum IssueStatus {
+  OPEN        // 열림
+  IN_PROGRESS // 진행중
+  RESOLVED    // 해결됨
+  CLOSED      // 종료
+  WONT_FIX    // 수정안함
+}
+
+enum IssuePriority {
+  CRITICAL  // 긴급
+  HIGH      // 높음
+  MEDIUM    // 보통
+  LOW       // 낮음
+}
+
+enum IssueCategory {
+  BUG           // 버그
+  IMPROVEMENT   // 개선
+  QUESTION      // 문의
+  FEATURE       // 신규기능
+  DOCUMENTATION // 문서
+  OTHER         // 기타
 }

@@ -23,8 +23,10 @@ import {
   useRequirements,
   useCreateRequirement,
   useUpdateRequirement,
-  useProjects,
+  useMembers,
 } from "@/hooks";
+import { useProject } from "@/contexts";
+import type { Requirement } from "@/lib/api";
 
 /** 우선순위 설정 */
 const priorityConfig: Record<string, { label: string; color: string; bgColor: string }> = {
@@ -46,14 +48,14 @@ const statusConfig: Record<string, { label: string; icon: string; color: string 
  * 요구사항 점검표 페이지
  */
 export default function RequirementsPage() {
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [editingRequirement, setEditingRequirement] = useState<Requirement | null>(null);
 
-  /** 프로젝트 목록 조회 */
-  const { data: projects = [] } = useProjects();
+  /** 전역 프로젝트 선택 상태 (헤더에서 선택) */
+  const { selectedProjectId, selectedProject } = useProject();
 
   /** 요구사항 목록 조회 (프로젝트 필터링) */
   const { data: requirements = [], isLoading, error } = useRequirements(
@@ -66,12 +68,18 @@ export default function RequirementsPage() {
   /** 요구사항 수정 */
   const updateRequirement = useUpdateRequirement();
 
+  /** 프로젝트 팀 멤버 목록 조회 */
+  const { data: teamMembers = [] } = useMembers(
+    selectedProjectId ? { projectId: selectedProjectId } : undefined
+  );
+
   /** 새 요구사항 폼 상태 */
   const [newRequirement, setNewRequirement] = useState({
     title: "",
     description: "",
     priority: "SHOULD",
     category: "",
+    dueDate: "",
   });
 
   // 카테고리 목록 추출
@@ -99,14 +107,38 @@ export default function RequirementsPage() {
    * 상태 토글 (DRAFT -> APPROVED -> IMPLEMENTED)
    */
   const toggleStatus = async (id: string, currentStatus: string) => {
-    const statusOrder = ["DRAFT", "APPROVED", "IMPLEMENTED"];
-    const currentIndex = statusOrder.indexOf(currentStatus);
+    const statusOrder = ["DRAFT", "APPROVED", "IMPLEMENTED"] as const;
+    const currentIndex = statusOrder.indexOf(currentStatus as typeof statusOrder[number]);
     const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
 
     await updateRequirement.mutateAsync({
       id,
       data: { status: nextStatus },
     });
+  };
+
+  /**
+   * 요구사항 수정 핸들러
+   */
+  const handleEditRequirement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRequirement) return;
+
+    await updateRequirement.mutateAsync({
+      id: editingRequirement.id,
+      data: {
+        title: editingRequirement.title,
+        description: editingRequirement.description,
+        priority: editingRequirement.priority,
+        category: editingRequirement.category || undefined,
+        status: editingRequirement.status,
+        dueDate: editingRequirement.dueDate || undefined,
+        requesterId: editingRequirement.requesterId || undefined,
+        assigneeId: editingRequirement.assigneeId || undefined,
+      },
+    });
+
+    setEditingRequirement(null);
   };
 
   /**
@@ -124,10 +156,12 @@ export default function RequirementsPage() {
       title: newRequirement.title,
       description: newRequirement.description,
       priority: newRequirement.priority,
+      category: newRequirement.category || undefined,
+      dueDate: newRequirement.dueDate || undefined,
       projectId: selectedProjectId,
     });
 
-    setNewRequirement({ title: "", description: "", priority: "SHOULD", category: "" });
+    setNewRequirement({ title: "", description: "", priority: "SHOULD", category: "", dueDate: "" });
     setShowModal(false);
   };
 
@@ -161,20 +195,14 @@ export default function RequirementsPage() {
             프로젝트 요구사항을 체크리스트로 관리합니다
           </p>
         </div>
-        <div className="flex gap-2">
-          {/* 프로젝트 선택 */}
-          <select
-            value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-          >
-            <option value="">프로젝트 선택</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center gap-3">
+          {/* 현재 선택된 프로젝트 표시 */}
+          {selectedProject && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+              <Icon name="folder" size="sm" className="text-primary" />
+              <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
+            </div>
+          )}
           <Button
             variant="primary"
             leftIcon="add"
@@ -194,7 +222,7 @@ export default function RequirementsPage() {
             프로젝트를 선택해주세요
           </h3>
           <p className="text-text-secondary">
-            요구사항을 관리할 프로젝트를 선택하면 해당 프로젝트의 요구사항 목록이 표시됩니다.
+            상단 헤더에서 프로젝트를 선택하면 요구사항 목록이 표시됩니다.
           </p>
         </div>
       )}
@@ -278,7 +306,7 @@ export default function RequirementsPage() {
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+              className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
             >
               <option value="all">전체 우선순위</option>
               <option value="MUST">필수</option>
@@ -289,7 +317,7 @@ export default function RequirementsPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+              className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
             >
               <option value="all">전체 상태</option>
               <option value="DRAFT">초안</option>
@@ -300,14 +328,23 @@ export default function RequirementsPage() {
           </div>
 
           {/* 요구사항 목록 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden">
+          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
             {/* 테이블 헤더 */}
-            <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase">
-              <div className="col-span-1">상태</div>
-              <div className="col-span-2">코드</div>
-              <div className="col-span-5">요구사항</div>
-              <div className="col-span-2">우선순위</div>
-              <div className="col-span-2">카테고리</div>
+            <div
+              className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1250px]"
+              style={{ gridTemplateColumns: "50px 80px 1fr 70px 100px 100px 100px 80px 90px 100px 50px" }}
+            >
+              <div>상태</div>
+              <div>코드</div>
+              <div>요구사항</div>
+              <div>우선순위</div>
+              <div>카테고리</div>
+              <div>요청자</div>
+              <div>담당자</div>
+              <div>요청일</div>
+              <div>마감일</div>
+              <div>연결 태스크</div>
+              <div>수정</div>
             </div>
 
             {/* 빈 목록 */}
@@ -327,13 +364,21 @@ export default function RequirementsPage() {
               const priority = priorityConfig[req.priority] || priorityConfig.SHOULD;
               const status = statusConfig[req.status] || statusConfig.DRAFT;
 
+              // 날짜 포맷팅
+              const formatDate = (dateStr?: string) => {
+                if (!dateStr) return "-";
+                const date = new Date(dateStr);
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+              };
+
               return (
                 <div
                   key={req.id}
-                  className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center"
+                  className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1250px]"
+                  style={{ gridTemplateColumns: "50px 80px 1fr 70px 100px 100px 100px 80px 90px 100px 50px" }}
                 >
                   {/* 체크박스 */}
-                  <div className="col-span-1">
+                  <div>
                     <button
                       onClick={() => toggleStatus(req.id, req.status)}
                       className={`size-6 rounded-md border-2 flex items-center justify-center transition-colors ${
@@ -351,16 +396,16 @@ export default function RequirementsPage() {
                   </div>
 
                   {/* 코드 */}
-                  <div className="col-span-2">
+                  <div>
                     <span className="text-xs text-text-secondary font-mono">
                       {req.code || `REQ-${req.id.slice(0, 6)}`}
                     </span>
                   </div>
 
                   {/* 제목 */}
-                  <div className="col-span-5">
+                  <div>
                     <p
-                      className={`text-sm font-medium ${
+                      className={`text-sm font-medium truncate ${
                         req.status === "IMPLEMENTED"
                           ? "text-text-secondary line-through"
                           : "text-text dark:text-white"
@@ -376,19 +421,128 @@ export default function RequirementsPage() {
                   </div>
 
                   {/* 우선순위 */}
-                  <div className="col-span-2">
+                  <div>
                     <span
-                      className={`text-xs font-medium px-2 py-1 rounded ${priority.bgColor} ${priority.color}`}
+                      className={`text-xs font-medium px-2 py-0.5 rounded ${priority.bgColor} ${priority.color}`}
                     >
                       {priority.label}
                     </span>
                   </div>
 
                   {/* 카테고리 */}
-                  <div className="col-span-2">
-                    <span className="text-xs text-text-secondary bg-surface dark:bg-background-dark px-2 py-1 rounded">
+                  <div>
+                    <span className="text-xs text-text-secondary bg-surface dark:bg-background-dark px-2 py-1 rounded truncate block">
                       {req.category || "-"}
                     </span>
+                  </div>
+
+                  {/* 요청자 */}
+                  <div>
+                    <div className="flex items-center gap-1">
+                      {req.requester?.avatar ? (
+                        <img
+                          src={req.requester.avatar}
+                          alt={req.requester.name || ""}
+                          className="size-5 rounded-full flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="size-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[10px] text-primary font-medium">
+                            {req.requester?.name?.[0] || "?"}
+                          </span>
+                        </div>
+                      )}
+                      <span className="text-xs text-text dark:text-white truncate">
+                        {req.requester?.name || "-"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 담당자 */}
+                  <div>
+                    <div className="flex items-center gap-1">
+                      {req.assignee?.avatar ? (
+                        <img
+                          src={req.assignee.avatar}
+                          alt={req.assignee.name || ""}
+                          className="size-5 rounded-full flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="size-5 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[10px] text-success font-medium">
+                            {req.assignee?.name?.[0] || "?"}
+                          </span>
+                        </div>
+                      )}
+                      <span className="text-xs text-text dark:text-white truncate">
+                        {req.assignee?.name || "-"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 요청일 */}
+                  <div>
+                    <span className="text-xs text-text-secondary">
+                      {formatDate(req.requestDate)}
+                    </span>
+                  </div>
+
+                  {/* 마감일 */}
+                  <div>
+                    <span className={`text-xs ${req.isDelayed ? "text-error font-medium" : "text-text-secondary"}`}>
+                      {formatDate(req.dueDate)}
+                      {req.isDelayed && " (지연)"}
+                    </span>
+                  </div>
+
+                  {/* 연결된 태스크 */}
+                  <div>
+                    {req._count?.tasks && req._count.tasks > 0 ? (
+                      <div className="relative group">
+                        <div className="flex items-center gap-1 px-2 py-1 rounded bg-primary/10 text-primary text-xs font-medium cursor-pointer hover:bg-primary/20 transition-colors">
+                          <Icon name="task_alt" size="xs" />
+                          <span>{req._count.tasks}개</span>
+                        </div>
+                        {/* 호버 시 태스크 목록 표시 */}
+                        {req.tasks && req.tasks.length > 0 && (
+                          <div className="absolute z-20 left-0 top-full mt-1 w-64 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg p-2 hidden group-hover:block">
+                            <p className="text-xs font-semibold text-text dark:text-white mb-2">연결된 태스크</p>
+                            <div className="space-y-1 max-h-40 overflow-y-auto">
+                              {req.tasks.map((task) => (
+                                <div
+                                  key={task.id}
+                                  className="flex items-center gap-2 p-1.5 rounded bg-surface dark:bg-background-dark"
+                                >
+                                  <span className={`size-2 rounded-full ${
+                                    task.status === "COMPLETED" ? "bg-success" :
+                                    task.status === "IN_PROGRESS" ? "bg-primary" :
+                                    task.status === "HOLDING" ? "bg-amber-500" :
+                                    task.status === "CANCELLED" ? "bg-red-500" :
+                                    "bg-slate-400"
+                                  }`} />
+                                  <span className="text-xs text-text dark:text-white truncate flex-1">
+                                    {task.title}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-text-secondary">-</span>
+                    )}
+                  </div>
+
+                  {/* 수정 버튼 */}
+                  <div>
+                    <button
+                      onClick={() => setEditingRequirement(req)}
+                      className="size-7 rounded-lg flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
+                      title="수정"
+                    >
+                      <Icon name="edit" size="xs" />
+                    </button>
                   </div>
                 </div>
               );
@@ -428,25 +582,62 @@ export default function RequirementsPage() {
                     setNewRequirement({ ...newRequirement, description: e.target.value })
                   }
                   placeholder="요구사항 상세 설명"
-                  className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary resize-none h-24"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text placeholder:text-text-secondary resize-none h-24"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    우선순위
+                  </label>
+                  <select
+                    value={newRequirement.priority}
+                    onChange={(e) =>
+                      setNewRequirement({ ...newRequirement, priority: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text"
+                  >
+                    <option value="MUST">필수</option>
+                    <option value="SHOULD">중요</option>
+                    <option value="COULD">선택</option>
+                    <option value="WONT">보류</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    카테고리
+                  </label>
+                  <select
+                    value={newRequirement.category}
+                    onChange={(e) =>
+                      setNewRequirement({ ...newRequirement, category: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text"
+                  >
+                    <option value="">선택 안함</option>
+                    <option value="인증/보안">인증/보안</option>
+                    <option value="UI/UX">UI/UX</option>
+                    <option value="API">API</option>
+                    <option value="데이터베이스">데이터베이스</option>
+                    <option value="성능">성능</option>
+                    <option value="알림">알림</option>
+                    <option value="통합">통합</option>
+                    <option value="문서화">문서화</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                  우선순위
+                  마감일
                 </label>
-                <select
-                  value={newRequirement.priority}
+                <input
+                  type="date"
+                  value={newRequirement.dueDate}
                   onChange={(e) =>
-                    setNewRequirement({ ...newRequirement, priority: e.target.value })
+                    setNewRequirement({ ...newRequirement, dueDate: e.target.value })
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white"
-                >
-                  <option value="MUST">필수</option>
-                  <option value="SHOULD">중요</option>
-                  <option value="COULD">선택</option>
-                  <option value="WONT">보류</option>
-                </select>
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text"
+                />
               </div>
               <div className="flex gap-2 pt-2">
                 <Button
@@ -464,6 +655,186 @@ export default function RequirementsPage() {
                   disabled={createRequirement.isPending}
                 >
                   {createRequirement.isPending ? "생성 중..." : "생성"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 요구사항 수정 모달 */}
+      {editingRequirement && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-semibold text-text dark:text-white mb-4">
+              요구사항 수정
+            </h2>
+            <form onSubmit={handleEditRequirement} className="space-y-4">
+              {/* 제목 */}
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                  제목 *
+                </label>
+                <Input
+                  value={editingRequirement.title}
+                  onChange={(e) =>
+                    setEditingRequirement({ ...editingRequirement, title: e.target.value })
+                  }
+                  placeholder="요구사항 제목"
+                  required
+                />
+              </div>
+
+              {/* 설명 */}
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                  설명
+                </label>
+                <textarea
+                  value={editingRequirement.description || ""}
+                  onChange={(e) =>
+                    setEditingRequirement({ ...editingRequirement, description: e.target.value })
+                  }
+                  placeholder="요구사항 상세 설명"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text placeholder:text-text-secondary resize-none h-24"
+                />
+              </div>
+
+              {/* 상태 & 우선순위 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    상태
+                  </label>
+                  <select
+                    value={editingRequirement.status}
+                    onChange={(e) =>
+                      setEditingRequirement({ ...editingRequirement, status: e.target.value as Requirement["status"] })
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text"
+                  >
+                    <option value="DRAFT">초안</option>
+                    <option value="APPROVED">승인</option>
+                    <option value="REJECTED">반려</option>
+                    <option value="IMPLEMENTED">구현완료</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    우선순위
+                  </label>
+                  <select
+                    value={editingRequirement.priority}
+                    onChange={(e) =>
+                      setEditingRequirement({ ...editingRequirement, priority: e.target.value as Requirement["priority"] })
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text"
+                  >
+                    <option value="MUST">필수</option>
+                    <option value="SHOULD">중요</option>
+                    <option value="COULD">선택</option>
+                    <option value="WONT">보류</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 카테고리 & 마감일 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    카테고리
+                  </label>
+                  <select
+                    value={editingRequirement.category || ""}
+                    onChange={(e) =>
+                      setEditingRequirement({ ...editingRequirement, category: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text"
+                  >
+                    <option value="">선택 안함</option>
+                    <option value="인증/보안">인증/보안</option>
+                    <option value="UI/UX">UI/UX</option>
+                    <option value="API">API</option>
+                    <option value="데이터베이스">데이터베이스</option>
+                    <option value="성능">성능</option>
+                    <option value="알림">알림</option>
+                    <option value="통합">통합</option>
+                    <option value="문서화">문서화</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    마감일
+                  </label>
+                  <input
+                    type="date"
+                    value={editingRequirement.dueDate ? editingRequirement.dueDate.split("T")[0] : ""}
+                    onChange={(e) =>
+                      setEditingRequirement({ ...editingRequirement, dueDate: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text"
+                  />
+                </div>
+              </div>
+
+              {/* 요청자 & 담당자 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    요청자
+                  </label>
+                  <select
+                    value={editingRequirement.requesterId || ""}
+                    onChange={(e) =>
+                      setEditingRequirement({ ...editingRequirement, requesterId: e.target.value || undefined })
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text"
+                  >
+                    <option value="">선택 안함</option>
+                    {teamMembers.map((member) => (
+                      <option key={member.userId} value={member.userId}>
+                        {member.user?.name || member.user?.email || "알 수 없음"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    담당자
+                  </label>
+                  <select
+                    value={editingRequirement.assigneeId || ""}
+                    onChange={(e) =>
+                      setEditingRequirement({ ...editingRequirement, assigneeId: e.target.value || undefined })
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text"
+                  >
+                    <option value="">선택 안함</option>
+                    {teamMembers.map((member) => (
+                      <option key={member.userId} value={member.userId}>
+                        {member.user?.name || member.user?.email || "알 수 없음"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setEditingRequirement(null)}
+                >
+                  취소
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="flex-1"
+                  disabled={updateRequirement.isPending}
+                >
+                  {updateRequirement.isPending ? "저장 중..." : "저장"}
                 </Button>
               </div>
             </form>

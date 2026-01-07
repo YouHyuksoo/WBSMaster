@@ -36,7 +36,12 @@ export async function GET(request: NextRequest) {
 
     if (projectId) where.projectId = projectId;
     if (status && Object.values(TaskStatus).includes(status)) where.status = status;
-    if (assigneeId) where.assigneeId = assigneeId;
+    // 특정 담당자가 포함된 태스크 필터링 (다대다)
+    if (assigneeId) {
+      where.assignees = {
+        some: { userId: assigneeId },
+      };
+    }
 
     const tasks = await prisma.task.findMany({
       where,
@@ -47,17 +52,32 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
+        // 다중 담당자 조회 (TaskAssignee를 통해)
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+              },
+            },
           },
         },
         creator: {
           select: {
             id: true,
             name: true,
+          },
+        },
+        // 연결된 요구사항 조회
+        requirement: {
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            status: true,
+            priority: true,
           },
         },
       },
@@ -68,7 +88,13 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    return NextResponse.json(tasks);
+    // 응답 형식 변환 (assignees 배열을 평탄화)
+    const transformedTasks = tasks.map((task) => ({
+      ...task,
+      assignees: task.assignees.map((a) => a.user),
+    }));
+
+    return NextResponse.json(transformedTasks);
   } catch (error) {
     console.error("태스크 목록 조회 실패:", error);
     return NextResponse.json(
@@ -82,6 +108,9 @@ export async function GET(request: NextRequest) {
  * 태스크 생성
  * POST /api/tasks
  * (인증 필요)
+ *
+ * @param assigneeIds - 담당자 ID 배열 (다중 담당자 지원)
+ * @param requirementId - 연결할 요구사항 ID (선택)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -90,7 +119,7 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     const body = await request.json();
-    const { title, description, projectId, assigneeId, priority, dueDate } = body;
+    const { title, description, projectId, assigneeIds, priority, dueDate, requirementId } = body;
 
     // 필수 필드 검증
     if (!title || !projectId) {
@@ -115,24 +144,37 @@ export async function POST(request: NextRequest) {
     // 현재 태스크 수로 order 결정
     const taskCount = await prisma.task.count({ where: { projectId } });
 
+    // 담당자 배열 준비 (다대다 관계 생성)
+    const assigneesData = Array.isArray(assigneeIds) && assigneeIds.length > 0
+      ? assigneeIds.map((userId: string) => ({ userId }))
+      : [];
+
     const task = await prisma.task.create({
       data: {
         title,
         description,
         projectId,
         creatorId,
-        assigneeId,
         priority: priority || "MEDIUM",
         dueDate: dueDate ? new Date(dueDate) : null,
         status: "PENDING",
         order: taskCount,
+        requirementId: requirementId || null, // 요구사항 연결 (선택)
+        // 다중 담당자 생성 (TaskAssignee 레코드)
+        assignees: {
+          create: assigneesData,
+        },
       },
       include: {
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+              },
+            },
           },
         },
         creator: {
@@ -141,10 +183,25 @@ export async function POST(request: NextRequest) {
             name: true,
           },
         },
+        requirement: {
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            status: true,
+            priority: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(task, { status: 201 });
+    // 응답 형식 변환 (assignees 배열 평탄화)
+    const transformedTask = {
+      ...task,
+      assignees: task.assignees.map((a) => a.user),
+    };
+
+    return NextResponse.json(transformedTask, { status: 201 });
   } catch (error) {
     console.error("태스크 생성 실패:", error);
     return NextResponse.json(

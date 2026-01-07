@@ -44,6 +44,42 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        // 요청자 정보 포함
+        requester: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        // 담당자 정보 포함
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        // 연결된 태스크 목록 포함
+        tasks: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            priority: true,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+        // 연결된 태스크 개수
+        _count: {
+          select: {
+            tasks: true,
+          },
+        },
       },
       orderBy: [
         { isDelayed: "desc" },
@@ -69,7 +105,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, projectId, dueDate } = body;
+    const {
+      title,
+      description,
+      projectId,
+      priority,
+      category,
+      dueDate,
+      requesterId,
+      assigneeId,
+    } = body;
 
     // 필수 필드 검증
     if (!title || !projectId) {
@@ -88,19 +133,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 요구사항 코드 자동 생성 (REQ-001, REQ-002, ...)
+    const lastReq = await prisma.requirement.findFirst({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+      select: { code: true },
+    });
+    const nextNumber = lastReq?.code
+      ? parseInt(lastReq.code.replace("REQ-", "")) + 1
+      : 1;
+    const code = `REQ-${String(nextNumber).padStart(3, "0")}`;
+
     const requirement = await prisma.requirement.create({
       data: {
+        code,
         title,
         description,
         projectId,
+        priority: priority || "SHOULD",
+        category,
         dueDate: dueDate ? new Date(dueDate) : null,
-        status: "REQUESTED",
+        requesterId,
+        assigneeId,
+        status: "DRAFT",
       },
       include: {
         project: {
           select: {
             id: true,
             name: true,
+          },
+        },
+        requester: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
           },
         },
       },

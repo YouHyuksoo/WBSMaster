@@ -61,9 +61,10 @@ export function useCreateTask() {
       title: string;
       description?: string;
       projectId: string;
-      assigneeId?: string;
+      assigneeIds?: string[];
       priority?: string;
       dueDate?: string;
+      requirementId?: string;
     }) => api.tasks.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
@@ -78,7 +79,7 @@ export function useUpdateTask() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Task> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<Task> & { assigneeIds?: string[]; requirementId?: string | null } }) =>
       api.tasks.update(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });

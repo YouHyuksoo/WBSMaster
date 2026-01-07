@@ -65,16 +65,16 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     // 실제 input type (비밀번호 토글 고려)
     const inputType = isPassword ? (showPassword ? "text" : "password") : type;
 
-    // 기본 입력 필드 스타일
+    // 기본 입력 필드 스타일 (CSS 변수 기반으로 다크모드 자동 적용)
     const inputStyles = `
-      block w-full rounded-lg border-0
-      bg-[#f0f2f4] dark:bg-[#1c2730]
-      py-3.5 text-text dark:text-white
+      block w-full rounded-lg
+      bg-surface
+      py-3.5 text-text
       shadow-sm ring-1 ring-inset
-      ${error ? "ring-error" : "ring-transparent"}
+      ${error ? "ring-error" : "ring-border"}
       placeholder:text-text-secondary
       focus:ring-2 focus:ring-inset focus:ring-primary
-      focus:bg-background-white dark:focus:bg-[#1c2730]
+      focus:bg-background-white
       transition-all text-sm
       ${leftIcon ? "pl-11" : "pl-4"}
       ${isPassword ? "pr-12" : "pr-4"}

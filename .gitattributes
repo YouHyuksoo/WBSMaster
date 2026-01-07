@@ -1,0 +1,15 @@
+# Git 줄바꿈 자동 변환 설정
+# 모든 텍스트 파일은 체크아웃 시 OS에 맞는 줄바꿈으로 변환되고,
+# 커밋 시에는 다시 LF로 변환되어 저장소에 저장됩니다.
+* text=auto
+
+# 특정 확장자에 대해 명시적으로 설정 (선택 사항)
+*.js text
+*.jsx text
+*.ts text
+*.tsx text
+*.json text
+*.css text
+*.scss text
+*.html text
+*.md text

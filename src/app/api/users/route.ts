@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
           select: {
             ownedProjects: true,
             teamMembers: true,
-            assignedTasks: true,
+            taskAssignments: true, // 다대다 관계로 변경됨
           },
         },
       },

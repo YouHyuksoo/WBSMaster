@@ -70,11 +70,15 @@ export async function GET(request: NextRequest) {
 /**
  * 팀 멤버 추가
  * POST /api/members
+ * @param projectId - 프로젝트 ID (필수)
+ * @param userId - 사용자 ID (필수)
+ * @param role - 역할 (OWNER, MANAGER, MEMBER 중 하나)
+ * @param customRole - 커스텀 역할명 (예: PMO, 프로젝트 총괄, PL 등)
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, userId, role } = body;
+    const { projectId, userId, role, customRole } = body;
 
     // 필수 필드 검증
     if (!projectId || !userId) {
@@ -124,6 +128,7 @@ export async function POST(request: NextRequest) {
         projectId,
         userId,
         role: role || "MEMBER",
+        customRole: customRole || null, // 커스텀 역할명 저장
       },
       include: {
         user: {

@@ -66,7 +66,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, description, status, dueDate, isDelayed } = body;
+    const {
+      title,
+      description,
+      status,
+      priority,
+      category,
+      dueDate,
+      requesterId,
+      assigneeId,
+      isDelayed,
+    } = body;
 
     // 요구사항 존재 확인
     const existing = await prisma.requirement.findUnique({ where: { id } });
@@ -83,7 +93,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
         ...(status !== undefined && { status }),
+        ...(priority !== undefined && { priority }),
+        ...(category !== undefined && { category }),
         ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
+        ...(requesterId !== undefined && { requesterId }),
+        ...(assigneeId !== undefined && { assigneeId }),
         ...(isDelayed !== undefined && { isDelayed }),
       },
       include: {
@@ -91,6 +105,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           select: {
             id: true,
             name: true,
+          },
+        },
+        requester: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
           },
         },
       },

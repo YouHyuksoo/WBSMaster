@@ -2,59 +2,127 @@
  * @file src/app/dashboard/members/page.tsx
  * @description
  * 프로젝트 멤버 관리 페이지입니다.
- * 프로젝트 팀원을 추가하고 역할을 관리합니다.
- * React Query를 사용하여 API와 연동됩니다.
+ * - 프로젝트 미선택 시: 전체 등록 사용자 목록 (수정/삭제 가능)
+ * - 프로젝트 선택 시: 해당 프로젝트 팀원 목록 (역할 수정/제거 가능)
  *
  * 초보자 가이드:
- * 1. **멤버 목록**: 현재 프로젝트 참여 인원
- * 2. **역할 관리**: OWNER, MANAGER, MEMBER, VIEWER
- * 3. **초대 기능**: 사용자 ID로 팀원 초대
+ * 1. **전체 사용자**: 시스템에 등록된 모든 사용자
+ * 2. **프로젝트 멤버**: 특정 프로젝트에 배정된 팀원
+ * 3. **역할**: ADMIN/MANAGER/MEMBER (사용자), OWNER/MANAGER/MEMBER (프로젝트)
  *
  * 수정 방법:
+ * - 사용자 추가: useCreateUser hook 사용
  * - 멤버 초대: useInviteMember hook 사용
- * - 멤버 제거: useRemoveMember hook 사용
  */
 
 "use client";
 
-import { useState } from "react";
-import { Icon, Button, Input } from "@/components/ui";
-import { useMembers, useInviteMember, useRemoveMember, useProjects } from "@/hooks";
+import { useState, useEffect } from "react";
+import { Icon, Button, Input, ImageCropper, useToast } from "@/components/ui";
+import {
+  useMembers,
+  useInviteMember,
+  useRemoveMember,
+  useUpdateMember,
+  useUsers,
+  useUpdateUser,
+  useDeleteUser,
+} from "@/hooks";
+import { useProject } from "@/contexts";
+import type { User } from "@/lib/api";
 
-/** 역할 설정 */
-const roleConfig: Record<string, { label: string; color: string; bgColor: string }> = {
+/** 시스템 역할 설정 (개발 프로젝트용) */
+const userRoleConfig: Record<string, { label: string; color: string; bgColor: string }> = {
+  EXECUTIVE: { label: "경영자", color: "text-red-600 dark:text-red-400", bgColor: "bg-red-100 dark:bg-red-900/30" },
+  DIRECTOR: { label: "총괄", color: "text-purple-600 dark:text-purple-400", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
+  PMO: { label: "PMO", color: "text-indigo-600 dark:text-indigo-400", bgColor: "bg-indigo-100 dark:bg-indigo-900/30" },
+  PM: { label: "PM", color: "text-blue-600 dark:text-blue-400", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
+  PL: { label: "PL", color: "text-cyan-600 dark:text-cyan-400", bgColor: "bg-cyan-100 dark:bg-cyan-900/30" },
+  DEVELOPER: { label: "개발자", color: "text-green-600 dark:text-green-400", bgColor: "bg-green-100 dark:bg-green-900/30" },
+  DESIGNER: { label: "디자이너", color: "text-pink-600 dark:text-pink-400", bgColor: "bg-pink-100 dark:bg-pink-900/30" },
+  OPERATOR: { label: "오퍼레이터", color: "text-amber-600 dark:text-amber-400", bgColor: "bg-amber-100 dark:bg-amber-900/30" },
+  MEMBER: { label: "멤버", color: "text-slate-600 dark:text-slate-400", bgColor: "bg-slate-100 dark:bg-slate-900/30" },
+};
+
+/** 프로젝트 역할 설정 */
+const memberRoleConfig: Record<string, { label: string; color: string; bgColor: string }> = {
   OWNER: { label: "소유자", color: "text-purple-600 dark:text-purple-400", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
   MANAGER: { label: "관리자", color: "text-blue-600 dark:text-blue-400", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
   MEMBER: { label: "멤버", color: "text-green-600 dark:text-green-400", bgColor: "bg-green-100 dark:bg-green-900/30" },
-  VIEWER: { label: "뷰어", color: "text-text-secondary", bgColor: "bg-surface dark:bg-surface-dark" },
 };
 
 /**
  * 프로젝트 멤버 관리 페이지
  */
 export default function MembersPage() {
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  // Toast 알림
+  const toast = useToast();
+
+  // 전역 프로젝트 선택 상태 (헤더에서 선택)
+  const { selectedProjectId, selectedProject, projects, setSelectedProjectId } = useProject();
+
+  // 멤버 페이지 전용: 전체 사용자 보기 토글
+  const [showAllUsers, setShowAllUsers] = useState(false);
+
+  // 실제 사용되는 프로젝트 ID (전체 사용자 보기 시 빈 문자열)
+  const activeProjectId = showAllUsers ? "" : selectedProjectId;
+
+  // 상태 관리
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
+
+  // 모달 상태
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [showEditMemberModal, setShowEditMemberModal] = useState(false);
+
+  // 편집 대상
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingMember, setEditingMember] = useState<{
+    id: string;
+    role: string;
+    customRole?: string;
+    user?: { name?: string; email: string };
+  } | null>(null);
+
+  // 초대 폼 상태
   const [inviteUserId, setInviteUserId] = useState("");
   const [inviteRole, setInviteRole] = useState("MEMBER");
+  const [inviteCustomRole, setInviteCustomRole] = useState("");
 
-  /** 프로젝트 목록 조회 */
-  const { data: projects = [] } = useProjects();
+  // 편집 폼 상태
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editCustomRole, setEditCustomRole] = useState("");
+  const [editAvatar, setEditAvatar] = useState("");
+  const [showImageCropper, setShowImageCropper] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  /** 멤버 목록 조회 */
-  const { data: members = [], isLoading, error } = useMembers(
-    selectedProjectId ? { projectId: selectedProjectId } : undefined
+  // 데이터 조회
+  const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers();
+  const { data: members = [], isLoading: membersLoading, error: membersError } = useMembers(
+    activeProjectId ? { projectId: activeProjectId } : undefined
   );
 
-  /** 멤버 초대 */
+  const isLoading = activeProjectId ? membersLoading : usersLoading;
+  const error = activeProjectId ? membersError : usersError;
+
+  // Mutations
   const inviteMember = useInviteMember();
-
-  /** 멤버 제거 */
   const removeMember = useRemoveMember();
+  const updateMember = useUpdateMember();
+  const updateUser = useUpdateUser();
+  const deleteUser = useDeleteUser();
 
-  // 필터링된 멤버 목록
+  // 필터링된 목록
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = filterRole === "all" || user.role === filterRole;
+    return matchesSearch && matchesRole;
+  });
+
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
       member.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -64,7 +132,14 @@ export default function MembersPage() {
   });
 
   // 통계
-  const stats = {
+  const userStats = {
+    total: users.length,
+    executives: users.filter((u) => u.role === "EXECUTIVE" || u.role === "DIRECTOR").length,
+    pms: users.filter((u) => u.role === "PMO" || u.role === "PM" || u.role === "PL").length,
+    members: users.filter((u) => u.role === "MEMBER" || u.role === "DEVELOPER" || u.role === "DESIGNER").length,
+  };
+
+  const memberStats = {
     total: members.length,
     owners: members.filter((m) => m.role === "OWNER").length,
     managers: members.filter((m) => m.role === "MANAGER").length,
@@ -72,28 +147,166 @@ export default function MembersPage() {
   };
 
   /**
-   * 멤버 초대 핸들러
+   * 사용자 편집 모달 열기
    */
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProjectId || !inviteUserId) return;
-
-    await inviteMember.mutateAsync({
-      projectId: selectedProjectId,
-      userId: inviteUserId,
-      role: inviteRole,
-    });
-
-    setInviteUserId("");
-    setShowInviteModal(false);
+  const handleOpenEditUser = (user: User) => {
+    setEditingUser(user);
+    setEditName(user.name || "");
+    setEditRole(user.role);
+    setEditAvatar(user.avatar || "");
+    setShowEditUserModal(true);
   };
 
   /**
-   * 멤버 제거 핸들러
+   * 사용자 수정 처리
    */
-  const handleRemoveMember = async (id: string) => {
-    if (!confirm("이 멤버를 프로젝트에서 제거하시겠습니까?")) return;
-    await removeMember.mutateAsync(id);
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    try {
+      await updateUser.mutateAsync({
+        id: editingUser.id,
+        data: { name: editName, role: editRole, avatar: editAvatar || undefined },
+      });
+      toast.success("사용자 정보가 저장되었습니다.");
+      setShowEditUserModal(false);
+      setEditingUser(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "저장에 실패했습니다.",
+        "저장 실패"
+      );
+    }
+  };
+
+  /**
+   * 이미지 크롭 완료 후 업로드 처리
+   */
+  const handleImageCropComplete = async (blob: Blob) => {
+    setIsUploadingImage(true);
+    try {
+      // FormData 생성
+      const formData = new FormData();
+      formData.append("file", blob, "avatar.jpg");
+
+      // 업로드 API 호출
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "업로드 실패");
+      }
+
+      const { url } = await response.json();
+      setEditAvatar(url);
+      setShowImageCropper(false);
+    } catch (error) {
+      console.error("이미지 업로드 실패:", error);
+      toast.error(
+        error instanceof Error ? error.message : "이미지 업로드에 실패했습니다.",
+        "업로드 실패"
+      );
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  /**
+   * 사용자 삭제 처리
+   */
+  const handleDeleteUser = async (id: string, name?: string) => {
+    if (!confirm(`"${name || "사용자"}"를 삭제하시겠습니까?\n\n관련된 프로젝트 멤버십도 함께 삭제됩니다.`)) return;
+
+    try {
+      await deleteUser.mutateAsync(id);
+      toast.success("사용자가 삭제되었습니다.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "삭제에 실패했습니다.",
+        "삭제 실패"
+      );
+    }
+  };
+
+  /**
+   * 멤버 편집 모달 열기
+   */
+  const handleOpenEditMember = (member: typeof editingMember) => {
+    if (!member) return;
+    setEditingMember(member);
+    setEditRole(member.role);
+    setEditCustomRole(member.customRole || "");
+    setShowEditMemberModal(true);
+  };
+
+  /**
+   * 멤버 역할 수정 처리
+   */
+  const handleUpdateMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMember) return;
+
+    try {
+      await updateMember.mutateAsync({
+        id: editingMember.id,
+        data: { role: editRole, customRole: editCustomRole || undefined },
+      });
+      toast.success("멤버 역할이 수정되었습니다.");
+      setShowEditMemberModal(false);
+      setEditingMember(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "역할 수정에 실패했습니다.",
+        "수정 실패"
+      );
+    }
+  };
+
+  /**
+   * 멤버 제거 처리
+   */
+  const handleRemoveMember = async (id: string, name?: string) => {
+    if (!confirm(`"${name || "멤버"}"를 프로젝트에서 제거하시겠습니까?`)) return;
+
+    try {
+      await removeMember.mutateAsync(id);
+      toast.success("멤버가 프로젝트에서 제거되었습니다.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "멤버 제거에 실패했습니다.",
+        "제거 실패"
+      );
+    }
+  };
+
+  /**
+   * 멤버 초대 처리
+   */
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeProjectId || !inviteUserId) return;
+
+    try {
+      await inviteMember.mutateAsync({
+        projectId: activeProjectId,
+        userId: inviteUserId,
+        role: inviteRole,
+        customRole: inviteCustomRole || undefined,
+      });
+      toast.success("멤버가 프로젝트에 초대되었습니다.");
+      setInviteUserId("");
+      setInviteCustomRole("");
+      setShowInviteModal(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "멤버 초대에 실패했습니다.",
+        "초대 실패"
+      );
+    }
   };
 
   /** 로딩 상태 */
@@ -120,51 +333,57 @@ export default function MembersPage() {
     <div className="p-6 space-y-6">
       {/* 헤더 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text dark:text-white">프로젝트 멤버</h1>
-          <p className="text-text-secondary mt-1">
-            프로젝트 팀원을 관리하고 역할을 설정합니다
-          </p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-text dark:text-white">
+              {activeProjectId ? "프로젝트 멤버" : "전체 사용자"}
+            </h1>
+            <p className="text-text-secondary mt-1">
+              {activeProjectId
+                ? "프로젝트 팀원을 관리하고 역할을 설정합니다"
+                : "시스템에 등록된 전체 사용자를 관리합니다"}
+            </p>
+          </div>
+          {/* 현재 선택된 프로젝트 표시 */}
+          {selectedProject && !showAllUsers && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+              <Icon name="folder" size="sm" className="text-primary" />
+              <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
+            </div>
+          )}
         </div>
-        <div className="flex gap-2">
-          {/* 프로젝트 선택 */}
-          <select
-            value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+        <div className="flex items-center gap-2">
+          {/* 전체 사용자 보기 토글 */}
+          <button
+            onClick={() => {
+              setShowAllUsers(!showAllUsers);
+              setFilterRole("all");
+            }}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              showAllUsers
+                ? "bg-primary text-white"
+                : "bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white hover:bg-surface-hover dark:hover:bg-background-dark"
+            }`}
           >
-            <option value="">프로젝트 선택</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-          <Button
-            variant="primary"
-            leftIcon="person_add"
-            onClick={() => setShowInviteModal(true)}
-            disabled={!selectedProjectId}
-          >
-            멤버 초대
-          </Button>
+            <span className="flex items-center gap-2">
+              <Icon name="group" size="sm" />
+              전체 사용자
+            </span>
+          </button>
+          {activeProjectId && (
+            <Button
+              variant="primary"
+              leftIcon="person_add"
+              onClick={() => setShowInviteModal(true)}
+            >
+              멤버 초대
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* 프로젝트 미선택 안내 */}
-      {!selectedProjectId && (
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 text-center">
-          <Icon name="group" size="xl" className="text-primary mb-4" />
-          <h3 className="text-lg font-semibold text-text dark:text-white mb-2">
-            프로젝트를 선택해주세요
-          </h3>
-          <p className="text-text-secondary">
-            멤버를 관리할 프로젝트를 선택하면 해당 프로젝트의 팀원 목록이 표시됩니다.
-          </p>
-        </div>
-      )}
-
-      {selectedProjectId && (
+      {/* ========== 전체 사용자 뷰 ========== */}
+      {!activeProjectId && (
         <>
           {/* 통계 */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -173,8 +392,8 @@ export default function MembersPage() {
                 <Icon name="group" size="md" className="text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{stats.total}</p>
-                <p className="text-sm text-text-secondary">전체 멤버</p>
+                <p className="text-2xl font-bold text-text dark:text-white">{userStats.total}</p>
+                <p className="text-sm text-text-secondary">전체 사용자</p>
               </div>
             </div>
             <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
@@ -182,8 +401,8 @@ export default function MembersPage() {
                 <Icon name="admin_panel_settings" size="md" className="text-purple-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{stats.owners}</p>
-                <p className="text-sm text-text-secondary">소유자</p>
+                <p className="text-2xl font-bold text-text dark:text-white">{userStats.executives}</p>
+                <p className="text-sm text-text-secondary">경영/총괄</p>
               </div>
             </div>
             <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
@@ -191,8 +410,8 @@ export default function MembersPage() {
                 <Icon name="manage_accounts" size="md" className="text-blue-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{stats.managers}</p>
-                <p className="text-sm text-text-secondary">관리자</p>
+                <p className="text-2xl font-bold text-text dark:text-white">{userStats.pms}</p>
+                <p className="text-sm text-text-secondary">PM/PL</p>
               </div>
             </div>
             <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
@@ -200,7 +419,7 @@ export default function MembersPage() {
                 <Icon name="person" size="md" className="text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{stats.members}</p>
+                <p className="text-2xl font-bold text-text dark:text-white">{userStats.members}</p>
                 <p className="text-sm text-text-secondary">멤버</p>
               </div>
             </div>
@@ -219,10 +438,10 @@ export default function MembersPage() {
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+              className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
             >
               <option value="all">전체 역할</option>
-              {Object.entries(roleConfig).map(([role, config]) => (
+              {Object.entries(userRoleConfig).map(([role, config]) => (
                 <option key={role} value={role}>
                   {config.label}
                 </option>
@@ -230,73 +449,418 @@ export default function MembersPage() {
             </select>
           </div>
 
-          {/* 빈 목록 */}
-          {filteredMembers.length === 0 && (
+          {/* 사용자 목록 */}
+          {filteredUsers.length === 0 ? (
             <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
               <Icon name="group_off" size="xl" className="text-text-secondary mb-4" />
               <p className="text-text-secondary">
-                {members.length === 0
-                  ? "등록된 멤버가 없습니다."
-                  : "검색 조건에 맞는 멤버가 없습니다."}
+                {users.length === 0 ? "등록된 사용자가 없습니다." : "검색 조건에 맞는 사용자가 없습니다."}
               </p>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredUsers.map((user) => {
+                const role = userRoleConfig[user.role] || userRoleConfig.MEMBER;
+
+                return (
+                  <div
+                    key={user.id}
+                    className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-5 hover:border-primary/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        {user.avatar ? (
+                          <img
+                            src={user.avatar}
+                            alt={user.name || "사용자"}
+                            className="size-12 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="size-12 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white font-bold text-lg">
+                            {user.name?.charAt(0) || user.email.charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-bold text-text dark:text-white">{user.name || "이름 없음"}</h3>
+                          <p className="text-sm text-text-secondary">{user.email}</p>
+                        </div>
+                      </div>
+                      {/* 액션 버튼 */}
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleOpenEditUser(user)}
+                          className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          title="수정"
+                        >
+                          <Icon name="edit" size="sm" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user.id, user.name)}
+                          className="p-1.5 text-text-secondary hover:text-error hover:bg-error/10 rounded-lg transition-colors"
+                          title="삭제"
+                        >
+                          <Icon name="delete" size="sm" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${role.bgColor} ${role.color}`}>
+                        {role.label}
+                      </span>
+                    </div>
+
+                    <div className="pt-4 border-t border-border dark:border-border-dark">
+                      <div className="text-xs text-text-secondary">
+                        등록일: {new Date(user.createdAt).toLocaleDateString("ko-KR")}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
-
-          {/* 멤버 목록 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredMembers.map((member) => {
-              const role = roleConfig[member.role] || roleConfig.MEMBER;
-              const userName = member.user?.name || "알 수 없음";
-              const userEmail = member.user?.email || "";
-
-              return (
-                <div
-                  key={member.id}
-                  className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-5 hover:border-primary/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      {/* 아바타 */}
-                      <div className="size-12 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white font-bold text-lg">
-                        {userName.charAt(0)}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-text dark:text-white">{userName}</h3>
-                        <p className="text-sm text-text-secondary">{userEmail}</p>
-                      </div>
-                    </div>
-                    {member.role !== "OWNER" && (
-                      <button
-                        onClick={() => handleRemoveMember(member.id)}
-                        className="p-1 text-text-secondary hover:text-error transition-colors"
-                        title="멤버 제거"
-                      >
-                        <Icon name="close" size="sm" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 mb-4">
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${role.bgColor} ${role.color}`}
-                    >
-                      {role.label}
-                    </span>
-                  </div>
-
-                  <div className="pt-4 border-t border-border dark:border-border-dark">
-                    <div className="text-xs text-text-secondary">
-                      가입일: {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString("ko-KR") : "-"}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </>
       )}
 
-      {/* 초대 모달 */}
+      {/* ========== 프로젝트 멤버 뷰 ========== */}
+      {activeProjectId && (
+        <>
+          {/* 통계 */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
+              <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Icon name="group" size="md" className="text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-text dark:text-white">{memberStats.total}</p>
+                <p className="text-sm text-text-secondary">전체 멤버</p>
+              </div>
+            </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
+              <div className="size-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                <Icon name="admin_panel_settings" size="md" className="text-purple-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-text dark:text-white">{memberStats.owners}</p>
+                <p className="text-sm text-text-secondary">소유자</p>
+              </div>
+            </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
+              <div className="size-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <Icon name="manage_accounts" size="md" className="text-blue-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-text dark:text-white">{memberStats.managers}</p>
+                <p className="text-sm text-text-secondary">관리자</p>
+              </div>
+            </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
+              <div className="size-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+                <Icon name="person" size="md" className="text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-text dark:text-white">{memberStats.members}</p>
+                <p className="text-sm text-text-secondary">멤버</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 필터 */}
+          <div className="flex flex-wrap gap-4">
+            <div className="w-64">
+              <Input
+                leftIcon="search"
+                placeholder="이름 또는 이메일 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
+            >
+              <option value="all">전체 역할</option>
+              {Object.entries(memberRoleConfig).map(([role, config]) => (
+                <option key={role} value={role}>
+                  {config.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 멤버 목록 */}
+          {filteredMembers.length === 0 ? (
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
+              <Icon name="group_off" size="xl" className="text-text-secondary mb-4" />
+              <p className="text-text-secondary">
+                {members.length === 0 ? "등록된 멤버가 없습니다." : "검색 조건에 맞는 멤버가 없습니다."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredMembers.map((member) => {
+                const role = memberRoleConfig[member.role] || memberRoleConfig.MEMBER;
+                const userName = member.user?.name || "알 수 없음";
+                const userEmail = member.user?.email || "";
+
+                return (
+                  <div
+                    key={member.id}
+                    className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-5 hover:border-primary/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        {member.user?.avatar ? (
+                          <img
+                            src={member.user.avatar}
+                            alt={userName}
+                            className="size-12 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="size-12 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white font-bold text-lg">
+                            {userName.charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-bold text-text dark:text-white">{userName}</h3>
+                          <p className="text-sm text-text-secondary">{userEmail}</p>
+                        </div>
+                      </div>
+                      {/* 액션 버튼 */}
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleOpenEditMember({
+                            id: member.id,
+                            role: member.role,
+                            customRole: member.customRole,
+                            user: member.user,
+                          })}
+                          className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          title="역할 수정"
+                        >
+                          <Icon name="edit" size="sm" />
+                        </button>
+                        {member.role !== "OWNER" && (
+                          <button
+                            onClick={() => handleRemoveMember(member.id, userName)}
+                            className="p-1.5 text-text-secondary hover:text-error hover:bg-error/10 rounded-lg transition-colors"
+                            title="제거"
+                          >
+                            <Icon name="person_remove" size="sm" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${role.bgColor} ${role.color}`}>
+                        {role.label}
+                      </span>
+                      {member.customRole && (
+                        <span className="px-2 py-1 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                          {member.customRole}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="pt-4 border-t border-border dark:border-border-dark">
+                      <div className="text-xs text-text-secondary">
+                        가입일: {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString("ko-KR") : "-"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ========== 사용자 편집 모달 ========== */}
+      {showEditUserModal && editingUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-text dark:text-white">사용자 수정</h2>
+              <button
+                onClick={() => setShowEditUserModal(false)}
+                className="text-text-secondary hover:text-text dark:hover:text-white"
+              >
+                <Icon name="close" size="md" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateUser} className="space-y-4">
+              {/* 아바타 미리보기 및 변경 버튼 */}
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative group">
+                  {editAvatar ? (
+                    <img
+                      src={editAvatar}
+                      alt="아바타 미리보기"
+                      className="size-24 rounded-full object-cover border-2 border-border dark:border-border-dark"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <div className="size-24 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white font-bold text-3xl">
+                      {editName?.charAt(0) || editingUser.email.charAt(0)}
+                    </div>
+                  )}
+                  {/* 사진 변경 오버레이 */}
+                  <button
+                    type="button"
+                    onClick={() => setShowImageCropper(true)}
+                    className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  >
+                    <Icon name="add_a_photo" size="md" className="text-white" />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowImageCropper(true)}
+                  className="text-sm text-primary hover:underline flex items-center gap-1"
+                  disabled={isUploadingImage}
+                >
+                  <Icon name="edit" size="xs" />
+                  {isUploadingImage ? "업로드 중..." : "사진 변경"}
+                </button>
+                {editAvatar && (
+                  <button
+                    type="button"
+                    onClick={() => setEditAvatar("")}
+                    className="text-xs text-error hover:underline"
+                  >
+                    사진 제거
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                  이메일
+                </label>
+                <Input
+                  value={editingUser.email}
+                  disabled
+                  leftIcon="email"
+                />
+              </div>
+
+              <Input
+                label="이름"
+                leftIcon="person"
+                placeholder="사용자 이름"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                  시스템 역할
+                </label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text"
+                >
+                  {Object.entries(userRoleConfig).map(([role, config]) => (
+                    <option key={role} value={role}>
+                      {config.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button variant="ghost" fullWidth onClick={() => setShowEditUserModal(false)}>
+                  취소
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  type="submit"
+                  disabled={updateUser.isPending}
+                >
+                  {updateUser.isPending ? "저장 중..." : "저장"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========== 멤버 역할 수정 모달 ========== */}
+      {showEditMemberModal && editingMember && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-text dark:text-white">멤버 역할 수정</h2>
+              <button
+                onClick={() => setShowEditMemberModal(false)}
+                className="text-text-secondary hover:text-text dark:hover:text-white"
+              >
+                <Icon name="close" size="md" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateMember} className="space-y-4">
+              <div className="p-3 bg-surface dark:bg-background-dark rounded-lg">
+                <p className="font-medium text-text dark:text-white">
+                  {editingMember.user?.name || "알 수 없음"}
+                </p>
+                <p className="text-sm text-text-secondary">
+                  {editingMember.user?.email}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                  프로젝트 역할
+                </label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text"
+                >
+                  {Object.entries(memberRoleConfig).map(([role, config]) => (
+                    <option key={role} value={role}>
+                      {config.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <Input
+                label="커스텀 역할 (선택)"
+                leftIcon="badge"
+                placeholder="예: PMO, PL, 개발팀장"
+                value={editCustomRole}
+                onChange={(e) => setEditCustomRole(e.target.value)}
+              />
+
+              <div className="flex gap-3 pt-4">
+                <Button variant="ghost" fullWidth onClick={() => setShowEditMemberModal(false)}>
+                  취소
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  type="submit"
+                  disabled={updateMember.isPending}
+                >
+                  {updateMember.isPending ? "저장 중..." : "저장"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========== 멤버 초대 모달 ========== */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-md w-full p-6">
@@ -311,25 +875,37 @@ export default function MembersPage() {
             </div>
 
             <form onSubmit={handleInvite} className="space-y-4">
-              <Input
-                label="사용자 ID"
-                leftIcon="person"
-                placeholder="초대할 사용자의 ID를 입력하세요"
-                value={inviteUserId}
-                onChange={(e) => setInviteUserId(e.target.value)}
-                required
-              />
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                  사용자 선택
+                </label>
+                <select
+                  value={inviteUserId}
+                  onChange={(e) => setInviteUserId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text"
+                  required
+                >
+                  <option value="">사용자를 선택하세요</option>
+                  {users
+                    .filter((u) => !members.some((m) => m.userId === u.id))
+                    .map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name || user.email} ({user.email})
+                      </option>
+                    ))}
+                </select>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-text dark:text-white mb-2">
-                  역할
+                  프로젝트 역할
                 </label>
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white"
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text"
                 >
-                  {Object.entries(roleConfig)
+                  {Object.entries(memberRoleConfig)
                     .filter(([role]) => role !== "OWNER")
                     .map(([role, config]) => (
                       <option key={role} value={role}>
@@ -338,6 +914,14 @@ export default function MembersPage() {
                     ))}
                 </select>
               </div>
+
+              <Input
+                label="커스텀 역할 (선택)"
+                leftIcon="badge"
+                placeholder="예: PMO, PL, 개발팀장"
+                value={inviteCustomRole}
+                onChange={(e) => setInviteCustomRole(e.target.value)}
+              />
 
               <div className="flex gap-3 pt-4">
                 <Button variant="ghost" fullWidth onClick={() => setShowInviteModal(false)}>
@@ -355,6 +939,17 @@ export default function MembersPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ========== 이미지 크롭 모달 ========== */}
+      {showImageCropper && (
+        <ImageCropper
+          onCropComplete={handleImageCropComplete}
+          onClose={() => setShowImageCropper(false)}
+          onError={(message) => toast.error(message, "이미지 오류")}
+          aspectRatio={1}
+          cropShape="round"
+        />
       )}
     </div>
   );

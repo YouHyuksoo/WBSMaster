@@ -52,6 +52,10 @@ export function useMember(id: string) {
 
 /**
  * 멤버 초대 Hook
+ * @param projectId - 프로젝트 ID
+ * @param userId - 사용자 ID
+ * @param role - 프로젝트 역할 (OWNER, MANAGER, MEMBER)
+ * @param customRole - 커스텀 역할명 (예: PMO, 프로젝트 총괄 등)
  */
 export function useInviteMember() {
   const queryClient = useQueryClient();
@@ -61,6 +65,7 @@ export function useInviteMember() {
       projectId: string;
       userId: string;
       role?: string;
+      customRole?: string;
     }) => api.members.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
@@ -70,12 +75,14 @@ export function useInviteMember() {
 
 /**
  * 멤버 역할 수정 Hook
+ * @param role - 프로젝트 역할 (OWNER, MANAGER, MEMBER)
+ * @param customRole - 커스텀 역할명 (예: PMO, 프로젝트 총괄 등)
  */
 export function useUpdateMember() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<TeamMember> }) =>
+    mutationFn: ({ id, data }: { id: string; data: { role?: string; customRole?: string } }) =>
       api.members.update(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: memberKeys.lists() });

@@ -16,9 +16,11 @@
  * - 이미지 변경: Image src 또는 background-image URL 변경
  */
 
+"use client";
+
 import Link from "next/link";
 import { Header, Footer } from "@/components/layout";
-import { Button, Card, CardHeader, CardContent, Icon } from "@/components/ui";
+import { Button, Card, CardHeader, CardContent, Icon, useToast } from "@/components/ui";
 
 /** 기능 카드 데이터 */
 const features = [
@@ -52,6 +54,13 @@ const features = [
  * 랜딩 페이지 컴포넌트
  */
 export default function LandingPage() {
+  const toast = useToast();
+
+  /** 영업팀 문의 클릭 핸들러 */
+  const handleSalesClick = () => {
+    toast.info("영업팀은 오늘도 한잔 마시고 있는중... 🍺");
+  };
+
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
       {/* 헤더 */}
@@ -171,8 +180,8 @@ export default function LandingPage() {
                 Why WBS Master?
               </h2>
               <p className="text-lg text-text-secondary">
-                복잡한 프로젝트를 분해하고, 책임을 할당하며, 타임라인을 효율적으로
-                관리하는 데 필요한 모든 것을 제공합니다.
+                복잡한 프로젝트를 분해하고, 책임을 할당하며, 타임라인을
+                효율적으로 관리하는 데 필요한 모든 것을 제공합니다.
               </p>
             </div>
 
@@ -238,8 +247,8 @@ export default function LandingPage() {
                   <p className="text-text-secondary mb-8 leading-relaxed">
                     현대적인 프로젝트 매니저를 위해 설계된 직관적인 드래그 앤
                     드롭 인터페이스를 경험하세요. 복잡한 메뉴를 탐색하지 않고도
-                    태스크를 재구성하고, 타임라인을 조정하며, 의존성을 업데이트할
-                    수 있습니다.
+                    태스크를 재구성하고, 타임라인을 조정하며, 의존성을
+                    업데이트할 수 있습니다.
                   </p>
                   <Link
                     href="#"
@@ -263,8 +272,8 @@ export default function LandingPage() {
               워크플로우를 간소화할 준비가 되셨나요?
             </h2>
             <p className="text-lg text-text-secondary mb-10 max-w-[600px] mx-auto">
-              오늘 수천 명의 프로젝트 매니저와 함께 계획 프로세스를 최적화하세요.
-              14일 무료 체험을 시작하세요.
+              오늘 수천 명의 프로젝트 매니저와 함께 계획 프로세스를
+              최적화하세요. 10000 년동안 무료 체험을 시작하세요.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/login">
@@ -272,7 +281,7 @@ export default function LandingPage() {
                   지금 가입하기
                 </Button>
               </Link>
-              <Button variant="outline" size="lg">
+              <Button variant="outline" size="lg" onClick={handleSalesClick}>
                 영업팀 문의
               </Button>
             </div>

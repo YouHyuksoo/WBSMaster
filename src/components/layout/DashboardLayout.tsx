@@ -16,7 +16,7 @@
 
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { DashboardHeader } from "./DashboardHeader";
 
@@ -30,6 +30,27 @@ interface DashboardLayoutProps {
  */
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  /** 사이드바 축소 상태 (데스크탑용) */
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  /**
+   * 로컬 스토리지에서 사이드바 축소 상태 복원
+   */
+  useEffect(() => {
+    const savedCollapsed = localStorage.getItem("sidebarCollapsed");
+    if (savedCollapsed !== null) {
+      setSidebarCollapsed(savedCollapsed === "true");
+    }
+  }, []);
+
+  /**
+   * 사이드바 축소/확장 토글 핸들러
+   */
+  const handleToggleCollapse = () => {
+    const newCollapsed = !sidebarCollapsed;
+    setSidebarCollapsed(newCollapsed);
+    localStorage.setItem("sidebarCollapsed", String(newCollapsed));
+  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background dark:bg-background-dark">
@@ -39,7 +60,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* 메인 영역 (사이드바 + 콘텐츠) */}
       <div className="flex flex-1 overflow-hidden">
         {/* 사이드바 */}
-        <DashboardSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <DashboardSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleCollapse}
+        />
 
         {/* 메인 콘텐츠 */}
         <main className="flex-1 overflow-auto bg-background dark:bg-background-dark">

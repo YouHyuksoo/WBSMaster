@@ -91,8 +91,15 @@ export function Footer() {
 
         {/* 하단 영역 */}
         <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-text-secondary">
-          {/* 저작권 */}
-          <p>© 2025 WBS Master Inc. All rights reserved.</p>
+          {/* 저작권 및 제작사 */}
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+            <p>© 2025 WBS Master. All rights reserved.</p>
+            <span className="hidden sm:inline text-border">|</span>
+            <p className="flex items-center gap-1">
+              <span>Developed by</span>
+              <span className="font-semibold text-text dark:text-white">지성솔루션컨설팅</span>
+            </p>
+          </div>
 
           {/* 소셜 미디어 링크 */}
           <div className="flex gap-4">

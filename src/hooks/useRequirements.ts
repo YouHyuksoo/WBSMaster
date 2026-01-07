@@ -62,7 +62,10 @@ export function useCreateRequirement() {
       description?: string;
       projectId: string;
       priority?: string;
-      status?: string;
+      category?: string;
+      dueDate?: string;
+      requesterId?: string;
+      assigneeId?: string;
     }) => api.requirements.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: requirementKeys.lists() });

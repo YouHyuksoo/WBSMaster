@@ -69,12 +69,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 /**
  * 팀 멤버 역할 수정
  * PATCH /api/members/:id
+ * @param role - 프로젝트 역할 (OWNER, MANAGER, MEMBER)
+ * @param customRole - 커스텀 역할명 (예: PMO, 프로젝트 총괄 등)
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { role } = body;
+    const { role, customRole } = body;
 
     // 멤버 존재 확인
     const existing = await prisma.teamMember.findUnique({ where: { id } });
@@ -89,6 +91,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       where: { id },
       data: {
         ...(role !== undefined && { role }),
+        ...(customRole !== undefined && { customRole: customRole || null }),
       },
       include: {
         user: {

@@ -17,10 +17,12 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
+import { useProject } from "@/contexts/ProjectContext";
 import type { User } from "@supabase/supabase-js";
 
 interface DashboardHeaderProps {
@@ -32,9 +34,18 @@ interface DashboardHeaderProps {
  * 대시보드 헤더 컴포넌트
  */
 export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showProjectMenu, setShowProjectMenu] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+
+  // 프로젝트 Context 사용
+  const { selectedProjectId, setSelectedProjectId, selectedProject, projects, isLoading: isProjectsLoading } = useProject();
 
   // 사용자 정보 가져오기
   useEffect(() => {
@@ -50,6 +61,64 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const isDark = document.documentElement.classList.contains("dark");
     setIsDarkMode(isDark);
   }, []);
+
+  // 프로필 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    if (showProfileMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showProfileMenu]);
+
+  // 프로젝트 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
+        setShowProjectMenu(false);
+      }
+    };
+
+    if (showProjectMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showProjectMenu]);
+
+  /**
+   * 프로젝트 선택 핸들러
+   */
+  const handleProjectSelect = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setShowProjectMenu(false);
+  };
+
+  /**
+   * 로그아웃 처리
+   */
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await supabase.auth.signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("로그아웃 실패:", error);
+    } finally {
+      setIsLoggingOut(false);
+      setShowProfileMenu(false);
+    }
+  };
 
   /**
    * 다크모드 토글
@@ -71,7 +140,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || "User";
 
   return (
-    <header className="h-16 flex items-center justify-between whitespace-nowrap border-b border-border dark:border-border-dark bg-background-white dark:bg-background-dark px-6 z-20 shrink-0">
+    <header className="h-16 flex items-center justify-between whitespace-nowrap border-b border-border dark:border-border-dark bg-background-white dark:bg-background-dark px-6 z-[55] shrink-0">
       {/* 좌측: 로고 및 프로젝트 선택 */}
       <div className="flex items-center gap-4">
         {/* 모바일 메뉴 버튼 */}
@@ -92,12 +161,93 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
           </h2>
         </Link>
 
-        {/* 프로젝트 선택 (추후 구현) */}
-        <div className="ml-4 hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark cursor-pointer hover:bg-surface-hover dark:hover:bg-[#2a3441] transition-colors">
-          <span className="text-sm font-medium text-text dark:text-white">
-            프로젝트 선택
-          </span>
-          <Icon name="expand_more" size="sm" className="text-text-secondary" />
+        {/* 프로젝트 선택 드롭다운 */}
+        <div className="relative ml-4 hidden md:block" ref={projectMenuRef}>
+          <button
+            onClick={() => setShowProjectMenu(!showProjectMenu)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark cursor-pointer hover:bg-surface-hover dark:hover:bg-[#2a3441] transition-colors"
+          >
+            {/* 프로젝트 아이콘 */}
+            <Icon name="folder" size="sm" className="text-primary" />
+            {/* 선택된 프로젝트 이름 */}
+            <span className="text-sm font-medium text-text dark:text-white max-w-[150px] truncate">
+              {isProjectsLoading ? "로딩중..." : selectedProject?.name || "프로젝트 선택"}
+            </span>
+            <Icon
+              name={showProjectMenu ? "expand_less" : "expand_more"}
+              size="sm"
+              className="text-text-secondary"
+            />
+          </button>
+
+          {/* 프로젝트 드롭다운 메뉴 */}
+          {showProjectMenu && (
+            <div className="absolute left-0 top-full mt-2 w-64 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl shadow-lg py-2 z-[60] animate-slide-in-down">
+              {/* 헤더 */}
+              <div className="px-4 py-2 border-b border-border dark:border-border-dark">
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                  프로젝트 목록
+                </p>
+              </div>
+
+              {/* 프로젝트 목록 */}
+              <div className="max-h-64 overflow-y-auto py-1">
+                {projects.length === 0 ? (
+                  <div className="px-4 py-3 text-sm text-text-secondary text-center">
+                    프로젝트가 없습니다
+                  </div>
+                ) : (
+                  projects.map((project) => (
+                    <button
+                      key={project.id}
+                      onClick={() => handleProjectSelect(project.id)}
+                      className={`flex items-center gap-3 w-full px-4 py-2.5 text-left transition-colors ${
+                        selectedProjectId === project.id
+                          ? "bg-primary/10 text-primary"
+                          : "text-text dark:text-white hover:bg-surface dark:hover:bg-background-dark"
+                      }`}
+                    >
+                      {/* 선택 표시 */}
+                      <Icon
+                        name={selectedProjectId === project.id ? "check_circle" : "folder"}
+                        size="sm"
+                        className={selectedProjectId === project.id ? "text-primary" : "text-text-secondary"}
+                      />
+                      {/* 프로젝트 정보 */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{project.name}</p>
+                        {project.description && (
+                          <p className="text-xs text-text-secondary truncate">{project.description}</p>
+                        )}
+                      </div>
+                      {/* 상태 뱃지 */}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        project.status === "ACTIVE"
+                          ? "bg-success/20 text-success"
+                          : project.status === "COMPLETED"
+                          ? "bg-info/20 text-info"
+                          : "bg-warning/20 text-warning"
+                      }`}>
+                        {project.status === "ACTIVE" ? "진행" : project.status === "COMPLETED" ? "완료" : "대기"}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+
+              {/* 새 프로젝트 링크 */}
+              <div className="border-t border-border dark:border-border-dark pt-1 mt-1">
+                <Link
+                  href="/dashboard/projects"
+                  onClick={() => setShowProjectMenu(false)}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Icon name="add_circle" size="sm" />
+                  프로젝트 관리
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -135,26 +285,78 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         {/* 구분선 */}
         <div className="h-8 w-px bg-border dark:bg-border-dark mx-1" />
 
-        {/* 사용자 프로필 */}
-        <button className="flex items-center gap-3 pl-2 pr-2 rounded-full hover:bg-surface dark:hover:bg-surface-dark transition-colors py-1 group">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-text dark:text-white leading-none">
-              {userName}
-            </p>
-            <p className="text-xs text-success font-medium leading-none mt-1">
-              Online
-            </p>
-          </div>
-          {/* 아바타 */}
-          <div className="size-9 rounded-full bg-primary/20 flex items-center justify-center border-2 border-surface dark:border-surface-dark">
-            <Icon name="person" size="sm" className="text-primary" />
-          </div>
-          <Icon
-            name="expand_more"
-            size="sm"
-            className="text-text-secondary group-hover:text-text dark:group-hover:text-white transition-colors"
-          />
-        </button>
+        {/* 사용자 프로필 (드롭다운) */}
+        <div className="relative" ref={profileMenuRef}>
+          <button
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            className="flex items-center gap-3 pl-2 pr-2 rounded-full hover:bg-surface dark:hover:bg-surface-dark transition-colors py-1 group"
+          >
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-text dark:text-white leading-none">
+                {userName}
+              </p>
+              <p className="text-xs text-success font-medium leading-none mt-1">
+                Online
+              </p>
+            </div>
+            {/* 아바타 */}
+            <div className="size-9 rounded-full bg-primary/20 flex items-center justify-center border-2 border-surface dark:border-surface-dark">
+              <Icon name="person" size="sm" className="text-primary" />
+            </div>
+            <Icon
+              name={showProfileMenu ? "expand_less" : "expand_more"}
+              size="sm"
+              className="text-text-secondary group-hover:text-text dark:group-hover:text-white transition-colors"
+            />
+          </button>
+
+          {/* 프로필 드롭다운 메뉴 */}
+          {showProfileMenu && (
+            <div className="absolute right-0 top-full mt-2 w-56 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl shadow-lg py-2 z-50">
+              {/* 사용자 정보 */}
+              <div className="px-4 py-3 border-b border-border dark:border-border-dark">
+                <p className="text-sm font-semibold text-text dark:text-white truncate">
+                  {userName}
+                </p>
+                <p className="text-xs text-text-secondary truncate">
+                  {user?.email || "이메일 없음"}
+                </p>
+              </div>
+
+              {/* 메뉴 항목 */}
+              <div className="py-1">
+                <Link
+                  href="/dashboard/settings"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-text dark:text-white hover:bg-surface dark:hover:bg-background-dark transition-colors"
+                >
+                  <Icon name="settings" size="sm" className="text-text-secondary" />
+                  설정
+                </Link>
+                <Link
+                  href="/dashboard/help"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-text dark:text-white hover:bg-surface dark:hover:bg-background-dark transition-colors"
+                >
+                  <Icon name="help" size="sm" className="text-text-secondary" />
+                  도움말
+                </Link>
+              </div>
+
+              {/* 로그아웃 */}
+              <div className="border-t border-border dark:border-border-dark pt-1">
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-error hover:bg-error/10 transition-colors w-full disabled:opacity-50"
+                >
+                  <Icon name="logout" size="sm" />
+                  {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

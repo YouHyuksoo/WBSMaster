@@ -38,12 +38,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             name: true,
           },
         },
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
+        // 다중 담당자 조회 (TaskAssignee를 통해)
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+              },
+            },
           },
         },
         creator: {
@@ -51,6 +56,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             id: true,
             name: true,
             email: true,
+          },
+        },
+        // 연결된 요구사항 조회
+        requirement: {
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            status: true,
+            priority: true,
           },
         },
       },
@@ -63,7 +78,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    return NextResponse.json(task);
+    // 응답 형식 변환 (assignees 배열 평탄화)
+    const transformedTask = {
+      ...task,
+      assignees: task.assignees.map((a) => a.user),
+    };
+
+    return NextResponse.json(transformedTask);
   } catch (error) {
     console.error("태스크 조회 실패:", error);
     return NextResponse.json(
@@ -76,12 +97,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 /**
  * 태스크 수정
  * PATCH /api/tasks/:id
+ *
+ * @param assigneeIds - 담당자 ID 배열 (다중 담당자 지원, 기존 담당자 대체)
+ * @param requirementId - 연결할 요구사항 ID (null로 연결 해제 가능)
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, description, status, priority, assigneeId, dueDate, order } = body;
+    const { title, description, status, priority, assigneeIds, dueDate, order, requirementId } = body;
 
     // 태스크 존재 확인
     const existing = await prisma.task.findUnique({ where: { id } });
@@ -92,6 +116,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // 담당자 업데이트가 있는 경우 (기존 담당자 삭제 후 새로 생성)
+    if (assigneeIds !== undefined) {
+      // 기존 담당자 모두 삭제
+      await prisma.taskAssignee.deleteMany({
+        where: { taskId: id },
+      });
+
+      // 새 담당자 추가
+      if (Array.isArray(assigneeIds) && assigneeIds.length > 0) {
+        await prisma.taskAssignee.createMany({
+          data: assigneeIds.map((userId: string) => ({
+            taskId: id,
+            userId,
+          })),
+        });
+      }
+    }
+
     const task = await prisma.task.update({
       where: { id },
       data: {
@@ -99,16 +141,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(description !== undefined && { description }),
         ...(status !== undefined && { status }),
         ...(priority !== undefined && { priority }),
-        ...(assigneeId !== undefined && { assigneeId }),
         ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
         ...(order !== undefined && { order }),
+        ...(requirementId !== undefined && { requirementId: requirementId || null }),
       },
       include: {
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+              },
+            },
           },
         },
         creator: {
@@ -117,10 +163,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             name: true,
           },
         },
+        requirement: {
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            status: true,
+            priority: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(task);
+    // 응답 형식 변환 (assignees 배열 평탄화)
+    const transformedTask = {
+      ...task,
+      assignees: task.assignees.map((a) => a.user),
+    };
+
+    return NextResponse.json(transformedTask);
   } catch (error) {
     console.error("태스크 수정 실패:", error);
     return NextResponse.json(

@@ -59,3 +59,34 @@ export {
   useRemoveMember,
   memberKeys,
 } from "./useMembers";
+
+// 사용자 hooks
+export {
+  useUsers,
+  useUser,
+  useCreateUser,
+  useUpdateUser,
+  useDeleteUser,
+  userKeys,
+} from "./useUsers";
+
+// WBS hooks (계층형 구조)
+export {
+  useWbsItems,
+  useWbsItem,
+  useCreateWbsItem,
+  useUpdateWbsItem,
+  useDeleteWbsItem,
+  useChangeWbsLevel,
+  wbsKeys,
+} from "./useWbs";
+
+// 이슈 hooks
+export {
+  useIssues,
+  useIssue,
+  useCreateIssue,
+  useUpdateIssue,
+  useDeleteIssue,
+  issueKeys,
+} from "./useIssues";

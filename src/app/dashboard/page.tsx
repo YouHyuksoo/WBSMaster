@@ -19,9 +19,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Icon, Button, Card } from "@/components/ui";
+import { Icon, Button, Card, Input, useToast } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
-import { useProjects, useTasks, useCreateProject } from "@/hooks";
+import { useProjects, useTasks, useCreateProject, useUpdateProject, useDeleteProject } from "@/hooks";
 import type { User } from "@supabase/supabase-js";
 import type { Project } from "@/lib/api";
 
@@ -78,7 +78,13 @@ function StatCard({
 /**
  * 프로젝트 카드 컴포넌트
  */
-function ProjectCard({ project }: { project: Project }) {
+function ProjectCard({
+  project,
+  onEdit,
+}: {
+  project: Project;
+  onEdit: (project: Project, e: React.MouseEvent) => void;
+}) {
   const statusConfig: Record<string, { label: string; color: string }> = {
     PLANNING: { label: "계획", color: "bg-text-secondary/20 text-text-secondary" },
     ACTIVE: { label: "진행중", color: "bg-success/20 text-success" },
@@ -91,12 +97,27 @@ function ProjectCard({ project }: { project: Project }) {
   const tasksCount = project._count?.tasks || 0;
   const membersCount = project.teamMembers?.length || 1;
 
+  // 날짜 포맷
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return null;
+    return new Date(dateStr).toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+  };
+
   return (
     <Link
       href={`/dashboard/kanban?projectId=${project.id}`}
-      className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-5 hover:border-primary/50 transition-colors cursor-pointer group block"
+      className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-5 hover:border-primary/50 transition-colors cursor-pointer group block relative"
     >
-      <div className="flex items-start justify-between mb-3">
+      {/* 편집 버튼 */}
+      <button
+        onClick={(e) => onEdit(project, e)}
+        className="absolute top-3 right-3 p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+        title="프로젝트 수정"
+      >
+        <Icon name="edit" size="sm" />
+      </button>
+
+      <div className="flex items-start justify-between mb-3 pr-8">
         <div>
           <h3 className="text-lg font-bold text-text dark:text-white group-hover:text-primary transition-colors">
             {project.name}
@@ -105,10 +126,20 @@ function ProjectCard({ project }: { project: Project }) {
             {project.description || "설명 없음"}
           </p>
         </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${color}`}>
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${color} shrink-0`}>
           {label}
         </span>
       </div>
+
+      {/* 기간 표시 */}
+      {(project.startDate || project.endDate) && (
+        <div className="flex items-center gap-1 text-xs text-text-secondary mb-3">
+          <Icon name="calendar_month" size="xs" />
+          <span>
+            {formatDate(project.startDate) || "시작일 미정"} ~ {formatDate(project.endDate) || "종료일 미정"}
+          </span>
+        </div>
+      )}
 
       {/* 진행률 바 */}
       <div className="mb-4">
@@ -144,9 +175,24 @@ function ProjectCard({ project }: { project: Project }) {
  */
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [newProject, setNewProject] = useState({ name: "", description: "" });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [newProject, setNewProject] = useState({
+    name: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [editProject, setEditProject] = useState({
+    name: "",
+    description: "",
+    status: "PLANNING",
+    startDate: "",
+    endDate: "",
+  });
   const supabase = createClient();
+  const toast = useToast();
 
   /** 프로젝트 목록 조회 */
   const { data: projects = [], isLoading: projectsLoading } = useProjects();
@@ -156,6 +202,12 @@ export default function DashboardPage() {
 
   /** 프로젝트 생성 */
   const createProject = useCreateProject();
+
+  /** 프로젝트 수정 */
+  const updateProject = useUpdateProject();
+
+  /** 프로젝트 삭제 */
+  const deleteProject = useDeleteProject();
 
   // 사용자 정보 가져오기
   useEffect(() => {
@@ -193,13 +245,88 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!newProject.name.trim()) return;
 
-    await createProject.mutateAsync({
-      name: newProject.name,
-      description: newProject.description,
-    });
+    try {
+      await createProject.mutateAsync({
+        name: newProject.name,
+        description: newProject.description,
+        startDate: newProject.startDate || undefined,
+        endDate: newProject.endDate || undefined,
+      });
+      toast.success("프로젝트가 생성되었습니다.");
+      setNewProject({ name: "", description: "", startDate: "", endDate: "" });
+      setShowCreateModal(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "프로젝트 생성에 실패했습니다.",
+        "생성 실패"
+      );
+    }
+  };
 
-    setNewProject({ name: "", description: "" });
-    setShowModal(false);
+  /**
+   * 프로젝트 편집 모달 열기
+   */
+  const handleOpenEditModal = (project: Project, e: React.MouseEvent) => {
+    e.preventDefault(); // Link 클릭 방지
+    e.stopPropagation();
+    setEditingProject(project);
+    setEditProject({
+      name: project.name,
+      description: project.description || "",
+      status: project.status,
+      startDate: project.startDate ? new Date(project.startDate).toISOString().split("T")[0] : "",
+      endDate: project.endDate ? new Date(project.endDate).toISOString().split("T")[0] : "",
+    });
+    setShowEditModal(true);
+  };
+
+  /**
+   * 프로젝트 수정 핸들러
+   */
+  const handleUpdateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject || !editProject.name.trim()) return;
+
+    try {
+      await updateProject.mutateAsync({
+        id: editingProject.id,
+        data: {
+          name: editProject.name,
+          description: editProject.description || undefined,
+          status: editProject.status as Project["status"],
+          startDate: editProject.startDate || undefined,
+          endDate: editProject.endDate || undefined,
+        },
+      });
+      toast.success("프로젝트가 수정되었습니다.");
+      setShowEditModal(false);
+      setEditingProject(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "프로젝트 수정에 실패했습니다.",
+        "수정 실패"
+      );
+    }
+  };
+
+  /**
+   * 프로젝트 삭제 핸들러
+   */
+  const handleDeleteProject = async () => {
+    if (!editingProject) return;
+    if (!confirm(`"${editingProject.name}" 프로젝트를 삭제하시겠습니까?\n\n관련된 모든 태스크와 데이터가 삭제됩니다.`)) return;
+
+    try {
+      await deleteProject.mutateAsync(editingProject.id);
+      toast.success("프로젝트가 삭제되었습니다.");
+      setShowEditModal(false);
+      setEditingProject(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "프로젝트 삭제에 실패했습니다.",
+        "삭제 실패"
+      );
+    }
   };
 
   /** 로딩 상태 */
@@ -223,7 +350,7 @@ export default function DashboardPage() {
             오늘도 프로젝트를 효율적으로 관리해보세요.
           </p>
         </div>
-        <Button variant="primary" leftIcon="add" onClick={() => setShowModal(true)}>
+        <Button variant="primary" leftIcon="add" onClick={() => setShowCreateModal(true)}>
           새 프로젝트
         </Button>
       </div>
@@ -284,14 +411,14 @@ export default function DashboardPage() {
             <p className="text-text-secondary mb-4">
               새 프로젝트를 생성하여 작업을 시작해보세요.
             </p>
-            <Button variant="primary" leftIcon="add" onClick={() => setShowModal(true)}>
+            <Button variant="primary" leftIcon="add" onClick={() => setShowCreateModal(true)}>
               프로젝트 생성
             </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {projects.slice(0, 6).map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard key={project.id} project={project} onEdit={handleOpenEditModal} />
             ))}
           </div>
         )}
@@ -428,13 +555,21 @@ export default function DashboardPage() {
       </div>
 
       {/* 프로젝트 생성 모달 */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-semibold text-text dark:text-white mb-4">
-              새 프로젝트 생성
-            </h2>
-            <form onSubmit={handleCreateProject} className="space-y-4">
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b border-border dark:border-border-dark">
+              <h2 className="text-lg font-bold text-text dark:text-white">
+                새 프로젝트 생성
+              </h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-text-secondary hover:text-text dark:hover:text-white"
+              >
+                <Icon name="close" size="md" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateProject} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-text dark:text-white mb-1">
                   프로젝트 이름 *
@@ -444,7 +579,7 @@ export default function DashboardPage() {
                   value={newProject.name}
                   onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
                   placeholder="프로젝트 이름을 입력하세요"
-                  className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white"
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                   required
                 />
               </div>
@@ -456,25 +591,160 @@ export default function DashboardPage() {
                   value={newProject.description}
                   onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
                   placeholder="프로젝트 설명을 입력하세요"
-                  className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white resize-none h-24"
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text resize-none h-20 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                 />
               </div>
-              <div className="flex gap-2 pt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    시작일
+                  </label>
+                  <input
+                    type="date"
+                    value={newProject.startDate}
+                    onChange={(e) => setNewProject({ ...newProject, startDate: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    종료일
+                  </label>
+                  <input
+                    type="date"
+                    value={newProject.endDate}
+                    onChange={(e) => setNewProject({ ...newProject, endDate: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
                 <Button
                   type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowModal(false)}
+                  variant="ghost"
+                  fullWidth
+                  onClick={() => setShowCreateModal(false)}
                 >
                   취소
                 </Button>
                 <Button
                   type="submit"
                   variant="primary"
-                  className="flex-1"
+                  fullWidth
                   disabled={createProject.isPending}
                 >
                   {createProject.isPending ? "생성 중..." : "생성"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 프로젝트 수정 모달 */}
+      {showEditModal && editingProject && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b border-border dark:border-border-dark">
+              <h2 className="text-lg font-bold text-text dark:text-white">
+                프로젝트 수정
+              </h2>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-text-secondary hover:text-text dark:hover:text-white"
+              >
+                <Icon name="close" size="md" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateProject} className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                  프로젝트 이름 *
+                </label>
+                <input
+                  type="text"
+                  value={editProject.name}
+                  onChange={(e) => setEditProject({ ...editProject, name: e.target.value })}
+                  placeholder="프로젝트 이름을 입력하세요"
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                  설명
+                </label>
+                <textarea
+                  value={editProject.description}
+                  onChange={(e) => setEditProject({ ...editProject, description: e.target.value })}
+                  placeholder="프로젝트 설명을 입력하세요"
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text resize-none h-20 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                  상태
+                </label>
+                <select
+                  value={editProject.status}
+                  onChange={(e) => setEditProject({ ...editProject, status: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                >
+                  <option value="PLANNING">계획</option>
+                  <option value="ACTIVE">진행중</option>
+                  <option value="ON_HOLD">보류</option>
+                  <option value="COMPLETED">완료</option>
+                  <option value="CANCELLED">취소</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    시작일
+                  </label>
+                  <input
+                    type="date"
+                    value={editProject.startDate}
+                    onChange={(e) => setEditProject({ ...editProject, startDate: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                    종료일
+                  </label>
+                  <input
+                    type="date"
+                    value={editProject.endDate}
+                    onChange={(e) => setEditProject({ ...editProject, endDate: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleDeleteProject}
+                  className="text-error hover:bg-error/10"
+                >
+                  <Icon name="delete" size="sm" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  fullWidth
+                  onClick={() => setShowEditModal(false)}
+                >
+                  취소
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  fullWidth
+                  disabled={updateProject.isPending}
+                >
+                  {updateProject.isPending ? "저장 중..." : "저장"}
                 </Button>
               </div>
             </form>

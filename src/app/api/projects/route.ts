@@ -103,6 +103,18 @@ export async function POST(request: NextRequest) {
     // 소유자 ID는 현재 로그인한 사용자
     const ownerId = user!.id;
 
+    // 사용자가 users 테이블에 없으면 자동 생성 (Supabase Auth 연동)
+    await prisma.user.upsert({
+      where: { id: ownerId },
+      update: {}, // 이미 있으면 아무것도 안함
+      create: {
+        id: ownerId,
+        email: user!.email!,
+        name: user!.user_metadata?.full_name || user!.user_metadata?.name || null,
+        avatar: user!.user_metadata?.avatar_url || null,
+      },
+    });
+
     const project = await prisma.project.create({
       data: {
         name,
