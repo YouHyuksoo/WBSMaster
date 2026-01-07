@@ -1,0 +1,205 @@
+/**
+ * @file prisma/schema.prisma
+ * @description
+ * WBS Master 프로젝트의 데이터베이스 스키마 정의 파일입니다.
+ * Prisma ORM을 사용하여 Supabase PostgreSQL과 연동합니다.
+ *
+ * 주요 모델:
+ * - User: 사용자 정보 (Supabase Auth 연동)
+ * - Project: 프로젝트 정보
+ * - Task: 태스크/할일 (칸반 보드용)
+ * - Requirement: 요구사항 점검표
+ * - Holiday: 휴무 달력
+ * - TeamMember: 프로젝트별 팀 멤버
+ */
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// 사용자 모델
+// Supabase Auth의 사용자 정보와 연동
+// ============================================
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  avatar    String?  // 프로필 이미지 URL
+  role      UserRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 관계
+  ownedProjects Project[]    @relation("ProjectOwner")
+  teamMembers   TeamMember[]
+  assignedTasks Task[]       @relation("TaskAssignee")
+  createdTasks  Task[]       @relation("TaskCreator")
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+// ============================================
+// 프로젝트 모델
+// WBS 프로젝트 정보
+// ============================================
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(PLANNING)
+  startDate   DateTime?
+  endDate     DateTime?
+  progress    Int           @default(0) // 진행률 0-100
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // 관계
+  ownerId      String
+  owner        User          @relation("ProjectOwner", fields: [ownerId], references: [id])
+  tasks        Task[]
+  requirements Requirement[]
+  teamMembers  TeamMember[]
+  holidays     Holiday[]
+
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  PLANNING   // 계획 중
+  ACTIVE     // 진행 중
+  ON_HOLD    // 보류
+  COMPLETED  // 완료
+  CANCELLED  // 취소
+}
+
+// ============================================
+// 태스크 모델
+// 칸반 보드용 태스크/할일
+// ============================================
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(PENDING)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  order       Int          @default(0) // 칸반 보드 내 순서
+  isAiGenerated Boolean    @default(false) // AI가 생성한 태스크 여부
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // 관계
+  projectId  String
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId String?
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creatorId  String
+  creator    User    @relation("TaskCreator", fields: [creatorId], references: [id])
+
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  PENDING     // 대기중
+  IN_PROGRESS // 진행중
+  COMPLETED   // 완료
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// ============================================
+// 요구사항 모델
+// 요구사항 점검표용
+// ============================================
+model Requirement {
+  id          String            @id @default(uuid())
+  title       String
+  description String?
+  status      RequirementStatus @default(REQUESTED)
+  requestDate DateTime          @default(now())
+  dueDate     DateTime?
+  isDelayed   Boolean           @default(false) // 지연 여부
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // 관계
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("requirements")
+}
+
+enum RequirementStatus {
+  REQUESTED // 요청됨
+  PENDING   // 검토 중
+  APPROVED  // 승인됨
+  COMPLETED // 완료
+  REJECTED  // 거절됨
+}
+
+// ============================================
+// 휴무 모델
+// 휴무 달력용
+// ============================================
+model Holiday {
+  id        String      @id @default(uuid())
+  title     String
+  date      DateTime
+  type      HolidayType
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // 관계
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("holidays")
+}
+
+enum HolidayType {
+  COMPANY_HOLIDAY // 회사 휴일
+  TEAM_OFFSITE    // 팀 오프사이트
+  PERSONAL_LEAVE  // 개인 휴가
+}
+
+// ============================================
+// 팀 멤버 모델
+// 프로젝트별 팀 멤버 관리
+// ============================================
+model TeamMember {
+  id        String         @id @default(uuid())
+  role      TeamMemberRole @default(MEMBER)
+  joinedAt  DateTime       @default(now())
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  // 관계
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId]) // 한 프로젝트에 같은 사용자는 한 번만
+  @@map("team_members")
+}
+
+enum TeamMemberRole {
+  OWNER   // 프로젝트 소유자
+  MANAGER // 관리자
+  MEMBER  // 일반 멤버
+}
