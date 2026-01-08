@@ -188,16 +188,44 @@ const faqItems: FAQItem[] = [
   // Slack 연동
   {
     category: "Slack 연동",
+    question: "WBS Master용 Slack 워크스페이스는 무엇인가요?",
+    answer:
+      "WBS Master는 'HaengSungMesV2' 워크스페이스의 '#mesv2' 채널을 통해 프로젝트 알림을 받습니다. 팀원들은 이 워크스페이스에 가입하여 실시간으로 프로젝트 업데이트를 받아볼 수 있습니다.",
+    tags: ["Slack", "워크스페이스", "채널"],
+  },
+  {
+    category: "Slack 연동",
+    question: "Slack을 PC에 설치하려면 어떻게 하나요?",
+    answer:
+      "1) 웹브라우저에서 https://slack.com/downloads 에 접속합니다. 2) 운영체제(Windows/Mac/Linux)에 맞는 버전을 다운로드합니다. 3) 다운로드된 설치 파일을 실행하여 설치를 완료합니다. 4) 설치 후 Slack을 실행하고 'HaengSungMesV2' 워크스페이스에 로그인합니다. 5) 좌측 채널 목록에서 '#mesv2' 채널에 참여합니다.",
+    tags: ["Slack", "PC", "설치", "Windows", "Mac"],
+  },
+  {
+    category: "Slack 연동",
+    question: "Slack을 휴대폰에 설치하려면 어떻게 하나요?",
+    answer:
+      "1) iPhone: App Store에서 'Slack'을 검색하여 설치합니다. Android: Play Store에서 'Slack'을 검색하여 설치합니다. 2) 앱을 실행하고 '로그인' 버튼을 탭합니다. 3) 워크스페이스 이름에 'HaengSungMesV2'를 입력하고 계속합니다. 4) 이메일과 비밀번호로 로그인합니다. 5) 좌측 메뉴에서 '#mesv2' 채널을 찾아 참여합니다. 6) 알림 설정에서 푸시 알림을 활성화하면 실시간으로 알림을 받을 수 있습니다.",
+    tags: ["Slack", "모바일", "설치", "iPhone", "Android"],
+  },
+  {
+    category: "Slack 연동",
+    question: "Slack 워크스페이스에 초대받으려면 어떻게 하나요?",
+    answer:
+      "관리자에게 가입하려는 이메일 주소를 전달하면 초대 메일이 발송됩니다. 메일함에서 'Slack 초대' 메일을 확인하고, '초대 수락' 버튼을 클릭하세요. 계정 생성 후 자동으로 'HaengSungMesV2' 워크스페이스에 참여됩니다. 이후 '#mesv2' 채널에 참여하면 됩니다.",
+    tags: ["Slack", "초대", "가입"],
+  },
+  {
+    category: "Slack 연동",
     question: "Slack 알림은 어떻게 설정하나요?",
     answer:
-      "'Slack 연동' 메뉴에서 Slack 웹훅 URL을 입력하면 됩니다. Slack 앱에서 Incoming Webhooks를 활성화하고, 알림을 받을 채널을 선택한 후 생성된 웹훅 URL을 복사하여 붙여넣으세요. 설정 후 테스트 메시지를 보내 연동이 정상적으로 되었는지 확인할 수 있습니다.",
+      "'Slack 연동' 메뉴에서 Slack 웹훅 URL을 입력하면 됩니다. Slack 앱에서 Incoming Webhooks를 활성화하고, '#mesv2' 채널을 선택한 후 생성된 웹훅 URL을 복사하여 붙여넣으세요. 설정 후 테스트 메시지를 보내 연동이 정상적으로 되었는지 확인할 수 있습니다.",
     tags: ["Slack", "알림", "웹훅"],
   },
   {
     category: "Slack 연동",
     question: "Slack 웹훅 URL은 어디서 얻나요?",
     answer:
-      "Slack 앱에서 Apps → Incoming Webhooks를 검색하여 추가합니다. 'Add New Webhook to Workspace'를 클릭하고, 알림을 받을 채널을 선택하면 웹훅 URL이 생성됩니다. 이 URL을 복사하여 WBS Master의 Slack 설정에 붙여넣으세요.",
+      "Slack 앱에서 Apps → Incoming Webhooks를 검색하여 추가합니다. 'Add New Webhook to Workspace'를 클릭하고, '#mesv2' 채널을 선택하면 웹훅 URL이 생성됩니다. 이 URL(https://hooks.slack.com/services/...)을 복사하여 WBS Master의 Slack 설정에 붙여넣으세요.",
     tags: ["Slack", "웹훅", "설정"],
   },
   {
@@ -211,7 +239,7 @@ const faqItems: FAQItem[] = [
     category: "Slack 연동",
     question: "Slack 알림이 오지 않아요. 어떻게 해야 하나요?",
     answer:
-      "먼저 '테스트 메시지 보내기' 버튼으로 연동 상태를 확인하세요. 웹훅 URL이 올바른지, Slack 앱의 Incoming Webhooks가 활성화되어 있는지, 해당 채널에 앱이 추가되어 있는지 확인해주세요. '알림 활성화' 토글이 켜져 있는지도 확인하세요.",
+      "먼저 '테스트 메시지 보내기' 버튼으로 연동 상태를 확인하세요. 웹훅 URL이 올바른지, Slack 앱의 Incoming Webhooks가 활성화되어 있는지, '#mesv2' 채널에 앱이 추가되어 있는지 확인해주세요. '알림 활성화' 토글이 켜져 있는지도 확인하세요. 모바일에서는 Slack 앱의 알림 설정도 확인해주세요.",
     tags: ["Slack", "문제해결", "트러블슈팅"],
   },
 ];
@@ -414,35 +442,73 @@ const detailedGuides: DetailedGuide[] = [
     description: "Slack으로 프로젝트 알림을 받아보세요",
     sections: [
       {
-        title: "Slack 웹훅 설정",
+        title: "워크스페이스 및 채널 정보",
         content:
-          "Slack 연동을 위해 먼저 Slack 워크스페이스에서 Incoming Webhooks 앱을 설정해야 합니다. Slack 앱 디렉토리에서 'Incoming Webhooks'를 검색하여 추가하고, 알림을 받을 채널을 선택한 뒤 웹훅 URL을 생성합니다.",
+          "WBS Master는 'HaengSungMesV2' 워크스페이스의 '#mesv2' 채널을 통해 프로젝트 알림을 전송합니다. 팀원들은 이 워크스페이스에 가입하여 실시간으로 프로젝트 업데이트, 작업 변경, 이슈 발생 등의 알림을 받아볼 수 있습니다.",
         tips: [
-          "프로젝트 전용 채널을 만들어 알림을 받으면 정리가 편합니다",
-          "웹훅 URL은 https://hooks.slack.com/으로 시작합니다",
+          "워크스페이스: HaengSungMesV2",
+          "알림 채널: #mesv2",
+          "가입 문의는 관리자에게 이메일로 요청하세요",
         ],
       },
       {
-        title: "알림 설정",
+        title: "PC에 Slack 설치하기",
         content:
-          "WBS Master의 'Slack 연동' 메뉴에서 웹훅 URL을 입력하고 원하는 알림을 선택합니다. 작업 완료, 작업 생성, 작업 지연, 이슈 등록, 이슈 해결, 프로젝트 진행률 변경 등 다양한 이벤트에 대한 알림을 개별적으로 설정할 수 있습니다.",
+          "1) 웹브라우저에서 https://slack.com/downloads 에 접속합니다. 2) 사용 중인 운영체제(Windows/Mac/Linux)에 맞는 버전의 다운로드 버튼을 클릭합니다. 3) Windows의 경우 SlackSetup.exe 파일이 다운로드되며, 실행하여 설치를 완료합니다. 4) 설치 완료 후 Slack을 실행하면 워크스페이스 로그인 화면이 나타납니다. 5) 워크스페이스 이름에 'HaengSungMesV2'를 입력하고 계속 버튼을 클릭합니다. 6) 이메일과 비밀번호를 입력하여 로그인합니다. 7) 좌측 채널 목록에서 '#mesv2'를 찾아 클릭하여 참여합니다.",
+        tips: [
+          "Windows 10/11, macOS 10.15 이상, Ubuntu 18.04 이상 지원",
+          "웹 브라우저에서도 slack.com으로 접속하여 사용 가능합니다",
+          "자동 실행 설정: 설정 → 일반 → 시스템 시작 시 Slack 열기",
+        ],
+      },
+      {
+        title: "휴대폰에 Slack 설치하기",
+        content:
+          "iPhone의 경우: 1) App Store를 열고 'Slack'을 검색합니다. 2) 'Slack' 앱(보라색 # 아이콘)을 찾아 '받기' 버튼을 탭합니다. 3) 설치가 완료되면 '열기'를 탭합니다. Android의 경우: 1) Play Store를 열고 'Slack'을 검색합니다. 2) 'Slack' 앱을 찾아 '설치' 버튼을 탭합니다. 3) 설치가 완료되면 '열기'를 탭합니다. 공통: 4) '로그인' 버튼을 탭합니다. 5) 워크스페이스 URL에 'haengsungmesv2.slack.com'을 입력합니다. 6) 이메일과 비밀번호로 로그인합니다. 7) 좌측 메뉴에서 '#mesv2' 채널을 찾아 탭하여 참여합니다. 8) 설정 → 알림에서 푸시 알림을 '모든 새 메시지'로 설정하면 실시간 알림을 받을 수 있습니다.",
+        tips: [
+          "iOS 15.0 이상, Android 8.0 이상 필요",
+          "알림이 오지 않으면: 설정 → 알림 → Slack → 알림 허용 확인",
+          "배터리 절약 모드에서는 알림이 지연될 수 있습니다",
+        ],
+      },
+      {
+        title: "워크스페이스 초대 및 가입",
+        content:
+          "아직 워크스페이스에 가입하지 않은 경우, 관리자에게 가입할 이메일 주소를 전달하여 초대를 요청하세요. 초대 메일이 발송되면 메일함에서 'Slack에서 HaengSungMesV2 워크스페이스에 초대합니다' 제목의 메일을 확인합니다. '초대 수락' 버튼을 클릭하면 계정 생성 페이지로 이동합니다. 이름, 비밀번호를 설정하면 자동으로 워크스페이스에 참여됩니다. 가입 후 '#mesv2' 채널에 참여하여 프로젝트 알림을 받기 시작하세요.",
+        tips: [
+          "초대 메일이 스팸함에 있을 수 있으니 확인해보세요",
+          "초대 링크는 7일간 유효합니다",
+          "이미 Slack 계정이 있다면 기존 계정으로 로그인 가능합니다",
+        ],
+      },
+      {
+        title: "Slack 웹훅 설정 (관리자용)",
+        content:
+          "Slack 연동을 위해 Incoming Webhooks 앱을 설정해야 합니다. 1) Slack 워크스페이스에 로그인합니다. 2) 좌측 하단의 'Apps'를 클릭하고 'Incoming Webhooks'를 검색하여 추가합니다. 3) 'Add to Slack' 버튼을 클릭합니다. 4) 'Post to Channel'에서 '#mesv2'를 선택합니다. 5) 'Add Incoming WebHooks Integration' 버튼을 클릭합니다. 6) 생성된 웹훅 URL(https://hooks.slack.com/services/...)을 복사합니다. 7) WBS Master의 'Slack 연동' 메뉴에서 이 URL을 붙여넣습니다.",
+        tips: [
+          "웹훅 URL은 보안 정보이므로 외부에 공유하지 마세요",
+          "웹훅 URL은 https://hooks.slack.com/services/로 시작합니다",
+          "하나의 웹훅은 하나의 채널에만 연결됩니다",
+        ],
+      },
+      {
+        title: "알림 종류 및 설정",
+        content:
+          "WBS Master에서 설정 가능한 Slack 알림: 1) 작업 완료 - 담당자와 작업명이 포함된 완료 메시지 2) 작업 생성 - 새 작업 등록 시 알림 3) 작업 지연 - 마감일 초과 시 경고 알림 4) 이슈 등록 - 새 이슈 생성 시 제목, 우선순위, 담당자 정보 전송 5) 이슈 해결 - 이슈 완료 시 알림 6) 프로젝트 진행률 - 주요 마일스톤 달성 시 알림. 각 알림은 개별적으로 켜거나 끌 수 있습니다.",
         tips: [
           "'테스트 메시지 보내기'로 연동이 정상인지 확인하세요",
-          "긴급 이슈 시 @channel 멘션을 활성화하면 팀원 모두에게 알림이 갑니다",
+          "긴급 이슈 시 @channel 멘션을 활성화하면 팀원 모두에게 알림",
+          "알림 시간대를 설정하여 업무 시간에만 알림을 받을 수 있습니다",
         ],
-      },
-      {
-        title: "알림 종류",
-        content:
-          "작업 완료 시 담당자와 작업명이 포함된 메시지가 전송됩니다. 이슈 등록 시에는 이슈 제목, 우선순위, 담당자 정보가 함께 전송됩니다. 지연된 작업이 발생하면 즉시 알림을 받아 빠르게 대응할 수 있습니다.",
       },
       {
         title: "문제 해결",
         content:
-          "알림이 오지 않는 경우 먼저 '알림 활성화' 토글이 켜져 있는지 확인하세요. 웹훅 URL이 정확한지, Slack 앱의 Incoming Webhooks가 활성화되어 있는지 확인합니다. 테스트 메시지 전송으로 연동 상태를 점검할 수 있습니다.",
+          "알림이 오지 않는 경우 확인 사항: 1) WBS Master의 '알림 활성화' 토글이 켜져 있는지 확인 2) 웹훅 URL이 정확히 입력되었는지 확인 (복사/붙여넣기 추천) 3) Slack 앱에서 Incoming Webhooks가 활성화되어 있는지 확인 4) '#mesv2' 채널에 앱이 추가되어 있는지 확인 5) 모바일의 경우 Slack 앱의 알림 권한이 허용되어 있는지 확인 6) 배터리 절약 모드/방해 금지 모드가 꺼져 있는지 확인. '테스트 메시지 보내기' 버튼으로 연동 상태를 점검할 수 있습니다.",
         tips: [
           "웹훅 URL을 재생성하면 기존 URL은 더 이상 작동하지 않습니다",
-          "채널이 private인 경우 앱을 채널에 추가해야 합니다",
+          "채널이 private인 경우 앱을 채널에 수동으로 추가해야 합니다",
+          "Slack 서버 상태: status.slack.com 에서 확인 가능",
         ],
       },
     ],

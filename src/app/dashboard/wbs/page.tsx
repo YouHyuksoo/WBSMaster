@@ -748,6 +748,25 @@ export default function WBSPage() {
   /** 담당자 필터 상태 (null: 전체, "unassigned": 미할당, 그 외: 담당자 ID) */
   const [filterAssigneeId, setFilterAssigneeId] = useState<string | null>(null);
 
+  /** 산출물 미리보기 URL 상태 */
+  const [deliverablePreviewUrl, setDeliverablePreviewUrl] = useState<string | null>(null);
+
+  /**
+   * OneDrive/SharePoint 링크를 임베드 가능한 URL로 변환
+   * 공유 링크를 embed 형식으로 변환합니다.
+   */
+  const getEmbedUrl = (url: string): string => {
+    if (!url) return "";
+    // 이미 embed URL인 경우 그대로 반환
+    if (url.includes("embed")) return url;
+    // OneDrive/SharePoint 링크인 경우 action=embedview 파라미터 추가
+    if (url.includes("1drv.ms") || url.includes("onedrive.live.com") || url.includes("sharepoint.com")) {
+      const separator = url.includes("?") ? "&" : "?";
+      return `${url}${separator}action=embedview`;
+    }
+    return url;
+  };
+
   // 패널 리사이즈 상태
   const [panelWidth, setPanelWidth] = useState(560); // 폰트 축소에 따른 너비 조정
 
@@ -1762,6 +1781,7 @@ export default function WBSPage() {
                       onLevelDown={handleLevelDown}
                       onRegisterTask={handleRegisterTask}
                       onUpdateProgress={handleUpdateProgress}
+                      onPreviewDeliverable={setDeliverablePreviewUrl}
                     />
                   ))}
                 </div>
@@ -2448,6 +2468,50 @@ export default function WBSPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 산출물 미리보기 모달 */}
+      {deliverablePreviewUrl && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl w-full max-w-5xl h-[85vh] mx-4 flex flex-col overflow-hidden">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border dark:border-border-dark">
+              <div className="flex items-center gap-2">
+                <Icon name="description" size="sm" className="text-primary" />
+                <h3 className="font-semibold text-text dark:text-white">산출물 미리보기</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* 새 창에서 열기 버튼 */}
+                <a
+                  href={deliverablePreviewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-surface dark:bg-background-dark text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Icon name="open_in_new" size="xs" />
+                  <span>새 창에서 열기</span>
+                </a>
+                {/* 닫기 버튼 */}
+                <button
+                  onClick={() => setDeliverablePreviewUrl(null)}
+                  className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-text transition-colors"
+                >
+                  <Icon name="close" size="sm" />
+                </button>
+              </div>
+            </div>
+            {/* iframe 컨테이너 */}
+            <div className="flex-1 bg-surface dark:bg-background-dark">
+              <iframe
+                src={getEmbedUrl(deliverablePreviewUrl)}
+                className="w-full h-full border-0"
+                title="산출물 미리보기"
+                allow="fullscreen"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              />
+            </div>
           </div>
         </div>
       )}
