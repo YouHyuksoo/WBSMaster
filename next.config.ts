@@ -17,6 +17,9 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
 
+  // 개발 환경에서 허용할 Origin (WSL2/외부 IP 접근 시 경고 해결)
+  allowedDevOrigins: ["172.23.208.1"],
+
   // 이미지 최적화 설정 (외부 이미지 사용 시)
   images: {
     remotePatterns: [

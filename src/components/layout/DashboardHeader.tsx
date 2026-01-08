@@ -21,9 +21,16 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
 import { useProject } from "@/contexts/ProjectContext";
-import type { User } from "@supabase/supabase-js";
+
+/** 로컬 사용자 타입 */
+interface LocalUser {
+  id: string;
+  email: string;
+  name?: string | null;
+  avatar?: string | null;
+  role?: string;
+}
 
 interface DashboardHeaderProps {
   /** 모바일 메뉴 토글 핸들러 */
@@ -35,31 +42,49 @@ interface DashboardHeaderProps {
  */
 export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<LocalUser | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
 
   // 프로젝트 Context 사용
   const { selectedProjectId, setSelectedProjectId, selectedProject, projects, isLoading: isProjectsLoading } = useProject();
 
-  // 사용자 정보 가져오기
+  // 사용자 정보 가져오기 (localStorage에서)
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getUser();
-  }, [supabase.auth]);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        setUser(null);
+      }
+    }
+  }, []);
 
-  // 다크모드 초기화
+  // 다크모드 초기화 (localStorage에서 저장된 테마 불러오기)
   useEffect(() => {
-    const isDark = document.documentElement.classList.contains("dark");
-    setIsDarkMode(isDark);
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      setIsDarkMode(true);
+    } else if (savedTheme === "light") {
+      document.documentElement.classList.remove("dark");
+      setIsDarkMode(false);
+    } else {
+      // 저장된 테마가 없으면 시스템 설정 확인
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (prefersDark) {
+        document.documentElement.classList.add("dark");
+        setIsDarkMode(true);
+      } else {
+        document.documentElement.classList.remove("dark");
+        setIsDarkMode(false);
+      }
+    }
   }, []);
 
   // 프로필 메뉴 외부 클릭 시 닫기
@@ -110,8 +135,11 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
-      await supabase.auth.signOut();
-      router.push("/");
+      // localStorage에서 user 삭제
+      localStorage.removeItem("user");
+      // 서버 쿠키 삭제
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
     } catch (error) {
       console.error("로그아웃 실패:", error);
     } finally {
@@ -137,7 +165,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   };
 
   // 사용자 이름 추출
-  const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || "User";
+  const userName = user?.name || user?.email?.split("@")[0] || "User";
 
   return (
     <header className="h-16 flex items-center justify-between whitespace-nowrap border-b border-border dark:border-border-dark bg-background-white dark:bg-background-dark px-6 z-[55] shrink-0">
@@ -300,8 +328,18 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
               </p>
             </div>
             {/* 아바타 */}
-            <div className="size-9 rounded-full bg-primary/20 flex items-center justify-center border-2 border-surface dark:border-surface-dark">
-              <Icon name="person" size="sm" className="text-primary" />
+            <div className="size-9 rounded-full bg-primary/20 flex items-center justify-center border-2 border-surface dark:border-surface-dark overflow-hidden">
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={userName}
+                  className="size-full object-cover"
+                />
+              ) : (
+                <span className="text-sm font-bold text-primary">
+                  {userName.charAt(0).toUpperCase()}
+                </span>
+              )}
             </div>
             <Icon
               name={showProfileMenu ? "expand_less" : "expand_more"}

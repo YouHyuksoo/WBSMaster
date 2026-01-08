@@ -27,6 +27,7 @@ export const issueKeys = {
   list: (filters?: Record<string, string>) => [...issueKeys.lists(), filters] as const,
   details: () => [...issueKeys.all, "detail"] as const,
   detail: (id: string) => [...issueKeys.details(), id] as const,
+  stats: (params?: { projectId?: string }) => [...issueKeys.all, "stats", params] as const,
 };
 
 /**
@@ -100,5 +101,17 @@ export function useDeleteIssue() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: issueKeys.lists() });
     },
+  });
+}
+
+/**
+ * 이슈 통계 조회 Hook
+ * 카테고리별 분포, 해결/미해결 건수 등
+ */
+export function useIssueStats(params?: { projectId?: string }) {
+  return useQuery({
+    queryKey: issueKeys.stats(params),
+    queryFn: () => api.issues.stats(params),
+    staleTime: 1000 * 60 * 2, // 2분간 fresh 상태 유지
   });
 }

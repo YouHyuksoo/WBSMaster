@@ -82,6 +82,8 @@ export default function MembersPage() {
     id: string;
     role: string;
     customRole?: string;
+    department?: string;
+    position?: string;
     user?: { name?: string; email: string };
   } | null>(null);
 
@@ -89,11 +91,15 @@ export default function MembersPage() {
   const [inviteUserId, setInviteUserId] = useState("");
   const [inviteRole, setInviteRole] = useState("MEMBER");
   const [inviteCustomRole, setInviteCustomRole] = useState("");
+  const [inviteDepartment, setInviteDepartment] = useState("");
+  const [invitePosition, setInvitePosition] = useState("");
 
   // 편집 폼 상태
   const [editName, setEditName] = useState("");
   const [editRole, setEditRole] = useState("");
   const [editCustomRole, setEditCustomRole] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editPosition, setEditPosition] = useState("");
   const [editAvatar, setEditAvatar] = useState("");
   const [showImageCropper, setShowImageCropper] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -240,6 +246,8 @@ export default function MembersPage() {
     setEditingMember(member);
     setEditRole(member.role);
     setEditCustomRole(member.customRole || "");
+    setEditDepartment(member.department || "");
+    setEditPosition(member.position || "");
     setShowEditMemberModal(true);
   };
 
@@ -253,14 +261,19 @@ export default function MembersPage() {
     try {
       await updateMember.mutateAsync({
         id: editingMember.id,
-        data: { role: editRole, customRole: editCustomRole || undefined },
+        data: {
+          role: editRole,
+          customRole: editCustomRole || undefined,
+          department: editDepartment || undefined,
+          position: editPosition || undefined,
+        },
       });
-      toast.success("멤버 역할이 수정되었습니다.");
+      toast.success("멤버 정보가 수정되었습니다.");
       setShowEditMemberModal(false);
       setEditingMember(null);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "역할 수정에 실패했습니다.",
+        error instanceof Error ? error.message : "수정에 실패했습니다.",
         "수정 실패"
       );
     }
@@ -296,10 +309,14 @@ export default function MembersPage() {
         userId: inviteUserId,
         role: inviteRole,
         customRole: inviteCustomRole || undefined,
+        department: inviteDepartment || undefined,
+        position: invitePosition || undefined,
       });
       toast.success("멤버가 프로젝트에 초대되었습니다.");
       setInviteUserId("");
       setInviteCustomRole("");
+      setInviteDepartment("");
+      setInvitePosition("");
       setShowInviteModal(false);
     } catch (error) {
       toast.error(
@@ -635,10 +652,12 @@ export default function MembersPage() {
                             id: member.id,
                             role: member.role,
                             customRole: member.customRole,
+                            department: member.department,
+                            position: member.position,
                             user: member.user,
                           })}
                           className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                          title="역할 수정"
+                          title="정보 수정"
                         >
                           <Icon name="edit" size="sm" />
                         </button>
@@ -654,7 +673,7 @@ export default function MembersPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 mb-4">
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${role.bgColor} ${role.color}`}>
                         {role.label}
                       </span>
@@ -665,7 +684,25 @@ export default function MembersPage() {
                       )}
                     </div>
 
-                    <div className="pt-4 border-t border-border dark:border-border-dark">
+                    {/* 부서/직급 정보 */}
+                    {(member.department || member.position) && (
+                      <div className="flex items-center gap-3 mb-3 text-sm text-text-secondary">
+                        {member.department && (
+                          <span className="flex items-center gap-1">
+                            <Icon name="business" size="xs" />
+                            {member.department}
+                          </span>
+                        )}
+                        {member.position && (
+                          <span className="flex items-center gap-1">
+                            <Icon name="badge" size="xs" />
+                            {member.position}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="pt-3 border-t border-border dark:border-border-dark">
                       <div className="text-xs text-text-secondary">
                         가입일: {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString("ko-KR") : "-"}
                       </div>
@@ -793,12 +830,12 @@ export default function MembersPage() {
         </div>
       )}
 
-      {/* ========== 멤버 역할 수정 모달 ========== */}
+      {/* ========== 멤버 정보 수정 모달 ========== */}
       {showEditMemberModal && editingMember && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-text dark:text-white">멤버 역할 수정</h2>
+              <h2 className="text-xl font-bold text-text dark:text-white">멤버 정보 수정</h2>
               <button
                 onClick={() => setShowEditMemberModal(false)}
                 className="text-text-secondary hover:text-text dark:hover:text-white"
@@ -836,11 +873,28 @@ export default function MembersPage() {
 
               <Input
                 label="커스텀 역할 (선택)"
-                leftIcon="badge"
+                leftIcon="work"
                 placeholder="예: PMO, PL, 개발팀장"
                 value={editCustomRole}
                 onChange={(e) => setEditCustomRole(e.target.value)}
               />
+
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="부서"
+                  leftIcon="business"
+                  placeholder="예: 개발팀"
+                  value={editDepartment}
+                  onChange={(e) => setEditDepartment(e.target.value)}
+                />
+                <Input
+                  label="직급"
+                  leftIcon="badge"
+                  placeholder="예: 과장"
+                  value={editPosition}
+                  onChange={(e) => setEditPosition(e.target.value)}
+                />
+              </div>
 
               <div className="flex gap-3 pt-4">
                 <Button variant="ghost" fullWidth onClick={() => setShowEditMemberModal(false)}>
@@ -917,11 +971,28 @@ export default function MembersPage() {
 
               <Input
                 label="커스텀 역할 (선택)"
-                leftIcon="badge"
+                leftIcon="work"
                 placeholder="예: PMO, PL, 개발팀장"
                 value={inviteCustomRole}
                 onChange={(e) => setInviteCustomRole(e.target.value)}
               />
+
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="부서"
+                  leftIcon="business"
+                  placeholder="예: 개발팀"
+                  value={inviteDepartment}
+                  onChange={(e) => setInviteDepartment(e.target.value)}
+                />
+                <Input
+                  label="직급"
+                  leftIcon="badge"
+                  placeholder="예: 과장"
+                  value={invitePosition}
+                  onChange={(e) => setInvitePosition(e.target.value)}
+                />
+              </div>
 
               <div className="flex gap-3 pt-4">
                 <Button variant="ghost" fullWidth onClick={() => setShowInviteModal(false)}>

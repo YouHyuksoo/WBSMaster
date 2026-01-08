@@ -21,101 +21,281 @@
 @import "tailwindcss";
 
 /* ============================================
+   Tailwind CSS 4 플러그인 로드
+   ============================================ */
+@plugin "@tailwindcss/typography";
+
+/* ============================================
    Tailwind CSS 4 다크모드 설정 (클래스 기반)
    ============================================ */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ============================================
    CSS 변수 정의 - 라이트 모드 (기본)
+   tweakcn 테마 적용 (https://tweakcn.com/)
    ============================================ */
 :root {
-  /* 메인 색상 */
-  --primary: #137fec;
-  --primary-hover: #1171d4;
+  /* shadcn/ui 색상 변수 */
+  --background: oklch(0.9816 0.0017 247.8390);
+  --foreground: oklch(0.1649 0.0352 281.8285);
+  --card: oklch(1.0000 0 0);
+  --card-foreground: oklch(0.1649 0.0352 281.8285);
+  --popover: oklch(1.0000 0 0);
+  --popover-foreground: oklch(0.1649 0.0352 281.8285);
+  --primary: oklch(0.6726 0.2904 341.4084);
+  --primary-foreground: oklch(1.0000 0 0);
+  --secondary: oklch(0.9595 0.0200 286.0164);
+  --secondary-foreground: oklch(0.1649 0.0352 281.8285);
+  --muted: oklch(0.9595 0.0200 286.0164);
+  --muted-foreground: oklch(0.1649 0.0352 281.8285);
+  --accent: oklch(0.8903 0.1739 171.2690);
+  --accent-foreground: oklch(0.1649 0.0352 281.8285);
+  --destructive: oklch(0.6535 0.2348 34.0370);
+  --destructive-foreground: oklch(1.0000 0 0);
+  --border: oklch(0.9205 0.0086 225.0878);
+  --input: oklch(0.9205 0.0086 225.0878);
+  --ring: oklch(0.6726 0.2904 341.4084);
 
-  /* 배경 색상 */
-  --background: #f6f7f8;
-  --background-white: #ffffff;
-  --background-dark: #111418;
+  /* 차트 색상 */
+  --chart-1: oklch(0.6726 0.2904 341.4084);
+  --chart-2: oklch(0.5488 0.2944 299.0954);
+  --chart-3: oklch(0.8442 0.1457 209.2851);
+  --chart-4: oklch(0.8903 0.1739 171.2690);
+  --chart-5: oklch(0.9168 0.1915 101.4070);
 
-  /* 표면/카드 색상 */
-  --surface: #f0f2f4;
-  --surface-hover: #e5e7eb;
-  --surface-dark: #1c2127;
+  /* 사이드바 색상 */
+  --sidebar: oklch(0.9595 0.0200 286.0164);
+  --sidebar-foreground: oklch(0.1649 0.0352 281.8285);
+  --sidebar-primary: oklch(0.6726 0.2904 341.4084);
+  --sidebar-primary-foreground: oklch(1.0000 0 0);
+  --sidebar-accent: oklch(0.8903 0.1739 171.2690);
+  --sidebar-accent-foreground: oklch(0.1649 0.0352 281.8285);
+  --sidebar-border: oklch(0.9205 0.0086 225.0878);
+  --sidebar-ring: oklch(0.6726 0.2904 341.4084);
 
-  /* 카드/컨테이너 색상 */
-  --card: #ffffff;
-  --card-hover: #f9fafb;
+  /* 폰트 */
+  --font-sans: Outfit, sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: Fira Code, monospace;
 
-  /* 텍스트 색상 */
-  --text: #111418;
-  --text-secondary: #617589;
+  /* 레이아웃 */
+  --radius: 0.5rem;
+  --spacing: 0.25rem;
+  --tracking-normal: 0em;
 
-  /* 테두리 색상 */
-  --border: #e5e7eb;
-  --border-hover: #d1d5db;
-  --border-dark: #283039;
+  /* 그림자 */
+  --shadow-x: 0px;
+  --shadow-y: 4px;
+  --shadow-blur: 8px;
+  --shadow-spread: -2px;
+  --shadow-opacity: 0.1;
+  --shadow-color: hsl(0 0% 0%);
+  --shadow-2xs: 0px 4px 8px -2px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0px 4px 8px -2px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 1px 2px -3px hsl(0 0% 0% / 0.10);
+  --shadow: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 1px 2px -3px hsl(0 0% 0% / 0.10);
+  --shadow-md: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 2px 4px -3px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 4px 6px -3px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 8px 10px -3px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0px 4px 8px -2px hsl(0 0% 0% / 0.25);
 
   /* 상태 색상 */
   --success: #22c55e;
   --warning: #f59e0b;
   --error: #ef4444;
   --info: #3b82f6;
+
+  /* 컴포넌트 호환 변수 (기존 코드 호환용) */
+  --text: var(--foreground);
+  --text-secondary: oklch(0.55 0.02 260);
+  --surface: oklch(0.96 0.005 260);
+  --surface-hover: oklch(0.93 0.008 260);
+  --surface-dark: oklch(0.22 0.04 280);
+  --background-white: oklch(1.0 0 0);
+  --background-dark: oklch(0.15 0.03 280);
+  --border-dark: oklch(0.30 0.05 280);
+  --border-hover: oklch(0.85 0.01 260);
+  --primary-hover: oklch(0.60 0.28 341);
+  --card-hover: oklch(0.98 0.002 260);
 }
 
 /* ============================================
    CSS 변수 정의 - 다크 모드
+   tweakcn 테마 적용 (https://tweakcn.com/)
    ============================================ */
 .dark {
-  --primary: #137fec;
-  --primary-hover: #2196f3;
+  /* shadcn/ui 색상 변수 */
+  --background: oklch(0.1649 0.0352 281.8285);
+  --foreground: oklch(0.9513 0.0074 260.7315);
+  --card: oklch(0.2542 0.0611 281.1423);
+  --card-foreground: oklch(0.9513 0.0074 260.7315);
+  --popover: oklch(0.2542 0.0611 281.1423);
+  --popover-foreground: oklch(0.9513 0.0074 260.7315);
+  --primary: oklch(0.6726 0.2904 341.4084);
+  --primary-foreground: oklch(1.0000 0 0);
+  --secondary: oklch(0.2542 0.0611 281.1423);
+  --secondary-foreground: oklch(0.9513 0.0074 260.7315);
+  --muted: oklch(0.2123 0.0522 280.9917);
+  --muted-foreground: oklch(0.6245 0.0500 278.1046);
+  --accent: oklch(0.8903 0.1739 171.2690);
+  --accent-foreground: oklch(0.1649 0.0352 281.8285);
+  --destructive: oklch(0.6535 0.2348 34.0370);
+  --destructive-foreground: oklch(1.0000 0 0);
+  --border: oklch(0.3279 0.0832 280.7890);
+  --input: oklch(0.3279 0.0832 280.7890);
+  --ring: oklch(0.6726 0.2904 341.4084);
 
-  --background: #101922;
-  --background-white: #15202b;
-  --background-dark: #111418;
+  /* 차트 색상 */
+  --chart-1: oklch(0.6726 0.2904 341.4084);
+  --chart-2: oklch(0.5488 0.2944 299.0954);
+  --chart-3: oklch(0.8442 0.1457 209.2851);
+  --chart-4: oklch(0.8903 0.1739 171.2690);
+  --chart-5: oklch(0.9168 0.1915 101.4070);
 
-  --surface: #1c2730;
-  --surface-hover: #2a3441;
-  --surface-dark: #1c2127;
+  /* 사이드바 색상 */
+  --sidebar: oklch(0.1649 0.0352 281.8285);
+  --sidebar-foreground: oklch(0.9513 0.0074 260.7315);
+  --sidebar-primary: oklch(0.6726 0.2904 341.4084);
+  --sidebar-primary-foreground: oklch(1.0000 0 0);
+  --sidebar-accent: oklch(0.8903 0.1739 171.2690);
+  --sidebar-accent-foreground: oklch(0.1649 0.0352 281.8285);
+  --sidebar-border: oklch(0.3279 0.0832 280.7890);
+  --sidebar-ring: oklch(0.6726 0.2904 341.4084);
 
-  --card: #1a2632;
-  --card-hover: #23303d;
+  /* 폰트 */
+  --font-sans: Outfit, sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: Fira Code, monospace;
 
-  --text: #e0e6ed;
-  --text-secondary: #9aaab9;
+  /* 레이아웃 */
+  --radius: 0.5rem;
+  --spacing: 0.25rem;
 
-  --border: #2d3b4a;
-  --border-hover: #374151;
-  --border-dark: #283039;
+  /* 그림자 */
+  --shadow-x: 0px;
+  --shadow-y: 4px;
+  --shadow-blur: 8px;
+  --shadow-spread: -2px;
+  --shadow-opacity: 0.1;
+  --shadow-color: hsl(0 0% 0%);
+  --shadow-2xs: 0px 4px 8px -2px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0px 4px 8px -2px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 1px 2px -3px hsl(0 0% 0% / 0.10);
+  --shadow: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 1px 2px -3px hsl(0 0% 0% / 0.10);
+  --shadow-md: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 2px 4px -3px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 4px 6px -3px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0px 4px 8px -2px hsl(0 0% 0% / 0.10), 0px 8px 10px -3px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0px 4px 8px -2px hsl(0 0% 0% / 0.25);
+
+  /* 컴포넌트 호환 변수 (기존 코드 호환용) - 다크모드 */
+  --text: var(--foreground);
+  --text-secondary: oklch(0.60 0.03 260);
+  --surface: oklch(0.22 0.04 280);
+  --surface-hover: oklch(0.28 0.05 280);
+  --surface-dark: oklch(0.18 0.035 280);
+  --background-white: oklch(0.20 0.04 280);
+  --background-dark: oklch(0.12 0.025 280);
+  --border-dark: oklch(0.28 0.05 280);
+  --border-hover: oklch(0.35 0.06 280);
+  --primary-hover: oklch(0.72 0.30 341);
+  --card-hover: oklch(0.28 0.06 280);
 }
 
 /* ============================================
    Tailwind CSS 4 테마 설정
+   tweakcn 테마 적용 (https://tweakcn.com/)
    ============================================ */
 @theme inline {
-  /* 색상 */
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
+  /* 기본 색상 */
   --color-background: var(--background);
-  --color-background-white: var(--background-white);
-  --color-background-dark: var(--background-dark);
-  --color-surface: var(--surface);
-  --color-surface-hover: var(--surface-hover);
-  --color-surface-dark: var(--surface-dark);
+  --color-foreground: var(--foreground);
   --color-card: var(--card);
-  --color-card-hover: var(--card-hover);
-  --color-text: var(--text);
-  --color-text-secondary: var(--text-secondary);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
-  --color-border-hover: var(--border-hover);
-  --color-border-dark: var(--border-dark);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* 차트 색상 */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* 사이드바 색상 */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* 상태 색상 */
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-error: var(--error);
   --color-info: var(--info);
 
+  /* 컴포넌트 호환 색상 */
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-dark: var(--surface-dark);
+  --color-background-white: var(--background-white);
+  --color-background-dark: var(--background-dark);
+  --color-border-dark: var(--border-dark);
+  --color-border-hover: var(--border-hover);
+  --color-primary-hover: var(--primary-hover);
+  --color-card-hover: var(--card-hover);
+
   /* 폰트 */
-  --font-display: "Inter", sans-serif;
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+
+  /* 레이아웃 */
+  --radius: var(--radius);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --spacing: var(--spacing);
+
+  /* 트래킹 */
+  --tracking-normal: var(--tracking-normal);
+  --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+  --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+  --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+  --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+  --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+
+  /* 그림자 */
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
 }
 
 /* ============================================
@@ -127,8 +307,8 @@ html {
 
 body {
   background-color: var(--background);
-  color: var(--text);
-  font-family: var(--font-display), Arial, Helvetica, sans-serif;
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
@@ -302,4 +482,174 @@ textarea {
 
 .animate-toast-progress {
   animation: toast-progress linear forwards;
+}
+
+/* ============================================
+   대시보드 인터랙티브 애니메이션
+   ============================================ */
+
+/* 페이드인 (Tailwind 클래스명 호환) */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* 위로 슬라이드 */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+/* 아래로 슬라이드 (드롭다운용) */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.2s ease-out forwards;
+}
+
+/* 스케일 인 (버튼/카드 팝업) */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.2s ease-out forwards;
+}
+
+/* 펄스 글로우 효과 (강조 표시) */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(19, 127, 236, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(19, 127, 236, 0.2);
+  }
+}
+
+.animate-pulseGlow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* 시머(로딩) 효과 */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface) 0%,
+    var(--surface-hover) 50%,
+    var(--surface) 100%
+  );
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* 카운트 업 애니메이션용 (JS와 함께 사용) */
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-countUp {
+  animation: countUp 0.5s ease-out forwards;
+}
+
+/* 프로그레스 바 채우기 애니메이션 */
+@keyframes progressFill {
+  from {
+    width: 0%;
+  }
+}
+
+.animate-progressFill {
+  animation: progressFill 1s ease-out forwards;
+}
+
+/* 호버 시 부드러운 리플 효과 */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  transform: scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ripple-effect:active::after {
+  animation: ripple 0.6s ease-out;
+}
+
+/*---break---
+ */
+
+@layer base {
+  body {
+    letter-spacing: var(--tracking-normal);
+  }
 }

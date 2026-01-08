@@ -61,12 +61,23 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 /**
  * 휴무 수정
  * PATCH /api/holidays/:id
+ * 수정 가능 필드: title, description, date, endDate, type, isAllDay, startTime, endTime, userId
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, date, type } = body;
+    const {
+      title,
+      description,
+      date,
+      endDate,
+      type,
+      isAllDay,
+      startTime,
+      endTime,
+      userId,
+    } = body;
 
     // 휴무 존재 확인
     const existing = await prisma.holiday.findUnique({ where: { id } });
@@ -81,14 +92,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       where: { id },
       data: {
         ...(title !== undefined && { title }),
+        ...(description !== undefined && { description: description || null }),
         ...(date !== undefined && { date: new Date(date) }),
+        ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
         ...(type !== undefined && { type }),
+        ...(isAllDay !== undefined && { isAllDay }),
+        ...(startTime !== undefined && { startTime: startTime || null }),
+        ...(endTime !== undefined && { endTime: endTime || null }),
+        ...(userId !== undefined && { userId: userId || null }),
       },
       include: {
         project: {
           select: {
             id: true,
             name: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
           },
         },
       },

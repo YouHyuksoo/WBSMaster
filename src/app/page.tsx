@@ -14,13 +14,23 @@
  * - 각 섹션은 독립적인 컴포넌트로 분리 가능
  * - 텍스트 수정: 해당 섹션의 문자열 변경
  * - 이미지 변경: Image src 또는 background-image URL 변경
+ *
+ * 유지보수 팁:
+ * - Tailwind CSS v4 문법: 그라데이션 적용 시 `bg-gradient-to-*` 대신 `bg-linear-to-*`를 사용합니다.
  */
 
 "use client";
 
 import Link from "next/link";
 import { Header, Footer } from "@/components/layout";
-import { Button, Card, CardHeader, CardContent, Icon, useToast } from "@/components/ui";
+import {
+  Button,
+  Card,
+  CardHeader,
+  CardContent,
+  Icon,
+  useToast,
+} from "@/components/ui";
 
 /** 기능 카드 데이터 */
 const features = [
@@ -133,9 +143,9 @@ export default function LandingPage() {
 
               {/* 우측: 대시보드 이미지 */}
               <div className="lg:w-1/2 w-full">
-                <div className="relative rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-[#1e2936] dark:to-[#111827] p-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
+                <div className="relative rounded-xl bg-linear-to-br from-gray-100 to-gray-200 dark:from-[#1e2936] dark:to-[#111827] p-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
                   <div className="absolute inset-0 bg-white/40 dark:bg-black/20 backdrop-blur-[1px] z-0 rounded-xl" />
-                  <div className="relative z-10 w-full aspect-[4/3] rounded-lg bg-card overflow-hidden shadow-inner border border-white/50 dark:border-white/5">
+                  <div className="relative z-10 w-full aspect-4/3 rounded-lg bg-card overflow-hidden shadow-inner border border-white/50 dark:border-white/5">
                     {/* 윈도우 컨트롤 버튼 */}
                     <div className="absolute top-4 left-4 right-4 flex items-center justify-between bg-background-white/90 dark:bg-card/90 backdrop-blur-sm p-3 rounded-md shadow-sm border border-border">
                       <div className="flex gap-2">
@@ -222,7 +232,7 @@ export default function LandingPage() {
             <div className="overflow-hidden rounded-2xl bg-card shadow-xl border border-border">
               <div className="flex flex-col md:flex-row">
                 {/* 이미지 영역 */}
-                <div className="md:w-1/2 h-64 md:h-auto bg-gradient-to-br from-primary/20 to-purple-500/20 relative group flex items-center justify-center">
+                <div className="md:w-1/2 h-64 md:h-auto bg-linear-to-br from-primary/20 to-purple-500/20 relative group flex items-center justify-center">
                   <div className="text-center p-8">
                     <Icon
                       name="drag_indicator"
@@ -266,7 +276,7 @@ export default function LandingPage() {
         {/* ========================================
             CTA 섹션
             ======================================== */}
-        <section className="py-24 px-6 bg-gradient-to-b from-background to-background-white dark:from-background dark:to-[#0d1218]">
+        <section className="py-24 px-6 bg-linear-to-b from-background to-background-white dark:from-background dark:to-[#0d1218]">
           <div className="container mx-auto max-w-[800px] text-center">
             <h2 className="text-3xl sm:text-4xl font-black text-text mb-6">
               워크플로우를 간소화할 준비가 되셨나요?

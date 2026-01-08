@@ -28,7 +28,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, WbsItem, WbsLevel } from "@/lib/api";
+import { api, WbsItem, WbsLevel, WbsStats } from "@/lib/api";
 
 /** WBS Query Keys */
 export const wbsKeys = {
@@ -38,6 +38,7 @@ export const wbsKeys = {
     [...wbsKeys.lists(), params] as const,
   details: () => [...wbsKeys.all, "detail"] as const,
   detail: (id: string) => [...wbsKeys.details(), id] as const,
+  stats: (params?: { projectId?: string }) => [...wbsKeys.all, "stats", params] as const,
 };
 
 /** WBS 목록 조회 파라미터 */
@@ -91,6 +92,8 @@ interface CreateWbsItemData {
   startDate?: string;
   endDate?: string;
   weight?: number;
+  deliverableName?: string; // 산출물명
+  deliverableLink?: string; // 산출물 링크
 }
 
 /**
@@ -125,6 +128,8 @@ interface UpdateWbsItemData {
   weight?: number;
   assigneeIds?: string[];
   order?: number;
+  deliverableName?: string; // 산출물명
+  deliverableLink?: string; // 산출물 링크
 }
 
 /**
@@ -191,5 +196,17 @@ export function useChangeWbsLevel() {
       // 상세 캐시도 무효화
       queryClient.invalidateQueries({ queryKey: wbsKeys.details() });
     },
+  });
+}
+
+/**
+ * WBS 단위업무 기반 담당자별 통계 조회 Hook
+ * 대시보드 등에서 담당자별 진행률 표시에 사용
+ */
+export function useWbsStats(params?: { projectId?: string }) {
+  return useQuery({
+    queryKey: wbsKeys.stats(params),
+    queryFn: () => api.wbs.stats(params),
+    staleTime: 1000 * 60 * 2, // 2분간 fresh 상태 유지
   });
 }

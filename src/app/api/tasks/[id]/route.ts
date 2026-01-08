@@ -16,6 +16,28 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { TaskStatus } from "@prisma/client";
+import { sendTaskCompletedNotification } from "@/lib/slack";
+
+/**
+ * 마감일 초과 여부 확인 헬퍼 함수
+ * @param dueDate - 마감일
+ * @param status - 현재 상태
+ * @returns 지연 상태로 변경해야 하는지 여부
+ */
+function shouldBeDelayed(dueDate: Date | null, status: TaskStatus): boolean {
+  // 마감일이 없거나 이미 완료/취소/지연 상태면 지연 처리 안함
+  if (!dueDate) return false;
+  if (status === "COMPLETED" || status === "CANCELLED" || status === "DELAYED") return false;
+
+  // 마감일이 오늘보다 과거인지 확인 (자정 기준)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dueDateNormalized = new Date(dueDate);
+  dueDateNormalized.setHours(0, 0, 0, 0);
+
+  return dueDateNormalized < today;
+}
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -24,6 +46,8 @@ type RouteParams = {
 /**
  * 태스크 상세 조회
  * GET /api/tasks/:id
+ *
+ * 마감일이 초과된 미완료 태스크는 자동으로 DELAYED(지연) 상태로 변경됩니다.
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -38,7 +62,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             name: true,
           },
         },
-        // 다중 담당자 조회 (TaskAssignee를 통해)
+        // 주 담당자 조회 (1:N)
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        // 부 담당자 조회 (다대다, TaskAssignee를 통해)
         assignees: {
           include: {
             user: {
@@ -78,9 +111,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 응답 형식 변환 (assignees 배열 평탄화)
+    // 마감일 초과된 태스크는 자동으로 DELAYED 상태로 업데이트
+    let currentStatus: TaskStatus = task.status;
+    if (shouldBeDelayed(task.dueDate, task.status)) {
+      await prisma.task.update({
+        where: { id },
+        data: { status: TaskStatus.DELAYED },
+      });
+      currentStatus = TaskStatus.DELAYED;
+    }
+
+    // 응답 형식 변환 (assignees 배열 평탄화, 지연 상태 반영)
     const transformedTask = {
       ...task,
+      status: currentStatus,
       assignees: task.assignees.map((a) => a.user),
     };
 
@@ -98,14 +142,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * 태스크 수정
  * PATCH /api/tasks/:id
  *
- * @param assigneeIds - 담당자 ID 배열 (다중 담당자 지원, 기존 담당자 대체)
+ * @param assigneeId - 주 담당자 ID (단일, null로 해제 가능)
+ * @param assigneeIds - 부 담당자 ID 배열 (다중 담당자 지원, 기존 담당자 대체)
  * @param requirementId - 연결할 요구사항 ID (null로 연결 해제 가능)
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, description, status, priority, assigneeIds, dueDate, order, requirementId } = body;
+    const { title, description, status, priority, assigneeId, assigneeIds, startDate, dueDate, order, requirementId } = body;
 
     // 태스크 존재 확인
     const existing = await prisma.task.findUnique({ where: { id } });
@@ -141,11 +186,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(description !== undefined && { description }),
         ...(status !== undefined && { status }),
         ...(priority !== undefined && { priority }),
-        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
+        ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),  // 주 담당자
+        ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),  // 시작일
+        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),          // 마감일
         ...(order !== undefined && { order }),
         ...(requirementId !== undefined && { requirementId: requirementId || null }),
       },
       include: {
+        // 주 담당자 조회
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        // 부 담당자 조회
         assignees: {
           include: {
             user: {
@@ -180,6 +237,29 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       ...task,
       assignees: task.assignees.map((a) => a.user),
     };
+
+    // Task가 완료 상태로 변경되었을 때 Slack 알림 전송
+    if (status === "COMPLETED" && existing.status !== "COMPLETED") {
+      // 프로젝트 정보 조회
+      const project = await prisma.project.findUnique({
+        where: { id: task.projectId },
+        select: { name: true },
+      });
+
+      // 담당자 이름 (주 담당자 또는 부 담당자 첫 번째)
+      const assigneeName = task.assignee?.name
+        || (task.assignees.length > 0 ? task.assignees[0].user.name : null);
+
+      // Slack 알림 전송 (비동기, 실패해도 응답에 영향 없음)
+      sendTaskCompletedNotification({
+        taskTitle: task.title,
+        projectName: project?.name,
+        assigneeName: assigneeName || undefined,
+        completedAt: new Date(),
+      }).catch((err) => {
+        console.error("[Slack] Task 완료 알림 전송 실패:", err);
+      });
+    }
 
     return NextResponse.json(transformedTask);
   } catch (error) {

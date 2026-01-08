@@ -14,7 +14,7 @@
  */
 
 import { DashboardLayout } from "@/components/layout";
-import { ProjectProvider } from "@/contexts";
+import { ProjectProvider, ToastProvider } from "@/contexts";
 
 export default function DashboardRootLayout({
   children,
@@ -23,7 +23,9 @@ export default function DashboardRootLayout({
 }) {
   return (
     <ProjectProvider>
-      <DashboardLayout>{children}</DashboardLayout>
+      <ToastProvider>
+        <DashboardLayout>{children}</DashboardLayout>
+      </ToastProvider>
     </ProjectProvider>
   );
 }

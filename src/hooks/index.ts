@@ -37,16 +37,18 @@ export {
   useCreateRequirement,
   useUpdateRequirement,
   useDeleteRequirement,
+  useRequirementStats,
   requirementKeys,
 } from "./useRequirements";
 
-// 휴일 hooks
+// 휴일/일정 hooks
 export {
   useHolidays,
   useHoliday,
   useCreateHoliday,
   useUpdateHoliday,
   useDeleteHoliday,
+  useTodaySchedules,
   holidayKeys,
 } from "./useHolidays";
 
@@ -78,6 +80,7 @@ export {
   useUpdateWbsItem,
   useDeleteWbsItem,
   useChangeWbsLevel,
+  useWbsStats,
   wbsKeys,
 } from "./useWbs";
 
@@ -88,5 +91,6 @@ export {
   useCreateIssue,
   useUpdateIssue,
   useDeleteIssue,
+  useIssueStats,
   issueKeys,
 } from "./useIssues";

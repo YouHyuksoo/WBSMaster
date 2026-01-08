@@ -61,8 +61,10 @@ export function useCreateTask() {
       title: string;
       description?: string;
       projectId: string;
-      assigneeIds?: string[];
+      assigneeId?: string;     // 주 담당자
+      assigneeIds?: string[];  // 부 담당자들 (협업자)
       priority?: string;
+      startDate?: string;
       dueDate?: string;
       requirementId?: string;
     }) => api.tasks.create(data),

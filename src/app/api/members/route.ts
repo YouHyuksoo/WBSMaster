@@ -74,11 +74,13 @@ export async function GET(request: NextRequest) {
  * @param userId - 사용자 ID (필수)
  * @param role - 역할 (OWNER, MANAGER, MEMBER 중 하나)
  * @param customRole - 커스텀 역할명 (예: PMO, 프로젝트 총괄, PL 등)
+ * @param department - 부서 (예: 개발팀, 기획팀 등)
+ * @param position - 직급 (예: 사원, 대리, 과장 등)
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, userId, role, customRole } = body;
+    const { projectId, userId, role, customRole, department, position } = body;
 
     // 필수 필드 검증
     if (!projectId || !userId) {
@@ -128,7 +130,9 @@ export async function POST(request: NextRequest) {
         projectId,
         userId,
         role: role || "MEMBER",
-        customRole: customRole || null, // 커스텀 역할명 저장
+        customRole: customRole || null,
+        department: department || null,
+        position: position || null,
       },
       include: {
         user: {

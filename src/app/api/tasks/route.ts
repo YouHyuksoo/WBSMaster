@@ -21,8 +21,30 @@ import { TaskStatus, Prisma } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 
 /**
+ * 마감일 초과 여부 확인 헬퍼 함수
+ * @param dueDate - 마감일
+ * @param status - 현재 상태
+ * @returns 지연 상태로 변경해야 하는지 여부
+ */
+function shouldBeDelayed(dueDate: Date | null, status: TaskStatus): boolean {
+  // 마감일이 없거나 이미 완료/취소/지연 상태면 지연 처리 안함
+  if (!dueDate) return false;
+  if (status === "COMPLETED" || status === "CANCELLED" || status === "DELAYED") return false;
+
+  // 마감일이 오늘보다 과거인지 확인 (자정 기준)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dueDateNormalized = new Date(dueDate);
+  dueDateNormalized.setHours(0, 0, 0, 0);
+
+  return dueDateNormalized < today;
+}
+
+/**
  * 태스크 목록 조회
  * GET /api/tasks
+ *
+ * 마감일이 초과된 미완료 태스크는 자동으로 DELAYED(지연) 상태로 변경됩니다.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -52,7 +74,16 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
-        // 다중 담당자 조회 (TaskAssignee를 통해)
+        // 주 담당자 조회 (1:N)
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        // 부 담당자 조회 (다대다, TaskAssignee를 통해)
         assignees: {
           include: {
             user: {
@@ -88,9 +119,26 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // 응답 형식 변환 (assignees 배열을 평탄화)
+    // 마감일 초과된 태스크들의 상태를 DELAYED로 업데이트
+    const delayedTaskIds = tasks
+      .filter((task) => shouldBeDelayed(task.dueDate, task.status))
+      .map((task) => task.id);
+
+    if (delayedTaskIds.length > 0) {
+      // 지연 상태로 일괄 업데이트
+      await prisma.task.updateMany({
+        where: { id: { in: delayedTaskIds } },
+        data: { status: TaskStatus.DELAYED },
+      });
+    }
+
+    // 응답 형식 변환 (assignees 배열을 평탄화, 지연 상태 반영)
     const transformedTasks = tasks.map((task) => ({
       ...task,
+      // 마감일 초과된 태스크는 DELAYED 상태로 반환
+      status: delayedTaskIds.includes(task.id) ? "DELAYED" : task.status,
+      // 주 담당자는 그대로 유지 (assignee)
+      // 부 담당자 배열 평탄화 (assignees)
       assignees: task.assignees.map((a) => a.user),
     }));
 
@@ -109,7 +157,8 @@ export async function GET(request: NextRequest) {
  * POST /api/tasks
  * (인증 필요)
  *
- * @param assigneeIds - 담당자 ID 배열 (다중 담당자 지원)
+ * @param assigneeId - 주 담당자 ID (단일)
+ * @param assigneeIds - 부 담당자 ID 배열 (다중 담당자 지원)
  * @param requirementId - 연결할 요구사항 ID (선택)
  */
 export async function POST(request: NextRequest) {
@@ -119,7 +168,7 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     const body = await request.json();
-    const { title, description, projectId, assigneeIds, priority, dueDate, requirementId } = body;
+    const { title, description, projectId, assigneeId, assigneeIds, priority, startDate, dueDate, requirementId } = body;
 
     // 필수 필드 검증
     if (!title || !projectId) {
@@ -155,17 +204,29 @@ export async function POST(request: NextRequest) {
         description,
         projectId,
         creatorId,
+        assigneeId: assigneeId || null, // 주 담당자 (선택)
         priority: priority || "MEDIUM",
-        dueDate: dueDate ? new Date(dueDate) : null,
+        startDate: startDate ? new Date(startDate) : null,  // 시작일
+        dueDate: dueDate ? new Date(dueDate) : null,        // 마감일
         status: "PENDING",
         order: taskCount,
         requirementId: requirementId || null, // 요구사항 연결 (선택)
-        // 다중 담당자 생성 (TaskAssignee 레코드)
+        // 부 담당자 생성 (TaskAssignee 레코드)
         assignees: {
           create: assigneesData,
         },
       },
       include: {
+        // 주 담당자 조회
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        // 부 담당자 조회
         assignees: {
           include: {
             user: {

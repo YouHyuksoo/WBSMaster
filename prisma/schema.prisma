@@ -23,11 +23,12 @@ datasource db {
 
 // ============================================
 // 사용자 모델
-// Supabase Auth의 사용자 정보와 연동
+// 이메일/비밀번호 기반 자체 인증 시스템
 // ============================================
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
+  password  String   @default("admin123") // 비밀번호 (기본값: admin123)
   name      String?
   avatar    String?  // 프로필 이미지 URL
   role      UserRole @default(MEMBER)
@@ -37,13 +38,17 @@ model User {
   // 관계
   ownedProjects Project[]    @relation("ProjectOwner")
   teamMembers   TeamMember[]
-  taskAssignments TaskAssignee[] // 태스크 담당자 (다대다)
+  assignedTasks Task[]       @relation("TaskAssignee") // 내가 주 담당자인 태스크들
+  taskAssignments TaskAssignee[] // 태스크 부 담당자 (다대다)
   createdTasks  Task[]       @relation("TaskCreator")
   requestedRequirements Requirement[] @relation("RequirementRequester") // 내가 요청한 요구사항
   assignedRequirements  Requirement[] @relation("RequirementAssignee")  // 나에게 할당된 요구사항
   wbsAssignments WbsAssignee[] // WBS 담당자 (다대다)
   reportedIssues Issue[] @relation("IssueReporter") // 내가 보고한 이슈
   assignedIssues Issue[] @relation("IssueAssignee") // 나에게 할당된 이슈
+  aiSetting     AiSetting?   // AI 설정 (1:1)
+  chatHistories ChatHistory[] // 채팅 기록
+  holidays      Holiday[] @relation("HolidayUser") // 개인 일정
 
   @@map("users")
 }
@@ -84,6 +89,7 @@ model Project {
   teamMembers  TeamMember[]
   holidays     Holiday[]
   wbsItems     WbsItem[]     // WBS 항목
+  chatHistories ChatHistory[] // AI 채팅 기록
 
   @@map("projects")
 }
@@ -106,7 +112,8 @@ model Task {
   description String?
   status      TaskStatus   @default(PENDING)
   priority    TaskPriority @default(MEDIUM)
-  dueDate     DateTime?
+  startDate   DateTime?    // 시작일
+  dueDate     DateTime?    // 마감일
   order       Int          @default(0) // 칸반 보드 내 순서
   isAiGenerated Boolean    @default(false) // AI가 생성한 태스크 여부
   createdAt   DateTime     @default(now())
@@ -115,7 +122,9 @@ model Task {
   // 관계
   projectId     String
   project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assignees     TaskAssignee[] // 담당자들 (다대다)
+  assigneeId    String?        // 주 담당자 (1:N 관계로 누구의 태스크인지 명확히)
+  assignee      User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignees     TaskAssignee[] // 부 담당자들 (다대다, 협업자)
   creatorId     String
   creator       User    @relation("TaskCreator", fields: [creatorId], references: [id])
   requirementId String?        // 연결된 요구사항 (선택)
@@ -146,6 +155,7 @@ enum TaskStatus {
   PENDING     // 대기중
   IN_PROGRESS // 진행중
   HOLDING     // 홀딩
+  DELAYED     // 지연 (마감일 초과)
   COMPLETED   // 완료
   CANCELLED   // 취소
 }
@@ -168,6 +178,7 @@ model Requirement {
   status      RequirementStatus   @default(DRAFT)
   priority    RequirementPriority @default(SHOULD)
   category    String?             // 카테고리 (인증, UI/UX, API 등)
+  oneDriveLink String?            // OneDrive 문서 링크
   requestDate DateTime            @default(now())  // 요청일
   dueDate     DateTime?           // 마감일
   isDelayed   Boolean             @default(false)  // 지연 여부
@@ -201,28 +212,40 @@ enum RequirementPriority {
 }
 
 // ============================================
-// 휴무 모델
-// 휴무 달력용
+// 일정 모델 (휴무 + 개인 일정)
+// 일정 관리 달력용
 // ============================================
 model Holiday {
-  id        String      @id @default(uuid())
-  title     String
-  date      DateTime
-  type      HolidayType
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id          String      @id @default(uuid())
+  title       String
+  description String?     // 일정 상세 설명
+  date        DateTime
+  endDate     DateTime?   // 종료일 (기간 일정용)
+  type        HolidayType
+  isAllDay    Boolean     @default(true)  // 종일 일정 여부
+  startTime   String?     // 시작 시간 (HH:mm 형식)
+  endTime     String?     // 종료 시간 (HH:mm 형식)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   // 관계
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId      String?     // 개인 일정인 경우 사용자 ID
+  user        User?   @relation("HolidayUser", fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([userId])
   @@map("holidays")
 }
 
 enum HolidayType {
-  COMPANY_HOLIDAY // 회사 휴일
-  TEAM_OFFSITE    // 팀 오프사이트
-  PERSONAL_LEAVE  // 개인 휴가
+  COMPANY_HOLIDAY  // 회사 휴일
+  TEAM_OFFSITE     // 팀 오프사이트
+  PERSONAL_LEAVE   // 개인 휴가
+  PERSONAL_SCHEDULE // 개인 일정
+  MEETING          // 회의
+  DEADLINE         // 마감일
+  OTHER            // 기타
 }
 
 // ============================================
@@ -233,6 +256,8 @@ model TeamMember {
   id         String         @id @default(uuid())
   role       TeamMemberRole @default(MEMBER)
   customRole String?        // 커스텀 역할명 (예: PMO, 프로젝트 총괄, PL 등)
+  department String?        // 부서 (예: 개발팀, 기획팀, 디자인팀 등)
+  position   String?        // 직급 (예: 사원, 대리, 과장, 차장, 부장 등)
   joinedAt   DateTime       @default(now())
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
@@ -269,6 +294,8 @@ model WbsItem {
   startDate   DateTime?     // 시작일
   endDate     DateTime?     // 종료일
   weight      Int           @default(1) // 가중치 (진행률 계산용)
+  deliverableName String?   // 산출물명
+  deliverableLink String?   // 산출물 링크 (URL)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -369,4 +396,105 @@ enum IssueCategory {
   FEATURE       // 신규기능
   DOCUMENTATION // 문서
   OTHER         // 기타
+}
+
+// ============================================
+// AI 설정 모델
+// LLM API 키 및 모델 설정
+// ============================================
+model AiSetting {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider      String   @default("gemini")  // "gemini" | "mistral"
+  geminiApiKey  String?  // Google AI Studio API 키
+  geminiModel   String   @default("gemini-1.5-flash")
+  mistralApiKey String?  // Mistral API 키
+  mistralModel  String   @default("mistral-small-latest")
+
+  // 현재 선택된 페르소나
+  activePersonaId String?
+
+  // 시스템 프롬프트 (커스터마이징 가능)
+  sqlSystemPrompt      String?  // SQL 생성용 시스템 프롬프트
+  analysisSystemPrompt String?  // 결과 분석용 시스템 프롬프트
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("ai_settings")
+}
+
+// ============================================
+// AI 페르소나 모델
+// 커스텀 시스템 프롬프트 및 페르소나 관리
+// ============================================
+model AiPersona {
+  id            String   @id @default(uuid())
+  userId        String
+
+  name          String          // 페르소나 이름 (예: "PM 어시스턴트", "코드 리뷰어")
+  description   String?         // 페르소나 설명
+  icon          String?         // 아이콘 (Material Icons 이름)
+  systemPrompt  String          // 시스템 프롬프트 (LLM에 전달)
+  isDefault     Boolean @default(false) // 기본 페르소나 여부
+  isActive      Boolean @default(true)  // 활성화 여부
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@map("ai_personas")
+}
+
+// ============================================
+// Slack 설정 모델
+// Slack 웹훅 연동 설정
+// ============================================
+model SlackSettings {
+  id              String   @id @default(uuid())
+  webhookUrl      String   // Slack 웹훅 URL
+  channelName     String?  // 채널 이름 (표시용)
+  isEnabled       Boolean  @default(true) // 전체 알림 활성화
+
+  // 알림 조건
+  notifyTaskCompleted    Boolean @default(true)  // Task 완료 시
+  notifyTaskCreated      Boolean @default(false) // Task 생성 시
+  notifyTaskDelayed      Boolean @default(true)  // Task 지연 시
+  notifyIssueCreated     Boolean @default(true)  // 이슈 등록 시
+  notifyIssueResolved    Boolean @default(false) // 이슈 해결 시
+  notifyProjectProgress  Boolean @default(false) // 프로젝트 진행률 변경 시
+
+  // 추가 옵션
+  mentionOnUrgent Boolean @default(false) // 긴급 시 @channel 멘션
+  dailyReportTime String? // 일일 리포트 시간 (HH:mm 형식, null이면 비활성화)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("slack_settings")
+}
+
+// ============================================
+// 채팅 기록 모델
+// AI 어시스턴트 대화 기록
+// ============================================
+model ChatHistory {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  role        String   // "user" | "assistant"
+  content     String   // 메시지 내용 (마크다운)
+  sqlQuery    String?  // 실행된 SQL 쿼리
+  chartData   Json?    // 차트 데이터 (JSON)
+  chartType   String?  // 차트 타입 (bar, line, pie 등)
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, projectId])
+  @@map("chat_histories")
 }

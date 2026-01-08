@@ -51,7 +51,7 @@ export function useHoliday(id: string) {
 }
 
 /**
- * 휴일 생성 Hook
+ * 일정 생성 Hook
  */
 export function useCreateHoliday() {
   const queryClient = useQueryClient();
@@ -59,9 +59,15 @@ export function useCreateHoliday() {
   return useMutation({
     mutationFn: (data: {
       title: string;
+      description?: string;
       date: string;
+      endDate?: string;
       type: string;
+      isAllDay?: boolean;
+      startTime?: string;
+      endTime?: string;
       projectId: string;
+      userId?: string;
     }) => api.holidays.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: holidayKeys.lists() });
@@ -96,5 +102,18 @@ export function useDeleteHoliday() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: holidayKeys.lists() });
     },
+  });
+}
+
+/**
+ * 오늘의 일정 조회 Hook
+ * 대시보드에서 당일 일정을 표시할 때 사용합니다.
+ * @param projectId - 프로젝트 ID (선택)
+ * @param userId - 사용자 ID (선택, 개인 일정 필터링용)
+ */
+export function useTodaySchedules(filters?: { projectId?: string; userId?: string }) {
+  return useQuery({
+    queryKey: [...holidayKeys.all, "today", filters] as const,
+    queryFn: () => api.holidays.today(filters),
   });
 }

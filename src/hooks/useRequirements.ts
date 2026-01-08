@@ -27,6 +27,7 @@ export const requirementKeys = {
   list: (filters?: Record<string, string>) => [...requirementKeys.lists(), filters] as const,
   details: () => [...requirementKeys.all, "detail"] as const,
   detail: (id: string) => [...requirementKeys.details(), id] as const,
+  stats: (params?: { projectId?: string }) => [...requirementKeys.all, "stats", params] as const,
 };
 
 /**
@@ -63,6 +64,7 @@ export function useCreateRequirement() {
       projectId: string;
       priority?: string;
       category?: string;
+      oneDriveLink?: string;
       dueDate?: string;
       requesterId?: string;
       assigneeId?: string;
@@ -100,5 +102,17 @@ export function useDeleteRequirement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: requirementKeys.lists() });
     },
+  });
+}
+
+/**
+ * 요구사항 통계 조회 Hook
+ * 담당자별 처리 현황, 상태별 분포 등
+ */
+export function useRequirementStats(params?: { projectId?: string }) {
+  return useQuery({
+    queryKey: requirementKeys.stats(params),
+    queryFn: () => api.requirements.stats(params),
+    staleTime: 1000 * 60 * 2, // 2분간 fresh 상태 유지
   });
 }

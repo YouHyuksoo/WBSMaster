@@ -6,3 +6,4 @@
  */
 
 export { ProjectProvider, useProject } from "./ProjectContext";
+export { ToastProvider, useToast } from "./ToastContext";

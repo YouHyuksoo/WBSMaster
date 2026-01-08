@@ -1,15 +1,15 @@
 /**
  * @file src/app/api/holidays/route.ts
  * @description
- * 휴무 API 라우트입니다.
- * 휴무 목록 조회(GET), 휴무 생성(POST)을 처리합니다.
+ * 일정 관리 API 라우트입니다.
+ * 일정 목록 조회(GET), 일정 생성(POST)을 처리합니다.
  *
  * 초보자 가이드:
- * 1. **GET /api/holidays**: 프로젝트별 휴무 목록 조회
- *    - ?projectId=xxx: 특정 프로젝트의 휴무만 조회
- *    - ?type=COMPANY_HOLIDAY: 특정 유형의 휴무만 조회
- *    - ?year=2024&month=1: 특정 연월의 휴무만 조회
- * 2. **POST /api/holidays**: 새 휴무 생성
+ * 1. **GET /api/holidays**: 프로젝트별 일정 목록 조회
+ *    - ?projectId=xxx: 특정 프로젝트의 일정만 조회
+ *    - ?type=COMPANY_HOLIDAY: 특정 유형의 일정만 조회
+ *    - ?year=2024&month=1: 특정 연월의 일정만 조회
+ * 2. **POST /api/holidays**: 새 일정 생성
  *
  * 수정 방법:
  * - 정렬 추가: orderBy 조건 수정
@@ -64,6 +64,14 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
       },
       orderBy: {
         date: "asc",
@@ -81,18 +89,29 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * 휴무 생성
+ * 일정 생성
  * POST /api/holidays
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, date, type, projectId } = body;
+    const {
+      title,
+      description,
+      date,
+      endDate,
+      type,
+      isAllDay,
+      startTime,
+      endTime,
+      projectId,
+      userId,
+    } = body;
 
     // 필수 필드 검증
     if (!title || !date || !type || !projectId) {
       return NextResponse.json(
-        { error: "휴무 제목, 날짜, 유형, 프로젝트 ID는 필수입니다." },
+        { error: "일정 제목, 날짜, 유형, 프로젝트 ID는 필수입니다." },
         { status: 400 }
       );
     }
@@ -109,9 +128,15 @@ export async function POST(request: NextRequest) {
     const holiday = await prisma.holiday.create({
       data: {
         title,
+        description: description || null,
         date: new Date(date),
+        endDate: endDate ? new Date(endDate) : null,
         type,
+        isAllDay: isAllDay !== undefined ? isAllDay : true,
+        startTime: startTime || null,
+        endTime: endTime || null,
         projectId,
+        userId: userId || null,
       },
       include: {
         project: {
@@ -125,9 +150,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(holiday, { status: 201 });
   } catch (error) {
-    console.error("휴무 생성 실패:", error);
+    console.error("일정 생성 실패:", error);
     return NextResponse.json(
-      { error: "휴무를 생성할 수 없습니다." },
+      { error: "일정을 생성할 수 없습니다." },
       { status: 500 }
     );
   }

@@ -86,14 +86,13 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * 사용자 생성
+ * 사용자 생성 (회원가입)
  * POST /api/users
- * (Supabase Auth 회원가입 후 호출)
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, email, name, avatar } = body;
+    const { id, email, password, name, avatar } = body;
 
     // 필수 필드 검증
     if (!email) {
@@ -109,16 +108,28 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
-      return NextResponse.json(existingUser);
+      return NextResponse.json(
+        { error: "이미 등록된 이메일입니다." },
+        { status: 409 }
+      );
     }
 
     const user = await prisma.user.create({
       data: {
         ...(id && { id }),
         email,
+        password: password || "admin123", // 기본 비밀번호
         name: name || email.split("@")[0],
         avatar,
         role: "MEMBER",
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatar: true,
+        role: true,
+        createdAt: true,
       },
     });
 

@@ -2,12 +2,12 @@
  * @file src/app/(auth)/login/page.tsx
  * @description
  * 로그인 및 회원가입 페이지입니다.
- * 이메일/비밀번호를 통한 내부 인증을 처리합니다.
+ * users 테이블을 직접 체크하여 인증합니다.
  *
  * 초보자 가이드:
  * 1. **탭 전환**: Login / Sign Up 탭으로 모드 전환
- * 2. **폼 제출**: handleSubmit 함수에서 Supabase Auth 호출
- * 3. **회원가입**: 이메일 확인 없이 바로 로그인 가능
+ * 2. **폼 제출**: handleSubmit 함수에서 /api/auth/login API 호출
+ * 3. **회원가입**: /api/users API로 사용자 생성
  *
  * 수정 방법:
  * - 폼 필드 추가: form 내에 Input 컴포넌트 추가
@@ -20,7 +20,6 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Icon, Input } from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
 
 /** 인증 모드 타입 */
 type AuthMode = "login" | "signup";
@@ -42,10 +41,9 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   /**
    * 폼 제출 핸들러
+   * users 테이블에서 직접 인증 처리
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,46 +53,45 @@ function LoginForm() {
 
     try {
       if (authMode === "login") {
-        // 로그인
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+        // 로그인 API 호출
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
         });
-        if (error) throw error;
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "로그인에 실패했습니다.");
+        }
+
+        // 사용자 정보를 localStorage에 저장
+        localStorage.setItem("user", JSON.stringify(data.user));
+
         router.push(redirectTo);
         router.refresh();
       } else {
-        // 회원가입
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { name },
-            // 이메일 확인 비활성화 (Supabase 설정에서도 변경 필요)
-            emailRedirectTo: undefined,
-          },
+        // 회원가입 - /api/users API로 사용자 생성
+        const response = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, name }),
         });
-        if (error) throw error;
 
-        // 회원가입 성공 후 바로 로그인 시도
-        if (data.user) {
-          setSuccess("회원가입이 완료되었습니다! 로그인해주세요.");
-          setAuthMode("login");
-          setPassword("");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "회원가입에 실패했습니다.");
         }
+
+        setSuccess("회원가입이 완료되었습니다! 로그인해주세요.");
+        setAuthMode("login");
+        setPassword("");
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "오류가 발생했습니다.";
-      // 에러 메시지 한글화
-      if (errorMessage.includes("Invalid login credentials")) {
-        setError("이메일 또는 비밀번호가 올바르지 않습니다.");
-      } else if (errorMessage.includes("User already registered")) {
-        setError("이미 등록된 이메일입니다.");
-      } else if (errorMessage.includes("Password should be at least")) {
-        setError("비밀번호는 최소 6자 이상이어야 합니다.");
-      } else {
-        setError(errorMessage);
-      }
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

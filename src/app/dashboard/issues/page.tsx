@@ -7,12 +7,13 @@
  *
  * 초보자 가이드:
  * 1. **카테고리**: 이슈를 유형별로 그룹화 (버그, 개선, 문의 등)
- * 2. **상태**: OPEN/IN_PROGRESS/RESOLVED/CLOSED 구분
+ * 2. **상태 배지**: 클릭 시 드롭다운으로 상태 변경 (열림/진행중/해결됨/종료/수정안함)
  * 3. **우선순위**: CRITICAL/HIGH/MEDIUM/LOW 구분
  *
  * 수정 방법:
  * - 이슈 추가: useCreateIssue hook 사용
  * - 이슈 수정: useUpdateIssue hook 사용
+ * - 상태 변경: handleStatusChange 함수 사용
  */
 
 "use client";
@@ -65,6 +66,10 @@ export default function IssuesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
+  /** 상태 드롭다운이 열린 이슈 ID */
+  const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
+  /** 현재 선택된 탭 (active: 활성 이슈, closed: 종료된 이슈) */
+  const [activeTab, setActiveTab] = useState<"active" | "closed">("active");
 
   /** 전역 프로젝트 선택 상태 (헤더에서 선택) */
   const { selectedProjectId, selectedProject } = useProject();
@@ -94,8 +99,15 @@ export default function IssuesPage() {
     dueDate: "",
   });
 
+  // 탭별 이슈 분리 (활성 vs 종료)
+  const activeIssues = issues.filter((i) => i.status !== "CLOSED");
+  const closedIssues = issues.filter((i) => i.status === "CLOSED");
+
+  // 현재 탭에 해당하는 이슈 목록
+  const tabIssues = activeTab === "active" ? activeIssues : closedIssues;
+
   // 필터링된 이슈
-  const filteredIssues = issues.filter((issue) => {
+  const filteredIssues = tabIssues.filter((issue) => {
     const matchesPriority = filterPriority === "all" || issue.priority === filterPriority;
     const matchesStatus = filterStatus === "all" || issue.status === filterStatus;
     const matchesCategory = filterCategory === "all" || issue.category === filterCategory;
@@ -113,18 +125,28 @@ export default function IssuesPage() {
     resolved: issues.filter((i) => i.status === "RESOLVED" || i.status === "CLOSED").length,
   };
 
-  /**
-   * 상태 토글 (OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED)
-   */
-  const toggleStatus = async (id: string, currentStatus: string) => {
-    const statusOrder = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const;
-    const currentIndex = statusOrder.indexOf(currentStatus as typeof statusOrder[number]);
-    const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
+  // 긴급 이슈 통계 계산
+  const criticalIssues = issues.filter((i) => i.priority === "CRITICAL");
+  const criticalStats = {
+    total: criticalIssues.length,
+    resolved: criticalIssues.filter((i) => i.status === "RESOLVED" || i.status === "CLOSED").length,
+    unresolved: criticalIssues.filter((i) => i.status !== "RESOLVED" && i.status !== "CLOSED").length,
+    unresolvedRate: criticalIssues.length > 0
+      ? Math.round((criticalIssues.filter((i) => i.status !== "RESOLVED" && i.status !== "CLOSED").length / criticalIssues.length) * 100)
+      : 0,
+  };
 
+  /**
+   * 상태 변경 (드롭다운에서 선택)
+   * @param id 이슈 ID
+   * @param newStatus 변경할 상태
+   */
+  const handleStatusChange = async (id: string, newStatus: Issue["status"]) => {
     await updateIssue.mutateAsync({
       id,
-      data: { status: nextStatus },
+      data: { status: newStatus },
     });
+    setOpenStatusDropdown(null);
   };
 
   /**
@@ -240,67 +262,132 @@ export default function IssuesPage() {
       {selectedProjectId && (
         <>
           {/* 통계 카드 */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="bug_report" size="sm" className="text-primary" />
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+            {/* 해결률 카드 */}
+            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon name="speed" size="xs" className="text-primary" />
+                <span className="text-xs font-semibold text-primary">해결률</span>
+              </div>
+              <p className="text-2xl font-bold text-primary mb-1">
+                {stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}%
+              </p>
+              <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
+                  style={{ width: stats.total > 0 ? `${(stats.resolved / stats.total) * 100}%` : "0%" }}
+                />
+              </div>
+            </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Icon name="bug_report" size="xs" className="text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-xs text-text-secondary">전체</p>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
+                  <p className="text-[10px] text-text-secondary">전체</p>
                 </div>
               </div>
             </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-lg bg-error/10 flex items-center justify-center">
-                  <Icon name="radio_button_unchecked" size="sm" className="text-error" />
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-error/10 flex items-center justify-center">
+                  <Icon name="radio_button_unchecked" size="xs" className="text-error" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.open}</p>
-                  <p className="text-xs text-text-secondary">열림</p>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.open}</p>
+                  <p className="text-[10px] text-text-secondary">열림</p>
                 </div>
               </div>
             </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <Icon name="pending" size="sm" className="text-warning" />
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
+                  <Icon name="pending" size="xs" className="text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.inProgress}</p>
-                  <p className="text-xs text-text-secondary">진행중</p>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.inProgress}</p>
+                  <p className="text-[10px] text-text-secondary">진행중</p>
                 </div>
               </div>
             </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-lg bg-success/10 flex items-center justify-center">
-                  <Icon name="check_circle" size="sm" className="text-success" />
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
+                  <Icon name="check_circle" size="xs" className="text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.resolved}</p>
-                  <p className="text-xs text-text-secondary">해결됨</p>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.resolved}</p>
+                  <p className="text-[10px] text-text-secondary">해결됨</p>
+                </div>
+              </div>
+            </div>
+            {/* 긴급 이슈 정보 카드 */}
+            <div className="bg-error/5 border border-error/20 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon name="warning" size="xs" className="text-error" />
+                <span className="text-xs font-semibold text-error">긴급</span>
+              </div>
+              <div className="flex items-center justify-between gap-1">
+                <div className="text-center flex-1">
+                  <p className="text-lg font-bold text-error">{criticalStats.total}</p>
+                  <p className="text-[10px] text-text-secondary">건수</p>
+                </div>
+                <div className="text-center flex-1">
+                  <p className="text-lg font-bold text-success">{criticalStats.resolved}</p>
+                  <p className="text-[10px] text-text-secondary">해결</p>
+                </div>
+                <div className="text-center flex-1">
+                  <p className={`text-lg font-bold ${criticalStats.unresolvedRate > 50 ? "text-error" : criticalStats.unresolvedRate > 0 ? "text-warning" : "text-success"}`}>
+                    {criticalStats.unresolvedRate}%
+                  </p>
+                  <p className="text-[10px] text-text-secondary">미결</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 해결률 바 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-text-secondary">해결률</span>
-              <span className="font-medium text-text dark:text-white">
-                {stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}%
+          {/* 탭 */}
+          <div className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg w-fit">
+            <button
+              onClick={() => {
+                setActiveTab("active");
+                setFilterStatus("all");
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "active"
+                  ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                  : "text-text-secondary hover:text-text dark:hover:text-white"
+              }`}
+            >
+              <Icon name="pending_actions" size="xs" />
+              <span>활성 이슈</span>
+              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                activeTab === "active" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
+              }`}>
+                {activeIssues.length}
               </span>
-            </div>
-            <div className="h-3 bg-surface dark:bg-background-dark rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                style={{ width: stats.total > 0 ? `${(stats.resolved / stats.total) * 100}%` : "0%" }}
-              />
-            </div>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("closed");
+                setFilterStatus("all");
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "closed"
+                  ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                  : "text-text-secondary hover:text-text dark:hover:text-white"
+              }`}
+            >
+              <Icon name="task_alt" size="xs" />
+              <span>종료됨</span>
+              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                activeTab === "closed" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
+              }`}>
+                {closedIssues.length}
+              </span>
+            </button>
           </div>
 
           {/* 필터 */}
@@ -324,18 +411,20 @@ export default function IssuesPage() {
               <option value="MEDIUM">보통</option>
               <option value="LOW">낮음</option>
             </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-            >
-              <option value="all">전체 상태</option>
-              <option value="OPEN">열림</option>
-              <option value="IN_PROGRESS">진행중</option>
-              <option value="RESOLVED">해결됨</option>
-              <option value="CLOSED">종료</option>
-              <option value="WONT_FIX">수정안함</option>
-            </select>
+            {/* 활성 탭에서만 상태 필터 표시 */}
+            {activeTab === "active" && (
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+              >
+                <option value="all">전체 상태</option>
+                <option value="OPEN">열림</option>
+                <option value="IN_PROGRESS">진행중</option>
+                <option value="RESOLVED">해결됨</option>
+                <option value="WONT_FIX">수정안함</option>
+              </select>
+            )}
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
@@ -356,9 +445,9 @@ export default function IssuesPage() {
             {/* 테이블 헤더 */}
             <div
               className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1100px]"
-              style={{ gridTemplateColumns: "50px 80px 1fr 80px 80px 100px 100px 80px 90px 50px" }}
+              style={{ gridTemplateColumns: "80px 80px 1fr 80px 80px 100px 100px 80px 90px 50px" }}
             >
-              <div>상태</div>
+              <div>진행상태</div>
               <div>코드</div>
               <div>이슈</div>
               <div>우선순위</div>
@@ -399,28 +488,56 @@ export default function IssuesPage() {
                 <div
                   key={issue.id}
                   className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1100px]"
-                  style={{ gridTemplateColumns: "50px 80px 1fr 80px 80px 100px 100px 80px 90px 50px" }}
+                  style={{ gridTemplateColumns: "80px 80px 1fr 80px 80px 100px 100px 80px 90px 50px" }}
                 >
-                  {/* 상태 버튼 */}
-                  <div>
+                  {/* 상태 배지 (클릭 시 드롭다운) */}
+                  <div className="relative">
                     <button
-                      onClick={() => toggleStatus(issue.id, issue.status)}
-                      className={`size-6 rounded-md border-2 flex items-center justify-center transition-colors ${
-                        issue.status === "CLOSED" || issue.status === "RESOLVED"
-                          ? "bg-success border-success text-white"
+                      onClick={() => setOpenStatusDropdown(openStatusDropdown === issue.id ? null : issue.id)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                        issue.status === "CLOSED"
+                          ? "bg-primary/10 text-primary"
+                          : issue.status === "RESOLVED"
+                          ? "bg-success/10 text-success"
                           : issue.status === "IN_PROGRESS"
-                          ? "bg-warning border-warning text-white"
-                          : "border-border dark:border-border-dark hover:border-primary"
+                          ? "bg-warning/10 text-warning"
+                          : issue.status === "WONT_FIX"
+                          ? "bg-slate-100 dark:bg-slate-800 text-text-secondary"
+                          : "bg-error/10 text-error"
                       }`}
-                      title={status.label}
+                      title="클릭하여 상태 변경"
                     >
-                      {(issue.status === "CLOSED" || issue.status === "RESOLVED") && (
-                        <Icon name="check" size="xs" />
-                      )}
-                      {issue.status === "IN_PROGRESS" && (
-                        <Icon name="more_horiz" size="xs" />
-                      )}
+                      <Icon name={status.icon} size="xs" />
+                      <span className="hidden sm:inline">{status.label}</span>
                     </button>
+
+                    {/* 상태 변경 드롭다운 */}
+                    {openStatusDropdown === issue.id && (
+                      <>
+                        {/* 드롭다운 외부 클릭 시 닫기 */}
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setOpenStatusDropdown(null)}
+                        />
+                        <div className="absolute left-0 top-full mt-1 z-20 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[120px]">
+                          {Object.entries(statusConfig).map(([key, config]) => (
+                            <button
+                              key={key}
+                              onClick={() => handleStatusChange(issue.id, key as Issue["status"])}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface dark:hover:bg-background-dark transition-colors ${
+                                issue.status === key ? "bg-primary/5" : ""
+                              }`}
+                            >
+                              <Icon name={config.icon} size="xs" className={config.color} />
+                              <span className={`${config.color}`}>{config.label}</span>
+                              {issue.status === key && (
+                                <Icon name="check" size="xs" className="ml-auto text-primary" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* 코드 */}

@@ -198,6 +198,8 @@ export async function POST(request: NextRequest) {
       startDate,
       endDate,
       weight,
+      deliverableName,
+      deliverableLink,
     } = body;
 
     // 필수 필드 검증
@@ -282,6 +284,8 @@ export async function POST(request: NextRequest) {
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         weight: weight || 1,
+        deliverableName: deliverableName || null,
+        deliverableLink: deliverableLink || null,
         assignees: {
           create: assigneesData,
         },

@@ -7,12 +7,13 @@
  *
  * 초보자 가이드:
  * 1. **카테고리**: 요구사항을 기능별로 그룹화
- * 2. **체크박스**: 완료 여부 표시
+ * 2. **상태 배지**: 클릭 시 드롭다운으로 상태 변경 (초안/승인/반려/구현완료)
  * 3. **우선순위**: MUST/SHOULD/COULD/WONT 구분
  *
  * 수정 방법:
  * - 요구사항 추가: useCreateRequirement hook 사용
  * - 요구사항 수정: useUpdateRequirement hook 사용
+ * - 상태 변경: handleStatusChange 함수 사용
  */
 
 "use client";
@@ -50,9 +51,17 @@ const statusConfig: Record<string, { label: string; icon: string; color: string 
 export default function RequirementsPage() {
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterRequester, setFilterRequester] = useState<string>("all");
+  const [filterAssignee, setFilterAssignee] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingRequirement, setEditingRequirement] = useState<Requirement | null>(null);
+  /** OneDrive 미리보기 모달 상태 */
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  /** 상태 드롭다운이 열린 요구사항 ID */
+  const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
+  /** 현재 선택된 탭 (active: 활성 요구사항, implemented: 구현완료) */
+  const [activeTab, setActiveTab] = useState<"active" | "implemented">("active");
 
   /** 전역 프로젝트 선택 상태 (헤더에서 선택) */
   const { selectedProjectId, selectedProject } = useProject();
@@ -79,20 +88,48 @@ export default function RequirementsPage() {
     description: "",
     priority: "SHOULD",
     category: "",
+    oneDriveLink: "",
     dueDate: "",
   });
+
+  /**
+   * OneDrive 링크를 임베드 가능한 URL로 변환
+   * 공유 링크를 embed 형식으로 변환합니다.
+   */
+  const getEmbedUrl = (url: string): string => {
+    if (!url) return "";
+    // OneDrive 공유 링크를 embed 형식으로 변환
+    // 예: https://1drv.ms/x/s!xxx -> embed 형식
+    // 또는 직접 embed URL 사용
+    if (url.includes("embed")) return url;
+    if (url.includes("1drv.ms") || url.includes("onedrive.live.com") || url.includes("sharepoint.com")) {
+      // action=embedview 파라미터 추가
+      const separator = url.includes("?") ? "&" : "?";
+      return `${url}${separator}action=embedview`;
+    }
+    return url;
+  };
 
   // 카테고리 목록 추출
   const categories = [...new Set(requirements.map((r) => r.category).filter(Boolean))];
 
+  // 탭별 요구사항 분리 (활성 vs 구현완료)
+  const activeRequirements = requirements.filter((r) => r.status !== "IMPLEMENTED");
+  const implementedRequirements = requirements.filter((r) => r.status === "IMPLEMENTED");
+
+  // 현재 탭에 해당하는 요구사항 목록
+  const tabRequirements = activeTab === "active" ? activeRequirements : implementedRequirements;
+
   // 필터링된 요구사항
-  const filteredRequirements = requirements.filter((req) => {
+  const filteredRequirements = tabRequirements.filter((req) => {
     const matchesPriority = filterPriority === "all" || req.priority === filterPriority;
     const matchesStatus = filterStatus === "all" || req.status === filterStatus;
     const matchesSearch =
       req.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       req.code?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesPriority && matchesStatus && matchesSearch;
+    const matchesRequester = filterRequester === "all" || req.requesterId === filterRequester;
+    const matchesAssignee = filterAssignee === "all" || req.assigneeId === filterAssignee;
+    return matchesPriority && matchesStatus && matchesSearch && matchesRequester && matchesAssignee;
   });
 
   // 통계 계산
@@ -104,17 +141,16 @@ export default function RequirementsPage() {
   };
 
   /**
-   * 상태 토글 (DRAFT -> APPROVED -> IMPLEMENTED)
+   * 상태 변경 (드롭다운에서 선택)
+   * @param id 요구사항 ID
+   * @param newStatus 변경할 상태
    */
-  const toggleStatus = async (id: string, currentStatus: string) => {
-    const statusOrder = ["DRAFT", "APPROVED", "IMPLEMENTED"] as const;
-    const currentIndex = statusOrder.indexOf(currentStatus as typeof statusOrder[number]);
-    const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
-
+  const handleStatusChange = async (id: string, newStatus: Requirement["status"]) => {
     await updateRequirement.mutateAsync({
       id,
-      data: { status: nextStatus },
+      data: { status: newStatus },
     });
+    setOpenStatusDropdown(null);
   };
 
   /**
@@ -131,6 +167,7 @@ export default function RequirementsPage() {
         description: editingRequirement.description,
         priority: editingRequirement.priority,
         category: editingRequirement.category || undefined,
+        oneDriveLink: editingRequirement.oneDriveLink || undefined,
         status: editingRequirement.status,
         dueDate: editingRequirement.dueDate || undefined,
         requesterId: editingRequirement.requesterId || undefined,
@@ -157,11 +194,12 @@ export default function RequirementsPage() {
       description: newRequirement.description,
       priority: newRequirement.priority,
       category: newRequirement.category || undefined,
+      oneDriveLink: newRequirement.oneDriveLink || undefined,
       dueDate: newRequirement.dueDate || undefined,
       projectId: selectedProjectId,
     });
 
-    setNewRequirement({ title: "", description: "", priority: "SHOULD", category: "", dueDate: "" });
+    setNewRequirement({ title: "", description: "", priority: "SHOULD", category: "", oneDriveLink: "", dueDate: "" });
     setShowModal(false);
   };
 
@@ -230,67 +268,109 @@ export default function RequirementsPage() {
       {selectedProjectId && (
         <>
           {/* 통계 카드 */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="checklist" size="sm" className="text-primary" />
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            {/* 구현 진행률 카드 */}
+            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon name="speed" size="xs" className="text-primary" />
+                <span className="text-xs font-semibold text-primary">구현률</span>
+              </div>
+              <p className="text-2xl font-bold text-primary mb-1">
+                {stats.total > 0 ? Math.round((stats.implemented / stats.total) * 100) : 0}%
+              </p>
+              <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
+                  style={{ width: stats.total > 0 ? `${(stats.implemented / stats.total) * 100}%` : "0%" }}
+                />
+              </div>
+            </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Icon name="checklist" size="xs" className="text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-xs text-text-secondary">전체</p>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
+                  <p className="text-[10px] text-text-secondary">전체</p>
                 </div>
               </div>
             </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-lg bg-success/10 flex items-center justify-center">
-                  <Icon name="check_circle" size="sm" className="text-success" />
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
+                  <Icon name="check_circle" size="xs" className="text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.approved}</p>
-                  <p className="text-xs text-text-secondary">승인</p>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.approved}</p>
+                  <p className="text-[10px] text-text-secondary">승인</p>
                 </div>
               </div>
             </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="done_all" size="sm" className="text-primary" />
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Icon name="done_all" size="xs" className="text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.implemented}</p>
-                  <p className="text-xs text-text-secondary">구현완료</p>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.implemented}</p>
+                  <p className="text-[10px] text-text-secondary">구현완료</p>
                 </div>
               </div>
             </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-lg bg-text-secondary/10 flex items-center justify-center">
-                  <Icon name="edit_note" size="sm" className="text-text-secondary" />
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-text-secondary/10 flex items-center justify-center">
+                  <Icon name="edit_note" size="xs" className="text-text-secondary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.draft}</p>
-                  <p className="text-xs text-text-secondary">초안</p>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.draft}</p>
+                  <p className="text-[10px] text-text-secondary">초안</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 진행률 바 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-text-secondary">구현 진행률</span>
-              <span className="font-medium text-text dark:text-white">
-                {stats.total > 0 ? Math.round((stats.implemented / stats.total) * 100) : 0}%
+          {/* 탭 */}
+          <div className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg w-fit">
+            <button
+              onClick={() => {
+                setActiveTab("active");
+                setFilterStatus("all");
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "active"
+                  ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                  : "text-text-secondary hover:text-text dark:hover:text-white"
+              }`}
+            >
+              <Icon name="pending_actions" size="xs" />
+              <span>진행중</span>
+              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                activeTab === "active" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
+              }`}>
+                {activeRequirements.length}
               </span>
-            </div>
-            <div className="h-3 bg-surface dark:bg-background-dark rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                style={{ width: stats.total > 0 ? `${(stats.implemented / stats.total) * 100}%` : "0%" }}
-              />
-            </div>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("implemented");
+                setFilterStatus("all");
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "implemented"
+                  ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                  : "text-text-secondary hover:text-text dark:hover:text-white"
+              }`}
+            >
+              <Icon name="task_alt" size="xs" />
+              <span>구현완료</span>
+              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                activeTab === "implemented" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
+              }`}>
+                {implementedRequirements.length}
+              </span>
+            </button>
           </div>
 
           {/* 필터 */}
@@ -314,16 +394,44 @@ export default function RequirementsPage() {
               <option value="COULD">선택</option>
               <option value="WONT">보류</option>
             </select>
+            {/* 활성 탭에서만 상태 필터 표시 */}
+            {activeTab === "active" && (
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
+              >
+                <option value="all">전체 상태</option>
+                <option value="DRAFT">초안</option>
+                <option value="APPROVED">승인</option>
+                <option value="REJECTED">반려</option>
+              </select>
+            )}
+            {/* 요청자 필터 */}
             <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              value={filterRequester}
+              onChange={(e) => setFilterRequester(e.target.value)}
               className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
             >
-              <option value="all">전체 상태</option>
-              <option value="DRAFT">초안</option>
-              <option value="APPROVED">승인</option>
-              <option value="IMPLEMENTED">구현완료</option>
-              <option value="REJECTED">반려</option>
+              <option value="all">전체 요청자</option>
+              {teamMembers.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.user?.name || member.user?.email || "알 수 없음"}
+                </option>
+              ))}
+            </select>
+            {/* 담당자 필터 */}
+            <select
+              value={filterAssignee}
+              onChange={(e) => setFilterAssignee(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
+            >
+              <option value="all">전체 담당자</option>
+              {teamMembers.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.user?.name || member.user?.email || "알 수 없음"}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -331,14 +439,15 @@ export default function RequirementsPage() {
           <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
             {/* 테이블 헤더 */}
             <div
-              className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1250px]"
-              style={{ gridTemplateColumns: "50px 80px 1fr 70px 100px 100px 100px 80px 90px 100px 50px" }}
+              className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1350px]"
+              style={{ gridTemplateColumns: "80px 80px 1fr 70px 100px 80px 100px 100px 80px 90px 100px 50px" }}
             >
-              <div>상태</div>
+              <div>진행상태</div>
               <div>코드</div>
               <div>요구사항</div>
               <div>우선순위</div>
               <div>카테고리</div>
+              <div>문서</div>
               <div>요청자</div>
               <div>담당자</div>
               <div>요청일</div>
@@ -374,25 +483,55 @@ export default function RequirementsPage() {
               return (
                 <div
                   key={req.id}
-                  className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1250px]"
-                  style={{ gridTemplateColumns: "50px 80px 1fr 70px 100px 100px 100px 80px 90px 100px 50px" }}
+                  className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1350px]"
+                  style={{ gridTemplateColumns: "80px 80px 1fr 70px 100px 80px 100px 100px 80px 90px 100px 50px" }}
                 >
-                  {/* 체크박스 */}
-                  <div>
+                  {/* 상태 배지 (클릭 시 드롭다운) */}
+                  <div className="relative">
                     <button
-                      onClick={() => toggleStatus(req.id, req.status)}
-                      className={`size-6 rounded-md border-2 flex items-center justify-center transition-colors ${
+                      onClick={() => setOpenStatusDropdown(openStatusDropdown === req.id ? null : req.id)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                         req.status === "IMPLEMENTED"
-                          ? "bg-success border-success text-white"
+                          ? "bg-primary/10 text-primary"
                           : req.status === "APPROVED"
-                          ? "bg-primary border-primary text-white"
-                          : "border-border dark:border-border-dark hover:border-primary"
+                          ? "bg-success/10 text-success"
+                          : req.status === "REJECTED"
+                          ? "bg-error/10 text-error"
+                          : "bg-slate-100 dark:bg-slate-800 text-text-secondary"
                       }`}
+                      title="클릭하여 상태 변경"
                     >
-                      {(req.status === "IMPLEMENTED" || req.status === "APPROVED") && (
-                        <Icon name="check" size="xs" />
-                      )}
+                      <Icon name={status.icon} size="xs" />
+                      <span className="hidden sm:inline">{status.label}</span>
                     </button>
+
+                    {/* 상태 변경 드롭다운 */}
+                    {openStatusDropdown === req.id && (
+                      <>
+                        {/* 드롭다운 외부 클릭 시 닫기 */}
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setOpenStatusDropdown(null)}
+                        />
+                        <div className="absolute left-0 top-full mt-1 z-20 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[120px]">
+                          {Object.entries(statusConfig).map(([key, config]) => (
+                            <button
+                              key={key}
+                              onClick={() => handleStatusChange(req.id, key as Requirement["status"])}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface dark:hover:bg-background-dark transition-colors ${
+                                req.status === key ? "bg-primary/5" : ""
+                              }`}
+                            >
+                              <Icon name={config.icon} size="xs" className={config.color} />
+                              <span className={`${config.color}`}>{config.label}</span>
+                              {req.status === key && (
+                                <Icon name="check" size="xs" className="ml-auto text-primary" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* 코드 */}
@@ -434,6 +573,22 @@ export default function RequirementsPage() {
                     <span className="text-xs text-text-secondary bg-surface dark:bg-background-dark px-2 py-1 rounded truncate block">
                       {req.category || "-"}
                     </span>
+                  </div>
+
+                  {/* OneDrive 문서 링크 */}
+                  <div>
+                    {req.oneDriveLink ? (
+                      <button
+                        onClick={() => setPreviewUrl(req.oneDriveLink!)}
+                        className="flex items-center gap-1 px-2 py-1 rounded bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                        title="문서 미리보기"
+                      >
+                        <Icon name="description" size="xs" />
+                        <span>보기</span>
+                      </button>
+                    ) : (
+                      <span className="text-xs text-text-secondary">-</span>
+                    )}
                   </div>
 
                   {/* 요청자 */}
@@ -639,6 +794,23 @@ export default function RequirementsPage() {
                   className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text"
                 />
               </div>
+              {/* OneDrive 링크 입력 */}
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                  OneDrive 문서 링크
+                </label>
+                <Input
+                  value={newRequirement.oneDriveLink}
+                  onChange={(e) =>
+                    setNewRequirement({ ...newRequirement, oneDriveLink: e.target.value })
+                  }
+                  placeholder="https://1drv.ms/... 또는 SharePoint 링크"
+                  leftIcon="link"
+                />
+                <p className="text-xs text-text-secondary mt-1">
+                  OneDrive 또는 SharePoint 공유 링크를 입력하세요
+                </p>
+              </div>
               <div className="flex gap-2 pt-2">
                 <Button
                   type="button"
@@ -819,6 +991,24 @@ export default function RequirementsPage() {
                 </div>
               </div>
 
+              {/* OneDrive 링크 입력 */}
+              <div>
+                <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                  OneDrive 문서 링크
+                </label>
+                <Input
+                  value={editingRequirement.oneDriveLink || ""}
+                  onChange={(e) =>
+                    setEditingRequirement({ ...editingRequirement, oneDriveLink: e.target.value })
+                  }
+                  placeholder="https://1drv.ms/... 또는 SharePoint 링크"
+                  leftIcon="link"
+                />
+                <p className="text-xs text-text-secondary mt-1">
+                  OneDrive 또는 SharePoint 공유 링크를 입력하세요
+                </p>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <Button
                   type="button"
@@ -838,6 +1028,50 @@ export default function RequirementsPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* OneDrive 문서 미리보기 모달 */}
+      {previewUrl && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl w-full max-w-5xl h-[85vh] mx-4 flex flex-col overflow-hidden">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border dark:border-border-dark">
+              <div className="flex items-center gap-2">
+                <Icon name="description" size="sm" className="text-primary" />
+                <h3 className="font-semibold text-text dark:text-white">문서 미리보기</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* 새 창에서 열기 버튼 */}
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-surface dark:bg-background-dark text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Icon name="open_in_new" size="xs" />
+                  <span>새 창에서 열기</span>
+                </a>
+                {/* 닫기 버튼 */}
+                <button
+                  onClick={() => setPreviewUrl(null)}
+                  className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-text transition-colors"
+                >
+                  <Icon name="close" size="sm" />
+                </button>
+              </div>
+            </div>
+            {/* iframe 컨테이너 */}
+            <div className="flex-1 bg-surface dark:bg-background-dark">
+              <iframe
+                src={getEmbedUrl(previewUrl)}
+                className="w-full h-full border-0"
+                title="OneDrive 문서 미리보기"
+                allow="fullscreen"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              />
+            </div>
           </div>
         </div>
       )}

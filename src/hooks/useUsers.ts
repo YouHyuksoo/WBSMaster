@@ -70,12 +70,16 @@ export function useCreateUser() {
 
 /**
  * 사용자 정보 수정 Hook
+ * @param email - 이메일 (로그인용)
+ * @param name - 이름 (표시용)
+ * @param role - 시스템 역할
+ * @param avatar - 프로필 이미지 URL
  */
 export function useUpdateUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name?: string; role?: string; avatar?: string } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { email?: string; name?: string; role?: string; avatar?: string } }) =>
       api.users.update(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });

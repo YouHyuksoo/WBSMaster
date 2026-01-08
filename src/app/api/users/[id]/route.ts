@@ -71,15 +71,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 /**
  * 사용자 정보 수정
  * PATCH /api/users/:id
- * @param name - 사용자 이름
- * @param role - 사용자 역할 (ADMIN, MANAGER, MEMBER)
+ * @param email - 사용자 이메일 (로그인용)
+ * @param name - 사용자 이름 (표시용)
+ * @param role - 사용자 역할 (EXECUTIVE, DIRECTOR, PMO, PM, PL, DEVELOPER, DESIGNER, OPERATOR, MEMBER)
  * @param avatar - 프로필 이미지 URL
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, role, avatar } = body;
+    const { email, name, role, avatar } = body;
 
     // 사용자 존재 확인
     const existing = await prisma.user.findUnique({ where: { id } });
@@ -88,6 +89,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { error: "사용자를 찾을 수 없습니다." },
         { status: 404 }
       );
+    }
+
+    // 이메일 변경 시 중복 체크
+    if (email && email !== existing.email) {
+      const emailExists = await prisma.user.findUnique({ where: { email } });
+      if (emailExists) {
+        return NextResponse.json(
+          { error: "이미 사용 중인 이메일입니다." },
+          { status: 400 }
+        );
+      }
     }
 
     // 역할 유효성 검사
@@ -102,6 +114,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const user = await prisma.user.update({
       where: { id },
       data: {
+        ...(email !== undefined && { email }),
         ...(name !== undefined && { name }),
         ...(role !== undefined && { role }),
         ...(avatar !== undefined && { avatar }),

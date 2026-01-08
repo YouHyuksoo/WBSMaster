@@ -49,3 +49,4 @@ next-env.d.ts
 # Design files
 stitch_design/
 *.zip
+nul

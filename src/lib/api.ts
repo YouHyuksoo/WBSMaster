@@ -125,19 +125,30 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: "PENDING" | "IN_PROGRESS" | "HOLDING" | "COMPLETED" | "CANCELLED";
+  status: "PENDING" | "IN_PROGRESS" | "HOLDING" | "DELAYED" | "COMPLETED" | "CANCELLED";
   priority: "LOW" | "MEDIUM" | "HIGH";
-  dueDate?: string;
+  startDate?: string;  // 시작일
+  dueDate?: string;    // 마감일
   order: number;
   createdAt: string;
   updatedAt: string;
   projectId: string;
   creatorId: string;
   requirementId?: string | null; // 연결된 요구사항 ID
-  /** 담당자 목록 (다중 담당자 지원) */
+  /** 주 담당자 ID (이 태스크가 누구의 것인지) */
+  assigneeId?: string | null;
+  /** 주 담당자 정보 */
+  assignee?: {
+    id: string;
+    name?: string;
+    email?: string;
+    avatar?: string;
+  } | null;
+  /** 부 담당자 목록 (다중 담당자, 협업자) */
   assignees?: {
     id: string;
     name?: string;
+    email?: string;
     avatar?: string;
   }[];
   creator?: {
@@ -161,6 +172,7 @@ export interface Requirement {
   title: string;
   description?: string;
   category?: string;
+  oneDriveLink?: string;
   status: "DRAFT" | "APPROVED" | "REJECTED" | "IMPLEMENTED";
   priority: "MUST" | "SHOULD" | "COULD" | "WONT";
   requestDate: string;
@@ -196,15 +208,31 @@ export interface Requirement {
   };
 }
 
-/** 휴무 타입 */
+/** 휴무/일정 타입 */
 export interface Holiday {
   id: string;
   title: string;
+  description?: string;
   date: string;
+  endDate?: string;
   type: string;
+  isAllDay: boolean;
+  startTime?: string;
+  endTime?: string;
   createdAt: string;
   updatedAt: string;
   projectId?: string;
+  userId?: string;
+  project?: {
+    id: string;
+    name: string;
+  };
+  user?: {
+    id: string;
+    name?: string;
+    email: string;
+    avatar?: string;
+  };
 }
 
 /** 팀 멤버 타입 */
@@ -212,6 +240,8 @@ export interface TeamMember {
   id: string;
   role: "OWNER" | "MANAGER" | "MEMBER";
   customRole?: string; // 커스텀 역할명 (예: PMO, 프로젝트 총괄 등)
+  department?: string; // 부서 (예: 개발팀, 기획팀, 디자인팀 등)
+  position?: string;   // 직급 (예: 사원, 대리, 과장, 차장, 부장 등)
   joinedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -284,6 +314,10 @@ export interface WbsItem {
   startDate?: string;
   endDate?: string;
   weight: number;
+  /** 산출물명 */
+  deliverableName?: string;
+  /** 산출물 링크 (URL) */
+  deliverableLink?: string;
   createdAt: string;
   updatedAt: string;
   projectId: string;
@@ -304,6 +338,107 @@ export interface WbsItem {
     name: string;
     level: WbsLevel;
   };
+}
+
+/** WBS 담당자별 통계 타입 */
+export interface WbsAssigneeStat {
+  id: string;
+  name: string;
+  email?: string;
+  avatar?: string;
+  total: number;
+  completed: number;
+  inProgress: number;
+  pending: number;
+  totalProgress: number;
+  avgProgress: number;
+  completionRate: number;
+}
+
+/** WBS 전체 통계 응답 타입 */
+export interface WbsStats {
+  assignees: WbsAssigneeStat[];
+  total: {
+    total: number;
+    completed: number;
+    inProgress: number;
+    pending: number;
+    delayed: number; // 지연건수 (종료일이 지났는데 완료되지 않은 업무)
+  };
+  projectCount: number;
+}
+
+/** 이슈 카테고리별 통계 */
+export interface IssueCategoryStat {
+  category: string;
+  label: string;
+  resolved: number;
+  unresolved: number;
+  total: number;
+}
+
+/** 이슈 전체 통계 응답 타입 */
+export interface IssueStats {
+  categories: IssueCategoryStat[];
+  total: {
+    total: number;
+    resolved: number;
+    unresolved: number;
+    open: number;
+    inProgress: number;
+    closed: number;
+  };
+  projectCount: number;
+}
+
+/** 요구사항 담당자별 통계 */
+export interface RequirementAssigneeStat {
+  id: string;
+  name: string;
+  email?: string;
+  avatar?: string;
+  total: number;
+  draft: number;
+  approved: number;
+  rejected: number;
+  implemented: number;
+  completionRate: number;
+}
+
+/** 요구사항 상태별 분포 */
+export interface RequirementStatusDist {
+  status: string;
+  label: string;
+  count: number;
+  color: string;
+}
+
+/** 요구사항 전체 통계 응답 타입 */
+export interface RequirementStats {
+  assignees: RequirementAssigneeStat[];
+  statusDistribution: RequirementStatusDist[];
+  total: {
+    total: number;
+    draft: number;
+    approved: number;
+    rejected: number;
+    implemented: number;
+  };
+  projectCount: number;
+}
+
+/** AI 페르소나 타입 */
+export interface AiPersona {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  systemPrompt: string;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================
@@ -328,10 +463,10 @@ export const api = {
     list: (params?: { projectId?: string; status?: string; assigneeId?: string }) =>
       get<Task[]>("/api/tasks", params),
     get: (id: string) => get<Task>(`/api/tasks/${id}`),
-    /** 태스크 생성 (다중 담당자, 요구사항 연결 지원) */
-    create: (data: { title: string; description?: string; projectId: string; assigneeIds?: string[]; priority?: string; dueDate?: string; requirementId?: string }) =>
+    /** 태스크 생성 (다중 담당자, 요구사항 연결, 시작일/마감일 지원) */
+    create: (data: { title: string; description?: string; projectId: string; assigneeIds?: string[]; priority?: string; startDate?: string; dueDate?: string; requirementId?: string }) =>
       post<Task>("/api/tasks", data),
-    /** 태스크 수정 (담당자, 요구사항 변경 지원) */
+    /** 태스크 수정 (담당자, 요구사항, 시작일/마감일 변경 지원) */
     update: (id: string, data: Partial<Task> & { assigneeIds?: string[]; requirementId?: string | null }) =>
       patch<Task>(`/api/tasks/${id}`, data),
     delete: (id: string) => del<{ message: string }>(`/api/tasks/${id}`),
@@ -348,6 +483,7 @@ export const api = {
       projectId: string;
       priority?: string;
       category?: string;
+      oneDriveLink?: string;
       dueDate?: string;
       requesterId?: string;
       assigneeId?: string;
@@ -355,18 +491,34 @@ export const api = {
     update: (id: string, data: Partial<Requirement>) =>
       patch<Requirement>(`/api/requirements/${id}`, data),
     delete: (id: string) => del<{ message: string }>(`/api/requirements/${id}`),
+    /** 요구사항 통계 조회 (담당자별 처리 현황) */
+    stats: (params?: { projectId?: string }) =>
+      get<RequirementStats>("/api/requirements/stats", params as Record<string, string | undefined>),
   },
 
-  /** 휴무 API */
+  /** 휴무/일정 API */
   holidays: {
-    list: (params?: { type?: string; year?: string; month?: string }) =>
+    list: (params?: { type?: string; year?: string; month?: string; projectId?: string }) =>
       get<Holiday[]>("/api/holidays", params),
     get: (id: string) => get<Holiday>(`/api/holidays/${id}`),
-    create: (data: { title: string; date: string; type: string; projectId: string }) =>
-      post<Holiday>("/api/holidays", data),
+    create: (data: {
+      title: string;
+      description?: string;
+      date: string;
+      endDate?: string;
+      type: string;
+      isAllDay?: boolean;
+      startTime?: string;
+      endTime?: string;
+      projectId: string;
+      userId?: string;
+    }) => post<Holiday>("/api/holidays", data),
     update: (id: string, data: Partial<Holiday>) =>
       patch<Holiday>(`/api/holidays/${id}`, data),
     delete: (id: string) => del<{ message: string }>(`/api/holidays/${id}`),
+    /** 오늘의 일정 조회 */
+    today: (params?: { projectId?: string; userId?: string }) =>
+      get<Holiday[]>("/api/holidays/today", params),
   },
 
   /** 팀 멤버 API */
@@ -411,6 +563,9 @@ export const api = {
     update: (id: string, data: Partial<Issue>) =>
       patch<Issue>(`/api/issues/${id}`, data),
     delete: (id: string) => del<{ message: string }>(`/api/issues/${id}`),
+    /** 이슈 통계 조회 (카테고리별, 해결/미해결) */
+    stats: (params?: { projectId?: string }) =>
+      get<IssueStats>("/api/issues/stats", params as Record<string, string | undefined>),
   },
 
   /** WBS API (계층형 구조) */
@@ -431,6 +586,8 @@ export const api = {
       startDate?: string;
       endDate?: string;
       weight?: number;
+      deliverableName?: string;
+      deliverableLink?: string;
     }) => post<WbsItem>("/api/wbs", data),
     /** WBS 항목 수정 */
     update: (id: string, data: {
@@ -443,11 +600,27 @@ export const api = {
       weight?: number;
       assigneeIds?: string[];
       order?: number;
+      deliverableName?: string;
+      deliverableLink?: string;
     }) => patch<WbsItem>(`/api/wbs/${id}`, data),
     /** WBS 항목 삭제 (자식도 함께 삭제됨) */
     delete: (id: string) => del<{ message: string; deletedId: string; childrenDeleted: number }>(`/api/wbs/${id}`),
     /** WBS 레벨 변경 (up: 상위로, down: 하위로) */
     changeLevel: (id: string, direction: "up" | "down") =>
       patch<{ message: string; item: WbsItem }>(`/api/wbs/${id}/level`, { direction }),
+    /** WBS 단위업무 기반 담당자별 통계 조회 */
+    stats: (params?: { projectId?: string }) =>
+      get<WbsStats>("/api/wbs/stats", params as Record<string, string | undefined>),
+  },
+
+  /** AI 페르소나 API */
+  personas: {
+    list: () => get<AiPersona[]>("/api/ai-personas"),
+    get: (id: string) => get<AiPersona>(`/api/ai-personas/${id}`),
+    create: (data: { name: string; description?: string; icon?: string; systemPrompt: string }) =>
+      post<AiPersona>("/api/ai-personas", data),
+    update: (id: string, data: { name?: string; description?: string; icon?: string; systemPrompt?: string; isActive?: boolean }) =>
+      patch<AiPersona>(`/api/ai-personas/${id}`, data),
+    delete: (id: string) => del<{ message: string }>(`/api/ai-personas/${id}`),
   },
 };

@@ -134,6 +134,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       weight,
       assigneeIds,
       order,
+      deliverableName,
+      deliverableLink,
     } = body;
 
     // 기존 항목 확인
@@ -187,6 +189,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
         ...(weight !== undefined && { weight }),
         ...(order !== undefined && { order }),
+        ...(deliverableName !== undefined && { deliverableName: deliverableName || null }),
+        ...(deliverableLink !== undefined && { deliverableLink: deliverableLink || null }),
         ...(assigneeUpdate && { assignees: assigneeUpdate }),
       },
       include: {

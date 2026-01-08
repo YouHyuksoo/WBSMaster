@@ -35,26 +35,50 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Icon, Button, Input } from "@/components/ui";
-import { useTasks, useCreateTask, useUpdateTask, useMembers, useRequirements } from "@/hooks";
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useMembers, useRequirements } from "@/hooks";
 import { useProject } from "@/contexts";
 import type { Task } from "@/lib/api";
 
 /** 컬럼 설정 */
 interface ColumnConfig {
-  id: "PENDING" | "IN_PROGRESS" | "HOLDING" | "COMPLETED" | "CANCELLED";
+  id: "PENDING" | "IN_PROGRESS" | "COMPLETED";
   title: string;
   titleKo: string;
-  color: string;
-  bgColor: string;
+  color: string;           // 상단 보더 색상
+  bgColor: string;         // 카운트 배지 색상
+  headerBgColor: string;   // 헤더 배경색
+  columnBgColor: string;   // 컬럼 전체 배경색 (연한 틴트)
 }
 
 /** 컬럼 설정 */
 const columns: ColumnConfig[] = [
-  { id: "PENDING", title: "Pending", titleKo: "대기중", color: "border-t-slate-400", bgColor: "bg-slate-100 dark:bg-slate-700" },
-  { id: "IN_PROGRESS", title: "In Progress", titleKo: "진행중", color: "border-t-primary", bgColor: "bg-primary/20" },
-  { id: "HOLDING", title: "Holding", titleKo: "홀딩", color: "border-t-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30" },
-  { id: "COMPLETED", title: "Completed", titleKo: "완료", color: "border-t-success", bgColor: "bg-success/20" },
-  { id: "CANCELLED", title: "Cancelled", titleKo: "취소", color: "border-t-red-500", bgColor: "bg-red-100 dark:bg-red-900/30" },
+  {
+    id: "PENDING",
+    title: "Pending",
+    titleKo: "대기중",
+    color: "border-t-slate-400",
+    bgColor: "bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200",
+    headerBgColor: "bg-slate-100 dark:bg-slate-800/50",
+    columnBgColor: "bg-slate-50/50 dark:bg-slate-900/20",
+  },
+  {
+    id: "IN_PROGRESS",
+    title: "In Progress",
+    titleKo: "진행중",
+    color: "border-t-sky-500",
+    bgColor: "bg-sky-200 dark:bg-sky-800 text-sky-700 dark:text-sky-200",
+    headerBgColor: "bg-sky-100 dark:bg-sky-900/50",
+    columnBgColor: "bg-sky-50/50 dark:bg-sky-950/20",
+  },
+  {
+    id: "COMPLETED",
+    title: "Completed",
+    titleKo: "완료",
+    color: "border-t-emerald-500",
+    bgColor: "bg-emerald-200 dark:bg-emerald-800 text-emerald-700 dark:text-emerald-200",
+    headerBgColor: "bg-emerald-100 dark:bg-emerald-900/50",
+    columnBgColor: "bg-emerald-50/50 dark:bg-emerald-950/20",
+  },
 ];
 
 /** 우선순위 설정 */
@@ -74,18 +98,25 @@ export default function KanbanPage() {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [filterAssignee, setFilterAssignee] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [filterDelayedOnly, setFilterDelayedOnly] = useState(false); // 지연된 작업만 보기
 
   // 새 작업 폼 상태
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState("MEDIUM");
-  const [newTaskDueDate, setNewTaskDueDate] = useState("");
-  const [newTaskAssigneeIds, setNewTaskAssigneeIds] = useState<string[]>([]);
+  const [newTaskStartDate, setNewTaskStartDate] = useState("");  // 시작일
+  const [newTaskDueDate, setNewTaskDueDate] = useState("");      // 마감일
+  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState("");  // 주 담당자
+  const [newTaskAssigneeIds, setNewTaskAssigneeIds] = useState<string[]>([]);  // 부 담당자들
   const [newTaskRequirementId, setNewTaskRequirementId] = useState("");
 
-  // 수정 모달 상태
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [editTaskAssigneeIds, setEditTaskAssigneeIds] = useState<string[]>([]);
+  // 사이드바 상태 (카드 선택 시 우측에 상세 정보 표시)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editTaskAssigneeId, setEditTaskAssigneeId] = useState("");  // 주 담당자
+  const [editTaskAssigneeIds, setEditTaskAssigneeIds] = useState<string[]>([]);  // 부 담당자들
+
+  // 완료된 task 확장 상태 (클릭하면 확장)
+  const [expandedCompletedTaskIds, setExpandedCompletedTaskIds] = useState<Set<string>>(new Set());
 
   // 전역 프로젝트 선택 상태 (헤더에서 선택)
   const { selectedProjectId, selectedProject } = useProject();
@@ -96,6 +127,7 @@ export default function KanbanPage() {
   );
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
 
   // 프로젝트 팀 멤버 목록 조회
   const { data: teamMembers = [] } = useMembers(
@@ -115,6 +147,23 @@ export default function KanbanPage() {
       },
     })
   );
+
+  /**
+   * 지연 여부 판별 함수
+   * 마감일이 지났고 완료되지 않은 작업
+   */
+  const isTaskDelayed = (task: Task) => {
+    if (!task.dueDate) return false;
+    if (task.status === "COMPLETED") return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(task.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    return dueDate < today;
+  };
+
+  /** 지연된 작업 수 계산 */
+  const delayedTaskCount = tasks.filter(isTaskDelayed).length;
 
   /**
    * 필터링된 작업 목록
@@ -142,6 +191,11 @@ export default function KanbanPage() {
         return false;
       }
 
+      // 지연 필터
+      if (filterDelayedOnly && !isTaskDelayed(task)) {
+        return false;
+      }
+
       return true;
     });
   };
@@ -159,8 +213,10 @@ export default function KanbanPage() {
         description: newTaskDescription || undefined,
         projectId: selectedProjectId,
         priority: newTaskPriority,
-        dueDate: newTaskDueDate || undefined,
-        assigneeIds: newTaskAssigneeIds.length > 0 ? newTaskAssigneeIds : undefined,
+        startDate: newTaskStartDate || undefined,  // 시작일
+        dueDate: newTaskDueDate || undefined,      // 마감일
+        assigneeId: newTaskAssigneeId || undefined,  // 주 담당자
+        assigneeIds: newTaskAssigneeIds.length > 0 ? newTaskAssigneeIds : undefined,  // 부 담당자들
         requirementId: newTaskRequirementId || undefined, // 요구사항 연결
       });
 
@@ -168,8 +224,10 @@ export default function KanbanPage() {
       setNewTaskTitle("");
       setNewTaskDescription("");
       setNewTaskPriority("MEDIUM");
-      setNewTaskDueDate("");
-      setNewTaskAssigneeIds([]);
+      setNewTaskStartDate("");  // 시작일 초기화
+      setNewTaskDueDate("");    // 마감일 초기화
+      setNewTaskAssigneeId("");  // 주 담당자 초기화
+      setNewTaskAssigneeIds([]);  // 부 담당자들 초기화
       setNewTaskRequirementId(""); // 요구사항 ID 초기화
       setShowNewTaskModal(false);
     } catch (err) {
@@ -192,34 +250,76 @@ export default function KanbanPage() {
   };
 
   /**
-   * 수정 모달 열기
+   * 사이드바 열기 (카드 선택)
    */
-  const openEditModal = (task: Task) => {
-    setEditingTask(task);
-    setEditTaskAssigneeIds(task.assignees?.map((a) => a.id) || []);
+  const openSidebar = (task: Task) => {
+    setSelectedTask({ ...task });
+    setEditTaskAssigneeId(task.assigneeId || "");  // 주 담당자
+    setEditTaskAssigneeIds(task.assignees?.map((a) => a.id) || []);  // 부 담당자들
   };
 
   /**
-   * 작업 수정 핸들러
+   * 사이드바 닫기
    */
-  const handleEditTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingTask) return;
+  const closeSidebar = () => {
+    setSelectedTask(null);
+    setEditTaskAssigneeId("");
+    setEditTaskAssigneeIds([]);
+  };
+
+  /**
+   * 작업 삭제 핸들러 (대기중 상태에서만 가능)
+   */
+  const handleDeleteTask = async (taskId: string, taskTitle: string) => {
+    if (!window.confirm(`"${taskTitle}" 작업을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      await deleteTask.mutateAsync(taskId);
+    } catch (err) {
+      console.error("작업 삭제 실패:", err);
+      alert("작업 삭제에 실패했습니다.");
+    }
+  };
+
+  /**
+   * 완료된 task 확장/축소 토글
+   */
+  const toggleCompletedTaskExpand = (taskId: string) => {
+    setExpandedCompletedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  };
+
+  /**
+   * 작업 수정 핸들러 (사이드바에서 저장)
+   */
+  const handleSaveTask = async () => {
+    if (!selectedTask) return;
 
     try {
       await updateTask.mutateAsync({
-        id: editingTask.id,
+        id: selectedTask.id,
         data: {
-          title: editingTask.title,
-          description: editingTask.description,
-          status: editingTask.status,
-          priority: editingTask.priority,
-          dueDate: editingTask.dueDate,
-          requirementId: editingTask.requirementId,
-          assigneeIds: editTaskAssigneeIds,
+          title: selectedTask.title,
+          description: selectedTask.description,
+          status: selectedTask.status,
+          priority: selectedTask.priority,
+          startDate: selectedTask.startDate,  // 시작일
+          dueDate: selectedTask.dueDate,      // 마감일
+          requirementId: selectedTask.requirementId,
+          assigneeId: editTaskAssigneeId || null,  // 주 담당자
+          assigneeIds: editTaskAssigneeIds,  // 부 담당자들
         },
       });
-      setEditingTask(null);
+      closeSidebar();
     } catch (err) {
       console.error("작업 수정 실패:", err);
     }
@@ -390,6 +490,19 @@ export default function KanbanPage() {
             <option value="MEDIUM">보통</option>
             <option value="LOW">낮음</option>
           </select>
+
+          {/* 지연 필터 */}
+          <button
+            onClick={() => setFilterDelayedOnly(!filterDelayedOnly)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
+              filterDelayedOnly
+                ? "bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800"
+                : "bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text-secondary hover:text-rose-500"
+            }`}
+          >
+            <Icon name="warning" size="xs" />
+            지연 ({delayedTaskCount})
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-text-secondary">
@@ -420,174 +533,509 @@ export default function KanbanPage() {
         </div>
       )}
 
-      {/* 칸반 보드 */}
+      {/* 칸반 보드 + 사이드바 */}
       {selectedProjectId && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragOver={handleDragOver}
-        >
-          <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 pb-6">
-            <div className="flex h-full gap-6 min-w-max">
-              {columns.map((column) => {
-                const columnTasks = getFilteredTasks(column.id);
+        <div className="flex-1 flex overflow-hidden">
+          {/* 칸반 보드 영역 */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragOver={handleDragOver}
+          >
+            <div className={`flex-1 overflow-x-auto overflow-y-hidden px-6 pb-6 transition-all duration-300 ${selectedTask ? "mr-0" : ""}`}>
+              <div className="flex h-full gap-6 min-w-max">
+                {columns.map((column) => {
+                  const columnTasks = getFilteredTasks(column.id);
 
-                return (
-                  <KanbanColumn
-                    key={column.id}
-                    column={column}
-                    tasks={columnTasks}
-                    onStatusChange={handleStatusChange}
-                    onAddTask={() => setShowNewTaskModal(true)}
-                    onEditTask={openEditModal}
-                  />
-                );
-              })}
+                  return (
+                    <KanbanColumn
+                      key={column.id}
+                      column={column}
+                      tasks={columnTasks}
+                      onStatusChange={handleStatusChange}
+                      onAddTask={() => setShowNewTaskModal(true)}
+                      onSelectTask={openSidebar}
+                      onDeleteTask={handleDeleteTask}
+                      expandedCompletedTaskIds={expandedCompletedTaskIds}
+                      onToggleCompleted={toggleCompletedTaskExpand}
+                      selectedTaskId={selectedTask?.id}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          {/* 드래그 오버레이 */}
-          <DragOverlay>
-            {activeTask && (
-              <TaskCard
-                task={activeTask}
-                onStatusChange={() => {}}
-                isDragging
-              />
-            )}
-          </DragOverlay>
-        </DndContext>
+            {/* 드래그 오버레이 */}
+            <DragOverlay>
+              {activeTask && (
+                <TaskCard
+                  task={activeTask}
+                  onStatusChange={() => {}}
+                  isDragging
+                />
+              )}
+            </DragOverlay>
+          </DndContext>
+
+          {/* 우측 사이드바 - 작업 상세/수정 */}
+          {selectedTask && (
+            <div className="w-[420px] shrink-0 border-l border-border dark:border-border-dark bg-background-white dark:bg-surface-dark flex flex-col h-full overflow-hidden animate-slide-in-right">
+              {/* 사이드바 헤더 */}
+              <div className="flex items-center justify-between p-4 border-b border-border dark:border-border-dark shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Icon name="task_alt" size="sm" className="text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-text dark:text-white">작업 상세</h2>
+                    <p className="text-xs text-text-secondary">#{selectedTask.id.slice(0, 8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeSidebar}
+                  className="text-text-secondary hover:text-text dark:hover:text-white p-1.5 rounded-lg hover:bg-surface dark:hover:bg-background-dark transition-colors"
+                >
+                  <Icon name="close" size="md" />
+                </button>
+              </div>
+
+              {/* 사이드바 본문 */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                {/* 제목 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    제목
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedTask.title}
+                    onChange={(e) => setSelectedTask({ ...selectedTask, title: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  />
+                </div>
+
+                {/* 설명 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    설명
+                  </label>
+                  <textarea
+                    value={selectedTask.description || ""}
+                    onChange={(e) => setSelectedTask({ ...selectedTask, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
+                    placeholder="작업에 대한 설명..."
+                  />
+                </div>
+
+                {/* 상태 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    상태
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: "PENDING", label: "대기중", color: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" },
+                      { value: "IN_PROGRESS", label: "진행중", color: "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400" },
+                      { value: "COMPLETED", label: "완료", color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" },
+                    ].map((status) => (
+                      <button
+                        key={status.value}
+                        type="button"
+                        onClick={() => setSelectedTask({ ...selectedTask, status: status.value as Task["status"] })}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          selectedTask.status === status.value
+                            ? status.color + " ring-2 ring-offset-1 ring-primary"
+                            : "bg-surface dark:bg-background-dark text-text-secondary border border-border dark:border-border-dark"
+                        }`}
+                      >
+                        {status.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 우선순위 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    우선순위
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: "HIGH", label: "높음", color: "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400" },
+                      { value: "MEDIUM", label: "보통", color: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" },
+                      { value: "LOW", label: "낮음", color: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" },
+                    ].map((priority) => (
+                      <button
+                        key={priority.value}
+                        type="button"
+                        onClick={() => setSelectedTask({ ...selectedTask, priority: priority.value as Task["priority"] })}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          selectedTask.priority === priority.value
+                            ? priority.color + " ring-2 ring-offset-1 ring-primary"
+                            : "bg-surface dark:bg-background-dark text-text-secondary border border-border dark:border-border-dark"
+                        }`}
+                      >
+                        {priority.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 연결된 요구사항 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    연결된 요구사항
+                  </label>
+                  <select
+                    value={selectedTask.requirementId || ""}
+                    onChange={(e) => setSelectedTask({ ...selectedTask, requirementId: e.target.value || null })}
+                    className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  >
+                    <option value="">요구사항 없음</option>
+                    {requirements.map((req) => (
+                      <option key={req.id} value={req.id}>
+                        {req.code ? `[${req.code}] ` : ""}{req.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 주 담당자 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    주 담당자
+                  </label>
+                  <select
+                    value={editTaskAssigneeId}
+                    onChange={(e) => setEditTaskAssigneeId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  >
+                    <option value="">담당자 없음</option>
+                    {teamMembers.map((member) => (
+                      <option key={member.userId} value={member.userId}>
+                        {member.user?.name || member.user?.email || "알 수 없음"}
+                        {member.customRole && ` (${member.customRole})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 협업자 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    협업자 {editTaskAssigneeIds.length > 0 && (
+                      <span className="text-primary">({editTaskAssigneeIds.length}명)</span>
+                    )}
+                  </label>
+                  <div className="max-h-32 overflow-y-auto border border-border dark:border-border-dark rounded-lg bg-surface dark:bg-background-dark">
+                    {teamMembers.length === 0 ? (
+                      <p className="text-xs text-text-secondary p-3 text-center">팀 멤버가 없습니다</p>
+                    ) : (
+                      <div className="p-2 grid grid-cols-2 gap-1">
+                        {teamMembers.map((member) => (
+                          <label
+                            key={member.userId}
+                            className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs ${
+                              editTaskAssigneeIds.includes(member.userId)
+                                ? "bg-primary/10 border border-primary/30"
+                                : "hover:bg-surface-hover dark:hover:bg-surface-dark border border-transparent"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editTaskAssigneeIds.includes(member.userId)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setEditTaskAssigneeIds([...editTaskAssigneeIds, member.userId]);
+                                } else {
+                                  setEditTaskAssigneeIds(editTaskAssigneeIds.filter((id) => id !== member.userId));
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <span className="text-text dark:text-white truncate">
+                              {member.user?.name || member.user?.email || "알 수 없음"}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 일정 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                      시작일
+                    </label>
+                    <input
+                      type="date"
+                      value={selectedTask.startDate ? selectedTask.startDate.split("T")[0] : ""}
+                      onChange={(e) => setSelectedTask({ ...selectedTask, startDate: e.target.value || undefined })}
+                      className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                      마감일
+                    </label>
+                    <input
+                      type="date"
+                      value={selectedTask.dueDate ? selectedTask.dueDate.split("T")[0] : ""}
+                      onChange={(e) => setSelectedTask({ ...selectedTask, dueDate: e.target.value || undefined })}
+                      className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 사이드바 푸터 */}
+              <div className="flex items-center justify-between gap-3 p-4 border-t border-border dark:border-border-dark bg-surface/50 dark:bg-background-dark/50 shrink-0">
+                {/* 삭제 버튼 (대기중일 때만) */}
+                {selectedTask.status === "PENDING" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon="delete"
+                    onClick={() => {
+                      handleDeleteTask(selectedTask.id, selectedTask.title);
+                      closeSidebar();
+                    }}
+                    className="text-error hover:bg-error/10"
+                  >
+                    삭제
+                  </Button>
+                )}
+                <div className="flex-1" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={closeSidebar}
+                >
+                  취소
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon="save"
+                  onClick={handleSaveTask}
+                  disabled={updateTask.isPending}
+                >
+                  {updateTask.isPending ? "저장 중..." : "저장"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* 새 작업 모달 */}
+      {/* 새 작업 모달 - 넓은 2열 레이아웃 */}
       {showNewTaskModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-text">새 작업</h2>
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between p-5 border-b border-border dark:border-border-dark">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Icon name="add_task" size="md" className="text-primary" />
+                </div>
+                <h2 className="text-xl font-bold text-text dark:text-white">새 작업</h2>
+              </div>
               <button
                 onClick={() => setShowNewTaskModal(false)}
-                className="text-text-secondary hover:text-text dark:hover:text-white"
+                className="text-text-secondary hover:text-text dark:hover:text-white p-1.5 rounded-lg hover:bg-surface dark:hover:bg-background-dark transition-colors"
               >
                 <Icon name="close" size="md" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateTask} className="space-y-4">
-              <Input
-                label="작업 제목"
-                placeholder="작업 제목을 입력하세요"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                required
-              />
-              <div>
-                <label className="block text-sm font-medium text-text mb-2">
-                  설명
-                </label>
-                <textarea
-                  className="w-full px-4 py-3 rounded-lg bg-surface border border-border text-text placeholder:text-text-secondary focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
-                  rows={3}
-                  placeholder="작업에 대한 설명을 입력하세요"
-                  value={newTaskDescription}
-                  onChange={(e) => setNewTaskDescription(e.target.value)}
-                />
-              </div>
-              {/* 담당자 선택 (다중 선택) */}
-              <div>
-                <label className="block text-sm font-medium text-text mb-2">
-                  담당자 (복수 선택 가능)
-                </label>
-                <div className="max-h-32 overflow-y-auto border border-border rounded-lg p-2 bg-surface">
-                  {teamMembers.length === 0 ? (
-                    <p className="text-xs text-text-secondary p-2">팀 멤버가 없습니다</p>
-                  ) : (
-                    teamMembers.map((member) => (
-                      <label
-                        key={member.userId}
-                        className="flex items-center gap-2 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={newTaskAssigneeIds.includes(member.userId)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewTaskAssigneeIds([...newTaskAssigneeIds, member.userId]);
-                            } else {
-                              setNewTaskAssigneeIds(newTaskAssigneeIds.filter((id) => id !== member.userId));
-                            }
-                          }}
-                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-500 text-primary focus:ring-primary dark:bg-slate-600"
-                        />
-                        <span className="text-sm text-text">
-                          {member.user?.name || member.user?.email || "알 수 없음"}
-                          {member.customRole && (
-                            <span className="text-xs text-text-secondary ml-1">({member.customRole})</span>
-                          )}
-                        </span>
-                      </label>
-                    ))
-                  )}
-                </div>
-                {newTaskAssigneeIds.length > 0 && (
-                  <p className="text-xs text-primary mt-1">{newTaskAssigneeIds.length}명 선택됨</p>
-                )}
-              </div>
-              {/* 요구사항 연결 (선택) */}
-              <div>
-                <label className="block text-sm font-medium text-text mb-2">
-                  연결된 요구사항 (선택)
-                </label>
-                <select
-                  value={newTaskRequirementId}
-                  onChange={(e) => setNewTaskRequirementId(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text text-sm"
-                >
-                  <option value="">요구사항 없음</option>
-                  {requirements.map((req) => (
-                    <option key={req.id} value={req.id}>
-                      {req.code ? `[${req.code}] ` : ""}{req.title}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-text-secondary mt-1">
-                  이 작업이 특정 요구사항과 관련된 경우 연결하세요
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-text mb-2">
-                    우선순위
-                  </label>
-                  <select
-                    value={newTaskPriority}
-                    onChange={(e) => setNewTaskPriority(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text"
-                  >
-                    <option value="HIGH">높음</option>
-                    <option value="MEDIUM">보통</option>
-                    <option value="LOW">낮음</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text mb-2">
-                    마감일
-                  </label>
-                  <input
-                    type="date"
-                    value={newTaskDueDate}
-                    onChange={(e) => setNewTaskDueDate(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:ring-2 focus:ring-primary/50 focus:border-primary"
+            {/* 모달 본문 - 2열 레이아웃 */}
+            <form onSubmit={handleCreateTask} className="overflow-y-auto max-h-[calc(90vh-140px)]">
+              <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* 좌측 컬럼: 기본 정보 */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide flex items-center gap-2">
+                    <Icon name="info" size="sm" />
+                    기본 정보
+                  </h3>
+
+                  <Input
+                    label="작업 제목"
+                    placeholder="작업 제목을 입력하세요"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    required
                   />
+
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                      설명
+                    </label>
+                    <textarea
+                      className="w-full px-4 py-3 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
+                      rows={3}
+                      placeholder="작업에 대한 설명을 입력하세요"
+                      value={newTaskDescription}
+                      onChange={(e) => setNewTaskDescription(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 요구사항 연결 (선택) */}
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                      연결된 요구사항
+                    </label>
+                    <select
+                      value={newTaskRequirementId}
+                      onChange={(e) => setNewTaskRequirementId(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    >
+                      <option value="">요구사항 없음</option>
+                      {requirements.map((req) => (
+                        <option key={req.id} value={req.id}>
+                          {req.code ? `[${req.code}] ` : ""}{req.title}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-text-secondary mt-1">
+                      이 작업이 특정 요구사항과 관련된 경우 연결하세요
+                    </p>
+                  </div>
+
+                  {/* 우선순위 */}
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                      우선순위
+                    </label>
+                    <div className="flex gap-2">
+                      {[
+                        { value: "HIGH", label: "높음", color: "bg-rose-100 text-rose-600 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800" },
+                        { value: "MEDIUM", label: "보통", color: "bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800" },
+                        { value: "LOW", label: "낮음", color: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700" },
+                      ].map((priority) => (
+                        <button
+                          key={priority.value}
+                          type="button"
+                          onClick={() => setNewTaskPriority(priority.value)}
+                          className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                            newTaskPriority === priority.value
+                              ? priority.color + " ring-2 ring-offset-1 ring-primary"
+                              : "bg-surface dark:bg-background-dark border-border dark:border-border-dark text-text-secondary hover:border-primary/50"
+                          }`}
+                        >
+                          {priority.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 우측 컬럼: 담당자 및 일정 */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide flex items-center gap-2">
+                    <Icon name="group" size="sm" />
+                    담당자 및 일정
+                  </h3>
+
+                  {/* 주 담당자 선택 (단일 선택) */}
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                      주 담당자
+                    </label>
+                    <select
+                      value={newTaskAssigneeId}
+                      onChange={(e) => setNewTaskAssigneeId(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    >
+                      <option value="">담당자 없음</option>
+                      {teamMembers.map((member) => (
+                        <option key={member.userId} value={member.userId}>
+                          {member.user?.name || member.user?.email || "알 수 없음"}
+                          {member.customRole && ` (${member.customRole})`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 부 담당자 선택 (다중 선택, 협업자) */}
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                      협업자 {newTaskAssigneeIds.length > 0 && (
+                        <span className="text-primary">({newTaskAssigneeIds.length}명 선택)</span>
+                      )}
+                    </label>
+                    <div className="max-h-36 overflow-y-auto border border-border dark:border-border-dark rounded-lg bg-surface dark:bg-background-dark">
+                      {teamMembers.length === 0 ? (
+                        <p className="text-sm text-text-secondary p-4 text-center">팀 멤버가 없습니다</p>
+                      ) : (
+                        <div className="p-2 grid grid-cols-2 gap-1">
+                          {teamMembers.map((member) => (
+                            <label
+                              key={member.userId}
+                              className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                                newTaskAssigneeIds.includes(member.userId)
+                                  ? "bg-primary/10 border border-primary/30"
+                                  : "hover:bg-surface-hover dark:hover:bg-surface-dark border border-transparent"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={newTaskAssigneeIds.includes(member.userId)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setNewTaskAssigneeIds([...newTaskAssigneeIds, member.userId]);
+                                  } else {
+                                    setNewTaskAssigneeIds(newTaskAssigneeIds.filter((id) => id !== member.userId));
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                              />
+                              <span className="text-sm text-text dark:text-white truncate">
+                                {member.user?.name || member.user?.email || "알 수 없음"}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 시작일 & 마감일 */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                        시작일
+                      </label>
+                      <input
+                        type="date"
+                        value={newTaskStartDate}
+                        onChange={(e) => setNewTaskStartDate(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                        마감일
+                      </label>
+                      <input
+                        type="date"
+                        value={newTaskDueDate}
+                        onChange={(e) => setNewTaskDueDate(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              {/* 모달 푸터 - 버튼 */}
+              <div className="flex items-center justify-end gap-3 p-5 border-t border-border dark:border-border-dark bg-surface/50 dark:bg-background-dark/50">
                 <Button
                   variant="ghost"
-                  fullWidth
                   type="button"
                   onClick={() => setShowNewTaskModal(false)}
                 >
@@ -595,179 +1043,11 @@ export default function KanbanPage() {
                 </Button>
                 <Button
                   variant="primary"
-                  fullWidth
                   type="submit"
+                  leftIcon="add"
                   disabled={createTask.isPending}
                 >
-                  {createTask.isPending ? "생성 중..." : "생성"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 태스크 수정 모달 */}
-      {editingTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-text">작업 수정</h2>
-              <button
-                onClick={() => setEditingTask(null)}
-                className="text-text-secondary hover:text-text dark:hover:text-white"
-              >
-                <Icon name="close" size="md" />
-              </button>
-            </div>
-
-            <form onSubmit={handleEditTask} className="space-y-4">
-              {/* 제목 */}
-              <Input
-                label="작업 제목"
-                placeholder="작업 제목을 입력하세요"
-                value={editingTask.title}
-                onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
-                required
-              />
-
-              {/* 설명 */}
-              <div>
-                <label className="block text-sm font-medium text-text mb-2">
-                  설명
-                </label>
-                <textarea
-                  className="w-full px-4 py-3 rounded-lg bg-surface border border-border text-text placeholder:text-text-secondary focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
-                  rows={3}
-                  placeholder="작업에 대한 설명을 입력하세요"
-                  value={editingTask.description || ""}
-                  onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
-                />
-              </div>
-
-              {/* 상태 & 우선순위 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-text mb-2">
-                    상태
-                  </label>
-                  <select
-                    value={editingTask.status}
-                    onChange={(e) => setEditingTask({ ...editingTask, status: e.target.value as Task["status"] })}
-                    className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text"
-                  >
-                    <option value="PENDING">대기중</option>
-                    <option value="IN_PROGRESS">진행중</option>
-                    <option value="HOLDING">홀딩</option>
-                    <option value="COMPLETED">완료</option>
-                    <option value="CANCELLED">취소</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text mb-2">
-                    우선순위
-                  </label>
-                  <select
-                    value={editingTask.priority}
-                    onChange={(e) => setEditingTask({ ...editingTask, priority: e.target.value as Task["priority"] })}
-                    className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text"
-                  >
-                    <option value="HIGH">높음</option>
-                    <option value="MEDIUM">보통</option>
-                    <option value="LOW">낮음</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* 담당자 선택 (다중 선택) */}
-              <div>
-                <label className="block text-sm font-medium text-text mb-2">
-                  담당자 (복수 선택 가능)
-                </label>
-                <div className="max-h-32 overflow-y-auto border border-border rounded-lg p-2 bg-surface">
-                  {teamMembers.length === 0 ? (
-                    <p className="text-xs text-text-secondary p-2">팀 멤버가 없습니다</p>
-                  ) : (
-                    teamMembers.map((member) => (
-                      <label
-                        key={member.userId}
-                        className="flex items-center gap-2 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={editTaskAssigneeIds.includes(member.userId)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setEditTaskAssigneeIds([...editTaskAssigneeIds, member.userId]);
-                            } else {
-                              setEditTaskAssigneeIds(editTaskAssigneeIds.filter((id) => id !== member.userId));
-                            }
-                          }}
-                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-500 text-primary focus:ring-primary dark:bg-slate-600"
-                        />
-                        <span className="text-sm text-text">
-                          {member.user?.name || member.user?.email || "알 수 없음"}
-                          {member.customRole && (
-                            <span className="text-xs text-text-secondary ml-1">({member.customRole})</span>
-                          )}
-                        </span>
-                      </label>
-                    ))
-                  )}
-                </div>
-                {editTaskAssigneeIds.length > 0 && (
-                  <p className="text-xs text-primary mt-1">{editTaskAssigneeIds.length}명 선택됨</p>
-                )}
-              </div>
-
-              {/* 요구사항 연결 */}
-              <div>
-                <label className="block text-sm font-medium text-text mb-2">
-                  연결된 요구사항
-                </label>
-                <select
-                  value={editingTask.requirementId || ""}
-                  onChange={(e) => setEditingTask({ ...editingTask, requirementId: e.target.value || null })}
-                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text text-sm"
-                >
-                  <option value="">요구사항 없음</option>
-                  {requirements.map((req) => (
-                    <option key={req.id} value={req.id}>
-                      {req.code ? `[${req.code}] ` : ""}{req.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 마감일 */}
-              <div>
-                <label className="block text-sm font-medium text-text mb-2">
-                  마감일
-                </label>
-                <input
-                  type="date"
-                  value={editingTask.dueDate ? editingTask.dueDate.split("T")[0] : ""}
-                  onChange={(e) => setEditingTask({ ...editingTask, dueDate: e.target.value || undefined })}
-                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="ghost"
-                  fullWidth
-                  type="button"
-                  onClick={() => setEditingTask(null)}
-                >
-                  취소
-                </Button>
-                <Button
-                  variant="primary"
-                  fullWidth
-                  type="submit"
-                  disabled={updateTask.isPending}
-                >
-                  {updateTask.isPending ? "저장 중..." : "저장"}
+                  {createTask.isPending ? "생성 중..." : "작업 생성"}
                 </Button>
               </div>
             </form>
@@ -786,13 +1066,21 @@ function KanbanColumn({
   tasks,
   onStatusChange,
   onAddTask,
-  onEditTask,
+  onSelectTask,
+  onDeleteTask,
+  expandedCompletedTaskIds,
+  onToggleCompleted,
+  selectedTaskId,
 }: {
   column: ColumnConfig;
   tasks: Task[];
   onStatusChange: (taskId: string, newStatus: string) => void;
   onAddTask: () => void;
-  onEditTask: (task: Task) => void;
+  onSelectTask: (task: Task) => void;
+  onDeleteTask: (taskId: string, taskTitle: string) => void;
+  expandedCompletedTaskIds: Set<string>;
+  onToggleCompleted: (taskId: string) => void;
+  selectedTaskId?: string;
 }) {
   const { setNodeRef } = useSortable({
     id: column.id,
@@ -805,15 +1093,15 @@ function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col w-[320px] rounded-xl bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark shadow-sm h-full max-h-full border-t-4 ${column.color}`}
+      className={`flex flex-col w-[320px] rounded-xl border border-border dark:border-border-dark shadow-sm h-full max-h-full border-t-4 ${column.color} ${column.columnBgColor}`}
     >
       {/* 컬럼 헤더 */}
-      <div className="p-4 flex items-center justify-between border-b border-border dark:border-border-dark bg-surface dark:bg-[#1e2630] rounded-t-lg">
+      <div className={`p-4 flex items-center justify-between border-b border-border dark:border-border-dark rounded-t-lg ${column.headerBgColor}`}>
         <div className="flex items-center gap-2">
           <h3 className="font-bold text-text">
             {column.titleKo} ({column.title})
           </h3>
-          <span className={`${column.bgColor} text-xs px-2 py-0.5 rounded-full font-bold`}>
+          <span className={`${column.bgColor} text-xs px-2.5 py-1 rounded-full font-bold`}>
             {tasks.length}
           </span>
         </div>
@@ -838,7 +1126,11 @@ function KanbanColumn({
               key={task.id}
               task={task}
               onStatusChange={onStatusChange}
-              onEditTask={onEditTask}
+              onSelectTask={onSelectTask}
+              onDeleteTask={onDeleteTask}
+              isExpanded={expandedCompletedTaskIds.has(task.id)}
+              onToggleCompleted={onToggleCompleted}
+              isSelected={selectedTaskId === task.id}
             />
           ))}
           {tasks.length === 0 && (
@@ -871,11 +1163,19 @@ function KanbanColumn({
 function SortableTaskCard({
   task,
   onStatusChange,
-  onEditTask,
+  onSelectTask,
+  onDeleteTask,
+  isExpanded,
+  onToggleCompleted,
+  isSelected,
 }: {
   task: Task;
   onStatusChange: (taskId: string, newStatus: string) => void;
-  onEditTask: (task: Task) => void;
+  onSelectTask: (task: Task) => void;
+  onDeleteTask: (taskId: string, taskTitle: string) => void;
+  isExpanded: boolean;
+  onToggleCompleted: (taskId: string) => void;
+  isSelected: boolean;
 }) {
   const {
     attributes,
@@ -902,8 +1202,12 @@ function SortableTaskCard({
       <TaskCard
         task={task}
         onStatusChange={onStatusChange}
-        onEditTask={onEditTask}
+        onSelectTask={onSelectTask}
+        onDeleteTask={onDeleteTask}
         isDragging={isDragging}
+        isExpanded={isExpanded}
+        onToggleCompleted={onToggleCompleted}
+        isSelected={isSelected}
       />
     </div>
   );
@@ -911,28 +1215,115 @@ function SortableTaskCard({
 
 /**
  * 작업 카드 컴포넌트
+ *
+ * 주요 기능:
+ * - 대기중(PENDING) 상태일 때 삭제 버튼 표시
+ * - 완료(COMPLETED) 상태일 때 컴팩트 뷰 (클릭하면 확장)
  */
 function TaskCard({
   task,
   onStatusChange,
-  onEditTask,
+  onSelectTask,
+  onDeleteTask,
   isDragging = false,
+  isExpanded = false,
+  onToggleCompleted,
+  isSelected = false,
 }: {
   task: Task;
   onStatusChange: (taskId: string, newStatus: string) => void;
-  onEditTask?: (task: Task) => void;
+  onSelectTask?: (task: Task) => void;
+  onDeleteTask?: (taskId: string, taskTitle: string) => void;
   isDragging?: boolean;
+  isExpanded?: boolean;
+  onToggleCompleted?: (taskId: string) => void;
+  isSelected?: boolean;
 }) {
   const priority = priorityConfig[task.priority] || priorityConfig.MEDIUM;
   const isCompleted = task.status === "COMPLETED";
+  const isDelayed = task.status === "DELAYED";
+  const isPending = task.status === "PENDING";
+
+  // 담당자 정보 (주 담당자 또는 첫 번째 협업자)
+  const primaryAssignee = task.assignee || (task.assignees && task.assignees.length > 0 ? task.assignees[0] : null);
+
+  // 모든 담당자 목록 (주 담당자 + 부 담당자, 중복 제거)
+  const allAssignees = (() => {
+    const assigneeMap = new Map<string, { id: string; name: string | null; avatar: string | null }>();
+    // 주 담당자 추가
+    if (task.assignee) {
+      assigneeMap.set(task.assignee.id, task.assignee);
+    }
+    // 부 담당자들 추가
+    if (task.assignees && task.assignees.length > 0) {
+      task.assignees.forEach((a) => {
+        if (!assigneeMap.has(a.id)) {
+          assigneeMap.set(a.id, a);
+        }
+      });
+    }
+    return Array.from(assigneeMap.values());
+  })();
+
+  // 완료된 task: 컴팩트 뷰 (isExpanded가 false일 때)
+  if (isCompleted && !isExpanded) {
+    return (
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleCompleted?.(task.id);
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className={`
+          bg-success/5 dark:bg-success/10 p-2.5 rounded-lg border border-success/20
+          cursor-pointer transition-all hover:bg-success/10 dark:hover:bg-success/20
+          ${isDragging ? "opacity-50 shadow-lg ring-2 ring-primary scale-105" : ""}
+        `}
+      >
+        <div className="flex items-center gap-2">
+          <Icon name="check_circle" size="xs" className="text-success flex-shrink-0" />
+          <span className="text-xs font-medium text-text-secondary line-through truncate flex-1">
+            {task.title}
+          </span>
+          {/* 담당자 아바타 + 이름 */}
+          {primaryAssignee && (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {primaryAssignee.avatar ? (
+                <img
+                  src={primaryAssignee.avatar}
+                  alt={primaryAssignee.name || ""}
+                  className="size-5 rounded-full object-cover"
+                />
+              ) : (
+                <div className="size-5 rounded-full bg-success/30 flex items-center justify-center text-[9px] font-bold text-success">
+                  {primaryAssignee.name?.charAt(0) || "?"}
+                </div>
+              )}
+              <span className="text-[10px] text-text-secondary max-w-[60px] truncate">
+                {primaryAssignee.name || ""}
+              </span>
+            </div>
+          )}
+          <Icon name="expand_more" size="xs" className="text-text-secondary flex-shrink-0" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelectTask?.(task);
+      }}
       className={`
-        bg-background-white dark:bg-[#283039] p-4 rounded-lg shadow-sm border border-border dark:border-transparent
+        bg-background-white dark:bg-[#283039] p-4 rounded-lg shadow-sm border
         cursor-grab active:cursor-grabbing transition-all group
         ${isDragging ? "opacity-50 shadow-lg ring-2 ring-primary scale-105" : ""}
-        ${isCompleted ? "opacity-70 hover:opacity-90" : "hover:ring-2 hover:ring-primary/50 hover:shadow-md"}
+        ${isSelected ? "ring-2 ring-primary border-primary shadow-md" : ""}
+        ${isCompleted && !isSelected ? "opacity-80 hover:opacity-100 border-success/30 dark:border-success/20 bg-success/5 dark:bg-success/10" : ""}
+        ${isDelayed && !isSelected ? "border-rose-400 dark:border-rose-500 ring-1 ring-rose-200 dark:ring-rose-900/50" : ""}
+        ${!isCompleted && !isDelayed && !isSelected ? "border-border dark:border-transparent hover:ring-2 hover:ring-primary/50 hover:shadow-md" : ""}
       `}
     >
       {/* 드래그 핸들 아이콘 */}
@@ -943,6 +1334,23 @@ function TaskCard({
             <div className="flex items-center gap-1 text-success text-xs font-bold">
               <Icon name="check_circle" size="xs" />
               <span>완료</span>
+              {/* 축소 버튼 */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCompleted?.(task.id);
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="ml-1 p-0.5 rounded hover:bg-success/20 transition-colors"
+                title="축소"
+              >
+                <Icon name="expand_less" size="xs" className="text-success" />
+              </button>
+            </div>
+          ) : isDelayed ? (
+            <div className="flex items-center gap-1 text-rose-500 dark:text-rose-400 text-xs font-bold">
+              <Icon name="warning" size="xs" />
+              <span>지연</span>
             </div>
           ) : (
             <span className={`${priority.bgColor} ${priority.textColor} text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider`}>
@@ -950,7 +1358,7 @@ function TaskCard({
             </span>
           )}
         </div>
-        {/* 상태 변경 드롭다운 & 수정 버튼 */}
+        {/* 상태 변경 드롭다운 & 수정/삭제 버튼 */}
         <div className="flex items-center gap-1">
           <select
             value={task.status}
@@ -964,21 +1372,20 @@ function TaskCard({
           >
             <option value="PENDING">대기중</option>
             <option value="IN_PROGRESS">진행중</option>
-            <option value="HOLDING">홀딩</option>
             <option value="COMPLETED">완료</option>
-            <option value="CANCELLED">취소</option>
           </select>
-          {onEditTask && (
+          {/* 삭제 버튼: 대기중(PENDING) 상태에서만 표시 */}
+          {isPending && onDeleteTask && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onEditTask(task);
+                onDeleteTask(task.id, task.title);
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              className="size-6 rounded flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
-              title="수정"
+              className="size-6 rounded flex items-center justify-center hover:bg-error/10 text-text-secondary hover:text-error transition-colors opacity-0 group-hover:opacity-100"
+              title="삭제 (대기중 상태에서만 가능)"
             >
-              <Icon name="edit" size="xs" />
+              <Icon name="delete" size="xs" />
             </button>
           )}
         </div>
@@ -1021,37 +1428,67 @@ function TaskCard({
 
       {/* 하단: 담당자 및 메타 정보 */}
       <div className="flex items-center justify-between mt-3">
-        {/* 다중 담당자 표시 */}
-        <div className="flex -space-x-1.5">
-          {task.assignees && task.assignees.length > 0 ? (
-            <>
-              {task.assignees.slice(0, 3).map((assignee) => (
-                <div
-                  key={assignee.id}
-                  className="size-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-white border-2 border-background-white dark:border-[#283039]"
-                  title={assignee.name || ""}
-                >
-                  {assignee.name?.charAt(0) || "?"}
-                </div>
-              ))}
-              {task.assignees.length > 3 && (
-                <div className="size-6 rounded-full bg-text-secondary flex items-center justify-center text-[10px] font-bold text-white border-2 border-background-white dark:border-[#283039]">
-                  +{task.assignees.length - 3}
-                </div>
+        {/* 다중 담당자 표시 (아바타 + 이름) */}
+        <div className="flex items-center gap-2">
+          <div className="flex -space-x-1.5">
+            {allAssignees.length > 0 ? (
+              <>
+                {allAssignees.slice(0, 3).map((assignee) => (
+                  assignee.avatar ? (
+                    <img
+                      key={assignee.id}
+                      src={assignee.avatar}
+                      alt={assignee.name || "담당자"}
+                      className="size-6 rounded-full object-cover border-2 border-background-white dark:border-[#283039]"
+                      title={assignee.name || ""}
+                    />
+                  ) : (
+                    <div
+                      key={assignee.id}
+                      className="size-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-white border-2 border-background-white dark:border-[#283039]"
+                      title={assignee.name || ""}
+                    >
+                      {assignee.name?.charAt(0) || "?"}
+                    </div>
+                  )
+                ))}
+                {allAssignees.length > 3 && (
+                  <div className="size-6 rounded-full bg-text-secondary flex items-center justify-center text-[10px] font-bold text-white border-2 border-background-white dark:border-[#283039]">
+                    +{allAssignees.length - 3}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="size-6 rounded-full bg-text-secondary/50 flex items-center justify-center text-[10px] font-bold text-white">
+                --
+              </div>
+            )}
+          </div>
+          {/* 담당자 이름 표시 */}
+          {primaryAssignee && (
+            <span className="text-xs text-text-secondary truncate max-w-[100px]">
+              {primaryAssignee.name || ""}
+              {allAssignees.length > 1 && (
+                <span className="text-text-secondary/70"> 외 {allAssignees.length - 1}명</span>
               )}
-            </>
-          ) : (
-            <div className="size-6 rounded-full bg-text-secondary/50 flex items-center justify-center text-[10px] font-bold text-white">
-              --
-            </div>
+            </span>
           )}
         </div>
 
         <div className="flex items-center gap-3 text-text-secondary text-xs">
-          {task.dueDate && (
+          {/* 시작일 ~ 마감일 표시 */}
+          {(task.startDate || task.dueDate) && (
             <div className="flex items-center gap-1">
               <Icon name="schedule" size="xs" />
-              <span>{new Date(task.dueDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}</span>
+              <span>
+                {task.startDate
+                  ? new Date(task.startDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })
+                  : ""}
+                {task.startDate && task.dueDate && " ~ "}
+                {task.dueDate
+                  ? new Date(task.dueDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })
+                  : ""}
+              </span>
             </div>
           )}
         </div>

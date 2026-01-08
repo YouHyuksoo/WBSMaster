@@ -2,10 +2,10 @@
  * @file src/lib/auth.ts
  * @description
  * 인증 관련 헬퍼 함수들입니다.
- * API 라우트에서 현재 사용자를 가져오거나 인증을 검증할 때 사용합니다.
+ * 쿠키 기반 자체 인증 시스템을 사용합니다.
  *
  * 초보자 가이드:
- * 1. **getUser**: 현재 로그인한 사용자 정보 조회
+ * 1. **getUser**: 현재 로그인한 사용자 정보 조회 (쿠키에서 userId 읽음)
  * 2. **requireAuth**: 인증 필수 API에서 사용자 검증
  * 3. **getUserOrNull**: 인증 선택적 API에서 사용
  *
@@ -20,26 +20,51 @@
  * }
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import type { User } from "@supabase/supabase-js";
+import { prisma } from "@/lib/prisma";
+
+/** 사용자 타입 (DB User 기반) */
+export type AuthUser = {
+  id: string;
+  email: string;
+  name?: string | null;
+  avatar?: string | null;
+  role: string;
+};
 
 /** 인증 결과 타입 */
 export type AuthResult = {
-  user: User | null;
+  user: AuthUser | null;
   error: NextResponse | null;
 };
 
 /**
  * 현재 로그인한 사용자 조회
- * 인증되지 않은 경우 null 반환
+ * 쿠키에서 userId를 읽어서 DB에서 사용자 정보 조회
  *
  * @returns 사용자 객체 또는 null
  */
-export async function getUser(): Promise<User | null> {
+export async function getUser(): Promise<AuthUser | null> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("userId")?.value;
+
+    if (!userId) {
+      return null;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatar: true,
+        role: true,
+      },
+    });
+
     return user;
   } catch {
     return null;
@@ -69,23 +94,18 @@ export async function requireAuth(): Promise<AuthResult> {
 }
 
 /**
- * 세션 정보 조회
- * 액세스 토큰과 함께 사용자 정보 반환
+ * 세션 정보 조회 (호환성 유지)
  */
 export async function getSession() {
-  try {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    return session;
-  } catch {
-    return null;
-  }
+  const user = await getUser();
+  if (!user) return null;
+  return { user };
 }
 
 /**
- * 로그아웃
+ * 로그아웃 (쿠키 삭제)
  */
 export async function signOut() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  const cookieStore = await cookies();
+  cookieStore.delete("userId");
 }
