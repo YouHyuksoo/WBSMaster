@@ -17,12 +17,12 @@ import { Icon } from "@/components/ui";
 interface TaskData {
   id: string;
   status: string;
-  dueDate?: string;
+  dueDate?: string | null;
   assignee?: {
     id: string;
-    name: string;
+    name?: string;
     avatar?: string;
-  };
+  } | null;
   assignees?: Array<{
     id?: string;
     userId?: string;
