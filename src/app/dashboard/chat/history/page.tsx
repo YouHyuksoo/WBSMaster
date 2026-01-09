@@ -24,6 +24,7 @@ import Link from "next/link";
 
 /**
  * 피드백 타입
+ * 피드백 자체에 분석용 데이터가 저장되어 있어 chatHistory 삭제 후에도 조회 가능
  */
 interface FeedbackItem {
   id: string;
@@ -34,7 +35,23 @@ interface FeedbackItem {
   isChartUseful: boolean | null;
   tags: string[];
   createdAt: string;
-  // chatHistory는 삭제되어도 피드백은 유지되므로 nullable
+
+  // ===== 분석용 데이터 (피드백 자체에 저장됨) =====
+  userQuery: string | null;           // 사용자 질문
+  llmResponse: string | null;         // LLM 전체 응답
+  sqlQuery: string | null;            // 생성된 SQL
+  chartType: string | null;           // 차트 타입
+  chartData: Record<string, unknown> | null;  // 차트 데이터
+  mindmapData: Record<string, unknown> | null; // 마인드맵 데이터
+  processingTimeMs: number | null;    // 처리 시간
+  sqlGenTimeMs: number | null;        // SQL 생성 시간
+  sqlExecTimeMs: number | null;       // SQL 실행 시간
+  projectId: string | null;           // 프로젝트 ID
+  projectName: string | null;         // 프로젝트 이름
+  personaId: string | null;           // 페르소나 ID
+  personaName: string | null;         // 페르소나 이름
+
+  // chatHistory는 삭제되어도 피드백은 유지되므로 nullable (참조용)
   chatHistory: {
     id: string;
     role: string;
@@ -507,24 +524,24 @@ export default function ChatHistoryPage() {
                       {getRatingLabel(feedback.rating)}
                     </span>
 
-                    {/* 질문 요약 */}
+                    {/* 질문 요약 (피드백 자체 데이터 우선 사용) */}
                     <span className="text-text dark:text-white font-medium truncate max-w-md">
-                      {feedback.chatHistory?.userQuery || "질문 없음"}
+                      {feedback.userQuery || feedback.chatHistory?.userQuery || "질문 없음"}
                     </span>
 
-                    {/* 프로젝트 */}
-                    {feedback.chatHistory?.project && (
+                    {/* 프로젝트 (피드백 자체 데이터 우선 사용) */}
+                    {(feedback.projectName || feedback.chatHistory?.project) && (
                       <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">
-                        {feedback.chatHistory.project.name}
+                        {feedback.projectName || feedback.chatHistory?.project?.name}
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-4">
-                  {/* 처리 시간 */}
+                  {/* 처리 시간 (피드백 자체 데이터 우선 사용) */}
                   <span className="text-xs text-text-secondary">
-                    {formatTime(feedback.chatHistory?.processingTimeMs || null)}
+                    {formatTime(feedback.processingTimeMs || feedback.chatHistory?.processingTimeMs || null)}
                   </span>
 
                   {/* 날짜 */}
@@ -561,59 +578,87 @@ export default function ChatHistoryPage() {
               {expandedIds.has(feedback.id) && (
                 <div className="p-4 pt-0 border-t border-border dark:border-border-dark">
                   <div className="grid md:grid-cols-2 gap-4 mt-4">
-                    {/* 사용자 질문 */}
+                    {/* 사용자 질문 (피드백 자체 데이터 우선 사용) */}
                     <div>
                       <h4 className="text-sm font-medium text-text-secondary mb-2 flex items-center gap-1">
                         <Icon name="person" size="xs" /> 사용자 질문
                       </h4>
-                      <div className="p-3 rounded-lg bg-primary/10 text-text dark:text-white text-sm">
-                        {feedback.chatHistory?.userQuery || "N/A"}
+                      <div className="p-3 rounded-lg bg-primary/10 text-text dark:text-white text-sm whitespace-pre-wrap">
+                        {feedback.userQuery || feedback.chatHistory?.userQuery || "N/A"}
                       </div>
                     </div>
 
-                    {/* AI 응답 */}
+                    {/* AI 응답 (피드백 자체 데이터 우선 사용, 전체 표시) */}
                     <div>
                       <h4 className="text-sm font-medium text-text-secondary mb-2 flex items-center gap-1">
                         <Icon name="smart_toy" size="xs" /> AI 응답
                       </h4>
-                      <div className="p-3 rounded-lg bg-surface dark:bg-surface-dark text-text dark:text-white text-sm max-h-40 overflow-y-auto">
-                        {feedback.chatHistory?.content
-                          ? `${feedback.chatHistory.content.slice(0, 500)}${feedback.chatHistory.content.length > 500 ? "..." : ""}`
-                          : "N/A"}
+                      <div className="p-3 rounded-lg bg-surface dark:bg-surface-dark text-text dark:text-white text-sm max-h-96 overflow-y-auto whitespace-pre-wrap">
+                        {feedback.llmResponse || feedback.chatHistory?.content || "N/A"}
                       </div>
                     </div>
                   </div>
 
-                  {/* SQL 쿼리 */}
-                  {feedback.chatHistory?.sqlQuery && (
+                  {/* SQL 쿼리 (피드백 자체 데이터 우선 사용) */}
+                  {(feedback.sqlQuery || feedback.chatHistory?.sqlQuery) && (
                     <div className="mt-4">
                       <h4 className="text-sm font-medium text-text-secondary mb-2 flex items-center gap-1">
                         <Icon name="code" size="xs" /> 생성된 SQL
                       </h4>
                       <pre className="p-3 rounded-lg bg-background-dark text-green-400 text-xs overflow-x-auto">
-                        {feedback.chatHistory.sqlQuery}
+                        {feedback.sqlQuery || feedback.chatHistory?.sqlQuery}
                       </pre>
                     </div>
                   )}
 
-                  {/* 메타 정보 */}
+                  {/* 차트 데이터 (피드백 자체에 저장된 데이터) */}
+                  {feedback.chartData && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-text-secondary mb-2 flex items-center gap-1">
+                        <Icon name="bar_chart" size="xs" /> 차트 데이터
+                      </h4>
+                      <pre className="p-3 rounded-lg bg-sky-950/50 text-sky-300 text-xs overflow-x-auto max-h-48 overflow-y-auto">
+                        {JSON.stringify(feedback.chartData, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* 마인드맵 데이터 (피드백 자체에 저장된 데이터) */}
+                  {feedback.mindmapData && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-text-secondary mb-2 flex items-center gap-1">
+                        <Icon name="account_tree" size="xs" /> 마인드맵 데이터
+                      </h4>
+                      <pre className="p-3 rounded-lg bg-purple-950/50 text-purple-300 text-xs overflow-x-auto max-h-48 overflow-y-auto">
+                        {JSON.stringify(feedback.mindmapData, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* 메타 정보 (피드백 자체 데이터 우선 사용) */}
                   <div className="mt-4 flex flex-wrap gap-4">
-                    {feedback.chatHistory?.chartType && (
+                    {(feedback.chartType || feedback.chatHistory?.chartType) && (
                       <div className="flex items-center gap-1 text-xs text-text-secondary">
                         <Icon name="bar_chart" size="xs" />
-                        차트: {feedback.chatHistory.chartType}
+                        차트: {feedback.chartType || feedback.chatHistory?.chartType}
                       </div>
                     )}
-                    {feedback.chatHistory?.sqlGenTimeMs && (
+                    {(feedback.sqlGenTimeMs || feedback.chatHistory?.sqlGenTimeMs) && (
                       <div className="flex items-center gap-1 text-xs text-text-secondary">
                         <Icon name="code" size="xs" />
-                        SQL 생성: {formatTime(feedback.chatHistory.sqlGenTimeMs)}
+                        SQL 생성: {formatTime(feedback.sqlGenTimeMs || feedback.chatHistory?.sqlGenTimeMs || null)}
                       </div>
                     )}
-                    {feedback.chatHistory?.sqlExecTimeMs && (
+                    {(feedback.sqlExecTimeMs || feedback.chatHistory?.sqlExecTimeMs) && (
                       <div className="flex items-center gap-1 text-xs text-text-secondary">
                         <Icon name="database" size="xs" />
-                        SQL 실행: {formatTime(feedback.chatHistory.sqlExecTimeMs)}
+                        SQL 실행: {formatTime(feedback.sqlExecTimeMs || feedback.chatHistory?.sqlExecTimeMs || null)}
+                      </div>
+                    )}
+                    {feedback.personaName && (
+                      <div className="flex items-center gap-1 text-xs text-text-secondary">
+                        <Icon name="psychology" size="xs" />
+                        페르소나: {feedback.personaName}
                       </div>
                     )}
                     {feedback.chatHistory?.errorMessage && (

@@ -54,6 +54,13 @@ export default function ChatPage() {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>("");
   const [isLoadingPersonas, setIsLoadingPersonas] = useState(true);
 
+  // AI 설정 상태 (현재 사용 중인 모델 표시용)
+  const [aiSettings, setAiSettings] = useState<{
+    provider: string;
+    geminiModel: string;
+    mistralModel: string;
+  } | null>(null);
+
   // 삭제 확인 모달 상태
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [fullscreenMindmap, setFullscreenMindmap] = useState<MindmapNode | null>(null);
@@ -163,6 +170,29 @@ export default function ChatPage() {
   useEffect(() => {
     loadPersonas();
   }, [loadPersonas]);
+
+  /**
+   * AI 설정 불러오기 (현재 사용 중인 모델 표시용)
+   */
+  const loadAiSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/ai-settings");
+      if (res.ok) {
+        const data = await res.json();
+        setAiSettings({
+          provider: data.provider,
+          geminiModel: data.geminiModel,
+          mistralModel: data.mistralModel,
+        });
+      }
+    } catch (error) {
+      console.error("AI 설정 로드 실패:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAiSettings();
+  }, [loadAiSettings]);
 
   /**
    * 메시지 전송 (ChatInput에서 호출)
@@ -494,7 +524,21 @@ export default function ChatPage() {
             <Icon name="smart_toy" size="sm" className="text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-text dark:text-white">AI 어시스턴트</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold text-text dark:text-white">AI 어시스턴트</h1>
+              {/* 현재 사용 중인 모델 표시 */}
+              {aiSettings && (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  aiSettings.provider === "gemini"
+                    ? "bg-blue-500/20 text-blue-500"
+                    : "bg-orange-500/20 text-orange-500"
+                }`}>
+                  {aiSettings.provider === "gemini"
+                    ? `Gemini ${aiSettings.geminiModel.replace("gemini-", "").replace("-latest", "")}`
+                    : `Mistral ${aiSettings.mistralModel.replace("mistral-", "").replace("-latest", "")}`}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-text-secondary">
               프로젝트 데이터를 분석하고 질문에 답합니다
             </p>
