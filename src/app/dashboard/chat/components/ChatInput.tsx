@@ -13,7 +13,7 @@
 
 import React, { memo, useState, useRef, useCallback, useEffect } from "react";
 import { Icon, Button } from "@/components/ui";
-import { EXAMPLE_GROUPS } from "./constants";
+import { EXAMPLE_GROUPS, ExampleGroup } from "./constants";
 
 /**
  * Web Speech API 타입 정의
@@ -72,6 +72,12 @@ interface ChatInputProps {
   isLoading: boolean;
   isUploadingExcel: boolean;
   selectedProjectId: string;
+  /** 동적 제안 질문 (외부에서 전달, 없으면 기본값 사용) */
+  suggestions?: ExampleGroup[];
+  /** 제안 새로고침 함수 */
+  onRefreshSuggestions?: () => void;
+  /** 제안 새로고침 중 여부 */
+  isRefreshingSuggestions?: boolean;
 }
 
 /**
@@ -89,6 +95,9 @@ const ChatInput = memo(function ChatInput({
   isLoading,
   isUploadingExcel,
   selectedProjectId,
+  suggestions = EXAMPLE_GROUPS,
+  onRefreshSuggestions,
+  isRefreshingSuggestions = false,
 }: ChatInputProps) {
   // 로컬 상태 - 부모 컴포넌트와 분리
   const [inputMessage, setInputMessage] = useState("");
@@ -344,15 +353,32 @@ const ChatInput = memo(function ChatInput({
                 <h3 className="text-sm font-semibold text-text dark:text-white">
                   예시 질문
                 </h3>
-                <button
-                  onClick={() => setShowExamplePopover(false)}
-                  className="p-1 rounded hover:bg-background dark:hover:bg-background-dark"
-                >
-                  <Icon name="close" size="xs" className="text-text-secondary" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* 새로고침 버튼 */}
+                  {onRefreshSuggestions && (
+                    <button
+                      onClick={onRefreshSuggestions}
+                      disabled={isRefreshingSuggestions}
+                      className="p-1 rounded hover:bg-primary/10 text-text-secondary hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      title="AI에게 새로운 제안 요청"
+                    >
+                      <Icon
+                        name="refresh"
+                        size="xs"
+                        className={isRefreshingSuggestions ? "animate-spin" : ""}
+                      />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowExamplePopover(false)}
+                    className="p-1 rounded hover:bg-background dark:hover:bg-background-dark"
+                  >
+                    <Icon name="close" size="xs" className="text-text-secondary" />
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-5 gap-3">
-                {EXAMPLE_GROUPS.map((group) => (
+                {suggestions.map((group) => (
                   <div key={group.title}>
                     <div className="flex items-center gap-1.5 mb-2 pb-1 border-b border-border dark:border-border-dark">
                       <Icon name={group.icon} size="xs" className={group.color} />

@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
     });
 
     // 분석용 데이터 (ChatHistory에서 복사)
+    // chartData, mindmapData는 null이면 undefined로 변환 (Prisma 타입 호환성)
     const analysisData = {
       // 사용자 질의 & LLM 응답
       userQuery: chatHistory.userQuery,
@@ -98,8 +99,8 @@ export async function POST(request: NextRequest) {
       sqlQuery: chatHistory.sqlQuery,
       // 차트/시각화
       chartType: chatHistory.chartType,
-      chartData: chatHistory.chartData,
-      mindmapData: chatHistory.mindmapData,
+      chartData: chatHistory.chartData ?? undefined,
+      mindmapData: chatHistory.mindmapData ?? undefined,
       // 성능 측정
       processingTimeMs: chatHistory.processingTimeMs,
       sqlGenTimeMs: chatHistory.sqlGenTimeMs,

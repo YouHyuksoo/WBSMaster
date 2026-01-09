@@ -28,7 +28,7 @@ import { api, AiPersona } from "@/lib/api";
 import ChatMessageItem, { ChatMessage } from "./components/ChatMessageItem";
 import ChatInput from "./components/ChatInput";
 import MindmapRenderer, { MindmapNode } from "./components/MindmapRenderer";
-import { EXAMPLE_GROUPS } from "./components/constants";
+import { EXAMPLE_GROUPS, ExampleGroup } from "./components/constants";
 import { ExcelMappingModal } from "./components/ExcelMappingModal";
 
 /**
@@ -60,6 +60,10 @@ export default function ChatPage() {
     geminiModel: string;
     mistralModel: string;
   } | null>(null);
+
+  // 동적 제안 질문 상태
+  const [suggestions, setSuggestions] = useState<ExampleGroup[]>(EXAMPLE_GROUPS);
+  const [isRefreshingSuggestions, setIsRefreshingSuggestions] = useState(false);
 
   // 삭제 확인 모달 상태
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -193,6 +197,40 @@ export default function ChatPage() {
   useEffect(() => {
     loadAiSettings();
   }, [loadAiSettings]);
+
+  /**
+   * 제안 질문 새로고침
+   * LLM에게 새로운 제안을 요청하고, 응답이 있으면 업데이트
+   * 응답이 없거나 오류 시 기존 제안 유지
+   */
+  const refreshSuggestions = useCallback(async () => {
+    setIsRefreshingSuggestions(true);
+    try {
+      const res = await fetch("/api/chat/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: selectedProjectId || null,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // AI가 생성한 제안이면 업데이트
+        if (data.suggestions && Array.isArray(data.suggestions)) {
+          setSuggestions(data.suggestions);
+          if (data.source === "ai") {
+            toast.success("새로운 제안이 생성되었습니다!");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("제안 새로고침 실패:", error);
+      // 오류 시 기존 제안 유지 (아무 동작 안함)
+    } finally {
+      setIsRefreshingSuggestions(false);
+    }
+  }, [selectedProjectId, toast]);
 
   /**
    * 메시지 전송 (ChatInput에서 호출)
@@ -607,9 +645,26 @@ export default function ChatPage() {
               프로젝트 데이터 분석, 등록, 수정 등 다양한 작업을 도와드려요
             </p>
 
-            {/* 그룹별 예시 질문 - 상수 사용 */}
+            {/* 제안 새로고침 버튼 */}
+            <div className="flex items-center gap-2 mb-4">
+              <button
+                onClick={refreshSuggestions}
+                disabled={isRefreshingSuggestions}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="AI에게 새로운 제안 요청"
+              >
+                <Icon
+                  name="refresh"
+                  size="xs"
+                  className={isRefreshingSuggestions ? "animate-spin" : ""}
+                />
+                <span>{isRefreshingSuggestions ? "새로고침 중..." : "제안 새로고침"}</span>
+              </button>
+            </div>
+
+            {/* 그룹별 예시 질문 - 동적 상태 사용 */}
             <div className="grid grid-cols-5 gap-4 w-full max-w-6xl">
-              {EXAMPLE_GROUPS.map((group) => (
+              {suggestions.map((group) => (
                 <div
                   key={group.title}
                   className="p-3 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark"
@@ -679,6 +734,9 @@ export default function ChatPage() {
         isLoading={isLoading}
         isUploadingExcel={isUploadingExcel}
         selectedProjectId={selectedProjectId}
+        suggestions={suggestions}
+        onRefreshSuggestions={refreshSuggestions}
+        isRefreshingSuggestions={isRefreshingSuggestions}
       />
 
       {/* 채팅 기록 삭제 확인 모달 */}
