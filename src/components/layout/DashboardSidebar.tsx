@@ -52,18 +52,18 @@ const menuItems: MenuItem[] = [
   { label: "대시보드", icon: "dashboard", href: "/dashboard" },
   { label: "WBS 보기", icon: "account_tree", href: "/dashboard/wbs", filled: true },
   { label: "TASK 관리", icon: "view_kanban", href: "/dashboard/kanban" },
+  { label: "일정 관리", icon: "event", href: "/dashboard/holidays" },
   { label: "요구사항 점검표", icon: "checklist", href: "/dashboard/requirements" },
   { label: "이슈사항 점검표", icon: "bug_report", href: "/dashboard/issues" },
   { label: "AI 어시스턴트", icon: "smart_toy", href: "/dashboard/chat", filled: true },
-  { label: "채팅 분석", icon: "analytics", href: "/dashboard/chat/history" },
 ];
 
 /** 관리 메뉴 항목 */
 const managementItems: MenuItem[] = [
   { label: "기준 설정", icon: "tune", href: "/dashboard/settings" },
-  { label: "일정 관리", icon: "event", href: "/dashboard/holidays" },
   { label: "유저 관리", icon: "manage_accounts", href: "/dashboard/users" },
   { label: "프로젝트 멤버", icon: "person_add", href: "/dashboard/members" },
+  { label: "채팅 분석", icon: "analytics", href: "/dashboard/chat/history" },
   { label: "Slack 설정", icon: "forum", href: "/dashboard/slack" },
 ];
 

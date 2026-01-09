@@ -8,11 +8,58 @@
  * - 텍스트 입력 및 전송
  * - 엑셀 파일 첨부
  * - 예시 질문 팝오버
+ * - 음성 입력 (Web Speech API)
  */
 
-import React, { memo, useState, useRef, useCallback } from "react";
+import React, { memo, useState, useRef, useCallback, useEffect } from "react";
 import { Icon, Button } from "@/components/ui";
 import { EXAMPLE_GROUPS } from "./constants";
+
+/**
+ * Web Speech API 타입 정의
+ */
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: ((this: SpeechRecognition, ev: Event) => void) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => void) | null;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => void) | null;
+  onerror: ((this: SpeechRecognition, ev: Event & { error: string }) => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -47,8 +94,105 @@ const ChatInput = memo(function ChatInput({
   const [inputMessage, setInputMessage] = useState("");
   const [showExamplePopover, setShowExamplePopover] = useState(false);
 
+  // 음성 인식 상태
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
+
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  /**
+   * 음성 인식 초기화
+   */
+  useEffect(() => {
+    // 브라우저 지원 확인
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognitionAPI) {
+      setIsSpeechSupported(true);
+      const recognition = new SpeechRecognitionAPI();
+
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "ko-KR"; // 한국어 설정
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        setInterimTranscript("");
+      };
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let finalTranscript = "";
+        let interim = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interim += transcript;
+          }
+        }
+
+        // 최종 결과가 있으면 입력창에 추가
+        if (finalTranscript) {
+          setInputMessage((prev) => prev + finalTranscript);
+        }
+
+        // 중간 결과 표시
+        setInterimTranscript(interim);
+      };
+
+      recognition.onerror = (event) => {
+        // "not-allowed"는 권한 문제 - 버튼 클릭 시 getUserMedia에서 처리
+        // 초기화 단계에서는 무시
+        if (event.error !== "not-allowed") {
+          console.warn("음성 인식 오류:", event.error);
+        }
+        setIsListening(false);
+        setInterimTranscript("");
+      };
+
+      recognitionRef.current = recognition;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
+
+  /**
+   * 음성 인식 토글
+   * 첫 사용 시 브라우저가 마이크 권한 요청 팝업을 표시
+   */
+  const toggleListening = useCallback(async () => {
+    if (!recognitionRef.current) return;
+
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      try {
+        // 먼저 마이크 권한 요청 (브라우저 팝업 표시)
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // 권한 허용되면 음성 인식 시작
+        setInterimTranscript("");
+        recognitionRef.current.start();
+      } catch (err) {
+        // 권한 거부 또는 마이크 없음
+        console.error("마이크 권한 오류:", err);
+        alert("마이크 사용 권한이 필요합니다.\n브라우저에서 마이크 권한을 허용해주세요.");
+      }
+    }
+  }, [isListening]);
 
   /**
    * 메시지 전송 핸들러
@@ -160,6 +304,27 @@ const ChatInput = memo(function ChatInput({
           <Icon name="attach_file" size="sm" />
         </Button>
 
+        {/* 음성 입력 버튼 */}
+        {isSpeechSupported && (
+          <div className="relative">
+            <Button
+              variant={isListening ? "primary" : "ghost"}
+              size="md"
+              onClick={toggleListening}
+              disabled={isLoading || isUploadingExcel}
+              title={isListening ? "클릭하여 음성 인식 중지" : "클릭하여 음성으로 입력"}
+              className={isListening ? "bg-rose-500 hover:bg-rose-600 text-white" : ""}
+            >
+              <Icon name={isListening ? "mic" : "mic_none"} size="sm" />
+              {isListening && <span className="ml-1 text-xs">듣는중...</span>}
+            </Button>
+            {/* 녹음 중 표시 점 */}
+            {isListening && (
+              <span className="absolute -top-1 -right-1 size-3 bg-rose-500 rounded-full animate-pulse" />
+            )}
+          </div>
+        )}
+
         {/* 예시 보기 버튼 */}
         <div className="relative">
           <Button
@@ -220,14 +385,26 @@ const ChatInput = memo(function ChatInput({
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              selectedFile
-                ? "파일과 함께 보낼 메시지를 입력하세요..."
-                : "질문을 입력하세요... (Shift+Enter로 줄바꿈)"
+              isListening
+                ? "🎤 말씀하세요... (인식된 내용이 여기에 입력됩니다)"
+                : selectedFile
+                  ? "파일과 함께 보낼 메시지를 입력하세요..."
+                  : "질문을 입력하세요... (Shift+Enter로 줄바꿈)"
             }
             rows={1}
-            className="w-full px-4 py-3 pr-12 rounded-xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white placeholder-text-secondary resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className={`w-full px-4 py-3 pr-12 rounded-xl bg-surface dark:bg-surface-dark border text-text dark:text-white placeholder-text-secondary resize-none focus:outline-none focus:ring-2 ${
+              isListening
+                ? "border-rose-500 focus:ring-rose-500/50 bg-rose-50 dark:bg-rose-950/20"
+                : "border-border dark:border-border-dark focus:ring-primary/50"
+            }`}
             style={{ minHeight: "48px", maxHeight: "120px" }}
           />
+          {/* 중간 인식 결과 표시 */}
+          {isListening && interimTranscript && (
+            <div className="absolute bottom-full left-0 mb-1 px-3 py-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 text-sm">
+              <span className="animate-pulse">🎤</span> {interimTranscript}
+            </div>
+          )}
         </div>
 
         {/* 파일이 있으면 업로드 버튼, 없으면 전송 버튼 */}

@@ -78,16 +78,27 @@ export const DEFAULT_SQL_SYSTEM_PROMPT = `WBS Master SQL 생성 AI. PostgreSQL �
 - requirements: id, title, status, priority, projectId, creatorId, createdAt, updatedAt
 - wbs_items: id, name, level, status, projectId, createdAt, updatedAt
 
+## 담당자 기본값 ⭐
+INSERT/UPDATE 시 담당자(assigneeId, reporterId, creatorId)를 명시하지 않으면 현재 userId 사용:
+- tasks: creatorId=userId, assigneeId=userId
+- issues: reporterId=userId, assigneeId=userId
+- requirements: requesterId=userId, assigneeId=userId
+
 ## 상태값
 - tasks/wbs: PENDING, IN_PROGRESS, COMPLETED, ON_HOLD
 - issues: OPEN, IN_PROGRESS, RESOLVED, CLOSED
-- requirements: DRAFT, REVIEW, APPROVED, IMPLEMENTED, REJECTED
+- requirements: DRAFT, REVIEW, APPROVED, REJECTED, IMPLEMENTED
 - priority: LOW, MEDIUM, HIGH, URGENT
 
-## 담당자 이름 표시 ⭐
-assigneeId, reporterId, creatorId 조회 시 반드시 users JOIN:
-SELECT i."code", i."title", i."status", assignee."name" AS "assigneeName"
+## ID → 이름 변환 (필수!) ⭐
+조회 시 UUID 대신 이름 표시를 위해 반드시 JOIN:
+- assigneeId, reporterId, creatorId → users JOIN
+- projectId → projects JOIN
+
+예시:
+SELECT i."code", i."title", i."status", p."name" AS "projectName", assignee."name" AS "assigneeName"
 FROM "issues" i
+LEFT JOIN "projects" p ON i."projectId" = p."id"
 LEFT JOIN "users" assignee ON i."assigneeId" = assignee."id"
 
 ## 마인드맵 요청

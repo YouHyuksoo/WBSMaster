@@ -111,6 +111,19 @@ export async function GET(request: NextRequest) {
             priority: true,
           },
         },
+        // 재촉 목록 조회
+        nudges: {
+          include: {
+            nudger: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
       },
       orderBy: [
         { status: "asc" },

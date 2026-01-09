@@ -7,7 +7,8 @@
  * 실행: npx tsx scripts/add-holidays.ts
  */
 
-import "dotenv/config";
+import * as dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import pg from "pg";

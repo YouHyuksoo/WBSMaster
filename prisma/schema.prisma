@@ -49,6 +49,7 @@ model User {
   aiSetting     AiSetting?   // AI 설정 (1:1)
   chatHistories ChatHistory[] // 채팅 기록
   holidays      Holiday[] @relation("HolidayUser") // 개인 일정
+  taskNudges    TaskNudge[] @relation("TaskNudger") // 내가 보낸 재촉
 
   @@map("users")
 }
@@ -136,6 +137,7 @@ model Task {
   creator       User    @relation("TaskCreator", fields: [creatorId], references: [id])
   requirementId String?        // 연결된 요구사항 (선택)
   requirement   Requirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  nudges        TaskNudge[]    // 재촉 목록
 
   @@map("tasks")
 }
@@ -156,6 +158,26 @@ model TaskAssignee {
 
   @@unique([taskId, userId]) // 같은 태스크에 같은 사용자는 한 번만
   @@map("task_assignees")
+}
+
+// ============================================
+// 태스크 재촉 모델
+// 다른 사람이 태스크 담당자에게 재촉할 수 있음
+// ============================================
+model TaskNudge {
+  id        String   @id @default(uuid())
+  message   String?  // 재촉 메시지 (선택)
+  createdAt DateTime @default(now())
+
+  // 관계
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  nudgerId  String   // 재촉한 사람
+  nudger    User     @relation("TaskNudger", fields: [nudgerId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([nudgerId])
+  @@map("task_nudges")
 }
 
 enum TaskStatus {
@@ -206,6 +228,7 @@ model Requirement {
 
 enum RequirementStatus {
   DRAFT       // 초안
+  REVIEW      // 검토중
   APPROVED    // 승인
   REJECTED    // 반려
   IMPLEMENTED // 구현완료

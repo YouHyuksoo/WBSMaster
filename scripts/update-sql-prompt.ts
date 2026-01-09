@@ -12,8 +12,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import * as dotenv from "dotenv";
 
-// .env 파일 로드
-dotenv.config();
+// .env.local 파일 로드
+dotenv.config({ path: ".env.local" });
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

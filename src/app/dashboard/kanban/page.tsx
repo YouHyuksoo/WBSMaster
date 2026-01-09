@@ -16,7 +16,7 @@
 
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -35,10 +35,17 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Icon, Button, Input } from "@/components/ui";
-import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useMembers, useRequirements } from "@/hooks";
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useMembers, useRequirements, useNudgeTask, useCurrentUser } from "@/hooks";
 import { useProject } from "@/contexts";
 import type { Task } from "@/lib/api";
 import { utils, writeFile } from "xlsx";
+
+/** 로컬 사용자 타입 */
+interface LocalUser {
+  id: string;
+  name?: string;
+  email?: string;
+}
 
 /** 컬럼 설정 */
 interface ColumnConfig {
@@ -93,6 +100,9 @@ const priorityConfig: Record<string, { label: string; bgColor: string; textColor
  * 칸반 보드 페이지
  */
 export default function KanbanPage() {
+  // 현재 로그인한 사용자 정보
+  const [user, setUser] = useState<LocalUser | null>(null);
+
   const [filter, setFilter] = useState<"all" | "my">("all");
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -129,6 +139,10 @@ export default function KanbanPage() {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const nudgeTask = useNudgeTask();
+
+  // 현재 로그인한 사용자 조회
+  const { data: currentUser } = useCurrentUser();
 
   // 프로젝트 팀 멤버 목록 조회
   const { data: teamMembers = [] } = useMembers(
@@ -139,6 +153,18 @@ export default function KanbanPage() {
   const { data: requirements = [] } = useRequirements(
     selectedProjectId ? { projectId: selectedProjectId } : undefined
   );
+
+  // localStorage에서 사용자 정보 가져오기
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        console.error("사용자 정보 파싱 실패");
+      }
+    }
+  }, []);
 
   // 드래그 앤 드롭 센서 설정
   const sensors = useSensors(
@@ -166,12 +192,31 @@ export default function KanbanPage() {
   /** 지연된 작업 수 계산 */
   const delayedTaskCount = tasks.filter(isTaskDelayed).length;
 
+  /** 내 작업 수 계산 (currentUser 또는 localStorage user 사용) */
+  const activeUserId = currentUser?.id || user?.id;
+  const myTaskCount = activeUserId
+    ? tasks.filter((task) =>
+        task.assigneeId === activeUserId ||
+        task.assignee?.id === activeUserId ||
+        task.assignees?.some((a) => a.id === activeUserId || (a as { userId?: string }).userId === activeUserId)
+      ).length
+    : 0;
+
   /**
    * 필터링된 작업 목록
    */
   const getFilteredTasks = (status: string) => {
     return tasks.filter((task) => {
       if (task.status !== status) return false;
+
+      // "내 작업" 필터 - 현재 사용자가 담당자인 작업만
+      if (filter === "my" && activeUserId) {
+        const isMyTask =
+          task.assigneeId === activeUserId ||
+          task.assignee?.id === activeUserId ||
+          task.assignees?.some((a) => a.id === activeUserId || (a as { userId?: string }).userId === activeUserId);
+        if (!isMyTask) return false;
+      }
 
       // 검색어 필터
       if (searchQuery) {
@@ -181,7 +226,7 @@ export default function KanbanPage() {
         if (!matchesSearch) return false;
       }
 
-      // 담당자 필터
+      // 담당자 필터 (드롭다운)
       if (filterAssignee !== "all") {
         const hasAssignee = task.assignees?.some((a) => a.id === filterAssignee);
         if (!hasAssignee) return false;
@@ -568,7 +613,7 @@ export default function KanbanPage() {
                 : "bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text-secondary hover:text-primary"
             }`}
           >
-            내 작업
+            내 작업 ({myTaskCount})
           </button>
 
           {/* 담당자 필터 */}
@@ -667,6 +712,9 @@ export default function KanbanPage() {
                       expandedCompletedTaskIds={expandedCompletedTaskIds}
                       onToggleCompleted={toggleCompletedTaskExpand}
                       selectedTaskId={selectedTask?.id}
+                      currentUserId={currentUser?.id}
+                      onNudge={(taskId) => nudgeTask.mutate({ taskId })}
+                      isNudging={nudgeTask.isPending}
                     />
                   );
                 })}
@@ -1177,6 +1225,9 @@ function KanbanColumn({
   expandedCompletedTaskIds,
   onToggleCompleted,
   selectedTaskId,
+  currentUserId,
+  onNudge,
+  isNudging,
 }: {
   column: ColumnConfig;
   tasks: Task[];
@@ -1187,6 +1238,9 @@ function KanbanColumn({
   expandedCompletedTaskIds: Set<string>;
   onToggleCompleted: (taskId: string) => void;
   selectedTaskId?: string;
+  currentUserId?: string;
+  onNudge: (taskId: string) => void;
+  isNudging: boolean;
 }) {
   const { setNodeRef } = useSortable({
     id: column.id,
@@ -1237,6 +1291,9 @@ function KanbanColumn({
               isExpanded={expandedCompletedTaskIds.has(task.id)}
               onToggleCompleted={onToggleCompleted}
               isSelected={selectedTaskId === task.id}
+              currentUserId={currentUserId}
+              onNudge={onNudge}
+              isNudging={isNudging}
             />
           ))}
           {tasks.length === 0 && (
@@ -1274,6 +1331,9 @@ function SortableTaskCard({
   isExpanded,
   onToggleCompleted,
   isSelected,
+  currentUserId,
+  onNudge,
+  isNudging,
 }: {
   task: Task;
   onStatusChange: (taskId: string, newStatus: string) => void;
@@ -1282,6 +1342,9 @@ function SortableTaskCard({
   isExpanded: boolean;
   onToggleCompleted: (taskId: string) => void;
   isSelected: boolean;
+  currentUserId?: string;
+  onNudge: (taskId: string) => void;
+  isNudging: boolean;
 }) {
   const {
     attributes,
@@ -1314,6 +1377,9 @@ function SortableTaskCard({
         isExpanded={isExpanded}
         onToggleCompleted={onToggleCompleted}
         isSelected={isSelected}
+        currentUserId={currentUserId}
+        onNudge={onNudge}
+        isNudging={isNudging}
       />
     </div>
   );
@@ -1335,6 +1401,9 @@ function TaskCard({
   isExpanded = false,
   onToggleCompleted,
   isSelected = false,
+  currentUserId,
+  onNudge,
+  isNudging = false,
 }: {
   task: Task;
   onStatusChange: (taskId: string, newStatus: string) => void;
@@ -1344,11 +1413,26 @@ function TaskCard({
   isExpanded?: boolean;
   onToggleCompleted?: (taskId: string) => void;
   isSelected?: boolean;
+  currentUserId?: string;
+  onNudge?: (taskId: string) => void;
+  isNudging?: boolean;
 }) {
   const priority = priorityConfig[task.priority] || priorityConfig.MEDIUM;
   const isCompleted = task.status === "COMPLETED";
   const isDelayed = task.status === "DELAYED";
   const isPending = task.status === "PENDING";
+
+  // 내 태스크인지 확인 (주 담당자이거나 부 담당자에 포함)
+  const isMyTask = currentUserId && (
+    task.assigneeId === currentUserId ||
+    task.assignees?.some((a) => a.id === currentUserId)
+  );
+
+  // 재촉 가능 여부 (내 태스크가 아니고, 완료되지 않은 경우)
+  const canNudge = !isMyTask && !isCompleted && currentUserId;
+
+  // 재촉 수
+  const nudgeCount = task.nudges?.length || 0;
 
   // 담당자 정보 (주 담당자 또는 첫 번째 협업자)
   const primaryAssignee = task.assignee || (task.assignees && task.assignees.length > 0 ? task.assignees[0] : null);
@@ -1589,7 +1673,33 @@ function TaskCard({
           )}
         </div>
 
-        <div className="flex items-center gap-3 text-text-secondary text-xs">
+        <div className="flex items-center gap-2 text-text-secondary text-xs">
+          {/* 재촉 뱃지 */}
+          {nudgeCount > 0 && (
+            <div
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+              title={task.nudges?.map((n) => `${n.nudger.name || "알 수 없음"}님이 재촉`).join("\n")}
+            >
+              <Icon name="notifications_active" size="xs" />
+              <span className="text-[10px] font-bold">{nudgeCount}</span>
+            </div>
+          )}
+          {/* 재촉 버튼 */}
+          {canNudge && onNudge && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onNudge(task.id);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              disabled={isNudging}
+              className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors disabled:opacity-50"
+              title="재촉하기"
+            >
+              <Icon name="notifications" size="xs" />
+              <span className="text-[10px] font-medium">재촉</span>
+            </button>
+          )}
           {/* 시작일 ~ 마감일 표시 */}
           {(task.startDate || task.dueDate) && (
             <div className="flex items-center gap-1">

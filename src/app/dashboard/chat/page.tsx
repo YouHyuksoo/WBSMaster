@@ -557,16 +557,18 @@ export default function ChatPage() {
                       {group.title}
                     </span>
                   </div>
-                  {/* 질문 목록 - 빈 상태에서는 클릭 불가 (ChatInput에서 처리) */}
+                  {/* 질문 목록 - 클릭 시 바로 전송 */}
                   <div className="space-y-1.5">
                     {group.questions.map((question, idx) => (
-                      <p
+                      <button
                         key={idx}
-                        className="text-[11px] leading-tight py-1.5 px-2 text-text-secondary line-clamp-2"
+                        onClick={() => handleSendMessage(question)}
+                        disabled={isLoading || !selectedProjectId}
+                        className="w-full text-left text-[11px] leading-tight py-1.5 px-2 text-text-secondary line-clamp-2 rounded hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title={question}
                       >
                         {question}
-                      </p>
+                      </button>
                     ))}
                   </div>
                 </div>

@@ -163,6 +163,17 @@ export interface Task {
     status: string;
     priority: string;
   } | null;
+  /** 재촉 목록 */
+  nudges?: {
+    id: string;
+    message?: string | null;
+    createdAt: string;
+    nudger: {
+      id: string;
+      name?: string;
+      avatar?: string;
+    };
+  }[];
 }
 
 /** 요구사항 타입 */

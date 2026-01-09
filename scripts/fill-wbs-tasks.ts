@@ -15,8 +15,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import * as dotenv from "dotenv";
 
-// .env 로드
-dotenv.config({ path: ".env" });
+// .env.local 파일 로드
+dotenv.config({ path: ".env.local" });
 
 // PostgreSQL 연결 풀 생성
 const pool = new Pool({

@@ -76,6 +76,7 @@ export function useCreateTask() {
 
 /**
  * 태스크 수정 Hook
+ * Optimistic Update를 사용하여 드래그 앤 드롭 시 즉각적인 UI 반영
  */
 export function useUpdateTask() {
   const queryClient = useQueryClient();
@@ -83,7 +84,45 @@ export function useUpdateTask() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Task> & { assigneeIds?: string[]; requirementId?: string | null } }) =>
       api.tasks.update(id, data),
-    onSuccess: (_, variables) => {
+
+    // Optimistic Update: API 호출 전에 먼저 UI 업데이트
+    onMutate: async ({ id, data }) => {
+      // 진행 중인 쿼리 취소 (충돌 방지)
+      await queryClient.cancelQueries({ queryKey: taskKeys.lists() });
+
+      // 현재 캐시된 모든 task 리스트 스냅샷 저장 (롤백용)
+      const previousTasksMap = new Map<string, Task[] | undefined>();
+      const queries = queryClient.getQueriesData<Task[]>({ queryKey: taskKeys.lists() });
+
+      queries.forEach(([queryKey, tasks]) => {
+        const keyString = JSON.stringify(queryKey);
+        previousTasksMap.set(keyString, tasks);
+
+        // 캐시에서 해당 태스크를 찾아 즉시 업데이트
+        if (tasks) {
+          const updatedTasks = tasks.map((task) =>
+            task.id === id ? { ...task, ...data } : task
+          );
+          queryClient.setQueryData<Task[]>(queryKey, updatedTasks);
+        }
+      });
+
+      // 롤백을 위해 이전 상태 반환
+      return { previousTasksMap };
+    },
+
+    // 에러 발생 시 이전 상태로 롤백
+    onError: (_error, _variables, context) => {
+      if (context?.previousTasksMap) {
+        context.previousTasksMap.forEach((tasks, keyString) => {
+          const queryKey = JSON.parse(keyString);
+          queryClient.setQueryData(queryKey, tasks);
+        });
+      }
+    },
+
+    // 성공/에러 상관없이 항상 최신 데이터로 다시 가져오기
+    onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
       queryClient.invalidateQueries({ queryKey: taskKeys.detail(variables.id) });
     },
@@ -98,6 +137,32 @@ export function useDeleteTask() {
 
   return useMutation({
     mutationFn: (id: string) => api.tasks.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+    },
+  });
+}
+
+/**
+ * 태스크 재촉 Hook
+ * 다른 사람의 태스크에 재촉을 보냅니다.
+ */
+export function useNudgeTask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, message }: { taskId: string; message?: string }) => {
+      const response = await fetch(`/api/tasks/${taskId}/nudge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "재촉 보내기에 실패했습니다.");
+      }
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
     },
