@@ -34,6 +34,7 @@ interface FeedbackItem {
   isChartUseful: boolean | null;
   tags: string[];
   createdAt: string;
+  // chatHistory는 삭제되어도 피드백은 유지되므로 nullable
   chatHistory: {
     id: string;
     role: string;
@@ -50,7 +51,7 @@ interface FeedbackItem {
       id: string;
       name: string;
     } | null;
-  };
+  } | null;
 }
 
 /**
@@ -92,6 +93,13 @@ export default function ChatHistoryPage() {
 
   // 상세 보기 토글
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  // 선택 삭제용 상태
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<"selected" | "all" | "single">("selected");
+  const [singleDeleteId, setSingleDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   /**
    * 피드백 목록 로드
@@ -148,6 +156,102 @@ export default function ChatHistoryPage() {
       }
       return next;
     });
+  };
+
+  /**
+   * 선택 토글
+   */
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  /**
+   * 전체 선택/해제
+   */
+  const toggleSelectAll = () => {
+    if (selectedIds.size === feedbacks.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(feedbacks.map((f) => f.id)));
+    }
+  };
+
+  /**
+   * 단일 삭제 모달 열기
+   */
+  const openSingleDeleteModal = (id: string) => {
+    setSingleDeleteId(id);
+    setDeleteTarget("single");
+    setShowDeleteModal(true);
+  };
+
+  /**
+   * 선택 삭제 모달 열기
+   */
+  const openSelectedDeleteModal = () => {
+    if (selectedIds.size === 0) {
+      toast.error("삭제할 항목을 선택해주세요.");
+      return;
+    }
+    setDeleteTarget("selected");
+    setShowDeleteModal(true);
+  };
+
+  /**
+   * 전체 삭제 모달 열기
+   */
+  const openAllDeleteModal = () => {
+    setDeleteTarget("all");
+    setShowDeleteModal(true);
+  };
+
+  /**
+   * 삭제 실행
+   */
+  const handleDelete = async () => {
+    try {
+      setIsDeleting(true);
+      const params = new URLSearchParams();
+
+      if (deleteTarget === "single" && singleDeleteId) {
+        params.append("id", singleDeleteId);
+      } else if (deleteTarget === "selected") {
+        params.append("ids", Array.from(selectedIds).join(","));
+      } else if (deleteTarget === "all") {
+        params.append("all", "true");
+        if (filterProjectId) params.append("projectId", filterProjectId);
+        if (filterRating) params.append("rating", filterRating);
+      }
+
+      const res = await fetch(`/api/chat/feedback?${params.toString()}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(`${data.deletedCount}개 피드백이 삭제되었습니다.`);
+        setSelectedIds(new Set());
+        setSingleDeleteId(null);
+        loadFeedbacks(true);
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "삭제에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("삭제 실패:", error);
+      toast.error("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
   };
 
   /**
@@ -215,6 +319,32 @@ export default function ChatHistoryPage() {
             <h1 className="text-2xl font-bold text-text dark:text-white">채팅 분석</h1>
             <p className="text-sm text-text-secondary">AI 응답 품질 및 피드백 분석</p>
           </div>
+        </div>
+
+        {/* 삭제 버튼 영역 */}
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon="delete"
+              onClick={openSelectedDeleteModal}
+              className="text-error border-error hover:bg-error/10"
+            >
+              선택 삭제 ({selectedIds.size})
+            </Button>
+          )}
+          {feedbacks.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon="delete_sweep"
+              onClick={openAllDeleteModal}
+              className="text-text-secondary hover:text-error"
+            >
+              전체 삭제
+            </Button>
+          )}
         </div>
       </div>
 
@@ -321,6 +451,22 @@ export default function ChatHistoryPage() {
               초기화
             </Button>
           )}
+
+          {/* 전체 선택 */}
+          {feedbacks.length > 0 && (
+            <>
+              <div className="w-px h-6 bg-border dark:bg-border-dark" />
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === feedbacks.length && feedbacks.length > 0}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <span className="text-sm text-text-secondary">전체 선택</span>
+              </label>
+            </>
+          )}
         </div>
       </Card>
 
@@ -340,33 +486,45 @@ export default function ChatHistoryPage() {
           feedbacks.map((feedback) => (
             <Card key={feedback.id} className="overflow-hidden">
               {/* 헤더 */}
-              <div
-                className="flex items-center justify-between p-4 cursor-pointer hover:bg-surface/50 dark:hover:bg-surface-dark/50 transition-colors"
-                onClick={() => toggleExpand(feedback.id)}
-              >
+              <div className="flex items-center justify-between p-4 hover:bg-surface/50 dark:hover:bg-surface-dark/50 transition-colors">
                 <div className="flex items-center gap-3">
-                  {/* 평점 배지 */}
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRatingStyle(feedback.rating)}`}>
-                    {getRatingLabel(feedback.rating)}
-                  </span>
+                  {/* 체크박스 */}
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(feedback.id)}
+                    onChange={() => toggleSelect(feedback.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                  />
 
-                  {/* 질문 요약 */}
-                  <span className="text-text dark:text-white font-medium truncate max-w-md">
-                    {feedback.chatHistory.userQuery || "질문 없음"}
-                  </span>
-
-                  {/* 프로젝트 */}
-                  {feedback.chatHistory.project && (
-                    <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">
-                      {feedback.chatHistory.project.name}
+                  {/* 클릭 영역 (펼치기용) */}
+                  <div
+                    className="flex items-center gap-3 flex-1 cursor-pointer"
+                    onClick={() => toggleExpand(feedback.id)}
+                  >
+                    {/* 평점 배지 */}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRatingStyle(feedback.rating)}`}>
+                      {getRatingLabel(feedback.rating)}
                     </span>
-                  )}
+
+                    {/* 질문 요약 */}
+                    <span className="text-text dark:text-white font-medium truncate max-w-md">
+                      {feedback.chatHistory?.userQuery || "질문 없음"}
+                    </span>
+
+                    {/* 프로젝트 */}
+                    {feedback.chatHistory?.project && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">
+                        {feedback.chatHistory.project.name}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-4">
                   {/* 처리 시간 */}
                   <span className="text-xs text-text-secondary">
-                    {formatTime(feedback.chatHistory.processingTimeMs)}
+                    {formatTime(feedback.chatHistory?.processingTimeMs || null)}
                   </span>
 
                   {/* 날짜 */}
@@ -374,12 +532,28 @@ export default function ChatHistoryPage() {
                     {formatDate(feedback.createdAt)}
                   </span>
 
+                  {/* 삭제 버튼 */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openSingleDeleteModal(feedback.id);
+                    }}
+                    className="p-1.5 rounded-lg text-text-secondary hover:text-error hover:bg-error/10 transition-colors"
+                    title="삭제"
+                  >
+                    <Icon name="delete" size="sm" />
+                  </button>
+
                   {/* 펼치기 아이콘 */}
-                  <Icon
-                    name={expandedIds.has(feedback.id) ? "expand_less" : "expand_more"}
-                    size="sm"
-                    className="text-text-secondary"
-                  />
+                  <button
+                    onClick={() => toggleExpand(feedback.id)}
+                    className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors"
+                  >
+                    <Icon
+                      name={expandedIds.has(feedback.id) ? "expand_less" : "expand_more"}
+                      size="sm"
+                    />
+                  </button>
                 </div>
               </div>
 
@@ -393,7 +567,7 @@ export default function ChatHistoryPage() {
                         <Icon name="person" size="xs" /> 사용자 질문
                       </h4>
                       <div className="p-3 rounded-lg bg-primary/10 text-text dark:text-white text-sm">
-                        {feedback.chatHistory.userQuery || "N/A"}
+                        {feedback.chatHistory?.userQuery || "N/A"}
                       </div>
                     </div>
 
@@ -403,14 +577,15 @@ export default function ChatHistoryPage() {
                         <Icon name="smart_toy" size="xs" /> AI 응답
                       </h4>
                       <div className="p-3 rounded-lg bg-surface dark:bg-surface-dark text-text dark:text-white text-sm max-h-40 overflow-y-auto">
-                        {feedback.chatHistory.content.slice(0, 500)}
-                        {feedback.chatHistory.content.length > 500 && "..."}
+                        {feedback.chatHistory?.content
+                          ? `${feedback.chatHistory.content.slice(0, 500)}${feedback.chatHistory.content.length > 500 ? "..." : ""}`
+                          : "N/A"}
                       </div>
                     </div>
                   </div>
 
                   {/* SQL 쿼리 */}
-                  {feedback.chatHistory.sqlQuery && (
+                  {feedback.chatHistory?.sqlQuery && (
                     <div className="mt-4">
                       <h4 className="text-sm font-medium text-text-secondary mb-2 flex items-center gap-1">
                         <Icon name="code" size="xs" /> 생성된 SQL
@@ -423,25 +598,25 @@ export default function ChatHistoryPage() {
 
                   {/* 메타 정보 */}
                   <div className="mt-4 flex flex-wrap gap-4">
-                    {feedback.chatHistory.chartType && (
+                    {feedback.chatHistory?.chartType && (
                       <div className="flex items-center gap-1 text-xs text-text-secondary">
                         <Icon name="bar_chart" size="xs" />
                         차트: {feedback.chatHistory.chartType}
                       </div>
                     )}
-                    {feedback.chatHistory.sqlGenTimeMs && (
+                    {feedback.chatHistory?.sqlGenTimeMs && (
                       <div className="flex items-center gap-1 text-xs text-text-secondary">
                         <Icon name="code" size="xs" />
                         SQL 생성: {formatTime(feedback.chatHistory.sqlGenTimeMs)}
                       </div>
                     )}
-                    {feedback.chatHistory.sqlExecTimeMs && (
+                    {feedback.chatHistory?.sqlExecTimeMs && (
                       <div className="flex items-center gap-1 text-xs text-text-secondary">
                         <Icon name="database" size="xs" />
                         SQL 실행: {formatTime(feedback.chatHistory.sqlExecTimeMs)}
                       </div>
                     )}
-                    {feedback.chatHistory.errorMessage && (
+                    {feedback.chatHistory?.errorMessage && (
                       <div className="flex items-center gap-1 text-xs text-error">
                         <Icon name="error" size="xs" />
                         오류: {feedback.chatHistory.errorMessage}
@@ -497,6 +672,66 @@ export default function ChatHistoryPage() {
           </div>
         )}
       </div>
+
+      {/* 삭제 확인 모달 */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-xl max-w-sm w-full animate-slide-in-up">
+            <div className="p-6">
+              {/* 아이콘 */}
+              <div className="flex justify-center mb-4">
+                <div className="size-12 rounded-full bg-error/10 flex items-center justify-center">
+                  <Icon name="delete" size="md" className="text-error" />
+                </div>
+              </div>
+
+              {/* 제목 */}
+              <h3 className="text-lg font-bold text-text dark:text-white text-center mb-2">
+                {deleteTarget === "single"
+                  ? "피드백 삭제"
+                  : deleteTarget === "selected"
+                  ? `선택 항목 삭제 (${selectedIds.size}개)`
+                  : "전체 피드백 삭제"}
+              </h3>
+
+              {/* 메시지 */}
+              <p className="text-text-secondary text-center mb-6">
+                {deleteTarget === "single"
+                  ? "이 피드백을 삭제하시겠습니까?"
+                  : deleteTarget === "selected"
+                  ? `선택한 ${selectedIds.size}개의 피드백을 삭제하시겠습니까?`
+                  : "모든 피드백이 삭제됩니다."}
+                <br />
+                <span className="text-xs text-error">이 작업은 되돌릴 수 없습니다.</span>
+              </p>
+
+              {/* 버튼 */}
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setSingleDeleteId(null);
+                  }}
+                  disabled={isDeleting}
+                >
+                  취소
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex-1 !bg-error hover:!bg-error/90"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  leftIcon={isDeleting ? "progress_activity" : "delete"}
+                >
+                  {isDeleting ? "삭제 중..." : "삭제"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

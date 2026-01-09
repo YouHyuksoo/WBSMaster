@@ -297,3 +297,97 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+/**
+ * 피드백 삭제
+ * DELETE /api/chat/feedback?id=xxx 또는 ?ids=xxx,yyy,zzz
+ * (인증 필요)
+ *
+ * Query Parameters:
+ * - id: 단일 피드백 ID
+ * - ids: 여러 피드백 ID (쉼표 구분)
+ * - all: "true"면 모든 피드백 삭제 (필터 조건 적용 가능)
+ * - projectId: 특정 프로젝트만 (all과 함께 사용)
+ * - rating: 특정 평점만 (all과 함께 사용)
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    const ids = searchParams.get("ids");
+    const deleteAll = searchParams.get("all") === "true";
+    const projectId = searchParams.get("projectId");
+    const rating = searchParams.get("rating") as FeedbackRating | null;
+
+    // 삭제 조건 구성
+    const where: {
+      id?: string | { in: string[] };
+      chatHistory?: {
+        userId?: string;
+        projectId?: string;
+      };
+      rating?: FeedbackRating;
+    } = {};
+
+    if (id) {
+      // 단일 삭제
+      where.id = id;
+    } else if (ids) {
+      // 다중 삭제
+      where.id = { in: ids.split(",").map((s) => s.trim()) };
+    } else if (deleteAll) {
+      // 조건부 전체 삭제 (사용자 소유만)
+      where.chatHistory = { userId: user!.id };
+      if (projectId) {
+        where.chatHistory.projectId = projectId;
+      }
+      if (rating && Object.values(FeedbackRating).includes(rating)) {
+        where.rating = rating;
+      }
+    } else {
+      return NextResponse.json(
+        { error: "삭제할 피드백을 지정해주세요. (id, ids, 또는 all=true)" },
+        { status: 400 }
+      );
+    }
+
+    // 단일/다중 삭제 시 소유권 확인
+    if (id || ids) {
+      const feedbackIds = id ? [id] : ids!.split(",").map((s) => s.trim());
+      const ownedFeedbacks = await prisma.chatFeedback.findMany({
+        where: {
+          id: { in: feedbackIds },
+          chatHistory: { userId: user!.id },
+        },
+        select: { id: true },
+      });
+
+      const ownedIds = new Set(ownedFeedbacks.map((f) => f.id));
+      const unauthorizedIds = feedbackIds.filter((fid) => !ownedIds.has(fid));
+
+      if (unauthorizedIds.length > 0) {
+        return NextResponse.json(
+          { error: "삭제 권한이 없는 피드백이 포함되어 있습니다." },
+          { status: 403 }
+        );
+      }
+    }
+
+    // 삭제 실행
+    const result = await prisma.chatFeedback.deleteMany({ where });
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: result.count,
+    });
+  } catch (error) {
+    console.error("피드백 삭제 실패:", error);
+    return NextResponse.json(
+      { error: "피드백 삭제에 실패했습니다." },
+      { status: 500 }
+    );
+  }
+}
