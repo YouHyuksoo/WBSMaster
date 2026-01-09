@@ -22,6 +22,13 @@ import { Icon, Button, Card, Input } from "@/components/ui";
 import { useProjects, useCreateProject } from "@/hooks";
 import type { Project } from "@/lib/api";
 
+/** 프로젝트 타입 확장 (WBS 단위업무 정보 포함) */
+interface ProjectWithWbs extends Project {
+  calculatedProgress?: number;
+  totalUnitTasks?: number;
+  completedUnitTasks?: number;
+}
+
 /** 상태 설정 */
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; gradient: string }> = {
   PLANNING: { label: "계획중", color: "text-text-secondary", bgColor: "bg-surface", gradient: "from-slate-400 to-slate-500" },
@@ -49,7 +56,7 @@ export default function ProjectsPage() {
   // API 연동
   const { data: projects = [], isLoading, error } = useProjects(
     statusFilter !== "all" ? { status: statusFilter } : undefined
-  );
+  ) as { data: ProjectWithWbs[]; isLoading: boolean; error: Error | null };
   const createProject = useCreateProject();
 
   /**
@@ -299,11 +306,15 @@ export default function ProjectsPage() {
 
 /**
  * 프로젝트 카드 컴포넌트 (그리드 뷰)
+ * WBS 기반 진행률(calculatedProgress)을 우선 표시
  */
-function ProjectCard({ project }: { project: Project }) {
+function ProjectCard({ project }: { project: ProjectWithWbs }) {
   const status = statusConfig[project.status] || statusConfig.PLANNING;
-  const taskCount = project._count?.tasks || 0;
   const memberCount = project.teamMembers?.length || 0;
+  /** WBS 기반 진행률 (없으면 기본 progress 사용) */
+  const displayProgress = project.calculatedProgress ?? project.progress;
+  const totalUnitTasks = project.totalUnitTasks ?? 0;
+  const completedUnitTasks = project.completedUnitTasks ?? 0;
 
   return (
     <Link href={`/dashboard/wbs?project=${project.id}`}>
@@ -331,12 +342,21 @@ function ProjectCard({ project }: { project: Project }) {
           <div className="mb-4">
             <div className="flex justify-between text-sm mb-1">
               <span className="text-text-secondary">진행률</span>
-              <span className="font-medium text-text dark:text-white">{project.progress}%</span>
+              <span className={`font-bold ${
+                displayProgress >= 80 ? "text-emerald-500" :
+                displayProgress >= 50 ? "text-sky-500" :
+                displayProgress >= 20 ? "text-amber-500" : "text-text dark:text-white"
+              }`}>{displayProgress}%</span>
             </div>
             <div className="h-2 bg-surface dark:bg-background-dark rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full bg-gradient-to-r ${status.gradient}`}
-                style={{ width: `${project.progress}%` }}
+                className={`h-full rounded-full transition-all ${
+                  displayProgress >= 80 ? "bg-gradient-to-r from-emerald-400 to-emerald-500" :
+                  displayProgress >= 50 ? "bg-gradient-to-r from-sky-400 to-sky-500" :
+                  displayProgress >= 20 ? "bg-gradient-to-r from-amber-400 to-amber-500" :
+                  `bg-gradient-to-r ${status.gradient}`
+                }`}
+                style={{ width: `${displayProgress}%` }}
               />
             </div>
           </div>
@@ -349,8 +369,8 @@ function ProjectCard({ project }: { project: Project }) {
                 <span>{memberCount}명</span>
               </div>
               <div className="flex items-center gap-1">
-                <Icon name="task" size="xs" />
-                <span>{taskCount}</span>
+                <Icon name="checklist" size="xs" />
+                <span>{totalUnitTasks > 0 ? `${completedUnitTasks}/${totalUnitTasks}` : "0"}</span>
               </div>
             </div>
             {project.endDate && (
@@ -368,11 +388,15 @@ function ProjectCard({ project }: { project: Project }) {
 
 /**
  * 프로젝트 리스트 아이템 컴포넌트 (리스트 뷰)
+ * WBS 기반 진행률(calculatedProgress)을 우선 표시
  */
-function ProjectListItem({ project }: { project: Project }) {
+function ProjectListItem({ project }: { project: ProjectWithWbs }) {
   const status = statusConfig[project.status] || statusConfig.PLANNING;
-  const taskCount = project._count?.tasks || 0;
   const memberCount = project.teamMembers?.length || 0;
+  /** WBS 기반 진행률 (없으면 기본 progress 사용) */
+  const displayProgress = project.calculatedProgress ?? project.progress;
+  const totalUnitTasks = project.totalUnitTasks ?? 0;
+  const completedUnitTasks = project.completedUnitTasks ?? 0;
 
   return (
     <Link href={`/dashboard/wbs?project=${project.id}`}>
@@ -398,12 +422,21 @@ function ProjectListItem({ project }: { project: Project }) {
           <div className="w-32 hidden sm:block">
             <div className="flex justify-between text-xs mb-1">
               <span className="text-text-secondary">진행률</span>
-              <span className="font-medium text-text dark:text-white">{project.progress}%</span>
+              <span className={`font-bold ${
+                displayProgress >= 80 ? "text-emerald-500" :
+                displayProgress >= 50 ? "text-sky-500" :
+                displayProgress >= 20 ? "text-amber-500" : "text-text dark:text-white"
+              }`}>{displayProgress}%</span>
             </div>
             <div className="h-1.5 bg-surface dark:bg-background-dark rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full bg-gradient-to-r ${status.gradient}`}
-                style={{ width: `${project.progress}%` }}
+                className={`h-full rounded-full transition-all ${
+                  displayProgress >= 80 ? "bg-gradient-to-r from-emerald-400 to-emerald-500" :
+                  displayProgress >= 50 ? "bg-gradient-to-r from-sky-400 to-sky-500" :
+                  displayProgress >= 20 ? "bg-gradient-to-r from-amber-400 to-amber-500" :
+                  `bg-gradient-to-r ${status.gradient}`
+                }`}
+                style={{ width: `${displayProgress}%` }}
               />
             </div>
           </div>
@@ -415,8 +448,8 @@ function ProjectListItem({ project }: { project: Project }) {
               <span>{memberCount}</span>
             </div>
             <div className="flex items-center gap-1">
-              <Icon name="task" size="xs" />
-              <span>{taskCount}</span>
+              <Icon name="checklist" size="xs" />
+              <span>{totalUnitTasks > 0 ? `${completedUnitTasks}/${totalUnitTasks}` : "0"}</span>
             </div>
             <Icon name="chevron_right" size="sm" className="text-text-secondary group-hover:text-primary" />
           </div>

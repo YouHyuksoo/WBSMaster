@@ -16,13 +16,23 @@ import { Mistral } from "@mistralai/mistralai";
 import { getSchemaInfo, getProjectFilterInfo } from "./schema-info";
 
 /**
+ * 마인드맵 노드 타입
+ */
+export interface MindmapNode {
+  name: string;
+  children?: MindmapNode[];
+  value?: number;
+}
+
+/**
  * LLM 응답 타입
  */
 export interface LLMResponse {
   content: string;
   sql?: string;
-  chartType?: "bar" | "bar3d" | "line" | "pie" | "area" | null;
+  chartType?: "bar" | "bar3d" | "line" | "pie" | "area" | "mindmap" | null;
   chartData?: Record<string, unknown>[];
+  mindmapData?: MindmapNode;
 }
 
 /**
@@ -113,9 +123,20 @@ VALUES (gen_random_uuid(), '2025-01-01', '신정', 'NATIONAL', false, NOW(), NOW
 ## 우선순위 (priority)
 - tasks/issues/requirements: LOW, MEDIUM, HIGH, URGENT
 
+## 마인드맵/트리구조 요청 처리
+사용자가 "마인드맵", "mindmap", "트리구조", "계층구조"를 언급하면 해당 데이터를 조회하는 SQL을 생성하세요.
+특히 "WBS 구조를 마인드맵으로", "WBS 마인드맵" 같은 요청은 WBS 데이터를 조회해야 합니다.
+
+예시 SQL:
+SELECT "id", "code", "name", "level", "parentId", "status", "progress"
+FROM "wbs_items"
+WHERE "projectId" = '프로젝트ID'
+ORDER BY "code"
+
 ## 응답 형식
 SQL 쿼리만 반환하세요. 설명이나 마크다운 코드 블록 없이 순수 SQL만 반환합니다.
 쿼리가 필요 없는 일반 대화인 경우 "NO_SQL" 이라고 반환하세요.
+마인드맵 요청은 반드시 SQL 조회가 필요합니다 - NO_SQL을 반환하지 마세요!
 `;
 
 /**
@@ -130,9 +151,12 @@ SQL 쿼리 실행 결과를 분석하여 사용자에게 친절하게 설명합�
 2. 핵심 인사이트를 먼저 요약하세요
 3. 데이터가 있으면 적절한 표나 목록으로 정리하세요
 4. 차트가 필요하다면 응답 끝에 다음 형식으로 표시하세요:
-   [CHART:bar] 또는 [CHART:bar3d] 또는 [CHART:line] 또는 [CHART:pie] 또는 [CHART:area]
+   [CHART:bar] 또는 [CHART:bar3d] 또는 [CHART:line] 또는 [CHART:pie] 또는 [CHART:area] 또는 [CHART:mindmap]
 5. 차트 데이터는 JSON 형식으로 제공하세요:
    [CHART_DATA:{"labels":["A","B"],"values":[10,20]}]
+6. 마인드맵이 필요하다면 다음 형식으로 표시하세요:
+   [CHART:mindmap]
+   [MINDMAP_DATA:{"name":"루트","children":[{"name":"항목1","children":[{"name":"하위1"}]},{"name":"항목2"}]}]
 
 ## 차트 선택 기준
 - bar: 카테고리별 비교 (상태별 개수, 우선순위별 분포 등) - 2D 평면
@@ -140,6 +164,7 @@ SQL 쿼리 실행 결과를 분석하여 사용자에게 친절하게 설명합�
 - line: 시간에 따른 추세 (일별, 월별 변화 등)
 - pie: 비율/구성 (전체 대비 비율 등)
 - area: 누적 추세 (누적 완료 건수 등)
+- mindmap: 계층 구조/트리 표현 (WBS 구조, 조직도, 프로젝트 구조 등)
 
 ## WBS Master 도움말 (사용자 질문에 활용)
 ### 주요 기능
@@ -167,6 +192,20 @@ SQL 쿼리 실행 결과를 분석하여 사용자에게 친절하게 설명합�
 - WBS 수정: "WBS xxx의 시작일을 1월 15일로 변경", "진행률 50%로 업데이트"
 - 공휴일 등록: "1월 1일 신정 휴일 등록"
 - 통계/차트: "상태별 태스크 개수 차트로 보여줘"
+- 마인드맵: "WBS 구조를 마인드맵으로", "프로젝트 구조 마인드맵"
+
+### 마인드맵 생성 규칙 (중요!)
+사용자가 "마인드맵", "mindmap", "트리구조", "계층구조"를 언급하면 반드시 마인드맵을 생성하세요.
+마인드맵 형식 예시:
+[CHART:mindmap]
+[MINDMAP_DATA:{"name":"프로젝트명","children":[{"name":"대분류1","children":[{"name":"중분류1"},{"name":"중분류2"}]},{"name":"대분류2","children":[{"name":"중분류3"}]}]}]
+
+WBS 데이터가 있을 때 마인드맵 생성 방법:
+1. 최상위 name은 프로젝트명 또는 "WBS 구조"
+2. children 배열에 LEVEL1(대분류) 항목들
+3. 각 LEVEL1 하위에 LEVEL2(중분류) 항목들
+4. 각 LEVEL2 하위에 LEVEL3(소분류) 항목들
+5. 각 LEVEL3 하위에 LEVEL4(단위업무) 항목들
 
 ### 자주 묻는 질문 답변
 - "WBS가 뭐야?": Work Breakdown Structure - 프로젝트 작업을 계층적으로 분류하는 도구
@@ -289,7 +328,10 @@ ${userMessage}
   const response = await client.generate(prompt, systemPrompt);
   const trimmed = response.trim();
 
+  console.log("[generateSQL] LLM 응답:", trimmed.slice(0, 200));
+
   if (trimmed === "NO_SQL" || trimmed.toLowerCase().includes("no_sql")) {
+    console.log("[generateSQL] NO_SQL 반환됨");
     return null;
   }
 
@@ -444,18 +486,45 @@ ${JSON.stringify(results, (_, value) => typeof value === "bigint" ? Number(value
 
   const response = await client.generate(prompt, systemPrompt);
 
+  // 디버깅: LLM 응답 확인
+  console.log("[LLM] Raw response (last 500 chars):", response.slice(-500));
+
   // 차트 정보 파싱 (bar_3d, bar-chart 같은 변형도 처리)
   const chartTypeMatch = response.match(/\[CHART:([a-z_\-0-9]+)\]/i);
   const chartDataMatch = response.match(/\[CHART_DATA:(\{[\s\S]*?\})\]/);
 
-  let chartType: "bar" | "bar3d" | "line" | "pie" | "area" | null = null;
+  // 마인드맵 데이터 파싱 (중첩 JSON을 위한 별도 처리)
+  let mindmapDataMatch: RegExpMatchArray | null = null;
+  const mindmapStartIndex = response.indexOf("[MINDMAP_DATA:");
+  if (mindmapStartIndex !== -1) {
+    const jsonStart = mindmapStartIndex + "[MINDMAP_DATA:".length;
+    let braceCount = 0;
+    let jsonEnd = jsonStart;
+    for (let i = jsonStart; i < response.length; i++) {
+      if (response[i] === "{") braceCount++;
+      else if (response[i] === "}") braceCount--;
+      if (braceCount === 0 && response[i] === "}") {
+        jsonEnd = i + 1;
+        break;
+      }
+    }
+    if (jsonEnd > jsonStart) {
+      const jsonStr = response.slice(jsonStart, jsonEnd);
+      mindmapDataMatch = ["", jsonStr] as unknown as RegExpMatchArray;
+    }
+  }
+
+  let chartType: "bar" | "bar3d" | "line" | "pie" | "area" | "mindmap" | null = null;
   let chartData: Record<string, unknown>[] | undefined;
+  let mindmapData: MindmapNode | undefined;
 
   if (chartTypeMatch) {
     // 차트 타입 정규화
     const rawType = chartTypeMatch[1].toLowerCase().replace(/[-_]/g, "");
     if (rawType === "bar3d" || rawType === "bar3" || rawType.includes("3d")) {
       chartType = "bar3d";
+    } else if (rawType === "mindmap" || rawType.includes("mind")) {
+      chartType = "mindmap";
     } else if (rawType.startsWith("bar")) {
       chartType = "bar";
     } else if (rawType.startsWith("line")) {
@@ -484,18 +553,161 @@ ${JSON.stringify(results, (_, value) => typeof value === "bigint" ? Number(value
     }
   }
 
-  // 응답에서 차트 태그 제거 (모든 변형 포함)
+  // 마인드맵 데이터 파싱
+  if (mindmapDataMatch && mindmapDataMatch[1]) {
+    try {
+      mindmapData = JSON.parse(mindmapDataMatch[1]) as MindmapNode;
+      console.log("[LLM] 마인드맵 데이터 파싱 성공:", JSON.stringify(mindmapData).slice(0, 100));
+    } catch (e) {
+      console.error("[LLM] 마인드맵 JSON 파싱 실패:", e, mindmapDataMatch[1].slice(0, 100));
+    }
+  }
+
+  // 응답에서 차트/마인드맵 태그 제거 (모든 변형 포함)
   let content = response
     .replace(/\[CHART:[a-z_\-0-9]+\]/gi, "")
     .replace(/\[CHART_DATA:\{[\s\S]*?\}\]/g, "")
+    .replace(/\[MINDMAP_DATA:\{[\s\S]*?\}\]/g, "")
     .trim();
+
+  // 마인드맵 자동 생성: 사용자가 마인드맵을 요청했는데 LLM이 생성 안 한 경우
+  const userWantsMindmap = /마인드맵|mindmap|트리구조|계층구조/i.test(userMessage);
+  console.log("[LLM] 마인드맵 조건 확인:", {
+    userWantsMindmap,
+    hasMindmapData: !!mindmapData,
+    hasResults: !!results,
+    resultsLength: results?.length || 0,
+    userMessage: userMessage.slice(0, 50),
+  });
+
+  if (userWantsMindmap && !mindmapData && results && results.length > 0) {
+    console.log("[LLM] 마인드맵 자동 생성 시도...");
+    console.log("[LLM] 첫 번째 결과 샘플:", JSON.stringify(results[0]).slice(0, 200));
+    mindmapData = autoGenerateMindmap(results, userMessage);
+    if (mindmapData) {
+      chartType = "mindmap";
+      console.log("[LLM] 마인드맵 자동 생성 성공:", JSON.stringify(mindmapData).slice(0, 200));
+    } else {
+      console.log("[LLM] 마인드맵 자동 생성 실패 - undefined 반환됨");
+    }
+  }
 
   return {
     content,
     sql: sql || undefined,
     chartType,
     chartData,
+    mindmapData,
   };
+}
+
+/**
+ * SQL 결과에서 마인드맵 자동 생성
+ */
+function autoGenerateMindmap(results: unknown[], userMessage: string): MindmapNode | undefined {
+  try {
+    console.log("[autoGenerateMindmap] 시작, 결과 수:", results.length);
+
+    // WBS 데이터인지 확인 (level, name, parentId 등의 필드 존재 여부)
+    const firstItem = results[0] as Record<string, unknown>;
+    console.log("[autoGenerateMindmap] 첫 항목 키:", Object.keys(firstItem || {}));
+
+    if (firstItem && ("level" in firstItem || "name" in firstItem || "code" in firstItem)) {
+      console.log("[autoGenerateMindmap] WBS 데이터로 인식됨");
+      // WBS 구조로 마인드맵 생성
+      const items = results as Array<{
+        id?: string;
+        name?: string;
+        code?: string;
+        level?: string;
+        levelNumber?: number;
+        parentId?: string | null;
+      }>;
+
+      // 레벨별로 그룹화
+      const level1Items = items.filter(i => i.level === "LEVEL1" || i.levelNumber === 1);
+      const level2Items = items.filter(i => i.level === "LEVEL2" || i.levelNumber === 2);
+      const level3Items = items.filter(i => i.level === "LEVEL3" || i.levelNumber === 3);
+      const level4Items = items.filter(i => i.level === "LEVEL4" || i.levelNumber === 4);
+
+      console.log("[autoGenerateMindmap] 레벨별 항목 수:", {
+        level1: level1Items.length,
+        level2: level2Items.length,
+        level3: level3Items.length,
+        level4: level4Items.length,
+      });
+
+      // 계층 구조 생성
+      const buildChildren = (parentId: string | undefined, childItems: typeof items): MindmapNode[] => {
+        return childItems
+          .filter(item => item.parentId === parentId)
+          .map(item => ({
+            name: item.name || item.code || "Unknown",
+          }));
+      };
+
+      const rootChildren: MindmapNode[] = level1Items.map(l1 => {
+        const l2Children = level2Items
+          .filter(l2 => l2.parentId === l1.id)
+          .map(l2 => {
+            const l3Children = level3Items
+              .filter(l3 => l3.parentId === l2.id)
+              .map(l3 => {
+                const l4Children = level4Items
+                  .filter(l4 => l4.parentId === l3.id)
+                  .map(l4 => ({ name: l4.name || l4.code || "항목" }));
+                return {
+                  name: l3.name || l3.code || "소분류",
+                  ...(l4Children.length > 0 ? { children: l4Children } : {}),
+                };
+              });
+            return {
+              name: l2.name || l2.code || "중분류",
+              ...(l3Children.length > 0 ? { children: l3Children } : {}),
+            };
+          });
+        return {
+          name: l1.name || l1.code || "대분류",
+          ...(l2Children.length > 0 ? { children: l2Children } : {}),
+        };
+      });
+
+      console.log("[autoGenerateMindmap] rootChildren 수:", rootChildren.length);
+
+      if (rootChildren.length > 0) {
+        const result = {
+          name: "WBS 구조",
+          children: rootChildren,
+        };
+        console.log("[autoGenerateMindmap] WBS 마인드맵 생성 완료");
+        return result;
+      } else {
+        console.log("[autoGenerateMindmap] LEVEL1 항목이 없어서 일반 데이터 구조로 진행");
+      }
+    }
+
+    // 일반 데이터: 키-값 구조로 마인드맵 생성
+    const keys = Object.keys(firstItem);
+    console.log("[autoGenerateMindmap] 일반 데이터 모드, 키 수:", keys.length);
+    if (keys.length > 0) {
+      const result = {
+        name: "데이터 구조",
+        children: results.slice(0, 10).map((item, idx) => {
+          const record = item as Record<string, unknown>;
+          const displayName = record.name || record.title || record.code || `항목 ${idx + 1}`;
+          return { name: String(displayName) };
+        }),
+      };
+      console.log("[autoGenerateMindmap] 일반 데이터 마인드맵 생성 완료:", result.children.length, "항목");
+      return result;
+    }
+
+    console.log("[autoGenerateMindmap] 마인드맵 생성 불가 - 키 없음");
+    return undefined;
+  } catch (e) {
+    console.error("[LLM] 마인드맵 자동 생성 실패:", e);
+    return undefined;
+  }
 }
 
 /**
@@ -523,10 +735,18 @@ export async function processChatMessage(
   executeQuery: (sql: string) => Promise<unknown[]>,
   promptConfig?: SystemPromptConfig
 ): Promise<LLMResponse> {
+  console.log("[processChatMessage] 시작:", {
+    userMessage: userMessage.slice(0, 50),
+    projectId,
+    hasCustomSqlPrompt: !!promptConfig?.sqlSystemPrompt,
+  });
+
   const client = createLLMClient(config);
 
   // 1. SQL 생성 (SQL 시스템 프롬프트 적용)
+  console.log("[processChatMessage] SQL 생성 시작...");
   const sql = await generateSQL(client, userMessage, projectId, promptConfig?.sqlSystemPrompt);
+  console.log("[processChatMessage] 생성된 SQL:", sql?.slice(0, 100) || "NULL");
 
   // 2. SQL 검증 및 실행
   let results: unknown[] | null = null;

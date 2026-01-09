@@ -46,6 +46,18 @@ import { useProject } from "@/contexts";
 import { api, AiPersona } from "@/lib/api";
 
 /**
+ * 마인드맵 노드 타입
+ */
+interface MindmapNode {
+  name: string;
+  children?: MindmapNode[];
+  value?: number;
+  itemStyle?: {
+    color?: string;
+  };
+}
+
+/**
  * 채팅 메시지 타입
  */
 interface ChatMessage {
@@ -53,8 +65,9 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sqlQuery?: string;
-  chartType?: "bar" | "bar3d" | "line" | "pie" | "area";
+  chartType?: "bar" | "bar3d" | "line" | "pie" | "area" | "mindmap";
   chartData?: Record<string, unknown>[];
+  mindmapData?: MindmapNode;
   createdAt: string;
 }
 
@@ -90,6 +103,10 @@ export default function ChatPage() {
   const [personas, setPersonas] = useState<AiPersona[]>([]);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>("");
   const [isLoadingPersonas, setIsLoadingPersonas] = useState(true);
+
+  // 삭제 확인 모달 상태
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [fullscreenMindmap, setFullscreenMindmap] = useState<MindmapNode | null>(null);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -195,6 +212,7 @@ export default function ChatPage() {
 
       if (res.ok) {
         const data = await res.json();
+        console.log("[Chat] API 응답:", { chartType: data.chartType, hasMindmapData: !!data.mindmapData });
         const assistantMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
@@ -202,6 +220,7 @@ export default function ChatPage() {
           sqlQuery: data.sqlQuery,
           chartType: data.chartType,
           chartData: data.chartData,
+          mindmapData: data.mindmapData,
           createdAt: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
@@ -228,11 +247,16 @@ export default function ChatPage() {
   };
 
   /**
-   * 채팅 기록 삭제
+   * 채팅 기록 삭제 확인 모달 열기
    */
-  const handleClearHistory = async () => {
-    if (!confirm("채팅 기록을 모두 삭제하시겠습니까?")) return;
+  const handleClearHistory = () => {
+    setShowDeleteModal(true);
+  };
 
+  /**
+   * 채팅 기록 삭제 실행
+   */
+  const confirmClearHistory = async () => {
     try {
       const params = new URLSearchParams();
       if (selectedProjectId) {
@@ -250,6 +274,8 @@ export default function ChatPage() {
     } catch (error) {
       console.error("채팅 기록 삭제 실패:", error);
       toast.error("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setShowDeleteModal(false);
     }
   };
 
@@ -427,13 +453,106 @@ export default function ChatPage() {
   };
 
   /**
+   * 마인드맵 렌더링
+   * @param data 마인드맵 데이터
+   * @param isFullscreen 전체화면 모드 여부
+   */
+  const renderMindmap = (data: MindmapNode, isFullscreen = false) => {
+    if (!data) return null;
+
+    // 노드 수에 따라 초기 깊이 조절
+    const countNodes = (node: MindmapNode): number => {
+      let count = 1;
+      if (node.children) {
+        node.children.forEach(child => count += countNodes(child));
+      }
+      return count;
+    };
+    const totalNodes = countNodes(data);
+    // 노드가 많으면 초기에 접어서 보여주기
+    const initialDepth = totalNodes > 50 ? 1 : totalNodes > 20 ? 2 : 3;
+
+    const mindmapOption = {
+      tooltip: {
+        trigger: "item",
+        triggerOn: "mousemove",
+        formatter: (params: { data: { name: string; value?: number } }) => {
+          const { name, value } = params.data;
+          return value ? `${name}: ${value}` : name;
+        },
+      },
+      series: [
+        {
+          type: "tree",
+          data: [data],
+          top: "5%",
+          left: isFullscreen ? "5%" : "10%",
+          bottom: "5%",
+          right: isFullscreen ? "15%" : "20%",
+          symbolSize: isFullscreen ? 12 : 8,
+          orient: "LR",
+          label: {
+            position: "left",
+            verticalAlign: "middle",
+            align: "right",
+            fontSize: isFullscreen ? 14 : 11,
+            color: "#E5E7EB",
+            formatter: (params: { data: { name: string } }) => {
+              const name = params.data.name;
+              // 전체화면이 아니면 긴 이름 줄이기
+              if (!isFullscreen && name.length > 15) {
+                return name.slice(0, 15) + "...";
+              }
+              return name;
+            },
+          },
+          leaves: {
+            label: {
+              position: "right",
+              verticalAlign: "middle",
+              align: "left",
+            },
+          },
+          emphasis: {
+            focus: "descendant",
+          },
+          expandAndCollapse: true,
+          animationDuration: 550,
+          animationDurationUpdate: 750,
+          initialTreeDepth: isFullscreen ? 2 : initialDepth,
+          lineStyle: {
+            color: "#6B7280",
+            width: 1.5,
+            curveness: 0.5,
+          },
+          itemStyle: {
+            color: "#3B82F6",
+            borderColor: "#3B82F6",
+          },
+        },
+      ],
+      backgroundColor: "transparent",
+    };
+
+    const height = isFullscreen ? "calc(100vh - 120px)" : "500px";
+
+    return (
+      <ReactECharts
+        option={mindmapOption}
+        style={{ height, width: "100%" }}
+        opts={{ renderer: "canvas" }}
+      />
+    );
+  };
+
+  /**
    * 예시 질문
    */
   const exampleQuestions = [
     "현재 프로젝트의 태스크 상태별 개수를 알려줘",
     "이번 주 마감인 태스크가 몇 개야?",
+    "WBS 구조를 마인드맵으로 보여줘",
     "요구사항 우선순위별 분포를 차트로 보여줘",
-    "완료된 WBS 항목의 진행률은?",
   ];
 
   return (
@@ -605,10 +724,34 @@ export default function ChatPage() {
                     )}
 
                     {/* 차트 표시 */}
-                    {message.chartType && message.chartData && (
+                    {message.chartType && message.chartType !== "mindmap" && message.chartData && (
                       <Card>
                         <div className="p-4">
                           {renderChart(message.chartType, message.chartData)}
+                        </div>
+                      </Card>
+                    )}
+
+                    {/* 마인드맵 표시 */}
+                    {message.chartType === "mindmap" && message.mindmapData && (
+                      <Card>
+                        <div className="p-2">
+                          <div className="flex items-center justify-between px-2 pb-2 border-b border-border-dark">
+                            <div className="flex items-center gap-2">
+                              <Icon name="account_tree" size="sm" className="text-primary" />
+                              <span className="text-sm font-medium text-text dark:text-white">마인드맵</span>
+                              <span className="text-xs text-text-secondary">(노드를 클릭하면 펼치기/접기)</span>
+                            </div>
+                            <button
+                              onClick={() => setFullscreenMindmap(message.mindmapData!)}
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-primary hover:bg-primary/10 rounded transition-colors"
+                              title="전체화면으로 보기"
+                            >
+                              <Icon name="fullscreen" size="sm" />
+                              <span>전체화면</span>
+                            </button>
+                          </div>
+                          {renderMindmap(message.mindmapData)}
                         </div>
                       </Card>
                     )}
@@ -665,6 +808,84 @@ export default function ChatPage() {
           AI 어시스턴트는 프로젝트 데이터를 분석하여 답변합니다. 민감한 정보는 입력하지 마세요.
         </p>
       </div>
+
+      {/* 채팅 기록 삭제 확인 모달 */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-xl max-w-sm w-full animate-slide-in-up">
+            <div className="p-6">
+              {/* 아이콘 */}
+              <div className="flex justify-center mb-4">
+                <div className="size-12 rounded-full bg-error/10 flex items-center justify-center">
+                  <Icon name="delete" size="md" className="text-error" />
+                </div>
+              </div>
+
+              {/* 제목 */}
+              <h3 className="text-lg font-bold text-text dark:text-white text-center mb-2">
+                채팅 기록 삭제
+              </h3>
+
+              {/* 메시지 */}
+              <p className="text-text-secondary text-center mb-6">
+                모든 채팅 기록이 삭제됩니다.<br />
+                이 작업은 되돌릴 수 없습니다.
+              </p>
+
+              {/* 버튼 */}
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  취소
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex-1 !bg-error hover:!bg-error/90"
+                  onClick={confirmClearHistory}
+                >
+                  삭제
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 전체화면 마인드맵 모달 */}
+      {fullscreenMindmap && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* 배경 오버레이 */}
+          <div
+            className="absolute inset-0 bg-black/80"
+            onClick={() => setFullscreenMindmap(null)}
+          />
+          {/* 모달 컨텐츠 */}
+          <div className="relative w-[95vw] h-[95vh] bg-background dark:bg-background-dark rounded-xl shadow-2xl overflow-hidden">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-border-dark">
+              <div className="flex items-center gap-3">
+                <Icon name="account_tree" size="md" className="text-primary" />
+                <h2 className="text-xl font-bold text-text dark:text-white">WBS 마인드맵</h2>
+                <span className="text-sm text-text-secondary">(노드를 클릭하면 펼치기/접기)</span>
+              </div>
+              <button
+                onClick={() => setFullscreenMindmap(null)}
+                className="p-2 hover:bg-surface dark:hover:bg-surface-dark rounded-lg transition-colors"
+                title="닫기"
+              >
+                <Icon name="close" size="md" className="text-text-secondary" />
+              </button>
+            </div>
+            {/* 마인드맵 */}
+            <div className="p-4 h-[calc(100%-72px)]">
+              {renderMindmap(fullscreenMindmap, true)}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

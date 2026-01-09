@@ -12,717 +12,33 @@
  * 수정 방법:
  * - 프로젝트 선택: selectedProjectId 변경
  * - 레벨 추가: WbsLevel enum 및 UI 수정
+ *
+ * 모듈화 구조:
+ * - constants.ts: 상수 정의
+ * - types.ts: 타입 정의
+ * - utils/: 헬퍼 함수
+ * - components/: UI 컴포넌트
  */
 
 "use client";
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { utils, writeFile } from "xlsx";
 import { Icon, Button, Input, useToast } from "@/components/ui";
 import { useWbsItems, useCreateWbsItem, useUpdateWbsItem, useDeleteWbsItem, useChangeWbsLevel, useMembers, useCreateTask } from "@/hooks";
 import { useProject } from "@/contexts/ProjectContext";
 import type { WbsItem, WbsLevel } from "@/lib/api";
 
-/** 레벨별 표시명 (짧은 버전) */
-const levelNames: Record<WbsLevel, string> = {
-  LEVEL1: "대",
-  LEVEL2: "중",
-  LEVEL3: "소",
-  LEVEL4: "단",
-};
+// 모듈화된 상수, 타입, 유틸, 컴포넌트 import
+import { levelNames, levelColors, statusColors, statusNames, zoomLevels, defaultZoomIndex, defaultPanelWidth, rowHeight } from "./constants";
+import type { NewItemForm } from "./types";
+import { applyCalculatedDates, calculateProjectSchedule, isDelayed, getDelayDays, getDisplayStatus, getAllItemIds, flattenItems, filterByAssignee, getEmbedUrl } from "./utils/wbsHelpers";
+import { generateDates, getItemPosition, calculateChartRange } from "./utils/ganttHelpers";
+import { WbsTreeItem, BulkAssignModal, WbsFormModal, DeliverablePreviewModal } from "./components";
 
-/** 레벨별 색상 */
-const levelColors: Record<WbsLevel, string> = {
-  LEVEL1: "bg-blue-500",
-  LEVEL2: "bg-green-500",
-  LEVEL3: "bg-yellow-500",
-  LEVEL4: "bg-purple-500",
-};
-
-/** 상태별 색상 */
-const statusColors: Record<string, string> = {
-  PENDING: "bg-gray-400",
-  IN_PROGRESS: "bg-primary",
-  HOLDING: "bg-warning",
-  COMPLETED: "bg-success",
-  CANCELLED: "bg-error",
-  DELAYED: "bg-rose-500", // 지연 상태 추가
-};
-
-/** 상태 표시명 */
-const statusNames: Record<string, string> = {
-  PENDING: "대기",
-  IN_PROGRESS: "진행중",
-  HOLDING: "보류",
-  COMPLETED: "완료",
-  CANCELLED: "취소",
-  DELAYED: "지연", // 지연 상태 추가
-};
-
-/**
- * 지연 여부 판단
- * 종료일이 오늘보다 이전이고 완료/취소가 아니면 지연
- */
-const isDelayed = (endDate: string | null | undefined, status: string): boolean => {
-  if (!endDate) return false;
-  if (status === "COMPLETED" || status === "CANCELLED") return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const end = new Date(endDate);
-  end.setHours(0, 0, 0, 0);
-  return end < today;
-};
-
-/**
- * 지연 일수 계산
- * 종료일로부터 오늘까지 며칠 지연되었는지 반환
- */
-const getDelayDays = (endDate: string | null | undefined, status: string): number => {
-  if (!endDate) return 0;
-  if (status === "COMPLETED" || status === "CANCELLED") return 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const end = new Date(endDate);
-  end.setHours(0, 0, 0, 0);
-  if (end >= today) return 0;
-  const diffTime = today.getTime() - end.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
-};
-
-/**
- * 표시용 상태 결정 (지연 여부 반영)
- */
-const getDisplayStatus = (status: string, endDate: string | null | undefined): string => {
-  if (isDelayed(endDate, status)) {
-    return "DELAYED";
-  }
-  return status;
-};
-
-/**
- * 하위 항목들로부터 상위 항목의 시작일/종료일 계산
- * 재귀적으로 트리를 순회하며 계산된 일정을 반환
- */
-interface CalculatedDates {
-  startDate: string | null;
-  endDate: string | null;
-}
-
-const calculateParentDates = (item: WbsItem): CalculatedDates => {
-  // 자식이 없으면 자신의 날짜 반환
-  if (!item.children || item.children.length === 0) {
-    return {
-      startDate: item.startDate || null,
-      endDate: item.endDate || null,
-    };
-  }
-
-  // 자식들의 날짜를 먼저 재귀적으로 계산
-  const childDates = item.children.map(child => calculateParentDates(child));
-
-  // 유효한 시작일들 중 가장 빠른 날짜
-  const validStartDates = childDates
-    .map(d => d.startDate)
-    .filter((d): d is string => d !== null)
-    .map(d => new Date(d).getTime());
-
-  // 유효한 종료일들 중 가장 늦은 날짜
-  const validEndDates = childDates
-    .map(d => d.endDate)
-    .filter((d): d is string => d !== null)
-    .map(d => new Date(d).getTime());
-
-  const minStart = validStartDates.length > 0 ? Math.min(...validStartDates) : null;
-  const maxEnd = validEndDates.length > 0 ? Math.max(...validEndDates) : null;
-
-  return {
-    startDate: minStart ? new Date(minStart).toISOString() : null,
-    endDate: maxEnd ? new Date(maxEnd).toISOString() : null,
-  };
-};
-
-/**
- * WBS 트리에 계산된 날짜를 적용 (상위 레벨은 하위로부터 계산)
- */
-const applyCalculatedDates = (items: WbsItem[]): WbsItem[] => {
-  return items.map(item => {
-    // 자식이 있으면 먼저 자식들에 적용
-    const updatedChildren = item.children && item.children.length > 0
-      ? applyCalculatedDates(item.children)
-      : item.children;
-
-    // 자식이 있는 경우 (LEVEL1, LEVEL2, LEVEL3) 자식들로부터 날짜 계산
-    if (updatedChildren && updatedChildren.length > 0) {
-      const calculatedDates = calculateParentDates({ ...item, children: updatedChildren });
-      return {
-        ...item,
-        children: updatedChildren,
-        startDate: calculatedDates.startDate || item.startDate,
-        endDate: calculatedDates.endDate || item.endDate,
-      };
-    }
-
-    return { ...item, children: updatedChildren };
-  });
-};
-
-/** 작업일수 계산 (시작일 ~ 종료일) */
-const calculateWorkDays = (startDate: string | null | undefined, endDate: string | null | undefined): number | null => {
-  if (!startDate || !endDate) return null;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = end.getTime() - start.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // 시작일 포함
-  return diffDays > 0 ? diffDays : 1;
-};
-
-/** 프로젝트 일정 통계 계산 */
-interface ProjectScheduleStats {
-  totalDays: number;      // 총 프로젝트 일수
-  weekendDays: number;    // 휴무일수 (주말)
-  workableDays: number;   // 작업가능일수
-  elapsedDays: number;    // 경과일수
-  remainingDays: number;  // 남은 일수
-}
-
-const calculateProjectSchedule = (
-  startDate: string | null | undefined,
-  endDate: string | null | undefined
-): ProjectScheduleStats | null => {
-  if (!startDate || !endDate) return null;
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // 총 프로젝트 일수
-  const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-  // 휴무일수 (토/일) 계산
-  let weekendDays = 0;
-  const current = new Date(start);
-  while (current <= end) {
-    const dayOfWeek = current.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      weekendDays++;
-    }
-    current.setDate(current.getDate() + 1);
-  }
-
-  // 작업가능일수
-  const workableDays = totalDays - weekendDays;
-
-  // 경과일수
-  let elapsedDays = 0;
-  if (today >= start) {
-    if (today >= end) {
-      elapsedDays = totalDays;
-    } else {
-      elapsedDays = Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    }
-  }
-
-  // 남은 일수
-  let remainingDays = 0;
-  if (today < end) {
-    if (today < start) {
-      remainingDays = totalDays;
-    } else {
-      remainingDays = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    }
-  }
-
-  return {
-    totalDays,
-    weekendDays,
-    workableDays,
-    elapsedDays,
-    remainingDays,
-  };
-};
-
-/** 날짜 생성 헬퍼 */
-const generateDates = (startDate: Date, days: number) => {
-  const dates = [];
-  const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
-
-  for (let i = 0; i < days; i++) {
-    const date = new Date(startDate);
-    date.setDate(date.getDate() + i);
-    dates.push({
-      date,
-      day: date.getDate(),
-      month: date.getMonth() + 1,
-      dayName: dayNames[date.getDay()],
-      isWeekend: date.getDay() === 0 || date.getDay() === 6,
-      isToday:
-        date.getFullYear() === new Date().getFullYear() &&
-        date.getMonth() === new Date().getMonth() &&
-        date.getDate() === new Date().getDate(),
-    });
-  }
-  return dates;
-};
-
-/**
- * WBS 트리 항목 컴포넌트
- * 재귀적으로 자식 항목을 렌더링
- */
-interface WbsTreeItemProps {
-  item: WbsItem;
-  expandedIds: Set<string>;
-  selectedId: string | null;
-  checkedIds: Set<string>; // 체크된 항목 ID 집합
-  onToggle: (id: string) => void;
-  onSelect: (id: string) => void;
-  onCheck: (id: string, checked: boolean) => void; // 체크박스 토글 콜백
-  onAddChild: (parentId: string, level: WbsLevel) => void;
-  onEdit: (item: WbsItem) => void;
-  onDelete: (id: string) => void;
-  onLevelUp: (id: string) => void;
-  onLevelDown: (id: string) => void;
-  onRegisterTask: (item: WbsItem) => void;
-  onUpdateProgress: (id: string, progress: number) => void; // 진행률 업데이트 콜백 추가
-  onPreviewDeliverable: (url: string) => void; // 산출물 미리보기 콜백 추가
-}
-
-function WbsTreeItem({
-  item,
-  expandedIds,
-  selectedId,
-  checkedIds,
-  onToggle,
-  onSelect,
-  onCheck,
-  onAddChild,
-  onEdit,
-  onDelete,
-  onLevelUp,
-  onLevelDown,
-  onRegisterTask,
-  onUpdateProgress,
-  onPreviewDeliverable,
-}: WbsTreeItemProps) {
-  const [showMenu, setShowMenu] = useState(false);
-  const [editingProgress, setEditingProgress] = useState(false); // 진행률 인라인 편집 상태
-  const [tempProgress, setTempProgress] = useState(item.progress); // 임시 진행률 값
-  const menuRef = useRef<HTMLDivElement>(null);
-  const progressInputRef = useRef<HTMLInputElement>(null);
-
-  const isExpanded = expandedIds.has(item.id);
-  const isSelected = selectedId === item.id;
-  const isChecked = checkedIds.has(item.id); // 체크 여부
-  const hasChildren = item.children && item.children.length > 0;
-  const indent = (item.levelNumber - 1) * 28; // 레벨당 28px 들여쓰기
-  const workDays = calculateWorkDays(item.startDate, item.endDate);
-
-  // 다음 레벨 계산
-  const nextLevel = `LEVEL${item.levelNumber + 1}` as WbsLevel;
-  const canAddChild = item.levelNumber < 4; // LEVEL4까지만 지원
-
-  // 메뉴 외부 클릭 시 닫기
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    if (showMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showMenu]);
-
-  // 진행률 편집 모드일 때 input에 포커스
-  useEffect(() => {
-    if (editingProgress && progressInputRef.current) {
-      progressInputRef.current.focus();
-      progressInputRef.current.select();
-    }
-  }, [editingProgress]);
-
-  // 진행률 저장 핸들러
-  const handleProgressSave = () => {
-    const newProgress = Math.min(100, Math.max(0, tempProgress));
-    if (newProgress !== item.progress) {
-      onUpdateProgress(item.id, newProgress);
-    }
-    setEditingProgress(false);
-  };
-
-  // 진행률 편집 취소 핸들러
-  const handleProgressCancel = () => {
-    setTempProgress(item.progress);
-    setEditingProgress(false);
-  };
-
-  // 키보드 이벤트 핸들러
-  const handleProgressKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleProgressSave();
-    } else if (e.key === "Escape") {
-      handleProgressCancel();
-    }
-  };
-
-  return (
-    <>
-      {/* 현재 항목 */}
-      <div
-        data-wbs-id={item.id}
-        onClick={() => onSelect(item.id)}
-        className={`
-          h-10 border-b border-border dark:border-border-dark flex items-center
-          cursor-pointer transition-colors group
-          ${isSelected ? "bg-primary/10 border-l-3 border-l-primary" : "hover:bg-surface dark:hover:bg-surface-dark"}
-        `}
-        style={{ paddingLeft: `${12 + indent}px` }}
-      >
-        {/* 체크박스 */}
-        <input
-          type="checkbox"
-          checked={isChecked}
-          onChange={(e) => {
-            e.stopPropagation();
-            onCheck(item.id, e.target.checked);
-          }}
-          onClick={(e) => e.stopPropagation()}
-          className="size-4 rounded border-border dark:border-border-dark text-primary focus:ring-primary focus:ring-offset-0 mr-2 cursor-pointer flex-shrink-0"
-        />
-
-        {/* 확장/축소 버튼 */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle(item.id);
-          }}
-          className="size-5 flex items-center justify-center text-text-secondary hover:text-text dark:hover:text-white mr-1"
-        >
-          {hasChildren ? (
-            <Icon name={isExpanded ? "expand_more" : "chevron_right"} size="sm" />
-          ) : (
-            <span className="size-4" /> // 빈 공간
-          )}
-        </button>
-
-        {/* 더보기 메뉴 버튼 (호버 시 표시) */}
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMenu(!showMenu);
-            }}
-            className={`size-6 rounded flex items-center justify-center mr-1 transition-all
-              ${showMenu
-                ? "bg-primary text-white"
-                : "opacity-0 group-hover:opacity-100 text-text-secondary hover:bg-surface-hover dark:hover:bg-surface-dark hover:text-text dark:hover:text-white"
-              }
-            `}
-            title="메뉴"
-          >
-            <Icon name="more_vert" size="sm" />
-          </button>
-
-          {/* 드롭다운 메뉴 */}
-          {showMenu && (
-            <div className="absolute left-0 top-7 z-50 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[140px] animate-slide-in-down">
-              {/* 하위 추가 */}
-              {canAddChild && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddChild(item.id, nextLevel);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-surface dark:hover:bg-background-dark text-text dark:text-white"
-                >
-                  <Icon name="add" size="sm" className="text-primary" />
-                  <span>{levelNames[nextLevel]} 추가</span>
-                </button>
-              )}
-              {/* 수정 */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(item);
-                  setShowMenu(false);
-                }}
-                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-surface dark:hover:bg-background-dark text-text dark:text-white"
-              >
-                <Icon name="edit" size="sm" className="text-text-secondary" />
-                <span>수정</span>
-              </button>
-              {/* 레벨 변경 구분선 */}
-              {(item.levelNumber > 1 || item.levelNumber < 4) && (
-                <div className="h-px bg-border dark:bg-border-dark my-1" />
-              )}
-              {/* 레벨 올리기 */}
-              {item.levelNumber > 1 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLevelUp(item.id);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-surface dark:hover:bg-background-dark text-text dark:text-white"
-                >
-                  <Icon name="arrow_upward" size="sm" className="text-blue-500" />
-                  <span>레벨 올리기</span>
-                </button>
-              )}
-              {/* 레벨 내리기 */}
-              {item.levelNumber < 4 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLevelDown(item.id);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-surface dark:hover:bg-background-dark text-text dark:text-white"
-                >
-                  <Icon name="arrow_downward" size="sm" className="text-orange-500" />
-                  <span>레벨 내리기</span>
-                </button>
-              )}
-              {/* Task로 등록 (LEVEL4 단위업무만) */}
-              {item.levelNumber === 4 && (
-                <>
-                  <div className="h-px bg-border dark:bg-border-dark my-1" />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRegisterTask(item);
-                      setShowMenu(false);
-                    }}
-                    className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-primary/10 text-primary"
-                  >
-                    <Icon name="assignment" size="sm" />
-                    <span>Task로 등록</span>
-                  </button>
-                </>
-              )}
-              {/* 삭제 구분선 */}
-              <div className="h-px bg-border dark:bg-border-dark my-1" />
-              {/* 삭제 */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(item.id);
-                  setShowMenu(false);
-                }}
-                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-error/10 text-error"
-              >
-                <Icon name="delete" size="sm" />
-                <span>삭제</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* 레벨 배지 */}
-        <span
-          className={`size-5 rounded flex items-center justify-center text-[10px] font-bold text-white mr-1.5 ${levelColors[item.level]}`}
-        >
-          {levelNames[item.level]}
-        </span>
-
-        {/* WBS 코드 */}
-        <span className="text-xs text-text-secondary mr-2 font-mono font-medium whitespace-nowrap">{item.code}</span>
-
-        {/* 항목명 */}
-        <span
-          className={`flex-1 text-sm truncate font-medium ${
-            isSelected ? "text-primary" : "text-text dark:text-white"
-          }`}
-          title={item.name}
-        >
-          {item.name}
-        </span>
-
-        {/* 가중치 뱃지 (대분류만) */}
-        {item.level === "LEVEL1" && item.weight && (
-          <span
-            className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/15 text-primary mr-2"
-            title={`가중치: ${item.weight}%`}
-          >
-            {item.weight}%
-          </span>
-        )}
-
-        {/* 기간 (시작일~종료일 + 작업일수) */}
-        <div className="w-32 flex-shrink-0 text-center">
-          {item.startDate && item.endDate ? (
-            <div className="flex items-center justify-center gap-1">
-              <span className="text-[11px] text-text-secondary font-medium">
-                {new Date(item.startDate).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}
-                ~
-                {new Date(item.endDate).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}
-              </span>
-              {workDays && (
-                <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1 py-0.5 rounded">
-                  {workDays}일
-                </span>
-              )}
-            </div>
-          ) : (
-            <span className="text-[11px] text-text-secondary">-</span>
-          )}
-        </div>
-
-        {/* 진행률 (클릭하여 인라인 편집) */}
-        <div
-          className="w-16 flex-shrink-0 text-center cursor-pointer hover:bg-primary/10 rounded py-0.5 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            setTempProgress(item.progress);
-            setEditingProgress(true);
-          }}
-          title="클릭하여 진행률 수정"
-        >
-          {editingProgress ? (
-            // 인라인 편집 모드
-            <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-              <input
-                ref={progressInputRef}
-                type="number"
-                min="0"
-                max="100"
-                value={tempProgress}
-                onChange={(e) => setTempProgress(parseInt(e.target.value) || 0)}
-                onKeyDown={handleProgressKeyDown}
-                onBlur={handleProgressSave}
-                className="w-10 px-1 py-0.5 text-[10px] text-center rounded bg-background-white dark:bg-surface-dark border border-primary text-text dark:text-white focus:outline-none"
-              />
-              <span className="text-[10px] text-text-secondary">%</span>
-            </div>
-          ) : (
-            // 일반 표시 모드
-            <>
-              <div className="h-1.5 bg-background dark:bg-background-dark rounded-full overflow-hidden mx-1">
-                <div
-                  className="h-full bg-primary rounded-full transition-all"
-                  style={{ width: `${item.progress}%` }}
-                />
-              </div>
-              <span className="text-[10px] text-text-secondary font-medium">{item.progress}%</span>
-            </>
-          )}
-        </div>
-
-        {/* 상태 (지연 여부 반영) */}
-        <div className="w-20 flex-shrink-0 flex justify-center">
-          {getDisplayStatus(item.status, item.endDate) === "DELAYED" ? (
-            <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold text-white ${statusColors.DELAYED} flex items-center gap-1`}
-            >
-              <span>지연</span>
-              <span className="bg-white/20 px-1 rounded">D+{getDelayDays(item.endDate, item.status)}</span>
-            </span>
-          ) : (
-            <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold text-white ${statusColors[getDisplayStatus(item.status, item.endDate)]}`}
-            >
-              {statusNames[getDisplayStatus(item.status, item.endDate)]}
-            </span>
-          )}
-        </div>
-
-        {/* 담당자 */}
-        <div className="w-14 flex justify-center -space-x-1.5 flex-shrink-0">
-          {item.assignees && item.assignees.length > 0 ? (
-            item.assignees.slice(0, 3).map((assignee) =>
-              assignee.avatar ? (
-                <img
-                  key={assignee.id}
-                  src={assignee.avatar}
-                  alt={assignee.name || "담당자"}
-                  className="size-6 rounded-full object-cover border-2 border-background-white dark:border-background-dark"
-                  title={assignee.name || ""}
-                />
-              ) : (
-                <div
-                  key={assignee.id}
-                  className="size-6 rounded-full bg-primary/20 flex items-center justify-center border-2 border-background-white dark:border-background-dark"
-                  title={assignee.name || ""}
-                >
-                  <span className="text-[10px] font-semibold text-primary">
-                    {assignee.name?.charAt(0) || "?"}
-                  </span>
-                </div>
-              )
-            )
-          ) : (
-            <span className="text-xs text-text-secondary">-</span>
-          )}
-        </div>
-
-        {/* 산출물 */}
-        <div className="w-24 flex-shrink-0 flex justify-center items-center group/deliverable">
-          {item.deliverableName ? (
-            item.deliverableLink ? (
-              <div className="relative flex items-center gap-1">
-                <span
-                  className="text-[10px] text-primary truncate max-w-[60px]"
-                  title={`${item.deliverableName}\n${item.deliverableLink}`}
-                >
-                  {item.deliverableName}
-                </span>
-                {/* 호버 시 보기 버튼 표시 */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPreviewDeliverable(item.deliverableLink!);
-                  }}
-                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px] font-medium hover:bg-primary/20 transition-colors opacity-0 group-hover/deliverable:opacity-100"
-                  title="산출물 미리보기"
-                >
-                  <Icon name="visibility" size="xs" />
-                  <span>보기</span>
-                </button>
-              </div>
-            ) : (
-              <span
-                className="text-[10px] text-text dark:text-white truncate max-w-[88px]"
-                title={item.deliverableName}
-              >
-                {item.deliverableName}
-              </span>
-            )
-          ) : (
-            <span className="text-xs text-text-secondary">-</span>
-          )}
-        </div>
-      </div>
-
-      {/* 자식 항목 (확장된 경우) */}
-      {isExpanded && hasChildren && (
-        <>
-          {item.children!.map((child) => (
-            <WbsTreeItem
-              key={child.id}
-              item={child}
-              expandedIds={expandedIds}
-              selectedId={selectedId}
-              checkedIds={checkedIds}
-              onToggle={onToggle}
-              onSelect={onSelect}
-              onCheck={onCheck}
-              onAddChild={onAddChild}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onLevelUp={onLevelUp}
-              onLevelDown={onLevelDown}
-              onRegisterTask={onRegisterTask}
-              onUpdateProgress={onUpdateProgress}
-              onPreviewDeliverable={onPreviewDeliverable}
-            />
-          ))}
-        </>
-      )}
-    </>
-  );
-}
+// 헬퍼 함수들은 ./utils/wbsHelpers.ts 및 ./utils/ganttHelpers.ts로 이동됨
+// WbsTreeItem 컴포넌트는 ./components/WbsTreeItem.tsx로 이동됨
+// 모달 컴포넌트들은 ./components/modals/로 이동됨
 
 /**
  * WBS 페이지 컴포넌트
@@ -751,28 +67,11 @@ export default function WBSPage() {
   /** 산출물 미리보기 URL 상태 */
   const [deliverablePreviewUrl, setDeliverablePreviewUrl] = useState<string | null>(null);
 
-  /**
-   * OneDrive/SharePoint 링크를 임베드 가능한 URL로 변환
-   * 공유 링크를 embed 형식으로 변환합니다.
-   */
-  const getEmbedUrl = (url: string): string => {
-    if (!url) return "";
-    // 이미 embed URL인 경우 그대로 반환
-    if (url.includes("embed")) return url;
-    // OneDrive/SharePoint 링크인 경우 action=embedview 파라미터 추가
-    if (url.includes("1drv.ms") || url.includes("onedrive.live.com") || url.includes("sharepoint.com")) {
-      const separator = url.includes("?") ? "&" : "?";
-      return `${url}${separator}action=embedview`;
-    }
-    return url;
-  };
+  // 패널 리사이즈 상태 (폰트 축소에 따른 너비 조정)
+  const [panelWidth, setPanelWidth] = useState(defaultPanelWidth);
 
-  // 패널 리사이즈 상태
-  const [panelWidth, setPanelWidth] = useState(560); // 폰트 축소에 따른 너비 조정
-
-  // 간트 차트 줌 레벨 (셀 너비 px)
-  const zoomLevels = [20, 30, 40, 60, 80];
-  const [zoomIndex, setZoomIndex] = useState(2); // 기본값 40px (인덱스 2)
+  // 간트 차트 줌 레벨 (셀 너비 px) - zoomLevels는 constants.ts에서 import됨
+  const [zoomIndex, setZoomIndex] = useState(defaultZoomIndex); // 기본값 40px
   const cellWidth = zoomLevels[zoomIndex];
 
   const handleZoomIn = () => {
@@ -1272,6 +571,62 @@ export default function WBSPage() {
     }
   };
 
+  /**
+   * 엑셀 다운로드 핸들러
+   * WBS 트리를 평탄화하여 엑셀로 내보냅니다.
+   */
+  const handleExportToExcel = () => {
+    const flatItems = flattenItems(wbsTree);
+    if (flatItems.length === 0) {
+      toast.error("다운로드할 데이터가 없습니다.");
+      return;
+    }
+
+    // 엑셀 데이터 변환
+    const excelData = flatItems.map((item) => ({
+      "WBS 코드": item.code,
+      "레벨": levelNames[item.level],
+      "항목명": item.name,
+      "상태": statusNames[getDisplayStatus(item.status, item.endDate)],
+      "진행률": `${item.progress}%`,
+      "시작일": item.startDate ? new Date(item.startDate).toLocaleDateString() : "-",
+      "종료일": item.endDate ? new Date(item.endDate).toLocaleDateString() : "-",
+      "담당자": item.assignees?.map((a) => a.name).join(", ") || "-",
+      "가중치": item.weight ? `${item.weight}%` : "-",
+      "산출물": item.deliverableName || "-",
+      "설명": item.description || "",
+    }));
+
+    // 워크시트 생성
+    const worksheet = utils.json_to_sheet(excelData);
+
+    // 컬럼 너비 설정
+    worksheet["!cols"] = [
+      { wch: 15 }, // WBS 코드
+      { wch: 8 },  // 레벨
+      { wch: 40 }, // 항목명
+      { wch: 10 }, // 상태
+      { wch: 8 },  // 진행률
+      { wch: 12 }, // 시작일
+      { wch: 12 }, // 종료일
+      { wch: 20 }, // 담당자
+      { wch: 8 },  // 가중치
+      { wch: 20 }, // 산출물
+      { wch: 50 }, // 설명
+    ];
+
+    // 워크북 생성 및 파일 저장
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, "WBS");
+
+    // 파일명 생성 (프로젝트명_WBS_날짜)
+    const projectName = selectedProject?.name || "Project";
+    const dateStr = new Date().toISOString().split("T")[0];
+    writeFile(workbook, `${projectName}_WBS_${dateStr}.xlsx`);
+
+    toast.success("WBS를 엑셀 파일로 다운로드했습니다.");
+  };
+
   /** 자식 추가 */
   const handleAddChild = (parentId: string, level: WbsLevel) => {
     setNewItem({
@@ -1553,31 +908,42 @@ export default function WBSPage() {
           )}
         </div>
 
-        <Button
-          variant="primary"
-          size="sm"
-          leftIcon="add"
-          onClick={() => {
-            setNewItem({
-              name: "",
-              description: "",
-              level: "LEVEL1",
-              parentId: undefined,
-              assigneeIds: [],
-              startDate: "",
-              endDate: "",
-              progress: 0,
-              weight: 1, // 가중치 초기화
-              deliverableName: "",
-              deliverableLink: "",
-            });
-            setEditingItem(null);
-            setShowAddModal(true);
-          }}
-          disabled={!selectedProjectId}
-        >
-          대분류 추가
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon="download"
+            onClick={handleExportToExcel}
+            disabled={!selectedProjectId || wbsTree.length === 0}
+          >
+            엑셀 다운로드
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            leftIcon="add"
+            onClick={() => {
+              setNewItem({
+                name: "",
+                description: "",
+                level: "LEVEL1",
+                parentId: undefined,
+                assigneeIds: [],
+                startDate: "",
+                endDate: "",
+                progress: 0,
+                weight: 1, // 가중치 초기화
+                deliverableName: "",
+                deliverableLink: "",
+              });
+              setEditingItem(null);
+              setShowAddModal(true);
+            }}
+            disabled={!selectedProjectId}
+          >
+            대분류 추가
+          </Button>
+        </div>
       </div>
 
       {/* 프로젝트 미선택 안내 */}

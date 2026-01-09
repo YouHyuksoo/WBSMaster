@@ -141,21 +141,18 @@ function StatCard({
 }
 
 /**
- * 프로젝트 카드 컴포넌트 - 호버 액션, 애니메이션 적용
+ * 프로젝트 카드 컴포넌트 - 클릭하면 칸반보드로 이동, 애니메이션 적용
  */
 function ProjectCard({
   project,
   onEdit,
-  onStatusChange,
   animationDelay = 0,
 }: {
   project: ProjectWithWbs;
   onEdit: (project: ProjectWithWbs, e: React.MouseEvent) => void;
-  onStatusChange?: (project: ProjectWithWbs, newStatus: string) => void;
   animationDelay?: number;
 }) {
   const [isVisible, setIsVisible] = useState(false);
-  const [showActions, setShowActions] = useState(false);
   const [progressAnimated, setProgressAnimated] = useState(0);
   const router = useRouter();
 
@@ -200,20 +197,9 @@ function ProjectCard({
     router.push(`/dashboard/kanban?projectId=${project.id}`);
   };
 
-  /** 빠른 상태 변경 핸들러 */
-  const handleQuickStatus = (newStatus: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onStatusChange) {
-      onStatusChange(project, newStatus);
-    }
-    setShowActions(false);
-  };
-
   return (
     <div
       onClick={handleCardClick}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
       className={`
         relative bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-5
         cursor-pointer group block
@@ -223,65 +209,7 @@ function ProjectCard({
         active:scale-[0.98]
       `}
     >
-      {/* 호버 액션 버튼 그룹 */}
-      <div className={`
-        absolute top-3 right-3 flex items-center gap-1
-        transition-all duration-300
-        ${showActions ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"}
-      `}>
-        {/* WBS 바로가기 */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            router.push(`/dashboard/wbs?projectId=${project.id}`);
-          }}
-          className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
-          title="WBS 관리"
-        >
-          <Icon name="account_tree" size="sm" />
-        </button>
-        {/* 이슈 바로가기 */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            router.push(`/dashboard/issues?projectId=${project.id}`);
-          }}
-          className="p-1.5 text-text-secondary hover:text-warning hover:bg-warning/10 rounded-lg transition-all"
-          title="이슈 관리"
-        >
-          <Icon name="bug_report" size="sm" />
-        </button>
-        {/* 편집 버튼 */}
-        <button
-          onClick={(e) => onEdit(project, e)}
-          className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
-          title="프로젝트 수정"
-        >
-          <Icon name="edit" size="sm" />
-        </button>
-      </div>
-
-      {/* 빠른 상태 변경 드롭다운 */}
-      {showActions && onStatusChange && (
-        <div className="absolute top-12 right-3 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg p-1 z-20 animate-fadeIn">
-          {Object.entries(statusConfig).map(([key, { label: statusLabel, icon }]) => (
-            <button
-              key={key}
-              onClick={(e) => handleQuickStatus(key, e)}
-              className={`
-                w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-md text-left
-                hover:bg-surface dark:hover:bg-background-dark transition-colors
-                ${project.status === key ? "bg-primary/10 text-primary font-medium" : "text-text-secondary"}
-              `}
-            >
-              <Icon name={icon} size="xs" />
-              {statusLabel}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="flex items-start justify-between mb-3 pr-24">
+      <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-bold text-text dark:text-white group-hover:text-primary transition-colors truncate">
             {project.name}
@@ -290,16 +218,10 @@ function ProjectCard({
             {project.description || "설명 없음"}
           </p>
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowActions(!showActions);
-          }}
-          className={`px-2 py-1 rounded-full text-xs font-medium ${color} shrink-0 flex items-center gap-1 hover:ring-2 hover:ring-offset-1 transition-all`}
-        >
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${color} shrink-0 flex items-center gap-1`}>
           <Icon name={statusIcon} size="xs" />
           {label}
-        </button>
+        </span>
       </div>
 
       {/* 기간 표시 */}
@@ -354,16 +276,6 @@ function ProjectCard({
             <span>마감 지남</span>
           </div>
         )}
-      </div>
-
-      {/* 호버 시 나타나는 바로가기 힌트 */}
-      <div className={`
-        absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-primary/10 to-transparent
-        flex items-end justify-center pb-2 text-xs text-primary font-medium
-        transition-opacity duration-300
-        ${showActions ? "opacity-100" : "opacity-0"}
-      `}>
-        클릭하여 칸반보드 열기
       </div>
     </div>
   );
@@ -500,26 +412,6 @@ export default function DashboardPage() {
       toast.error("새로고침에 실패했습니다.");
     } finally {
       setIsRefreshing(false);
-    }
-  };
-
-  /**
-   * 프로젝트 빠른 상태 변경
-   */
-  const handleQuickStatusChange = async (project: ProjectWithWbs, newStatus: string) => {
-    try {
-      await updateProject.mutateAsync({
-        id: project.id,
-        data: { status: newStatus as Project["status"] },
-      });
-      toast.success(`프로젝트 상태가 "${
-        newStatus === "PLANNING" ? "계획" :
-        newStatus === "ACTIVE" ? "진행중" :
-        newStatus === "ON_HOLD" ? "보류" :
-        newStatus === "COMPLETED" ? "완료" : "취소"
-      }"으로 변경되었습니다.`);
-    } catch (error) {
-      toast.error("상태 변경에 실패했습니다.");
     }
   };
 
@@ -889,7 +781,6 @@ export default function DashboardPage() {
                 key={project.id}
                 project={project}
                 onEdit={handleOpenEditModal}
-                onStatusChange={handleQuickStatusChange}
                 animationDelay={index * 100}
               />
             ))}
@@ -913,24 +804,24 @@ export default function DashboardPage() {
       {/* 현황 대시보드 - 왼쪽 일정 + 오른쪽 2x2 통계 */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* 왼쪽: 오늘의 일정 */}
-        <Card className="xl:col-span-1">
+        <div
+          onClick={() => router.push("/dashboard/holidays")}
+          className="xl:col-span-1 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl cursor-pointer group/card hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 hover:scale-[1.01] transition-all duration-300"
+        >
           <div className="p-4 h-full flex flex-col">
             {/* 헤더 */}
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-bold text-text dark:text-white flex items-center gap-2">
+                <h3 className="text-sm font-bold text-text dark:text-white flex items-center gap-2 group-hover/card:text-primary transition-colors">
                   <Icon name="today" size="sm" className="text-primary" />
                   오늘의 일정
                 </h3>
                 <p className="text-xs text-text-secondary mt-0.5">{todayFormatted}</p>
               </div>
-              <Link
-                href="/dashboard/holidays"
-                className="text-xs text-primary hover:text-primary-hover flex items-center gap-1"
-              >
+              <span className="text-xs text-primary group-hover/card:text-primary-hover flex items-center gap-1">
                 전체보기
-                <Icon name="arrow_forward" size="xs" />
-              </Link>
+                <Icon name="arrow_forward" size="xs" className="group-hover/card:translate-x-0.5 transition-transform" />
+              </span>
             </div>
 
             {/* 일정 목록 */}
@@ -939,12 +830,9 @@ export default function DashboardPage() {
                 <div className="flex flex-col items-center justify-center h-full text-center py-8">
                   <Icon name="event_available" size="xl" className="text-text-secondary mb-2" />
                   <p className="text-sm text-text-secondary">오늘 등록된 일정이 없습니다</p>
-                  <Link
-                    href="/dashboard/holidays"
-                    className="mt-2 text-xs text-primary hover:text-primary-hover"
-                  >
+                  <span className="mt-2 text-xs text-primary group-hover/card:text-primary-hover">
                     일정 등록하기
-                  </Link>
+                  </span>
                 </div>
               ) : (
                 todaySchedules.map((schedule) => {
@@ -1029,20 +917,24 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-        </Card>
+        </div>
 
         {/* 오른쪽: 2x2 통계 그리드 */}
         <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* 담당자별 진행률 (WBS 기준) */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
+          <div
+            onClick={() => router.push("/dashboard/wbs")}
+            className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 cursor-pointer group/wbs hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 hover:scale-[1.01] transition-all duration-300"
+          >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-text dark:text-white">
+              <h3 className="text-sm font-bold text-text dark:text-white group-hover/wbs:text-primary transition-colors">
                 담당자별 진행률
                 <span className="text-xs font-normal text-text-secondary ml-1">(WBS)</span>
               </h3>
-              <Link href="/dashboard/wbs" className="text-xs text-primary hover:text-primary-hover">
+              <span className="text-xs text-primary group-hover/wbs:text-primary-hover flex items-center gap-1">
                 전체보기
-              </Link>
+                <Icon name="arrow_forward" size="xs" className="group-hover/wbs:translate-x-0.5 transition-transform" />
+              </span>
             </div>
 
             {/* 테이블 헤더 */}
@@ -1055,13 +947,13 @@ export default function DashboardPage() {
             </div>
 
             {/* 담당자별 목록 */}
-            <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
+            <div className="space-y-1.5 max-h-[280px] overflow-y-auto [&::-webkit-scrollbar]:w-1">
               {(!wbsStats?.assignees || wbsStats.assignees.length === 0) ? (
                 <p className="text-xs text-text-secondary text-center py-4">
                   담당자가 할당된 WBS 항목이 없습니다.
                 </p>
               ) : (
-                wbsStats.assignees.map((assignee) => {
+                wbsStats.assignees.map((assignee, index) => {
                   // 진행률은 0~100 범위로 제한
                   const progressValue = Math.min(Math.max(assignee.avgProgress || 0, 0), 100);
                   return (
@@ -1108,8 +1000,8 @@ export default function DashboardPage() {
                         </span>
                       </div>
 
-                      {/* 진행률 (100% 기준 막대바) */}
-                      <div className="flex items-center gap-1">
+                      {/* 진행률 (100% 기준 막대바) - 호버 시 산출근거 표시 */}
+                      <div className="flex items-center gap-1 group/progress relative">
                         <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
@@ -1120,13 +1012,40 @@ export default function DashboardPage() {
                             style={{ width: `${progressValue}%` }}
                           />
                         </div>
-                        <span className={`text-[10px] font-bold w-8 text-right ${
+                        <span className={`text-[10px] font-bold w-8 text-right cursor-help ${
                           progressValue >= 80 ? "text-emerald-500" :
                           progressValue >= 50 ? "text-sky-500" :
                           "text-slate-400"
                         }`}>
                           {progressValue}%
                         </span>
+                        {/* 산출근거 툴팁 - 첫 2개 행은 아래로, 나머지는 위로 */}
+                        <div className={`absolute right-0 hidden group-hover/progress:block z-50 ${
+                          index < 2 ? "top-full mt-2" : "bottom-full mb-2"
+                        }`}>
+                          <div className="bg-slate-900 text-white text-[10px] rounded-lg px-3 py-2 shadow-lg whitespace-nowrap relative">
+                            {/* 위쪽 화살표 (아래에 툴팁이 표시될 때) */}
+                            {index < 2 && (
+                              <div className="absolute top-0 right-4 -translate-y-full">
+                                <div className="border-8 border-transparent border-b-slate-900"></div>
+                              </div>
+                            )}
+                            <div className="font-bold text-amber-400 mb-1">📊 산출근거</div>
+                            <div className="space-y-0.5">
+                              <div>• 담당 WBS 항목: <span className="text-sky-400">{assignee.total}개</span></div>
+                              <div>• 각 항목 progress 합계: <span className="text-sky-400">{assignee.totalProgress}%</span></div>
+                              <div className="border-t border-slate-700 pt-1 mt-1">
+                                • 평균 진행률: {assignee.totalProgress} ÷ {assignee.total} = <span className="text-emerald-400 font-bold">{progressValue}%</span>
+                              </div>
+                            </div>
+                            {/* 아래쪽 화살표 (위에 툴팁이 표시될 때) */}
+                            {index >= 2 && (
+                              <div className="absolute bottom-0 right-4 translate-y-full">
+                                <div className="border-8 border-transparent border-t-slate-900"></div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1149,12 +1068,16 @@ export default function DashboardPage() {
           </div>
 
           {/* TASK 현황 - 담당자별 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
+          <div
+            onClick={() => router.push("/dashboard/kanban")}
+            className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 cursor-pointer group/task hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 hover:scale-[1.01] transition-all duration-300"
+          >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-text dark:text-white">TASK 현황</h3>
-              <Link href="/dashboard/kanban" className="text-xs text-primary hover:text-primary-hover">
+              <h3 className="text-sm font-bold text-text dark:text-white group-hover/task:text-primary transition-colors">TASK 현황</h3>
+              <span className="text-xs text-primary group-hover/task:text-primary-hover flex items-center gap-1">
                 전체보기
-              </Link>
+                <Icon name="arrow_forward" size="xs" className="group-hover/task:translate-x-0.5 transition-transform" />
+              </span>
             </div>
 
             {/* 테이블 헤더 */}
@@ -1300,13 +1223,17 @@ export default function DashboardPage() {
           </div>
 
           {/* 이슈 현황 */}
-          <Card>
+          <div
+            onClick={() => router.push("/dashboard/issues")}
+            className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl cursor-pointer group/issue hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 hover:scale-[1.01] transition-all duration-300"
+          >
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-text dark:text-white">이슈 현황</h3>
-                <Link href="/dashboard/issues" className="text-xs text-primary hover:text-primary-hover">
+                <h3 className="text-sm font-bold text-text dark:text-white group-hover/issue:text-primary transition-colors">이슈 현황</h3>
+                <span className="text-xs text-primary group-hover/issue:text-primary-hover flex items-center gap-1">
                   전체보기
-                </Link>
+                  <Icon name="arrow_forward" size="xs" className="group-hover/issue:translate-x-0.5 transition-transform" />
+                </span>
               </div>
 
               {/* 카테고리별 차트 */}
@@ -1368,16 +1295,20 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-          </Card>
+          </div>
 
           {/* 요구사항 현황 */}
-          <Card>
+          <div
+            onClick={() => router.push("/dashboard/requirements")}
+            className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl cursor-pointer group/req hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 hover:scale-[1.01] transition-all duration-300"
+          >
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-text dark:text-white">요구사항</h3>
-                <Link href="/dashboard/requirements" className="text-xs text-primary hover:text-primary-hover">
+                <h3 className="text-sm font-bold text-text dark:text-white group-hover/req:text-primary transition-colors">요구사항</h3>
+                <span className="text-xs text-primary group-hover/req:text-primary-hover flex items-center gap-1">
                   전체보기
-                </Link>
+                  <Icon name="arrow_forward" size="xs" className="group-hover/req:translate-x-0.5 transition-transform" />
+                </span>
               </div>
 
               {/* 상태별 요약 */}
@@ -1493,7 +1424,7 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-          </Card>
+          </div>
         </div>
       </div>
 

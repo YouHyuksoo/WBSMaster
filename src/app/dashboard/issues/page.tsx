@@ -19,6 +19,7 @@
 "use client";
 
 import { useState } from "react";
+import { utils, writeFile } from "xlsx";
 import { Icon, Button, Input } from "@/components/ui";
 import {
   useIssues,
@@ -197,6 +198,56 @@ export default function IssuesPage() {
     setShowModal(false);
   };
 
+  /**
+   * 엑셀 다운로드 핸들러
+   */
+  const handleExportToExcel = () => {
+    if (filteredIssues.length === 0) {
+      alert("다운로드할 데이터가 없습니다.");
+      return;
+    }
+
+    // 엑셀 데이터 변환
+    const excelData = filteredIssues.map((issue) => ({
+      "코드": issue.code || `ISS-${issue.id.slice(0, 6)}`,
+      "제목": issue.title,
+      "상태": statusConfig[issue.status]?.label || issue.status,
+      "우선순위": priorityConfig[issue.priority]?.label || issue.priority,
+      "카테고리": categoryConfig[issue.category]?.label || issue.category || "-",
+      "보고자": issue.reporter?.name || issue.reporter?.email || "-",
+      "담당자": issue.assignee?.name || issue.assignee?.email || "-",
+      "등록일": issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : "-",
+      "마감일": issue.dueDate ? new Date(issue.dueDate).toLocaleDateString() : "-",
+      "설명": issue.description || "",
+    }));
+
+    // 워크시트 생성
+    const worksheet = utils.json_to_sheet(excelData);
+
+    // 컬럼 너비 설정
+    worksheet["!cols"] = [
+      { wch: 15 }, // 코드
+      { wch: 40 }, // 제목
+      { wch: 10 }, // 상태
+      { wch: 10 }, // 우선순위
+      { wch: 12 }, // 카테고리
+      { wch: 15 }, // 보고자
+      { wch: 15 }, // 담당자
+      { wch: 12 }, // 등록일
+      { wch: 12 }, // 마감일
+      { wch: 50 }, // 설명
+    ];
+
+    // 워크북 생성 및 파일 저장
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, "이슈목록");
+
+    // 파일명 생성 (프로젝트명_이슈목록_날짜)
+    const projectName = selectedProject?.name || "Project";
+    const dateStr = new Date().toISOString().split("T")[0];
+    writeFile(workbook, `${projectName}_이슈목록_${dateStr}.xlsx`);
+  };
+
   /** 로딩 상태 */
   if (isLoading) {
     return (
@@ -235,6 +286,14 @@ export default function IssuesPage() {
               <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
             </div>
           )}
+          <Button
+            variant="outline"
+            leftIcon="download"
+            onClick={handleExportToExcel}
+            disabled={!selectedProjectId || filteredIssues.length === 0}
+          >
+            엑셀 다운로드
+          </Button>
           <Button
             variant="primary"
             leftIcon="add"

@@ -491,7 +491,8 @@ model ChatHistory {
   content     String   // 메시지 내용 (마크다운)
   sqlQuery    String?  // 실행된 SQL 쿼리
   chartData   Json?    // 차트 데이터 (JSON)
-  chartType   String?  // 차트 타입 (bar, line, pie 등)
+  chartType   String?  // 차트 타입 (bar, line, pie, mindmap 등)
+  mindmapData Json?    // 마인드맵 데이터 (JSON 트리 구조)
 
   createdAt   DateTime @default(now())
 

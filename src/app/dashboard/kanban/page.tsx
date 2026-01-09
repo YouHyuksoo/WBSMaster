@@ -38,6 +38,7 @@ import { Icon, Button, Input } from "@/components/ui";
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useMembers, useRequirements } from "@/hooks";
 import { useProject } from "@/contexts";
 import type { Task } from "@/lib/api";
+import { utils, writeFile } from "xlsx";
 
 /** 컬럼 설정 */
 interface ColumnConfig {
@@ -375,6 +376,103 @@ export default function KanbanPage() {
     // 필요시 추가 로직
   };
 
+  /**
+   * 엑셀 다운로드 핸들러
+   * 담당자별로 정렬하여 다운로드
+   */
+  const handleExportToExcel = () => {
+    if (tasks.length === 0) {
+      alert("다운로드할 작업이 없습니다.");
+      return;
+    }
+
+    // 상태 한글 변환
+    const statusNames: Record<string, string> = {
+      PENDING: "대기중",
+      IN_PROGRESS: "진행중",
+      COMPLETED: "완료",
+      HOLDING: "홀딩",
+      DELAYED: "지연",
+      CANCELLED: "취소",
+    };
+
+    // 우선순위 한글 변환
+    const priorityNames: Record<string, string> = {
+      HIGH: "높음",
+      MEDIUM: "보통",
+      LOW: "낮음",
+    };
+
+    // 담당자별로 정렬 (담당자 이름 기준, 담당자 없는 것은 맨 뒤로)
+    const sortedTasks = [...tasks].sort((a, b) => {
+      const aAssignee = a.assignee?.name || a.assignees?.[0]?.name || "";
+      const bAssignee = b.assignee?.name || b.assignees?.[0]?.name || "";
+
+      // 담당자 없는 경우 맨 뒤로
+      if (!aAssignee && bAssignee) return 1;
+      if (aAssignee && !bAssignee) return -1;
+
+      // 담당자 이름으로 정렬
+      const nameCompare = aAssignee.localeCompare(bAssignee, "ko");
+      if (nameCompare !== 0) return nameCompare;
+
+      // 같은 담당자면 상태로 정렬 (대기중 -> 진행중 -> 완료)
+      const statusOrder = { PENDING: 0, IN_PROGRESS: 1, COMPLETED: 2, HOLDING: 3, DELAYED: 4, CANCELLED: 5 };
+      return (statusOrder[a.status as keyof typeof statusOrder] || 99) - (statusOrder[b.status as keyof typeof statusOrder] || 99);
+    });
+
+    // 엑셀 데이터 변환
+    const excelData = sortedTasks.map((task, index) => {
+      // 모든 담당자 이름 합치기
+      const allAssignees: string[] = [];
+      if (task.assignee?.name) allAssignees.push(task.assignee.name);
+      task.assignees?.forEach((a) => {
+        if (a.name && !allAssignees.includes(a.name)) {
+          allAssignees.push(a.name);
+        }
+      });
+
+      return {
+        "번호": index + 1,
+        "제목": task.title,
+        "설명": task.description || "",
+        "상태": statusNames[task.status] || task.status,
+        "우선순위": priorityNames[task.priority] || task.priority,
+        "주 담당자": task.assignee?.name || "",
+        "협업자": task.assignees?.map((a) => a.name).filter(Boolean).join(", ") || "",
+        "연결된 요구사항": task.requirement ? (task.requirement.code ? `[${task.requirement.code}] ${task.requirement.title}` : task.requirement.title) : "",
+        "시작일": task.startDate ? new Date(task.startDate).toLocaleDateString("ko-KR") : "",
+        "마감일": task.dueDate ? new Date(task.dueDate).toLocaleDateString("ko-KR") : "",
+        "생성일": task.createdAt ? new Date(task.createdAt).toLocaleDateString("ko-KR") : "",
+      };
+    });
+
+    // 워크북 생성
+    const worksheet = utils.json_to_sheet(excelData);
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, "작업목록");
+
+    // 컬럼 너비 설정
+    worksheet["!cols"] = [
+      { wch: 5 },   // 번호
+      { wch: 40 },  // 제목
+      { wch: 50 },  // 설명
+      { wch: 10 },  // 상태
+      { wch: 10 },  // 우선순위
+      { wch: 15 },  // 주 담당자
+      { wch: 30 },  // 협업자
+      { wch: 40 },  // 연결된 요구사항
+      { wch: 12 },  // 시작일
+      { wch: 12 },  // 마감일
+      { wch: 12 },  // 생성일
+    ];
+
+    // 파일명 생성 (프로젝트명_작업목록_날짜.xlsx)
+    const projectName = selectedProject?.name || "프로젝트";
+    const dateStr = new Date().toISOString().split("T")[0];
+    writeFile(workbook, `${projectName}_작업목록_${dateStr}.xlsx`);
+  };
+
   // 로딩 상태
   if (isLoading) {
     return (
@@ -428,6 +526,14 @@ export default function KanbanPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <Button
+              variant="outline"
+              leftIcon="download"
+              onClick={handleExportToExcel}
+              disabled={!selectedProjectId || tasks.length === 0}
+            >
+              엑셀 다운로드
+            </Button>
             <Button
               variant="primary"
               size="sm"

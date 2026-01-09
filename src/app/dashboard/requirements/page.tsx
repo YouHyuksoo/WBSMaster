@@ -19,6 +19,7 @@
 "use client";
 
 import { useState } from "react";
+import { utils, writeFile } from "xlsx";
 import { Icon, Button, Input } from "@/components/ui";
 import {
   useRequirements,
@@ -203,6 +204,58 @@ export default function RequirementsPage() {
     setShowModal(false);
   };
 
+  /**
+   * 엑셀 다운로드 핸들러
+   */
+  const handleExportToExcel = () => {
+    if (filteredRequirements.length === 0) {
+      alert("다운로드할 데이터가 없습니다.");
+      return;
+    }
+
+    // 엑셀 데이터 변환
+    const excelData = filteredRequirements.map((req) => ({
+      "코드": req.code || `REQ-${req.id.slice(0, 6)}`,
+      "제목": req.title,
+      "상태": statusConfig[req.status]?.label || req.status,
+      "우선순위": priorityConfig[req.priority]?.label || req.priority,
+      "카테고리": req.category || "-",
+      "요청자": req.requester?.name || req.requester?.email || "-",
+      "담당자": req.assignee?.name || req.assignee?.email || "-",
+      "요청일": req.requestDate ? new Date(req.requestDate).toLocaleDateString() : "-",
+      "마감일": req.dueDate ? new Date(req.dueDate).toLocaleDateString() : "-",
+      "설명": req.description || "",
+      "문서링크": req.oneDriveLink || "",
+    }));
+
+    // 워크시트 생성
+    const worksheet = utils.json_to_sheet(excelData);
+
+    // 컬럼 너비 설정
+    worksheet["!cols"] = [
+      { wch: 15 }, // 코드
+      { wch: 40 }, // 제목
+      { wch: 10 }, // 상태
+      { wch: 10 }, // 우선순위
+      { wch: 15 }, // 카테고리
+      { wch: 15 }, // 요청자
+      { wch: 15 }, // 담당자
+      { wch: 12 }, // 요청일
+      { wch: 12 }, // 마감일
+      { wch: 50 }, // 설명
+      { wch: 30 }, // 문서링크
+    ];
+
+    // 워크북 생성 및 파일 저장
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, "요구사항");
+    
+    // 파일명 생성 (프로젝트명_요구사항_날짜)
+    const projectName = selectedProject?.name || "Project";
+    const dateStr = new Date().toISOString().split("T")[0];
+    writeFile(workbook, `${projectName}_요구사항_${dateStr}.xlsx`);
+  };
+
   /** 로딩 상태 */
   if (isLoading) {
     return (
@@ -241,6 +294,15 @@ export default function RequirementsPage() {
               <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
             </div>
           )}
+          <Button
+            variant="outline"
+            leftIcon="download"
+            onClick={handleExportToExcel}
+            disabled={!selectedProjectId || filteredRequirements.length === 0}
+            className="hidden sm:flex"
+          >
+            엑셀 다운로드
+          </Button>
           <Button
             variant="primary"
             leftIcon="add"

@@ -172,7 +172,15 @@ export async function POST(request: NextRequest) {
         sqlQuery: response.sql || null,
         chartData: response.chartData ? JSON.parse(JSON.stringify(response.chartData)) : Prisma.JsonNull,
         chartType: response.chartType || null,
+        mindmapData: response.mindmapData ? JSON.parse(JSON.stringify(response.mindmapData)) : Prisma.JsonNull,
       },
+    });
+
+    // 디버깅: 응답 데이터 확인
+    console.log("[API Chat] Response:", {
+      chartType: response.chartType,
+      hasMindmapData: !!response.mindmapData,
+      mindmapDataPreview: response.mindmapData ? JSON.stringify(response.mindmapData).slice(0, 100) : null,
     });
 
     return NextResponse.json({
@@ -181,6 +189,7 @@ export async function POST(request: NextRequest) {
       sqlQuery: response.sql,
       chartType: response.chartType,
       chartData: response.chartData,
+      mindmapData: response.mindmapData,
     });
   } catch (error) {
     console.error("채팅 처리 실패:", error);
