@@ -80,6 +80,13 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  // 프로젝트 개요 정보
+  purpose           String?   // 프로젝트 목적
+  organizationChart Json?     // 프로젝트 조직도 (JSON 구조: {role, name, department}[])
+  successIndicators String[]  // 성공지표 (문자열 배열)
+  futureVision      String?   // 추구하는 미래모습
+  visionImage       String?   // 미래 비전 이미지 URL
+
   // 관계
   ownerId      String
   owner        User          @relation("ProjectOwner", fields: [ownerId], references: [id])

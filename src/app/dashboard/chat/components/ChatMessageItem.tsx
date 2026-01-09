@@ -1,0 +1,247 @@
+/**
+ * @file src/app/dashboard/chat/components/ChatMessageItem.tsx
+ * @description
+ * 개별 채팅 메시지 아이템 컴포넌트입니다.
+ * React.memo로 감싸서 해당 메시지가 변경되지 않으면 리렌더링하지 않습니다.
+ *
+ * 기능:
+ * - 사용자/어시스턴트 메시지 구분 표시
+ * - 마크다운 렌더링
+ * - SQL 쿼리 접기/펼치기
+ * - 차트/마인드맵 표시
+ * - 피드백 (좋아요/싫어요) UI
+ */
+
+import React, { memo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Icon, Card } from "@/components/ui";
+import ChartRenderer from "./ChartRenderer";
+import MindmapRenderer, { MindmapNode } from "./MindmapRenderer";
+
+/**
+ * 피드백 타입
+ */
+type FeedbackRating = "POSITIVE" | "NEGATIVE" | "NEUTRAL" | null;
+
+/**
+ * 채팅 메시지 타입
+ */
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sqlQuery?: string;
+  chartType?: "bar" | "bar3d" | "line" | "pie" | "area" | "mindmap";
+  chartData?: Record<string, unknown>[];
+  mindmapData?: MindmapNode;
+  createdAt: string;
+  processingTimeMs?: number;
+  feedback?: {
+    rating: FeedbackRating;
+    comment?: string;
+  };
+}
+
+interface ChatMessageItemProps {
+  message: ChatMessage;
+  onFeedback: (messageId: string, rating: FeedbackRating) => void;
+  onFeedbackComment: (messageId: string, comment: string) => void;
+  onFullscreenMindmap: (data: MindmapNode) => void;
+}
+
+/**
+ * 채팅 메시지 아이템 컴포넌트
+ */
+const ChatMessageItem = memo(function ChatMessageItem({
+  message,
+  onFeedback,
+  onFeedbackComment,
+  onFullscreenMindmap,
+}: ChatMessageItemProps) {
+  const [feedbackInput, setFeedbackInput] = useState("");
+
+  const handleFeedbackKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && feedbackInput.trim()) {
+      onFeedbackComment(message.id, feedbackInput);
+      setFeedbackInput("");
+    }
+  };
+
+  return (
+    <div
+      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+    >
+      <div
+        className={`max-w-[80%] ${
+          message.role === "user"
+            ? "bg-primary text-white rounded-2xl rounded-br-md px-4 py-3"
+            : "bg-surface dark:bg-surface-dark rounded-2xl rounded-bl-md"
+        }`}
+      >
+        {message.role === "assistant" ? (
+          <div className="p-4 space-y-4">
+            {/* 마크다운 렌더링 */}
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  // 코드 블록 스타일링
+                  code: ({ className, children, ...props }) => {
+                    const isInline = !className;
+                    return isInline ? (
+                      <code
+                        className="px-1.5 py-0.5 rounded bg-background-dark text-primary text-sm"
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    ) : (
+                      <code
+                        className="block p-3 rounded-lg bg-background-dark text-sm overflow-x-auto"
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    );
+                  },
+                  // 테이블 스타일링
+                  table: ({ children }) => (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border-collapse">{children}</table>
+                    </div>
+                  ),
+                  th: ({ children }) => (
+                    <th className="px-3 py-2 text-left bg-background-dark border border-border-dark">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="px-3 py-2 border border-border-dark">{children}</td>
+                  ),
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
+
+            {/* SQL 쿼리 표시 */}
+            {message.sqlQuery && (
+              <details className="group">
+                <summary className="flex items-center gap-2 cursor-pointer text-sm text-text-secondary hover:text-text">
+                  <Icon name="code" size="xs" />
+                  <span>실행된 SQL 쿼리</span>
+                  <Icon
+                    name="expand_more"
+                    size="xs"
+                    className="group-open:rotate-180 transition-transform"
+                  />
+                </summary>
+                <pre className="mt-2 p-3 rounded-lg bg-background-dark text-sm overflow-x-auto">
+                  <code className="text-green-400">{message.sqlQuery}</code>
+                </pre>
+              </details>
+            )}
+
+            {/* 차트 표시 */}
+            {message.chartType && message.chartType !== "mindmap" && message.chartData && (
+              <Card>
+                <div className="p-4">
+                  <ChartRenderer
+                    chartType={message.chartType}
+                    chartData={message.chartData}
+                  />
+                </div>
+              </Card>
+            )}
+
+            {/* 마인드맵 표시 */}
+            {message.chartType === "mindmap" && message.mindmapData && (
+              <Card>
+                <div className="p-2">
+                  <div className="flex items-center justify-between px-2 pb-2 border-b border-border-dark">
+                    <div className="flex items-center gap-2">
+                      <Icon name="account_tree" size="sm" className="text-primary" />
+                      <span className="text-sm font-medium text-text dark:text-white">
+                        마인드맵
+                      </span>
+                      <span className="text-xs text-text-secondary">
+                        (노드를 클릭하면 펼치기/접기)
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => onFullscreenMindmap(message.mindmapData!)}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-primary hover:bg-primary/10 rounded transition-colors"
+                      title="전체화면으로 보기"
+                    >
+                      <Icon name="fullscreen" size="sm" />
+                      <span>전체화면</span>
+                    </button>
+                  </div>
+                  <MindmapRenderer data={message.mindmapData} />
+                </div>
+              </Card>
+            )}
+
+            {/* 피드백 UI */}
+            <div className="mt-3 pt-3 border-t border-border dark:border-border-dark">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-text-secondary">
+                    응답이 도움이 되었나요?
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onFeedback(message.id, "POSITIVE")}
+                      className={`p-1.5 rounded-lg transition-all ${
+                        message.feedback?.rating === "POSITIVE"
+                          ? "bg-emerald-500/20 text-emerald-500"
+                          : "text-text-secondary hover:text-emerald-500 hover:bg-emerald-500/10"
+                      }`}
+                      title="도움됨"
+                    >
+                      <Icon name="thumb_up" size="sm" />
+                    </button>
+                    <button
+                      onClick={() => onFeedback(message.id, "NEGATIVE")}
+                      className={`p-1.5 rounded-lg transition-all ${
+                        message.feedback?.rating === "NEGATIVE"
+                          ? "bg-rose-500/20 text-rose-500"
+                          : "text-text-secondary hover:text-rose-500 hover:bg-rose-500/10"
+                      }`}
+                      title="개선필요"
+                    >
+                      <Icon name="thumb_down" size="sm" />
+                    </button>
+                  </div>
+                </div>
+                {message.processingTimeMs && (
+                  <span className="text-[10px] text-text-secondary">
+                    {(message.processingTimeMs / 1000).toFixed(1)}초
+                  </span>
+                )}
+              </div>
+              {/* 상세 피드백 입력 (부정적 피드백 시 표시) */}
+              {message.feedback?.rating === "NEGATIVE" && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    placeholder="개선이 필요한 부분을 알려주세요..."
+                    value={feedbackInput}
+                    onChange={(e) => setFeedbackInput(e.target.value)}
+                    onKeyDown={handleFeedbackKeyDown}
+                    className="w-full px-3 py-2 text-xs rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary focus:ring-1 focus:ring-primary/50"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          message.content
+        )}
+      </div>
+    </div>
+  );
+});
+
+export default ChatMessageItem;

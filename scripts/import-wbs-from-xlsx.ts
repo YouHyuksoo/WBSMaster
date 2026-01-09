@@ -26,7 +26,7 @@ import * as XLSX from "xlsx";
 import * as dotenv from "dotenv";
 import * as path from "path";
 
-dotenv.config({ path: ".env" });
+dotenv.config({ path: ".env.local" });
 
 // DB 연결 설정
 const pool = new Pool({

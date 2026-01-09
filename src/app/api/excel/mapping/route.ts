@@ -92,21 +92,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // AI 설정 조회
-    const aiSettings = await prisma.aiSettings.findFirst({
-      orderBy: { createdAt: "desc" },
+    // AI 설정 조회 (현재 사용자의 설정)
+    const aiSetting = await prisma.aiSetting.findUnique({
+      where: { userId: user!.id },
     });
 
-    if (!aiSettings) {
+    if (!aiSetting) {
       // LLM 없이 기본 매핑 시도
       return NextResponse.json(fallbackMapping(headers, targetType));
     }
 
     // LLM 클라이언트 생성
+    const apiKey = aiSetting.provider === "gemini"
+      ? aiSetting.geminiApiKey
+      : aiSetting.mistralApiKey;
+    const model = aiSetting.provider === "gemini"
+      ? aiSetting.geminiModel
+      : aiSetting.mistralModel;
+
+    if (!apiKey) {
+      // API 키가 없으면 기본 매핑 시도
+      return NextResponse.json(fallbackMapping(headers, targetType));
+    }
+
     const config: LLMConfig = {
-      provider: aiSettings.provider as "gemini" | "mistral",
-      apiKey: aiSettings.apiKey,
-      model: aiSettings.model,
+      provider: aiSetting.provider as "gemini" | "mistral",
+      apiKey,
+      model,
     };
 
     const client = createLLMClient(config);

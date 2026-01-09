@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
 
     // 매핑 역전환 (타겟필드 → 엑셀컬럼)
     const fieldToColumn: Record<string, string> = {};
-    for (const [column, field] of Object.entries(mappings)) {
+    for (const [column, field] of Object.entries(mappings as Record<string, string>)) {
       fieldToColumn[field] = column;
     }
 

@@ -160,12 +160,13 @@ export async function POST(request: NextRequest) {
       return results as unknown[];
     };
 
-    // LLM 파이프라인 실행 (시스템 프롬프트 설정 전달)
+    // LLM 파이프라인 실행 (시스템 프롬프트 설정 전달, userId 추가)
     const sqlGenStart = Date.now();
     const response = await processChatMessage(
       llmConfig,
       message,
       projectId || undefined,
+      user!.id,  // 현재 로그인한 사용자 ID 전달
       executeQuery,
       promptConfig
     );

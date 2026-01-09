@@ -22,11 +22,12 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon, Button, Card, Input, useToast } from "@/components/ui";
-import { useProjects, useTasks, useCreateProject, useUpdateProject, useDeleteProject, useWbsStats, useIssueStats, useRequirementStats, useTodaySchedules } from "@/hooks";
+import { useProjects, useTasks, useCreateProject, useUpdateProject, useDeleteProject, useWbsStats, useIssueStats, useRequirementStats, useTodaySchedules, useIssues, useRequirements } from "@/hooks";
 import { useProject } from "@/contexts/ProjectContext";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Project } from "@/lib/api";
 import { DailyTaskChart } from "@/components/dashboard/DailyTaskChart";
+import { ProjectOverviewModal } from "@/components/dashboard/ProjectOverviewModal";
 
 /** 로컬 사용자 타입 */
 interface LocalUser {
@@ -36,11 +37,25 @@ interface LocalUser {
   avatar?: string | null;
   role?: string;
 }
-/** 프로젝트 타입 확장 (WBS 단위업무 정보 포함) */
+/** 조직도 멤버 타입 */
+interface OrgMember {
+  id: string;
+  role: string;
+  name: string;
+  department?: string;
+}
+
+/** 프로젝트 타입 확장 (WBS 단위업무 정보 + 개요 정보 포함) */
 interface ProjectWithWbs extends Project {
   calculatedProgress?: number;
   totalUnitTasks?: number;
   completedUnitTasks?: number;
+  // 프로젝트 개요 정보
+  purpose?: string | null;
+  organizationChart?: OrgMember[] | null;
+  successIndicators?: string[];
+  futureVision?: string | null;
+  visionImage?: string | null;
 }
 
 /** 통계 카드 Props */
@@ -147,10 +162,12 @@ function StatCard({
 function ProjectCard({
   project,
   onEdit,
+  onOverview,
   animationDelay = 0,
 }: {
   project: ProjectWithWbs;
   onEdit: (project: ProjectWithWbs, e: React.MouseEvent) => void;
+  onOverview: (project: ProjectWithWbs, e: React.MouseEvent) => void;
   animationDelay?: number;
 }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -219,10 +236,20 @@ function ProjectCard({
             {project.description || "설명 없음"}
           </p>
         </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${color} shrink-0 flex items-center gap-1`}>
-          <Icon name={statusIcon} size="xs" />
-          {label}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* 개요 아이콘 버튼 */}
+          <button
+            onClick={(e) => onOverview(project, e)}
+            className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-all opacity-0 group-hover:opacity-100"
+            title="프로젝트 개요"
+          >
+            <Icon name="article" size="sm" />
+          </button>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${color} flex items-center gap-1`}>
+            <Icon name={statusIcon} size="xs" />
+            {label}
+          </span>
+        </div>
       </div>
 
       {/* 기간 표시 */}
@@ -290,11 +317,15 @@ export default function DashboardPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showQuickScheduleModal, setShowQuickScheduleModal] = useState(false);
+  const [showOverviewModal, setShowOverviewModal] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectWithWbs | null>(null);
+  const [overviewProject, setOverviewProject] = useState<ProjectWithWbs | null>(null);
   /** 프로젝트 상태 필터 */
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   /** 검색어 */
   const [searchQuery, setSearchQuery] = useState("");
+  /** MY 대시보드 필터 (내 데이터만 보기) */
+  const [isMyDashboard, setIsMyDashboard] = useState(false);
   /** 새로고침 중 상태 */
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [newProject, setNewProject] = useState({
@@ -337,6 +368,12 @@ export default function DashboardPage() {
   /** 요구사항 통계 (담당자별 처리 현황) */
   const { data: reqStats, isLoading: reqStatsLoading } = useRequirementStats();
 
+  /** 이슈 목록 조회 (MY 대시보드 필터용) */
+  const { data: issues = [] } = useIssues();
+
+  /** 요구사항 목록 조회 (MY 대시보드 필터용) */
+  const { data: requirements = [] } = useRequirements();
+
   /** 현재 선택된 프로젝트 */
   const { selectedProjectId } = useProject();
 
@@ -369,18 +406,92 @@ export default function DashboardPage() {
   // 사용자 이름 추출
   const userName = user?.name || user?.email?.split("@")[0] || "사용자";
 
-  // 통계 계산
+  /**
+   * MY 대시보드 필터 적용된 프로젝트 목록
+   * - 내가 소유한 프로젝트
+   * - 내가 팀 멤버로 참여한 프로젝트
+   */
+  const myProjects = isMyDashboard && user
+    ? projects.filter((p) => {
+        // 내가 소유한 프로젝트
+        if (p.ownerId === user.id) return true;
+        // 내가 팀 멤버인 프로젝트
+        if (p.teamMembers?.some((tm: { userId?: string }) => tm.userId === user.id)) return true;
+        return false;
+      })
+    : projects;
+
+  /**
+   * MY 대시보드 필터 적용된 태스크 목록
+   * - 내가 담당자인 태스크
+   * - 내가 생성한 태스크
+   */
+  const myTasks = isMyDashboard && user
+    ? tasks.filter((t) => {
+        // 내가 주 담당자
+        if (t.assigneeId === user.id || t.assignee?.id === user.id) return true;
+        // 내가 부 담당자
+        if (t.assignees?.some((a: { id?: string; userId?: string }) => a.id === user.id || a.userId === user.id)) return true;
+        // 내가 생성한 태스크
+        if (t.creatorId === user.id) return true;
+        return false;
+      })
+    : tasks;
+
+  /**
+   * 내가 담당자인 태스크만 (TASK 현황용)
+   * - 생성자 여부와 관계없이 내가 담당자인 것만
+   */
+  const myAssignedTasks = isMyDashboard && user
+    ? tasks.filter((t) => {
+        // 내가 주 담당자
+        if (t.assigneeId === user.id || t.assignee?.id === user.id) return true;
+        // 내가 부 담당자
+        if (t.assignees?.some((a: { id?: string; userId?: string }) => a.id === user.id || a.userId === user.id)) return true;
+        return false;
+      })
+    : tasks;
+
+  /**
+   * MY 대시보드용 이슈 필터링
+   * - 내가 보고자이거나 담당자인 이슈만
+   */
+  const myIssues = isMyDashboard && user
+    ? issues.filter((issue) => {
+        // 내가 보고자
+        if (issue.reporterId === user.id) return true;
+        // 내가 담당자
+        if (issue.assigneeId === user.id) return true;
+        return false;
+      })
+    : issues;
+
+  /**
+   * MY 대시보드용 요구사항 필터링
+   * - 내가 요청자이거나 담당자인 요구사항만
+   */
+  const myRequirements = isMyDashboard && user
+    ? requirements.filter((req) => {
+        // 내가 요청자
+        if (req.requesterId === user.id) return true;
+        // 내가 담당자
+        if (req.assigneeId === user.id) return true;
+        return false;
+      })
+    : requirements;
+
+  // 통계 계산 (MY 대시보드 필터 적용)
   const stats = {
-    totalProjects: projects.length,
-    activeProjects: projects.filter((p) => p.status === "ACTIVE").length,
-    completedProjects: projects.filter((p) => p.status === "COMPLETED").length,
-    totalTasks: tasks.length,
-    completedTasks: tasks.filter((t) => t.status === "COMPLETED").length,
-    pendingTasks: tasks.filter((t) => t.status === "PENDING").length,
+    totalProjects: myProjects.length,
+    activeProjects: myProjects.filter((p) => p.status === "ACTIVE").length,
+    completedProjects: myProjects.filter((p) => p.status === "COMPLETED").length,
+    totalTasks: myTasks.length,
+    completedTasks: myTasks.filter((t) => t.status === "COMPLETED").length,
+    pendingTasks: myTasks.filter((t) => t.status === "PENDING").length,
   };
 
   /** 필터링된 프로젝트 목록 */
-  const filteredProjects = projects.filter((p) => {
+  const filteredProjects = myProjects.filter((p) => {
     // 상태 필터
     if (statusFilter !== "ALL" && p.status !== statusFilter) return false;
     // 검색어 필터
@@ -495,6 +606,51 @@ export default function DashboardPage() {
   };
 
   /**
+   * 프로젝트 개요 모달 열기
+   */
+  const handleOpenOverviewModal = (project: ProjectWithWbs, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setOverviewProject(project);
+    setShowOverviewModal(true);
+  };
+
+  /**
+   * 프로젝트 개요 저장
+   */
+  const handleSaveOverview = async (data: {
+    purpose?: string | null;
+    organizationChart?: OrgMember[] | null;
+    successIndicators?: string[];
+    futureVision?: string | null;
+    visionImage?: string | null;
+  }) => {
+    if (!overviewProject) return;
+
+    try {
+      const response = await fetch(`/api/projects/${overviewProject.id}/overview`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("개요 저장 실패");
+
+      toast.success("프로젝트 개요가 저장되었습니다.");
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+
+      // 개요 프로젝트 업데이트
+      setOverviewProject({
+        ...overviewProject,
+        ...data,
+      });
+    } catch (error) {
+      toast.error("개요 저장에 실패했습니다.");
+      throw error;
+    }
+  };
+
+  /**
    * 프로젝트 수정 핸들러
    */
   const handleUpdateProject = async (e: React.FormEvent) => {
@@ -579,14 +735,25 @@ export default function DashboardPage() {
   return (
     <div className="p-6 space-y-6">
       {/* 헤더: 환영 메시지 + 퀵 액션 */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 animate-fadeIn">
+      <div className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-background-white dark:bg-surface-dark border rounded-xl p-4 animate-fadeIn transition-all ${
+        isMyDashboard ? "border-primary/50 ring-1 ring-primary/20" : "border-border dark:border-border-dark"
+      }`}>
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-xl font-bold text-text dark:text-white">
-              안녕하세요, {userName}님!
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-text dark:text-white">
+                {isMyDashboard ? `${userName}님의 대시보드` : `안녕하세요, ${userName}님!`}
+              </h1>
+              {isMyDashboard && (
+                <span className="px-2 py-0.5 text-xs font-bold bg-primary/20 text-primary rounded-full animate-pulse">
+                  MY
+                </span>
+              )}
+            </div>
             <p className="text-sm text-text-secondary">
-              오늘도 프로젝트를 효율적으로 관리해보세요.
+              {isMyDashboard
+                ? "나에게 할당된 프로젝트와 작업만 표시됩니다."
+                : "오늘도 프로젝트를 효율적으로 관리해보세요."}
             </p>
           </div>
         </div>
@@ -660,6 +827,16 @@ export default function DashboardPage() {
             >
               <Icon name="event" size="sm" />
             </button>
+            {/* MY 대시보드 토글 */}
+            <Button
+              variant={isMyDashboard ? "primary" : "ghost"}
+              size="sm"
+              leftIcon="person"
+              onClick={() => setIsMyDashboard(!isMyDashboard)}
+              className={isMyDashboard ? "ring-2 ring-primary/50" : ""}
+            >
+              MY
+            </Button>
             {/* 새 프로젝트 */}
             <Button variant="primary" size="sm" leftIcon="add" onClick={() => setShowCreateModal(true)}>
               새 프로젝트
@@ -782,6 +959,7 @@ export default function DashboardPage() {
                 key={project.id}
                 project={project}
                 onEdit={handleOpenEditModal}
+                onOverview={handleOpenOverviewModal}
                 animationDelay={index * 100}
               />
             ))}
@@ -1104,8 +1282,8 @@ export default function DashboardPage() {
                   delayed: number;
                 }>();
 
-                // TASK 데이터에서 담당자별 집계
-                tasks.forEach((task) => {
+                // TASK 데이터에서 담당자별 집계 (MY 대시보드: 내가 담당자인 것만)
+                myAssignedTasks.forEach((task) => {
                   // 주 담당자 확인, 없으면 부 담당자 중 첫 번째 사용
                   const primaryAssignee = task.assignee || (task.assignees && task.assignees.length > 0 ? task.assignees[0] : null);
                   const assigneeId = primaryAssignee?.id || "unassigned";
@@ -1205,20 +1383,20 @@ export default function DashboardPage() {
               })()}
             </div>
 
-            {/* 합계 - TASK 데이터 기준으로 계산 */}
+            {/* 합계 - TASK 데이터 기준으로 계산 (MY 대시보드: 내가 담당자인 것만) */}
             <div className="grid grid-cols-5 gap-2 items-center mt-2 pt-2 border-t border-border dark:border-border-dark">
               <div className="text-xs font-bold text-text dark:text-white">합계</div>
               <div className="text-center text-xs font-bold text-slate-500">
-                {tasks.filter((t) => t.status === "PENDING").length}
+                {myAssignedTasks.filter((t) => t.status === "PENDING").length}
               </div>
               <div className="text-center text-xs font-bold text-sky-500">
-                {tasks.filter((t) => t.status === "IN_PROGRESS").length}
+                {myAssignedTasks.filter((t) => t.status === "IN_PROGRESS").length}
               </div>
               <div className="text-center text-xs font-bold text-emerald-500">
-                {tasks.filter((t) => t.status === "COMPLETED").length}
+                {myAssignedTasks.filter((t) => t.status === "COMPLETED").length}
               </div>
               <div className="text-center text-xs font-bold text-rose-500">
-                {tasks.filter((t) => t.status === "DELAYED" || (t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "COMPLETED")).length}
+                {myAssignedTasks.filter((t) => t.status === "DELAYED" || (t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "COMPLETED")).length}
               </div>
             </div>
           </div>
@@ -1237,12 +1415,59 @@ export default function DashboardPage() {
                 </span>
               </div>
 
-              {/* 카테고리별 차트 */}
+              {/* 카테고리별 차트 - MY 대시보드 필터 적용 */}
               <div className="space-y-1.5">
-                {(!issueStats?.categories || issueStats.categories.length === 0) ? (
-                  <p className="text-xs text-text-secondary text-center py-4">등록된 이슈가 없습니다.</p>
-                ) : (
-                  issueStats.categories.map((cat) => {
+                {(() => {
+                  // MY 대시보드일 때는 myIssues에서 직접 통계 계산
+                  if (isMyDashboard) {
+                    if (myIssues.length === 0) {
+                      return <p className="text-xs text-text-secondary text-center py-4">나와 관련된 이슈가 없습니다.</p>;
+                    }
+                    // 카테고리별 그룹핑
+                    const categoryLabels: Record<string, string> = {
+                      BUG: "버그",
+                      IMPROVEMENT: "개선",
+                      QUESTION: "질문",
+                      FEATURE: "기능",
+                      DOCUMENTATION: "문서",
+                      OTHER: "기타",
+                    };
+                    const categoryMap = new Map<string, { resolved: number; unresolved: number }>();
+                    myIssues.forEach((issue) => {
+                      const cat = issue.category || "OTHER";
+                      if (!categoryMap.has(cat)) {
+                        categoryMap.set(cat, { resolved: 0, unresolved: 0 });
+                      }
+                      const data = categoryMap.get(cat)!;
+                      if (issue.status === "RESOLVED" || issue.status === "CLOSED") {
+                        data.resolved++;
+                      } else {
+                        data.unresolved++;
+                      }
+                    });
+                    return Array.from(categoryMap.entries()).map(([cat, data]) => {
+                      const total = data.resolved + data.unresolved;
+                      const resolvedPercent = total > 0 ? (data.resolved / total) * 100 : 0;
+                      const unresolvedPercent = total > 0 ? (data.unresolved / total) * 100 : 0;
+                      return (
+                        <div key={cat} className="space-y-0.5">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-text dark:text-white font-medium">{categoryLabels[cat] || cat}</span>
+                            <span className="text-text-secondary">{data.resolved}/{total}</span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                            <div className="h-full bg-teal-400" style={{ width: `${resolvedPercent}%` }} />
+                            <div className="h-full bg-rose-300" style={{ width: `${unresolvedPercent}%` }} />
+                          </div>
+                        </div>
+                      );
+                    });
+                  }
+                  // 전체 대시보드: 기존 issueStats 사용
+                  if (!issueStats?.categories || issueStats.categories.length === 0) {
+                    return <p className="text-xs text-text-secondary text-center py-4">등록된 이슈가 없습니다.</p>;
+                  }
+                  return issueStats.categories.map((cat) => {
                     const resolvedPercent = cat.total > 0 ? (cat.resolved / cat.total) * 100 : 0;
                     const unresolvedPercent = cat.total > 0 ? (cat.unresolved / cat.total) * 100 : 0;
                     return (
@@ -1257,44 +1482,51 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     );
-                  })
-                )}
+                  });
+                })()}
               </div>
 
               {/* 범례 및 총계 + 해결율 */}
-              {issueStats && (
-                <div className="mt-3 pt-2 border-t border-border dark:border-border-dark">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1">
-                        <div className="size-2 rounded-full bg-teal-400" />
-                        <span className="text-[10px] text-text-secondary">해결</span>
-                        <span className="text-xs font-bold text-teal-500 ml-0.5">{issueStats.total.resolved}</span>
+              {(() => {
+                // MY 대시보드일 때는 myIssues에서 계산
+                const resolved = isMyDashboard
+                  ? myIssues.filter((i) => i.status === "RESOLVED" || i.status === "CLOSED").length
+                  : issueStats?.total.resolved || 0;
+                const unresolved = isMyDashboard
+                  ? myIssues.filter((i) => i.status !== "RESOLVED" && i.status !== "CLOSED").length
+                  : issueStats?.total.unresolved || 0;
+                const total = resolved + unresolved;
+                const rate = total > 0 ? Math.round((resolved / total) * 100) : 0;
+
+                if (total === 0 && !isMyDashboard && !issueStats) return null;
+
+                return (
+                  <div className="mt-3 pt-2 border-t border-border dark:border-border-dark">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <div className="size-2 rounded-full bg-teal-400" />
+                          <span className="text-[10px] text-text-secondary">해결</span>
+                          <span className="text-xs font-bold text-teal-500 ml-0.5">{resolved}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="size-2 rounded-full bg-rose-300" />
+                          <span className="text-[10px] text-text-secondary">미해결</span>
+                          <span className="text-xs font-bold text-rose-400 ml-0.5">{unresolved}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <div className="size-2 rounded-full bg-rose-300" />
-                        <span className="text-[10px] text-text-secondary">미해결</span>
-                        <span className="text-xs font-bold text-rose-400 ml-0.5">{issueStats.total.unresolved}</span>
+                      <div className="text-xs">
+                        <span className="text-text-secondary">해결율 </span>
+                        <span className={`font-bold ${
+                          rate >= 70 ? "text-emerald-500" : rate >= 50 ? "text-sky-500" : "text-rose-500"
+                        }`}>
+                          {rate}%
+                        </span>
                       </div>
-                    </div>
-                    <div className="text-xs">
-                      <span className="text-text-secondary">해결율 </span>
-                      <span className={`font-bold ${
-                        (issueStats.total.resolved + issueStats.total.unresolved) > 0 &&
-                        Math.round((issueStats.total.resolved / (issueStats.total.resolved + issueStats.total.unresolved)) * 100) >= 70
-                          ? "text-emerald-500"
-                          : Math.round((issueStats.total.resolved / (issueStats.total.resolved + issueStats.total.unresolved)) * 100) >= 50
-                          ? "text-sky-500"
-                          : "text-rose-500"
-                      }`}>
-                        {(issueStats.total.resolved + issueStats.total.unresolved) > 0
-                          ? Math.round((issueStats.total.resolved / (issueStats.total.resolved + issueStats.total.unresolved)) * 100)
-                          : 0}%
-                      </span>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
 
@@ -1312,44 +1544,111 @@ export default function DashboardPage() {
                 </span>
               </div>
 
-              {/* 상태별 요약 */}
-              {reqStats && (
-                <div className="grid grid-cols-4 gap-1.5 mb-3">
-                  <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-1.5 text-center">
-                    <div className="text-sm font-bold text-slate-500">{reqStats.total.draft}</div>
-                    <div className="text-[10px] text-text-secondary">초안</div>
-                  </div>
-                  <div className="bg-sky-50 dark:bg-sky-900/20 rounded-lg p-1.5 text-center">
-                    <div className="text-sm font-bold text-sky-500">{reqStats.total.approved}</div>
-                    <div className="text-[10px] text-text-secondary">승인</div>
-                  </div>
-                  <div className="bg-rose-50 dark:bg-rose-900/20 rounded-lg p-1.5 text-center">
-                    <div className="text-sm font-bold text-rose-400">{reqStats.total.rejected}</div>
-                    <div className="text-[10px] text-text-secondary">반려</div>
-                  </div>
-                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-1.5 text-center">
-                    <div className="text-sm font-bold text-emerald-500">{reqStats.total.implemented}</div>
-                    <div className="text-[10px] text-text-secondary">구현</div>
-                  </div>
-                </div>
-              )}
+              {/* 상태별 요약 - MY 대시보드 필터 적용 */}
+              {(() => {
+                // MY 대시보드일 때는 myRequirements에서 계산
+                const draft = isMyDashboard
+                  ? myRequirements.filter((r) => r.status === "DRAFT").length
+                  : reqStats?.total.draft || 0;
+                const approved = isMyDashboard
+                  ? myRequirements.filter((r) => r.status === "APPROVED").length
+                  : reqStats?.total.approved || 0;
+                const rejected = isMyDashboard
+                  ? myRequirements.filter((r) => r.status === "REJECTED").length
+                  : reqStats?.total.rejected || 0;
+                const implemented = isMyDashboard
+                  ? myRequirements.filter((r) => r.status === "IMPLEMENTED").length
+                  : reqStats?.total.implemented || 0;
+                const total = draft + approved + rejected + implemented;
 
-              {/* 담당자별 처리율 */}
+                if (total === 0 && isMyDashboard) {
+                  return <p className="text-xs text-text-secondary text-center py-4">나와 관련된 요구사항이 없습니다.</p>;
+                }
+
+                return (
+                  <div className="grid grid-cols-4 gap-1.5 mb-3">
+                    <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-1.5 text-center">
+                      <div className="text-sm font-bold text-slate-500">{draft}</div>
+                      <div className="text-[10px] text-text-secondary">초안</div>
+                    </div>
+                    <div className="bg-sky-50 dark:bg-sky-900/20 rounded-lg p-1.5 text-center">
+                      <div className="text-sm font-bold text-sky-500">{approved}</div>
+                      <div className="text-[10px] text-text-secondary">승인</div>
+                    </div>
+                    <div className="bg-rose-50 dark:bg-rose-900/20 rounded-lg p-1.5 text-center">
+                      <div className="text-sm font-bold text-rose-400">{rejected}</div>
+                      <div className="text-[10px] text-text-secondary">반려</div>
+                    </div>
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-1.5 text-center">
+                      <div className="text-sm font-bold text-emerald-500">{implemented}</div>
+                      <div className="text-[10px] text-text-secondary">구현</div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 담당자별 처리율 - MY 대시보드 필터 적용 */}
               <div className="space-y-2">
-                {(!reqStats?.assignees || reqStats.assignees.length === 0) ? (
-                  <p className="text-xs text-text-secondary text-center py-4">
-                    담당자가 할당된 요구사항이 없습니다.
-                  </p>
-                ) : (
-                  reqStats.assignees.map((assignee) => (
+                {(() => {
+                  // MY 대시보드일 때는 myRequirements에서 담당자별 통계 계산
+                  if (isMyDashboard) {
+                    if (myRequirements.length === 0) return null;
+
+                    // 현재 사용자의 통계만 계산
+                    const myStats = {
+                      draft: myRequirements.filter((r) => r.status === "DRAFT").length,
+                      approved: myRequirements.filter((r) => r.status === "APPROVED").length,
+                      rejected: myRequirements.filter((r) => r.status === "REJECTED").length,
+                      implemented: myRequirements.filter((r) => r.status === "IMPLEMENTED").length,
+                    };
+                    const total = myStats.draft + myStats.approved + myStats.rejected + myStats.implemented;
+                    const completionRate = total > 0 ? Math.round(((myStats.implemented + myStats.approved) / total) * 100) : 0;
+
+                    return (
+                      <div className="flex items-center gap-2">
+                        <div className="size-6 rounded-full bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center shrink-0">
+                          <span className="text-[10px] font-semibold text-sky-500">
+                            {user?.name?.charAt(0) || "?"}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between text-xs mb-0.5">
+                            <span className="text-text dark:text-white truncate font-medium">
+                              {user?.name || "나"}
+                            </span>
+                            <span className="text-text-secondary shrink-0 ml-1">
+                              {myStats.implemented + myStats.approved}/{total}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                            <div className="h-full bg-emerald-400" style={{ width: `${total > 0 ? (myStats.implemented / total) * 100 : 0}%` }} />
+                            <div className="h-full bg-sky-400" style={{ width: `${total > 0 ? (myStats.approved / total) * 100 : 0}%` }} />
+                            <div className="h-full bg-slate-300" style={{ width: `${total > 0 ? (myStats.draft / total) * 100 : 0}%` }} />
+                            <div className="h-full bg-rose-300" style={{ width: `${total > 0 ? (myStats.rejected / total) * 100 : 0}%` }} />
+                          </div>
+                        </div>
+                        <span className={`text-xs font-bold shrink-0 ${
+                          completionRate >= 80 ? "text-emerald-500" : completionRate >= 50 ? "text-sky-500" : "text-slate-400"
+                        }`}>
+                          {completionRate}%
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  // 전체 대시보드: 기존 reqStats 사용
+                  if (!reqStats?.assignees || reqStats.assignees.length === 0) {
+                    return (
+                      <p className="text-xs text-text-secondary text-center py-4">
+                        담당자가 할당된 요구사항이 없습니다.
+                      </p>
+                    );
+                  }
+
+                  return reqStats.assignees.map((assignee) => (
                     <div key={assignee.id} className="flex items-center gap-2">
-                      {/* 아바타 */}
                       {assignee.avatar ? (
-                        <img
-                          src={assignee.avatar}
-                          alt={assignee.name}
-                          className="size-6 rounded-full object-cover shrink-0"
-                        />
+                        <img src={assignee.avatar} alt={assignee.name} className="size-6 rounded-full object-cover shrink-0" />
                       ) : (
                         <div className="size-6 rounded-full bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center shrink-0">
                           <span className="text-[10px] font-semibold text-sky-500">
@@ -1357,54 +1656,30 @@ export default function DashboardPage() {
                           </span>
                         </div>
                       )}
-                      {/* 이름 및 진행률 바 */}
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between text-xs mb-0.5">
-                          <span className="text-text dark:text-white truncate font-medium">
-                            {assignee.name}
-                          </span>
-                          <span className="text-text-secondary shrink-0 ml-1">
-                            {assignee.implemented + assignee.approved}/{assignee.total}
-                          </span>
+                          <span className="text-text dark:text-white truncate font-medium">{assignee.name}</span>
+                          <span className="text-text-secondary shrink-0 ml-1">{assignee.implemented + assignee.approved}/{assignee.total}</span>
                         </div>
                         <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden flex">
-                          <div
-                            className="h-full bg-emerald-400"
-                            style={{ width: `${assignee.total > 0 ? (assignee.implemented / assignee.total) * 100 : 0}%` }}
-                            title={`구현완료: ${assignee.implemented}건`}
-                          />
-                          <div
-                            className="h-full bg-sky-400"
-                            style={{ width: `${assignee.total > 0 ? (assignee.approved / assignee.total) * 100 : 0}%` }}
-                            title={`승인: ${assignee.approved}건`}
-                          />
-                          <div
-                            className="h-full bg-slate-300"
-                            style={{ width: `${assignee.total > 0 ? (assignee.draft / assignee.total) * 100 : 0}%` }}
-                            title={`초안: ${assignee.draft}건`}
-                          />
-                          <div
-                            className="h-full bg-rose-300"
-                            style={{ width: `${assignee.total > 0 ? (assignee.rejected / assignee.total) * 100 : 0}%` }}
-                            title={`반려: ${assignee.rejected}건`}
-                          />
+                          <div className="h-full bg-emerald-400" style={{ width: `${assignee.total > 0 ? (assignee.implemented / assignee.total) * 100 : 0}%` }} />
+                          <div className="h-full bg-sky-400" style={{ width: `${assignee.total > 0 ? (assignee.approved / assignee.total) * 100 : 0}%` }} />
+                          <div className="h-full bg-slate-300" style={{ width: `${assignee.total > 0 ? (assignee.draft / assignee.total) * 100 : 0}%` }} />
+                          <div className="h-full bg-rose-300" style={{ width: `${assignee.total > 0 ? (assignee.rejected / assignee.total) * 100 : 0}%` }} />
                         </div>
                       </div>
-                      {/* 처리율 */}
                       <span className={`text-xs font-bold shrink-0 ${
-                        assignee.completionRate >= 80 ? "text-emerald-500" :
-                        assignee.completionRate >= 50 ? "text-sky-500" :
-                        "text-slate-400"
+                        assignee.completionRate >= 80 ? "text-emerald-500" : assignee.completionRate >= 50 ? "text-sky-500" : "text-slate-400"
                       }`}>
                         {assignee.completionRate}%
                       </span>
                     </div>
-                  ))
-                )}
+                  ));
+                })()}
               </div>
 
               {/* 범례 */}
-              {reqStats?.assignees && reqStats.assignees.length > 0 && (
+              {((isMyDashboard && myRequirements.length > 0) || (!isMyDashboard && reqStats?.assignees && reqStats.assignees.length > 0)) && (
                 <div className="flex items-center justify-center gap-2 mt-3 pt-2 border-t border-border dark:border-border-dark flex-wrap">
                   <div className="flex items-center gap-1">
                     <div className="size-2 rounded-full bg-emerald-400" />
@@ -1767,6 +2042,19 @@ export default function DashboardPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* 프로젝트 개요 모달 */}
+      {showOverviewModal && overviewProject && (
+        <ProjectOverviewModal
+          project={overviewProject}
+          isOpen={showOverviewModal}
+          onClose={() => {
+            setShowOverviewModal(false);
+            setOverviewProject(null);
+          }}
+          onSave={handleSaveOverview}
+        />
       )}
     </div>
   );
