@@ -62,8 +62,30 @@ export default function ChatPage() {
   } | null>(null);
 
   // 동적 제안 질문 상태
+  // localStorage 키: 마지막 제안을 저장하여 페이지 새로고침 후에도 유지
+  const SUGGESTIONS_STORAGE_KEY = "wbs-chat-suggestions";
   const [suggestions, setSuggestions] = useState<ExampleGroup[]>(EXAMPLE_GROUPS);
   const [isRefreshingSuggestions, setIsRefreshingSuggestions] = useState(false);
+
+  // localStorage에서 저장된 제안 불러오기 (최초 로드 시)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SUGGESTIONS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as ExampleGroup[];
+        // 유효성 검증: 5개 카테고리, 각각 questions 배열 존재
+        if (
+          Array.isArray(parsed) &&
+          parsed.length === 5 &&
+          parsed.every((g) => g.title && Array.isArray(g.questions))
+        ) {
+          setSuggestions(parsed);
+        }
+      }
+    } catch (error) {
+      console.error("저장된 제안 로드 실패:", error);
+    }
+  }, []);
 
   // 삭제 확인 모달 상태
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -200,7 +222,7 @@ export default function ChatPage() {
 
   /**
    * 제안 질문 새로고침
-   * LLM에게 새로운 제안을 요청하고, 응답이 있으면 업데이트
+   * LLM에게 새로운 제안을 요청하고, 응답이 있으면 업데이트 및 localStorage에 저장
    * 응답이 없거나 오류 시 기존 제안 유지
    */
   const refreshSuggestions = useCallback(async () => {
@@ -216,9 +238,15 @@ export default function ChatPage() {
 
       if (res.ok) {
         const data = await res.json();
-        // AI가 생성한 제안이면 업데이트
+        // AI가 생성한 제안이면 업데이트 및 저장
         if (data.suggestions && Array.isArray(data.suggestions)) {
           setSuggestions(data.suggestions);
+          // localStorage에 저장하여 다음 방문 시에도 유지
+          try {
+            localStorage.setItem(SUGGESTIONS_STORAGE_KEY, JSON.stringify(data.suggestions));
+          } catch (e) {
+            console.error("제안 저장 실패:", e);
+          }
           if (data.source === "ai") {
             toast.success("새로운 제안이 생성되었습니다!");
           }
