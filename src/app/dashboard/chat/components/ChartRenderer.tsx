@@ -12,9 +12,8 @@
  * - area: 그래디언트 영역 차트
  */
 
-import React, { memo, useMemo, useRef, useEffect } from "react";
+import React, { memo, useMemo, useEffect, useRef } from "react";
 import ReactECharts from "echarts-for-react";
-import type { EChartsInstance } from "echarts-for-react";
 import "echarts-gl";
 
 /**
@@ -48,15 +47,16 @@ const ChartRenderer = memo(function ChartRenderer({
   chartType,
   chartData,
 }: ChartRendererProps) {
-  // 차트 인스턴스 ref (cleanup용)
   const chartRef = useRef<ReactECharts>(null);
 
-  // 컴포넌트 언마운트 시 차트 인스턴스 dispose (특히 3D 차트에서 중요)
+  // 3D 차트 cleanup - 컴포넌트 언마운트 시 애니메이션 중지
   useEffect(() => {
     return () => {
       if (chartRef.current) {
         const instance = chartRef.current.getEchartsInstance();
         if (instance && !instance.isDisposed()) {
+          // 3D 차트의 경우 애니메이션을 먼저 중지
+          instance.dispatchAction({ type: 'bindViewControl', bindAutoRotate: false });
           instance.dispose();
         }
       }
@@ -64,17 +64,28 @@ const ChartRenderer = memo(function ChartRenderer({
   }, []);
 
   // 데이터 유효성 검사
-  if (!chartData || chartData.length === 0) return null;
+  if (!chartData || chartData.length === 0) {
+    console.warn("[ChartRenderer] chartData가 비어있음");
+    return null;
+  }
 
   // 유효한 데이터만 필터링 (name과 value가 있는 것만)
   const validData = chartData.filter(
     (d) => d.name !== undefined && d.name !== null && d.value !== undefined && d.value !== null
   );
 
-  if (validData.length === 0) return null;
+  if (validData.length === 0) {
+    console.warn("[ChartRenderer] 유효한 데이터가 없음", chartData);
+    return null;
+  }
 
-  const labels = validData.map((d) => String(d.name));
+  const labels = validData.map((d) => String(d.name || ""));
   const values = validData.map((d) => Number(d.value) || 0);
+
+  // 디버깅: 데이터 확인
+  if (chartType === "bar3d") {
+    console.log("[ChartRenderer] bar3d 데이터:", { labels, values, validData });
+  }
 
   // 다크모드 감지
   const isDarkMode = typeof document !== "undefined" &&
@@ -443,8 +454,9 @@ const ChartRenderer = memo(function ChartRenderer({
         };
 
       case "bar3d":
-        // 3D 차트는 데이터가 충분해야 안정적으로 동작
-        if (values.length === 0) {
+        // 3D 차트는 유효한 labels가 필수
+        if (labels.length === 0 || labels.some(l => !l)) {
+          console.warn("[ChartRenderer] bar3d: labels가 유효하지 않음", labels);
           return {};
         }
         return {
@@ -455,7 +467,7 @@ const ChartRenderer = memo(function ChartRenderer({
           },
           xAxis3D: {
             type: "category",
-            data: labels,
+            data: [...labels], // 새 배열로 복사하여 전달
             axisLabel: { color: textColor, fontSize: 11 },
             axisLine: { lineStyle: { color: gridColor } },
           },
@@ -534,6 +546,12 @@ const ChartRenderer = memo(function ChartRenderer({
     }
   }, [chartType, validData, labels, values, isDarkMode, textColor, gridColor]);
 
+  // option이 비어있으면 렌더링하지 않음 (3D 차트 오류 방지)
+  if (!option || Object.keys(option).length === 0) {
+    console.warn("[ChartRenderer] option이 비어있어 렌더링 스킵", { chartType });
+    return null;
+  }
+
   return (
     <ReactECharts
       ref={chartRef}
@@ -542,6 +560,12 @@ const ChartRenderer = memo(function ChartRenderer({
       opts={{ renderer: "canvas" }}
       notMerge={true}
       lazyUpdate={true}
+      onChartReady={(instance) => {
+        // 3D 차트 초기화 완료 후 로그
+        if (chartType === "bar3d") {
+          console.log("[ChartRenderer] bar3d 차트 준비 완료");
+        }
+      }}
     />
   );
 });
