@@ -26,6 +26,7 @@ import { useProjects, useTasks, useCreateProject, useUpdateProject, useDeletePro
 import { useProject } from "@/contexts/ProjectContext";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Project } from "@/lib/api";
+import { DailyTaskChart } from "@/components/dashboard/DailyTaskChart";
 
 /** 로컬 사용자 타입 */
 interface LocalUser {
@@ -1426,6 +1427,11 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 일자별 작업 부하 차트 */}
+      <div className="mt-6">
+        <DailyTaskChart projectId={selectedProjectId || projects?.[0]?.id || ""} />
       </div>
 
       {/* 프로젝트 생성 모달 */}

@@ -44,18 +44,33 @@ import { Icon, Button, Card } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { useProject } from "@/contexts";
 import { api, AiPersona } from "@/lib/api";
+import { ExcelMappingModal } from "./components/ExcelMappingModal";
 
 /**
  * 마인드맵 노드 타입
+ * 진행률, 담당자, 완료일자 정보 포함
  */
 interface MindmapNode {
   name: string;
   children?: MindmapNode[];
   value?: number;
+  /** 진행률 (0-100) */
+  progress?: number;
+  /** 담당자 이름 */
+  assignee?: string;
+  /** 종료일/완료일 */
+  endDate?: string;
+  /** 상태 */
+  status?: string;
   itemStyle?: {
     color?: string;
   };
 }
+
+/**
+ * 피드백 타입
+ */
+type FeedbackRating = "POSITIVE" | "NEGATIVE" | "NEUTRAL" | null;
 
 /**
  * 채팅 메시지 타입
@@ -69,6 +84,11 @@ interface ChatMessage {
   chartData?: Record<string, unknown>[];
   mindmapData?: MindmapNode;
   createdAt: string;
+  processingTimeMs?: number;
+  feedback?: {
+    rating: FeedbackRating;
+    comment?: string;
+  };
 }
 
 /**
@@ -108,9 +128,23 @@ export default function ChatPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [fullscreenMindmap, setFullscreenMindmap] = useState<MindmapNode | null>(null);
 
+  // 엑셀 파일 업로드 상태
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [targetType, setTargetType] = useState<"task" | "issue" | "requirement">("task");
+  const [isUploadingExcel, setIsUploadingExcel] = useState(false);
+  const [showMappingModal, setShowMappingModal] = useState(false);
+  const [excelParseResult, setExcelParseResult] = useState<{
+    headers: string[];
+    sampleData: Record<string, unknown>[];
+    totalRows: number;
+    rawData: Record<string, unknown>[];
+  } | null>(null);
+  const [suggestedMappings, setSuggestedMappings] = useState<Record<string, string>>({});
+
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   /**
    * 메시지 영역 스크롤
@@ -214,7 +248,7 @@ export default function ChatPage() {
         const data = await res.json();
         console.log("[Chat] API 응답:", { chartType: data.chartType, hasMindmapData: !!data.mindmapData });
         const assistantMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
+          id: data.id, // API 응답에서 ID 가져오기
           role: "assistant",
           content: data.content,
           sqlQuery: data.sqlQuery,
@@ -222,6 +256,7 @@ export default function ChatPage() {
           chartData: data.chartData,
           mindmapData: data.mindmapData,
           createdAt: new Date().toISOString(),
+          processingTimeMs: data.processingTimeMs, // 처리 시간 추가
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } else {
@@ -247,10 +282,227 @@ export default function ChatPage() {
   };
 
   /**
+   * 파일 선택 핸들러
+   * 엑셀 파일(.xlsx, .xls, .csv)만 허용
+   */
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 파일 확장자 검증
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!["xlsx", "xls", "csv"].includes(ext || "")) {
+      toast.error("지원하지 않는 파일 형식입니다. (.xlsx, .xls, .csv만 가능)");
+      return;
+    }
+
+    // 파일 크기 제한 (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("파일 크기는 5MB 이하여야 합니다.");
+      return;
+    }
+
+    setSelectedFile(file);
+    // 입력 초기화 (같은 파일 다시 선택 가능하도록)
+    e.target.value = "";
+  };
+
+  /**
+   * 엑셀 파일 업로드 및 파싱 처리
+   */
+  const handleExcelUpload = async () => {
+    if (!selectedFile) return;
+
+    // 프로젝트 선택 확인
+    if (!selectedProjectId) {
+      toast.error("프로젝트를 먼저 선택해주세요.");
+      return;
+    }
+
+    setIsUploadingExcel(true);
+
+    try {
+      // 1. 파일 파싱 API 호출
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const parseRes = await fetch("/api/excel/parse", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!parseRes.ok) {
+        const error = await parseRes.json();
+        toast.error(error.error || "파일 파싱에 실패했습니다.");
+        return;
+      }
+
+      const parseData = await parseRes.json();
+      setExcelParseResult(parseData);
+
+      // 2. LLM 컬럼 매핑 요청
+      const mappingRes = await fetch("/api/excel/mapping", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          headers: parseData.headers,
+          sampleData: parseData.sampleData,
+          targetType,
+        }),
+      });
+
+      if (mappingRes.ok) {
+        const mappingData = await mappingRes.json();
+        setSuggestedMappings(mappingData.mappings || {});
+      } else {
+        // LLM 매핑 실패 시 빈 매핑으로 시작
+        setSuggestedMappings({});
+      }
+
+      // 3. 매핑 모달 표시
+      setShowMappingModal(true);
+
+      // 4. 채팅에 사용자 메시지 추가
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: "user",
+        content: `📎 **${selectedFile.name}** 파일을 업로드했습니다.\n- 총 ${parseData.totalRows}건의 데이터\n- ${targetType === "task" ? "태스크" : targetType === "issue" ? "이슈" : "요구사항"}로 등록 예정`,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+
+    } catch (error) {
+      console.error("엑셀 업로드 실패:", error);
+      toast.error("엑셀 처리 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingExcel(false);
+    }
+  };
+
+  /**
+   * 매핑 확인 후 벌크 임포트 실행
+   */
+  const handleMappingConfirm = async (finalMappings: Record<string, string>) => {
+    if (!excelParseResult || !selectedProjectId) return;
+
+    setIsUploadingExcel(true);
+
+    try {
+      const res = await fetch("/api/excel/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetType,
+          projectId: selectedProjectId,
+          data: excelParseResult.rawData,
+          mappings: finalMappings,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        // 성공 메시지 채팅에 추가
+        const assistantMessage: ChatMessage = {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: `✅ **엑셀 데이터 등록 완료**\n\n- 성공: **${result.success}건**\n- 실패: **${result.failed}건**${result.errors?.length > 0 ? `\n\n**오류 내역:**\n${result.errors.slice(0, 5).join("\n")}${result.errors.length > 5 ? `\n... 외 ${result.errors.length - 5}건` : ""}` : ""}`,
+          createdAt: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        toast.success(`${result.success}건 등록 완료!`);
+      } else {
+        toast.error(result.error || "등록에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("벌크 임포트 실패:", error);
+      toast.error("등록 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingExcel(false);
+      setShowMappingModal(false);
+      setSelectedFile(null);
+      setExcelParseResult(null);
+      setSuggestedMappings({});
+    }
+  };
+
+  /**
    * 채팅 기록 삭제 확인 모달 열기
    */
   const handleClearHistory = () => {
     setShowDeleteModal(true);
+  };
+
+  /**
+   * 피드백 제출
+   * @param messageId 메시지 ID
+   * @param rating 피드백 평가 (POSITIVE/NEGATIVE)
+   */
+  const handleFeedback = async (messageId: string, rating: FeedbackRating) => {
+    try {
+      const res = await fetch("/api/chat/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatHistoryId: messageId,
+          rating,
+        }),
+      });
+
+      if (res.ok) {
+        // 로컬 상태 업데이트
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, feedback: { rating, comment: msg.feedback?.comment } }
+              : msg
+          )
+        );
+        toast.success(rating === "POSITIVE" ? "감사합니다!" : "의견을 반영하겠습니다.");
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "피드백 제출에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("피드백 제출 실패:", error);
+      toast.error("피드백 제출 중 오류가 발생했습니다.");
+    }
+  };
+
+  /**
+   * 피드백 코멘트 제출
+   * @param messageId 메시지 ID
+   * @param comment 상세 코멘트
+   */
+  const handleFeedbackComment = async (messageId: string, comment: string) => {
+    if (!comment.trim()) return;
+
+    try {
+      const message = messages.find((m) => m.id === messageId);
+      const res = await fetch("/api/chat/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatHistoryId: messageId,
+          rating: message?.feedback?.rating || "NEGATIVE",
+          comment,
+        }),
+      });
+
+      if (res.ok) {
+        // 로컬 상태 업데이트
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, feedback: { ...msg.feedback, rating: msg.feedback?.rating || "NEGATIVE", comment } }
+              : msg
+          )
+        );
+        toast.success("상세 의견이 등록되었습니다.");
+      }
+    } catch (error) {
+      console.error("피드백 코멘트 제출 실패:", error);
+    }
   };
 
   /**
@@ -472,38 +724,144 @@ export default function ChatPage() {
     // 노드가 많으면 초기에 접어서 보여주기
     const initialDepth = totalNodes > 50 ? 1 : totalNodes > 20 ? 2 : 3;
 
+    // 현재 테마 감지 (dark 클래스 확인)
+    const isDarkMode = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+    const textColor = isDarkMode ? "#E5E7EB" : "#1F2937";
+    const lineColor = isDarkMode ? "#6B7280" : "#9CA3AF";
+
+    /**
+     * 노드 라벨 포맷터 - 진행률, 담당자, 완료일 포함
+     */
+    const formatLabel = (params: { data: MindmapNode }) => {
+      const { name, progress, assignee, endDate, status } = params.data;
+      const parts: string[] = [];
+
+      // 이름 (전체화면이 아니면 줄이기)
+      let displayName = name;
+      if (!isFullscreen && name.length > 20) {
+        displayName = name.slice(0, 20) + "...";
+      }
+      parts.push(displayName);
+
+      // 추가 정보 (있을 경우에만 표시)
+      const infoParts: string[] = [];
+      if (typeof progress === "number") {
+        infoParts.push(`${progress}%`);
+      }
+      if (assignee) {
+        infoParts.push(assignee);
+      }
+      if (endDate) {
+        // 날짜 포맷: MM/DD
+        const date = new Date(endDate);
+        if (!isNaN(date.getTime())) {
+          infoParts.push(`${date.getMonth() + 1}/${date.getDate()}`);
+        }
+      }
+
+      // 추가 정보가 있으면 괄호로 표시
+      if (infoParts.length > 0) {
+        parts.push(`(${infoParts.join(" | ")})`);
+      }
+
+      return parts.join(" ");
+    };
+
+    /**
+     * 툴팁 포맷터 - 상세 정보 표시
+     */
+    const formatTooltip = (params: { data: MindmapNode }) => {
+      const { name, progress, assignee, endDate, status } = params.data;
+      const lines: string[] = [`<strong>${name}</strong>`];
+
+      if (typeof progress === "number") {
+        const progressColor = progress >= 80 ? "#10B981" : progress >= 50 ? "#3B82F6" : progress >= 20 ? "#F59E0B" : "#EF4444";
+        lines.push(`<span style="color:${progressColor}">진행률: ${progress}%</span>`);
+      }
+      if (assignee) {
+        lines.push(`담당자: ${assignee}`);
+      }
+      if (endDate) {
+        const date = new Date(endDate);
+        if (!isNaN(date.getTime())) {
+          const formatted = date.toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" });
+          lines.push(`완료일: ${formatted}`);
+        }
+      }
+      if (status) {
+        const statusMap: Record<string, string> = {
+          PENDING: "대기",
+          IN_PROGRESS: "진행중",
+          COMPLETED: "완료",
+          ON_HOLD: "보류",
+        };
+        lines.push(`상태: ${statusMap[status] || status}`);
+      }
+
+      return lines.join("<br/>");
+    };
+
+    /**
+     * 노드 색상 결정 - 진행률 기반
+     */
+    const getNodeColor = (node: MindmapNode): string => {
+      if (typeof node.progress === "number") {
+        if (node.progress >= 100) return "#10B981"; // 완료 - 에메랄드
+        if (node.progress >= 80) return "#3B82F6"; // 80% 이상 - 블루
+        if (node.progress >= 50) return "#06B6D4"; // 50% 이상 - 시안
+        if (node.progress >= 20) return "#F59E0B"; // 20% 이상 - 앰버
+        return "#EF4444"; // 20% 미만 - 레드
+      }
+      return "#3B82F6"; // 기본 블루
+    };
+
+    /**
+     * 데이터에 색상 정보 추가
+     */
+    const addColorToNodes = (node: MindmapNode): MindmapNode => {
+      const color = getNodeColor(node);
+      return {
+        ...node,
+        itemStyle: { color },
+        children: node.children?.map(addColorToNodes),
+      };
+    };
+
+    const coloredData = addColorToNodes(data);
+
     const mindmapOption = {
       tooltip: {
         trigger: "item",
         triggerOn: "mousemove",
-        formatter: (params: { data: { name: string; value?: number } }) => {
-          const { name, value } = params.data;
-          return value ? `${name}: ${value}` : name;
+        backgroundColor: isDarkMode ? "#1F2937" : "#FFFFFF",
+        borderColor: isDarkMode ? "#374151" : "#E5E7EB",
+        textStyle: {
+          color: isDarkMode ? "#E5E7EB" : "#1F2937",
         },
+        formatter: formatTooltip,
       },
       series: [
         {
           type: "tree",
-          data: [data],
+          data: [coloredData],
           top: "5%",
           left: isFullscreen ? "5%" : "10%",
           bottom: "5%",
-          right: isFullscreen ? "15%" : "20%",
-          symbolSize: isFullscreen ? 12 : 8,
+          right: isFullscreen ? "20%" : "25%",
+          symbolSize: isFullscreen ? 14 : 10,
           orient: "LR",
           label: {
             position: "left",
             verticalAlign: "middle",
             align: "right",
-            fontSize: isFullscreen ? 14 : 11,
-            color: "#E5E7EB",
-            formatter: (params: { data: { name: string } }) => {
-              const name = params.data.name;
-              // 전체화면이 아니면 긴 이름 줄이기
-              if (!isFullscreen && name.length > 15) {
-                return name.slice(0, 15) + "...";
-              }
-              return name;
+            fontSize: isFullscreen ? 13 : 11,
+            color: textColor,
+            formatter: formatLabel,
+            rich: {
+              progress: {
+                color: "#3B82F6",
+                fontSize: 10,
+              },
             },
           },
           leaves: {
@@ -521,20 +879,16 @@ export default function ChatPage() {
           animationDurationUpdate: 750,
           initialTreeDepth: isFullscreen ? 2 : initialDepth,
           lineStyle: {
-            color: "#6B7280",
+            color: lineColor,
             width: 1.5,
             curveness: 0.5,
-          },
-          itemStyle: {
-            color: "#3B82F6",
-            borderColor: "#3B82F6",
           },
         },
       ],
       backgroundColor: "transparent",
     };
 
-    const height = isFullscreen ? "calc(100vh - 120px)" : "500px";
+    const height = isFullscreen ? "calc(85vh - 100px)" : "500px";
 
     return (
       <ReactECharts
@@ -755,6 +1109,60 @@ export default function ChatPage() {
                         </div>
                       </Card>
                     )}
+
+                    {/* 피드백 UI */}
+                    <div className="mt-3 pt-3 border-t border-border dark:border-border-dark">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-text-secondary">응답이 도움이 되었나요?</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleFeedback(message.id, "POSITIVE")}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                message.feedback?.rating === "POSITIVE"
+                                  ? "bg-emerald-500/20 text-emerald-500"
+                                  : "text-text-secondary hover:text-emerald-500 hover:bg-emerald-500/10"
+                              }`}
+                              title="도움됨"
+                            >
+                              <Icon name="thumb_up" size="sm" />
+                            </button>
+                            <button
+                              onClick={() => handleFeedback(message.id, "NEGATIVE")}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                message.feedback?.rating === "NEGATIVE"
+                                  ? "bg-rose-500/20 text-rose-500"
+                                  : "text-text-secondary hover:text-rose-500 hover:bg-rose-500/10"
+                              }`}
+                              title="개선필요"
+                            >
+                              <Icon name="thumb_down" size="sm" />
+                            </button>
+                          </div>
+                        </div>
+                        {message.processingTimeMs && (
+                          <span className="text-[10px] text-text-secondary">
+                            {(message.processingTimeMs / 1000).toFixed(1)}초
+                          </span>
+                        )}
+                      </div>
+                      {/* 상세 피드백 입력 (부정적 피드백 시 표시) */}
+                      {message.feedback?.rating === "NEGATIVE" && (
+                        <div className="mt-2">
+                          <input
+                            type="text"
+                            placeholder="개선이 필요한 부분을 알려주세요..."
+                            className="w-full px-3 py-2 text-xs rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary focus:ring-1 focus:ring-primary/50"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleFeedbackComment(message.id, e.currentTarget.value);
+                                e.currentTarget.value = "";
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   message.content
@@ -781,27 +1189,97 @@ export default function ChatPage() {
 
       {/* 입력 영역 */}
       <div className="p-4 border-t border-border dark:border-border-dark">
+        {/* 첨부된 파일 미리보기 */}
+        {selectedFile && (
+          <div className="mb-3 p-3 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <Icon name="description" size="sm" className="text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-text dark:text-white">{selectedFile.name}</p>
+                  <p className="text-xs text-text-secondary">
+                    {(selectedFile.size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* 등록 대상 선택 */}
+                <select
+                  value={targetType}
+                  onChange={(e) => setTargetType(e.target.value as "task" | "issue" | "requirement")}
+                  className="px-3 py-1.5 rounded-lg bg-background dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm"
+                >
+                  <option value="task">태스크로 등록</option>
+                  <option value="issue">이슈로 등록</option>
+                  <option value="requirement">요구사항으로 등록</option>
+                </select>
+                {/* 삭제 버튼 */}
+                <button
+                  onClick={() => setSelectedFile(null)}
+                  className="p-1.5 rounded-lg hover:bg-error/10 text-text-secondary hover:text-error transition-colors"
+                  title="파일 제거"
+                >
+                  <Icon name="close" size="sm" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-3">
+          {/* 파일 첨부 버튼 */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <Button
+            variant="ghost"
+            size="md"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading || isUploadingExcel}
+            title="엑셀 파일 첨부 (.xlsx, .xls, .csv)"
+          >
+            <Icon name="attach_file" size="sm" />
+          </Button>
+
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="질문을 입력하세요... (Shift+Enter로 줄바꿈)"
+              placeholder={selectedFile ? "파일과 함께 보낼 메시지를 입력하세요..." : "질문을 입력하세요... (Shift+Enter로 줄바꿈)"}
               rows={1}
               className="w-full px-4 py-3 pr-12 rounded-xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white placeholder-text-secondary resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
               style={{ minHeight: "48px", maxHeight: "120px" }}
             />
           </div>
-          <Button
-            variant="primary"
-            onClick={handleSendMessage}
-            disabled={!inputMessage.trim() || isLoading}
-            leftIcon={isLoading ? "progress_activity" : "send"}
-          >
-            전송
-          </Button>
+
+          {/* 파일이 있으면 업로드 버튼, 없으면 전송 버튼 */}
+          {selectedFile ? (
+            <Button
+              variant="primary"
+              onClick={handleExcelUpload}
+              disabled={isUploadingExcel || !selectedProjectId}
+              leftIcon={isUploadingExcel ? "progress_activity" : "upload"}
+            >
+              {isUploadingExcel ? "처리중..." : "업로드"}
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={handleSendMessage}
+              disabled={!inputMessage.trim() || isLoading}
+              leftIcon={isLoading ? "progress_activity" : "send"}
+            >
+              전송
+            </Button>
+          )}
         </div>
 
         <p className="text-xs text-text-secondary mt-2 text-center">
@@ -856,35 +1334,55 @@ export default function ChatPage() {
 
       {/* 전체화면 마인드맵 모달 */}
       {fullscreenMindmap && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center pt-16">
           {/* 배경 오버레이 */}
           <div
             className="absolute inset-0 bg-black/80"
             onClick={() => setFullscreenMindmap(null)}
           />
-          {/* 모달 컨텐츠 */}
-          <div className="relative w-[95vw] h-[95vh] bg-background dark:bg-background-dark rounded-xl shadow-2xl overflow-hidden">
+          {/* 모달 컨텐츠 - 헤더 영역 제외하고 표시 */}
+          <div className="relative w-[92vw] h-[85vh] max-h-[calc(100vh-100px)] bg-background dark:bg-background-dark rounded-xl shadow-2xl overflow-hidden">
             {/* 헤더 */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-border-dark">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border dark:border-border-dark">
               <div className="flex items-center gap-3">
-                <Icon name="account_tree" size="md" className="text-primary" />
-                <h2 className="text-xl font-bold text-text dark:text-white">WBS 마인드맵</h2>
-                <span className="text-sm text-text-secondary">(노드를 클릭하면 펼치기/접기)</span>
+                <Icon name="account_tree" size="sm" className="text-primary" />
+                <h2 className="text-lg font-bold text-text dark:text-white">WBS 마인드맵</h2>
+                <span className="text-xs text-text-secondary">(노드 클릭으로 펼치기/접기)</span>
               </div>
               <button
                 onClick={() => setFullscreenMindmap(null)}
-                className="p-2 hover:bg-surface dark:hover:bg-surface-dark rounded-lg transition-colors"
-                title="닫기"
+                className="p-1.5 hover:bg-surface dark:hover:bg-surface-dark rounded-lg transition-colors"
+                title="닫기 (ESC)"
               >
-                <Icon name="close" size="md" className="text-text-secondary" />
+                <Icon name="close" size="sm" className="text-text-secondary" />
               </button>
             </div>
             {/* 마인드맵 */}
-            <div className="p-4 h-[calc(100%-72px)]">
+            <div className="p-3 h-[calc(100%-56px)]">
               {renderMindmap(fullscreenMindmap, true)}
             </div>
           </div>
         </div>
+      )}
+
+      {/* 엑셀 매핑 모달 */}
+      {showMappingModal && excelParseResult && (
+        <ExcelMappingModal
+          isOpen={showMappingModal}
+          onClose={() => {
+            setShowMappingModal(false);
+            setSelectedFile(null);
+            setExcelParseResult(null);
+            setSuggestedMappings({});
+          }}
+          headers={excelParseResult.headers}
+          sampleData={excelParseResult.sampleData}
+          totalRows={excelParseResult.totalRows}
+          targetType={targetType}
+          suggestedMappings={suggestedMappings}
+          onConfirm={handleMappingConfirm}
+          isLoading={isUploadingExcel}
+        />
       )}
     </div>
   );

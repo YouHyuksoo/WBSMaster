@@ -55,6 +55,7 @@ const menuItems: MenuItem[] = [
   { label: "요구사항 점검표", icon: "checklist", href: "/dashboard/requirements" },
   { label: "이슈사항 점검표", icon: "bug_report", href: "/dashboard/issues" },
   { label: "AI 어시스턴트", icon: "smart_toy", href: "/dashboard/chat", filled: true },
+  { label: "채팅 분석", icon: "analytics", href: "/dashboard/chat/history" },
 ];
 
 /** 관리 메뉴 항목 */
@@ -92,8 +93,13 @@ export function DashboardSidebar({
    * 메뉴 항목이 활성화 상태인지 확인
    */
   const isActive = (href: string) => {
+    // 대시보드는 정확히 매칭
     if (href === "/dashboard") {
       return pathname === "/dashboard";
+    }
+    // 채팅은 정확히 매칭 (history와 구분)
+    if (href === "/dashboard/chat") {
+      return pathname === "/dashboard/chat";
     }
     return pathname.startsWith(href);
   };

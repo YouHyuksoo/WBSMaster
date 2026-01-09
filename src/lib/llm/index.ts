@@ -17,11 +17,20 @@ import { getSchemaInfo, getProjectFilterInfo } from "./schema-info";
 
 /**
  * 마인드맵 노드 타입
+ * 진행률, 담당자, 완료일 정보 포함
  */
 export interface MindmapNode {
   name: string;
   children?: MindmapNode[];
   value?: number;
+  /** 진행률 (0-100) */
+  progress?: number;
+  /** 담당자 이름 */
+  assignee?: string;
+  /** 종료일/완료일 */
+  endDate?: string;
+  /** 상태 */
+  status?: string;
 }
 
 /**
@@ -127,11 +136,13 @@ VALUES (gen_random_uuid(), '2025-01-01', '신정', 'NATIONAL', false, NOW(), NOW
 사용자가 "마인드맵", "mindmap", "트리구조", "계층구조"를 언급하면 해당 데이터를 조회하는 SQL을 생성하세요.
 특히 "WBS 구조를 마인드맵으로", "WBS 마인드맵" 같은 요청은 WBS 데이터를 조회해야 합니다.
 
-예시 SQL:
-SELECT "id", "code", "name", "level", "parentId", "status", "progress"
-FROM "wbs_items"
-WHERE "projectId" = '프로젝트ID'
-ORDER BY "code"
+예시 SQL (담당자, 진행률, 완료일 포함):
+SELECT w."id", w."code", w."name", w."level", w."parentId", w."status", w."progress", w."endDate",
+       u."name" AS "assigneeName"
+FROM "wbs_items" w
+LEFT JOIN "users" u ON w."assigneeId" = u."id"
+WHERE w."projectId" = '프로젝트ID'
+ORDER BY w."code"
 
 ## 응답 형식
 SQL 쿼리만 반환하세요. 설명이나 마크다운 코드 블록 없이 순수 SQL만 반환합니다.
@@ -602,7 +613,25 @@ ${JSON.stringify(results, (_, value) => typeof value === "bigint" ? Number(value
 }
 
 /**
+ * WBS 아이템 타입 (SQL 결과에서 사용)
+ */
+interface WbsItemResult {
+  id?: string;
+  name?: string;
+  code?: string;
+  level?: string;
+  levelNumber?: number;
+  parentId?: string | null;
+  progress?: number;
+  status?: string;
+  endDate?: string | Date;
+  assigneeName?: string;
+  assignee?: { name?: string } | string;
+}
+
+/**
  * SQL 결과에서 마인드맵 자동 생성
+ * 진행률, 담당자, 완료일 정보 포함
  */
 function autoGenerateMindmap(results: unknown[], userMessage: string): MindmapNode | undefined {
   try {
@@ -612,17 +641,46 @@ function autoGenerateMindmap(results: unknown[], userMessage: string): MindmapNo
     const firstItem = results[0] as Record<string, unknown>;
     console.log("[autoGenerateMindmap] 첫 항목 키:", Object.keys(firstItem || {}));
 
+    /**
+     * WBS 아이템에서 마인드맵 노드 생성
+     * 진행률, 담당자, 완료일 정보 포함
+     */
+    const createNode = (item: WbsItemResult): MindmapNode => {
+      // 담당자 이름 추출 (여러 형태 지원)
+      let assigneeName: string | undefined;
+      if (item.assigneeName) {
+        assigneeName = item.assigneeName;
+      } else if (item.assignee) {
+        if (typeof item.assignee === "string") {
+          assigneeName = item.assignee;
+        } else if (typeof item.assignee === "object" && item.assignee.name) {
+          assigneeName = item.assignee.name;
+        }
+      }
+
+      // 날짜 문자열 변환
+      let endDateStr: string | undefined;
+      if (item.endDate) {
+        if (typeof item.endDate === "string") {
+          endDateStr = item.endDate;
+        } else if (item.endDate instanceof Date) {
+          endDateStr = item.endDate.toISOString();
+        }
+      }
+
+      return {
+        name: item.name || item.code || "Unknown",
+        progress: typeof item.progress === "number" ? item.progress : undefined,
+        assignee: assigneeName,
+        endDate: endDateStr,
+        status: item.status,
+      };
+    };
+
     if (firstItem && ("level" in firstItem || "name" in firstItem || "code" in firstItem)) {
       console.log("[autoGenerateMindmap] WBS 데이터로 인식됨");
       // WBS 구조로 마인드맵 생성
-      const items = results as Array<{
-        id?: string;
-        name?: string;
-        code?: string;
-        level?: string;
-        levelNumber?: number;
-        parentId?: string | null;
-      }>;
+      const items = results as WbsItemResult[];
 
       // 레벨별로 그룹화
       const level1Items = items.filter(i => i.level === "LEVEL1" || i.levelNumber === 1);
@@ -637,37 +695,31 @@ function autoGenerateMindmap(results: unknown[], userMessage: string): MindmapNo
         level4: level4Items.length,
       });
 
-      // 계층 구조 생성
-      const buildChildren = (parentId: string | undefined, childItems: typeof items): MindmapNode[] => {
-        return childItems
-          .filter(item => item.parentId === parentId)
-          .map(item => ({
-            name: item.name || item.code || "Unknown",
-          }));
-      };
-
       const rootChildren: MindmapNode[] = level1Items.map(l1 => {
+        const l1Node = createNode(l1);
         const l2Children = level2Items
           .filter(l2 => l2.parentId === l1.id)
           .map(l2 => {
+            const l2Node = createNode(l2);
             const l3Children = level3Items
               .filter(l3 => l3.parentId === l2.id)
               .map(l3 => {
+                const l3Node = createNode(l3);
                 const l4Children = level4Items
                   .filter(l4 => l4.parentId === l3.id)
-                  .map(l4 => ({ name: l4.name || l4.code || "항목" }));
+                  .map(l4 => createNode(l4));
                 return {
-                  name: l3.name || l3.code || "소분류",
+                  ...l3Node,
                   ...(l4Children.length > 0 ? { children: l4Children } : {}),
                 };
               });
             return {
-              name: l2.name || l2.code || "중분류",
+              ...l2Node,
               ...(l3Children.length > 0 ? { children: l3Children } : {}),
             };
           });
         return {
-          name: l1.name || l1.code || "대분류",
+          ...l1Node,
           ...(l2Children.length > 0 ? { children: l2Children } : {}),
         };
       });
@@ -695,7 +747,13 @@ function autoGenerateMindmap(results: unknown[], userMessage: string): MindmapNo
         children: results.slice(0, 10).map((item, idx) => {
           const record = item as Record<string, unknown>;
           const displayName = record.name || record.title || record.code || `항목 ${idx + 1}`;
-          return { name: String(displayName) };
+          const node: MindmapNode = { name: String(displayName) };
+          // 진행률, 담당자, 완료일 정보 추가
+          if (typeof record.progress === "number") node.progress = record.progress;
+          if (record.assigneeName) node.assignee = String(record.assigneeName);
+          if (record.endDate) node.endDate = String(record.endDate);
+          if (record.status) node.status = String(record.status);
+          return node;
         }),
       };
       console.log("[autoGenerateMindmap] 일반 데이터 마인드맵 생성 완료:", result.children.length, "항목");

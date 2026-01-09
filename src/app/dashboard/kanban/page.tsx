@@ -1358,13 +1358,21 @@ function TaskCard({
     const assigneeMap = new Map<string, { id: string; name: string | null; avatar: string | null }>();
     // 주 담당자 추가
     if (task.assignee) {
-      assigneeMap.set(task.assignee.id, task.assignee);
+      assigneeMap.set(task.assignee.id, {
+        id: task.assignee.id,
+        name: task.assignee.name ?? null,
+        avatar: task.assignee.avatar ?? null,
+      });
     }
     // 부 담당자들 추가
     if (task.assignees && task.assignees.length > 0) {
       task.assignees.forEach((a) => {
         if (!assigneeMap.has(a.id)) {
-          assigneeMap.set(a.id, a);
+          assigneeMap.set(a.id, {
+            id: a.id,
+            name: a.name ?? null,
+            avatar: a.avatar ?? null,
+          });
         }
       });
     }

@@ -100,11 +100,13 @@ VALUES (gen_random_uuid(), '2025-01-01', '신정', 'NATIONAL', false, NOW(), NOW
 사용자가 "마인드맵", "mindmap", "트리구조", "계층구조"를 언급하면 해당 데이터를 조회하는 SQL을 생성하세요.
 특히 "WBS 구조를 마인드맵으로", "WBS 마인드맵" 같은 요청은 WBS 데이터를 조회해야 합니다.
 
-예시 SQL:
-SELECT "id", "code", "name", "level", "parentId", "status", "progress"
-FROM "wbs_items"
-WHERE "projectId" = '프로젝트ID'
-ORDER BY "code"
+예시 SQL (담당자, 진행률, 완료일 포함):
+SELECT w."id", w."code", w."name", w."level", w."parentId", w."status", w."progress", w."endDate",
+       u."name" AS "assigneeName"
+FROM "wbs_items" w
+LEFT JOIN "users" u ON w."assigneeId" = u."id"
+WHERE w."projectId" = '프로젝트ID'
+ORDER BY w."code"
 
 ## 응답 형식
 SQL 쿼리만 반환하세요. 설명이나 마크다운 코드 블록 없이 순수 SQL만 반환합니다.

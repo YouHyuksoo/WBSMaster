@@ -136,6 +136,11 @@ export async function POST(request: NextRequest) {
       personaSystemPrompt,
     };
 
+    // 처리 시간 측정 시작
+    const startTime = Date.now();
+    let sqlGenTime = 0;
+    let sqlExecTime = 0;
+
     // 사용자 메시지 저장
     await prisma.chatHistory.create({
       data: {
@@ -146,14 +151,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // SQL 실행 함수
+    // SQL 실행 함수 (시간 측정 포함)
     const executeQuery = async (sql: string): Promise<unknown[]> => {
+      const execStart = Date.now();
       // Prisma의 $queryRawUnsafe 사용
       const results = await prisma.$queryRawUnsafe(sql);
+      sqlExecTime = Date.now() - execStart;
       return results as unknown[];
     };
 
     // LLM 파이프라인 실행 (시스템 프롬프트 설정 전달)
+    const sqlGenStart = Date.now();
     const response = await processChatMessage(
       llmConfig,
       message,
@@ -161,9 +169,13 @@ export async function POST(request: NextRequest) {
       executeQuery,
       promptConfig
     );
+    sqlGenTime = Date.now() - sqlGenStart - sqlExecTime; // SQL 실행 시간 제외
 
-    // 어시스턴트 응답 저장
-    await prisma.chatHistory.create({
+    // 전체 처리 시간
+    const processingTime = Date.now() - startTime;
+
+    // 어시스턴트 응답 저장 (처리 시간, 원본 질문 포함)
+    const assistantMessage = await prisma.chatHistory.create({
       data: {
         userId: user!.id,
         projectId: projectId || null,
@@ -173,6 +185,12 @@ export async function POST(request: NextRequest) {
         chartData: response.chartData ? JSON.parse(JSON.stringify(response.chartData)) : Prisma.JsonNull,
         chartType: response.chartType || null,
         mindmapData: response.mindmapData ? JSON.parse(JSON.stringify(response.mindmapData)) : Prisma.JsonNull,
+        // 분석용 필드
+        userQuery: message,
+        processingTimeMs: processingTime,
+        sqlGenTimeMs: sqlGenTime > 0 ? sqlGenTime : null,
+        sqlExecTimeMs: sqlExecTime > 0 ? sqlExecTime : null,
+        personaId: personaId || null,
       },
     });
 
@@ -180,16 +198,20 @@ export async function POST(request: NextRequest) {
     console.log("[API Chat] Response:", {
       chartType: response.chartType,
       hasMindmapData: !!response.mindmapData,
-      mindmapDataPreview: response.mindmapData ? JSON.stringify(response.mindmapData).slice(0, 100) : null,
+      processingTime,
+      sqlGenTime,
+      sqlExecTime,
     });
 
     return NextResponse.json({
+      id: assistantMessage.id, // 피드백 제출용 ID
       role: "assistant",
       content: response.content,
       sqlQuery: response.sql,
       chartType: response.chartType,
       chartData: response.chartData,
       mindmapData: response.mindmapData,
+      processingTimeMs: processingTime,
     });
   } catch (error) {
     console.error("채팅 처리 실패:", error);

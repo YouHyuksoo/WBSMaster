@@ -494,8 +494,56 @@ model ChatHistory {
   chartType   String?  // 차트 타입 (bar, line, pie, mindmap 등)
   mindmapData Json?    // 마인드맵 데이터 (JSON 트리 구조)
 
+  // 분석용 추가 필드
+  userQuery        String?  // 원본 사용자 질문 (assistant 메시지에 저장)
+  processingTimeMs Int?     // 전체 처리 시간 (ms)
+  sqlGenTimeMs     Int?     // SQL 생성 시간 (ms)
+  sqlExecTimeMs    Int?     // SQL 실행 시간 (ms)
+  personaId        String?  // 사용된 페르소나 ID
+  errorMessage     String?  // 에러 발생 시 메시지
+
   createdAt   DateTime @default(now())
 
+  // 피드백 관계 (1:1)
+  feedback    ChatFeedback?
+
   @@index([userId, projectId])
+  @@index([createdAt])
   @@map("chat_histories")
+}
+
+// ============================================
+// 채팅 피드백 모델
+// 사용자가 AI 응답에 대해 피드백을 남김
+// ============================================
+model ChatFeedback {
+  id              String   @id @default(uuid())
+
+  // 연결 (1:1)
+  chatHistoryId   String   @unique
+  chatHistory     ChatHistory @relation(fields: [chatHistoryId], references: [id], onDelete: Cascade)
+
+  // 피드백 정보
+  rating          FeedbackRating  // POSITIVE, NEGATIVE, NEUTRAL
+  comment         String?         // 상세 피드백 (선택)
+
+  // 세부 평가 항목 (선택)
+  isSqlCorrect    Boolean?  // SQL이 올바르게 생성되었는가
+  isResponseHelpful Boolean? // 응답이 도움이 되었는가
+  isChartUseful   Boolean?  // 차트/시각화가 유용했는가
+
+  // 분류 태그 (분석용)
+  tags            String[]  // 예: ["SQL오류", "응답부정확", "속도느림"]
+
+  createdAt       DateTime @default(now())
+
+  @@index([rating])
+  @@index([createdAt])
+  @@map("chat_feedbacks")
+}
+
+enum FeedbackRating {
+  POSITIVE  // 좋아요 (도움됨)
+  NEGATIVE  // 싫어요 (도움안됨)
+  NEUTRAL   // 보통
 }
