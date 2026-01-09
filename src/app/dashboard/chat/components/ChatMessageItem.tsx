@@ -143,8 +143,13 @@ const ChatMessageItem = memo(function ChatMessageItem({
               </details>
             )}
 
-            {/* 차트 표시 */}
-            {message.chartType && message.chartType !== "mindmap" && message.chartData && (
+            {/* 차트 표시 - chartData 유효성 검사 후 렌더링 */}
+            {message.chartType &&
+             message.chartType !== "mindmap" &&
+             message.chartData &&
+             Array.isArray(message.chartData) &&
+             message.chartData.length > 0 &&
+             message.chartData.every(d => d && typeof d === 'object' && d.name !== undefined && d.value !== undefined) && (
               <Card>
                 <div className="p-4">
                   <ChartRenderer

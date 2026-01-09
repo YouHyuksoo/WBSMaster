@@ -86,6 +86,21 @@ export default function ChatPage() {
   }, [messages, scrollToBottom]);
 
   /**
+   * chartData 유효성 검사 함수
+   * 잘못된 chartData가 있으면 null로 변환하여 3D 차트 오류 방지
+   */
+  const validateChartData = (chartData: unknown): Record<string, unknown>[] | null => {
+    if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
+      return null;
+    }
+    // 모든 항목에 name과 value가 있는지 확인
+    const isValid = chartData.every(
+      (d) => d && typeof d === "object" && "name" in d && "value" in d
+    );
+    return isValid ? chartData : null;
+  };
+
+  /**
    * 채팅 기록 불러오기
    */
   const loadChatHistory = useCallback(async () => {
@@ -100,7 +115,12 @@ export default function ChatPage() {
       const res = await fetch(`/api/chat?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data);
+        // chartData 유효성 검사 후 설정 (잘못된 데이터 필터링)
+        const sanitizedData = data.map((msg: ChatMessage) => ({
+          ...msg,
+          chartData: validateChartData(msg.chartData),
+        }));
+        setMessages(sanitizedData);
       }
     } catch (error) {
       console.error("채팅 기록 로드 실패:", error);
