@@ -545,30 +545,58 @@ model ChatHistory {
 // ============================================
 // 채팅 피드백 모델
 // 사용자가 AI 응답에 대해 피드백을 남김
+// 분석용으로 모든 관련 데이터를 독립적으로 저장
 // ============================================
 model ChatFeedback {
   id              String   @id @default(uuid())
 
-  // 연결 (1:1)
-  chatHistoryId   String   @unique
-  chatHistory     ChatHistory @relation(fields: [chatHistoryId], references: [id], onDelete: Cascade)
+  // 연결 (1:1) - 참조용, ChatHistory 삭제되어도 피드백 데이터는 유지
+  chatHistoryId   String?  @unique
+  chatHistory     ChatHistory? @relation(fields: [chatHistoryId], references: [id], onDelete: SetNull)
 
   // 피드백 정보
   rating          FeedbackRating  // POSITIVE, NEGATIVE, NEUTRAL
   comment         String?         // 상세 피드백 (선택)
 
+  // ===== 분석용 데이터 (ChatHistory에서 복사) =====
+  // 사용자 질의
+  userQuery       String?         // 사용자가 입력한 원본 질문
+
+  // LLM 응답
+  llmResponse     String?         // LLM이 생성한 전체 응답 (마크다운)
+
+  // SQL 관련
+  sqlQuery        String?         // 생성된 SQL 쿼리
+
+  // 차트/시각화 관련
+  chartType       String?         // 차트 타입 (bar, line, pie, mindmap 등)
+  chartData       Json?           // 차트 데이터 (JSON)
+  mindmapData     Json?           // 마인드맵 데이터 (JSON)
+
+  // 성능 측정
+  processingTimeMs Int?           // 전체 처리 시간 (ms)
+  sqlGenTimeMs    Int?            // SQL 생성 시간 (ms)
+  sqlExecTimeMs   Int?            // SQL 실행 시간 (ms)
+
+  // 컨텍스트 정보
+  projectId       String?         // 프로젝트 ID
+  projectName     String?         // 프로젝트 이름 (삭제되어도 남음)
+  personaId       String?         // 사용된 페르소나 ID
+  personaName     String?         // 페르소나 이름 (삭제되어도 남음)
+
   // 세부 평가 항목 (선택)
-  isSqlCorrect    Boolean?  // SQL이 올바르게 생성되었는가
-  isResponseHelpful Boolean? // 응답이 도움이 되었는가
-  isChartUseful   Boolean?  // 차트/시각화가 유용했는가
+  isSqlCorrect    Boolean?        // SQL이 올바르게 생성되었는가
+  isResponseHelpful Boolean?      // 응답이 도움이 되었는가
+  isChartUseful   Boolean?        // 차트/시각화가 유용했는가
 
   // 분류 태그 (분석용)
-  tags            String[]  // 예: ["SQL오류", "응답부정확", "속도느림"]
+  tags            String[]        // 예: ["SQL오류", "응답부정확", "속도느림"]
 
   createdAt       DateTime @default(now())
 
   @@index([rating])
   @@index([createdAt])
+  @@index([projectId])
   @@map("chat_feedbacks")
 }
 

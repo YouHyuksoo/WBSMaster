@@ -54,11 +54,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 해당 채팅 기록이 존재하고 사용자의 것인지 확인
+    // 해당 채팅 기록이 존재하고 사용자의 것인지 확인 (프로젝트, 페르소나 정보 포함)
     const chatHistory = await prisma.chatHistory.findFirst({
       where: {
         id: chatHistoryId,
         userId: user!.id,
+      },
+      include: {
+        project: {
+          select: { id: true, name: true },
+        },
       },
     });
 
@@ -69,14 +74,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 페르소나 정보 조회 (있는 경우)
+    let personaName: string | null = null;
+    if (chatHistory.personaId) {
+      const persona = await prisma.aiPersona.findUnique({
+        where: { id: chatHistory.personaId },
+        select: { name: true },
+      });
+      personaName = persona?.name || null;
+    }
+
     // 기존 피드백이 있는지 확인
     const existingFeedback = await prisma.chatFeedback.findUnique({
       where: { chatHistoryId },
     });
 
+    // 분석용 데이터 (ChatHistory에서 복사)
+    const analysisData = {
+      // 사용자 질의 & LLM 응답
+      userQuery: chatHistory.userQuery,
+      llmResponse: chatHistory.content,
+      // SQL 관련
+      sqlQuery: chatHistory.sqlQuery,
+      // 차트/시각화
+      chartType: chatHistory.chartType,
+      chartData: chatHistory.chartData,
+      mindmapData: chatHistory.mindmapData,
+      // 성능 측정
+      processingTimeMs: chatHistory.processingTimeMs,
+      sqlGenTimeMs: chatHistory.sqlGenTimeMs,
+      sqlExecTimeMs: chatHistory.sqlExecTimeMs,
+      // 컨텍스트 정보
+      projectId: chatHistory.projectId,
+      projectName: chatHistory.project?.name || null,
+      personaId: chatHistory.personaId,
+      personaName,
+    };
+
     let feedback;
     if (existingFeedback) {
-      // 기존 피드백 업데이트
+      // 기존 피드백 업데이트 (분석 데이터도 최신화)
       feedback = await prisma.chatFeedback.update({
         where: { id: existingFeedback.id },
         data: {
@@ -86,10 +123,11 @@ export async function POST(request: NextRequest) {
           isResponseHelpful: isResponseHelpful ?? null,
           isChartUseful: isChartUseful ?? null,
           tags: tags || [],
+          ...analysisData,
         },
       });
     } else {
-      // 새 피드백 생성
+      // 새 피드백 생성 (분석 데이터 포함)
       feedback = await prisma.chatFeedback.create({
         data: {
           chatHistoryId,
@@ -99,6 +137,7 @@ export async function POST(request: NextRequest) {
           isResponseHelpful: isResponseHelpful ?? null,
           isChartUseful: isChartUseful ?? null,
           tags: tags || [],
+          ...analysisData,
         },
       });
     }
