@@ -12,8 +12,9 @@
  * - area: 그래디언트 영역 차트
  */
 
-import React, { memo, useMemo } from "react";
+import React, { memo, useMemo, useRef, useEffect } from "react";
 import ReactECharts from "echarts-for-react";
+import type { EChartsInstance } from "echarts-for-react";
 import "echarts-gl";
 
 /**
@@ -47,10 +48,33 @@ const ChartRenderer = memo(function ChartRenderer({
   chartType,
   chartData,
 }: ChartRendererProps) {
+  // 차트 인스턴스 ref (cleanup용)
+  const chartRef = useRef<ReactECharts>(null);
+
+  // 컴포넌트 언마운트 시 차트 인스턴스 dispose (특히 3D 차트에서 중요)
+  useEffect(() => {
+    return () => {
+      if (chartRef.current) {
+        const instance = chartRef.current.getEchartsInstance();
+        if (instance && !instance.isDisposed()) {
+          instance.dispose();
+        }
+      }
+    };
+  }, []);
+
+  // 데이터 유효성 검사
   if (!chartData || chartData.length === 0) return null;
 
-  const labels = chartData.map((d) => d.name as string);
-  const values = chartData.map((d) => d.value as number);
+  // 유효한 데이터만 필터링 (name과 value가 있는 것만)
+  const validData = chartData.filter(
+    (d) => d.name !== undefined && d.name !== null && d.value !== undefined && d.value !== null
+  );
+
+  if (validData.length === 0) return null;
+
+  const labels = validData.map((d) => String(d.name));
+  const values = validData.map((d) => Number(d.value) || 0);
 
   // 다크모드 감지
   const isDarkMode = typeof document !== "undefined" &&
@@ -293,7 +317,7 @@ const ChartRenderer = memo(function ChartRenderer({
                   shadowColor: "rgba(0, 0, 0, 0.3)",
                 },
               },
-              data: chartData.map((d, i) => ({
+              data: validData.map((d, i) => ({
                 value: d.value,
                 name: d.name,
                 itemStyle: {
@@ -419,12 +443,15 @@ const ChartRenderer = memo(function ChartRenderer({
         };
 
       case "bar3d":
+        // 3D 차트는 데이터가 충분해야 안정적으로 동작
+        if (values.length === 0) {
+          return {};
+        }
         return {
           backgroundColor: bgColor,
           tooltip: {
             ...tooltipStyle,
-            trigger: "axis",
-            axisPointer: { type: "shadow" },
+            trigger: "item",
           },
           xAxis3D: {
             type: "category",
@@ -453,6 +480,7 @@ const ChartRenderer = memo(function ChartRenderer({
               distance: 260,
               rotateSensitivity: 1,
               zoomSensitivity: 1,
+              autoRotate: false,  // 자동 회전 비활성화 (오류 방지)
             },
             light: {
               main: { intensity: 1.2, shadow: true },
@@ -495,8 +523,8 @@ const ChartRenderer = memo(function ChartRenderer({
                 },
               },
               barSize: 25,
-              animationDuration: 1000,
-              animationEasing: "elasticOut",
+              animationDuration: 800,
+              animationEasing: "cubicOut",
             },
           ],
         };
@@ -504,14 +532,16 @@ const ChartRenderer = memo(function ChartRenderer({
       default:
         return {};
     }
-  }, [chartType, chartData, labels, values, isDarkMode, textColor, gridColor]);
+  }, [chartType, validData, labels, values, isDarkMode, textColor, gridColor]);
 
   return (
     <ReactECharts
+      ref={chartRef}
       option={option}
       style={{ height: chartType === "bar3d" ? "380px" : "320px", width: "100%" }}
       opts={{ renderer: "canvas" }}
       notMerge={true}
+      lazyUpdate={true}
     />
   );
 });
