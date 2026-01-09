@@ -633,20 +633,20 @@ export default function ChatPage() {
             <Icon name="progress_activity" size="lg" className="text-primary animate-spin" />
           </div>
         ) : messages.length === 0 ? (
-          // 빈 상태 - 그룹별 예시 질문
-          <div className="flex flex-col items-center justify-center h-full w-full px-4">
-            <div className="size-16 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-3">
+          // 빈 상태 - 그룹별 예시 질문 (위로 올리고 높이 늘림)
+          <div className="flex flex-col items-center justify-start h-full w-full px-4 pt-8">
+            <div className="size-14 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-2">
               <Icon name="chat" size="md" className="text-primary" />
             </div>
             <h2 className="text-lg font-bold text-text dark:text-white mb-1">
               무엇이든 물어보세요
             </h2>
-            <p className="text-text-secondary text-sm mb-4">
+            <p className="text-text-secondary text-sm mb-3">
               프로젝트 데이터 분석, 등록, 수정 등 다양한 작업을 도와드려요
             </p>
 
             {/* 제안 새로고침 버튼 */}
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3">
               <button
                 onClick={refreshSuggestions}
                 disabled={isRefreshingSuggestions}
@@ -667,7 +667,7 @@ export default function ChatPage() {
               {suggestions.map((group) => (
                 <div
                   key={group.title}
-                  className="p-3 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark"
+                  className="p-3 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark min-h-[200px]"
                 >
                   {/* 그룹 헤더 */}
                   <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-border dark:border-border-dark">
@@ -676,14 +676,14 @@ export default function ChatPage() {
                       {group.title}
                     </span>
                   </div>
-                  {/* 질문 목록 - 클릭 시 바로 전송 */}
-                  <div className="space-y-1.5">
+                  {/* 질문 목록 - 클릭 시 바로 전송, 줄넘김 허용 */}
+                  <div className="space-y-2">
                     {group.questions.map((question, idx) => (
                       <button
                         key={idx}
                         onClick={() => handleSendMessage(question)}
                         disabled={isLoading || !selectedProjectId}
-                        className="w-full text-left text-[11px] leading-tight py-1.5 px-2 text-text-secondary line-clamp-2 rounded hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full text-left text-[11px] leading-relaxed py-2 px-2 text-text-secondary rounded hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title={question}
                       >
                         {question}
