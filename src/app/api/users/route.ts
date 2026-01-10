@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
         name: true,
         avatar: true,
         role: true,
+        affiliation: true, // 소속 (고객, 개발사, 컨설팅, 외주 등)
         createdAt: true,
         _count: {
           select: {
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, email, password, name, avatar } = body;
+    const { id, email, password, name, avatar, role, affiliation } = body;
 
     // 필수 필드 검증
     if (!email) {
@@ -114,6 +115,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 소속 유효성 검사
+    const validAffiliations = ["CLIENT", "DEVELOPER", "CONSULTING", "OUTSOURCING", "OTHER"];
+    if (affiliation && !validAffiliations.includes(affiliation)) {
+      return NextResponse.json(
+        { error: "유효하지 않은 소속입니다." },
+        { status: 400 }
+      );
+    }
+
     const user = await prisma.user.create({
       data: {
         ...(id && { id }),
@@ -121,7 +131,8 @@ export async function POST(request: NextRequest) {
         password: password || "admin123", // 기본 비밀번호
         name: name || email.split("@")[0],
         avatar,
-        role: "MEMBER",
+        role: role || "USER", // 시스템 역할 (기본: USER)
+        affiliation: affiliation || null, // 소속
       },
       select: {
         id: true,
@@ -129,6 +140,7 @@ export async function POST(request: NextRequest) {
         name: true,
         avatar: true,
         role: true,
+        affiliation: true,
         createdAt: true,
       },
     });

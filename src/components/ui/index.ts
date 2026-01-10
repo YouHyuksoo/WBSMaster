@@ -23,3 +23,6 @@ export type { InputProps } from "./Input";
 export { ImageCropper } from "./ImageCropper";
 
 export { ToastProvider, useToast } from "./Toast";
+
+export { Modal } from "./Modal";
+export type { ModalProps, ModalSize } from "./Modal";

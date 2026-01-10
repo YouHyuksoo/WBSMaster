@@ -98,3 +98,28 @@ export {
 
 // 현재 사용자 hook
 export { useCurrentUser, currentUserKeys } from "./useCurrentUser";
+
+// 주간보고 hooks
+export {
+  useWeeklyReports,
+  useWeeklyReport,
+  useCreateWeeklyReport,
+  useUpdateWeeklyReport,
+  useDeleteWeeklyReport,
+  useAutoLoadData,
+  useWeeklyReportItems,
+  useCreateReportItem,
+  useUpdateReportItem,
+  useDeleteReportItem,
+  useBulkCreateReportItems,
+  weeklyReportKeys,
+} from "./useWeeklyReports";
+
+// 핀포인트 hooks
+export {
+  usePinpoints,
+  useCreatePinpoint,
+  useUpdatePinpoint,
+  useDeletePinpoint,
+  pinpointKeys,
+} from "./usePinpoints";

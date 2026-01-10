@@ -51,6 +51,37 @@ function getMonthsBetween(start: Date, end: Date) {
 }
 
 /**
+ * 날짜로부터 ISO 주차 계산 (ISO 8601)
+ */
+function getWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+/**
+ * 두 날짜 사이의 주차 목록 생성
+ */
+function getWeeksBetween(start: Date, end: Date) {
+  const weeks: { date: Date; weekNumber: number; year: number }[] = [];
+  const current = new Date(start);
+  current.setDate(current.getDate() - current.getDay() + (current.getDay() === 0 ? -6 : 1)); // 주의 시작일(월요일)로 이동
+
+  while (current <= end) {
+    weeks.push({
+      date: new Date(current),
+      weekNumber: getWeekNumber(current),
+      year: current.getFullYear(),
+    });
+    current.setDate(current.getDate() + 7);
+  }
+
+  return weeks;
+}
+
+/**
  * 특정 월의 일수 계산
  */
 function getDaysInMonth(year: number, month: number) {
@@ -174,39 +205,80 @@ export function TimelineHeader({
     });
   }, [months, startDate, endDate, totalDays]);
 
+  // 주차 목록
+  const weeks = useMemo(() => getWeeksBetween(startDate, endDate), [startDate, endDate]);
+
+  // 각 주차의 너비 계산 (퍼센트)
+  const weekWidths = useMemo(() => {
+    return weeks.map((week) => {
+      const weekStart = new Date(week.date);
+      const weekEnd = new Date(week.date);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      // 주차가 타임라인 범위를 벗어나면 조정
+      const displayStart = weekStart < startDate ? startDate : weekStart;
+      const displayEnd = weekEnd > endDate ? endDate : weekEnd;
+
+      const daysInWeek =
+        (displayEnd.getTime() - displayStart.getTime()) / (1000 * 60 * 60 * 24) + 1;
+      return (daysInWeek / totalDays) * 100;
+    });
+  }, [weeks, startDate, endDate, totalDays]);
+
   return (
     <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
       {/* 왼쪽 라벨 영역 (빈 공간) */}
       <div
-        className="flex-shrink-0 px-3 py-2 border-r border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-500 dark:text-slate-400"
+        className="flex-shrink-0 px-3 border-r border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-500 dark:text-slate-400 flex flex-col"
         style={{ width: labelWidth }}
       >
-        기간
+        <div className="py-2 border-b border-slate-200 dark:border-slate-700 flex-1 flex items-center justify-center">
+          월
+        </div>
+        <div className="py-2 flex-1 flex items-center justify-center">
+          주
+        </div>
       </div>
 
-      {/* 월별 헤더 */}
-      <div className="flex-1 flex relative">
-        {months.map(({ year, month, label }, index) => (
-          <div
-            key={`${year}-${month}`}
-            className="flex-shrink-0 px-2 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700 last:border-r-0 text-center"
-            style={{ width: `${monthWidths[index]}%` }}
-          >
-            {label}
-          </div>
-        ))}
-
-        {/* 오늘 날짜 표시선 */}
-        {showTodayLine && todayPosition !== null && (
-          <div
-            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
-            style={{ left: `${todayPosition}%` }}
-          >
-            <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 px-1 py-0.5 bg-red-500 text-white text-[10px] rounded whitespace-nowrap font-bold">
-              NOW
+      {/* 월별 + 주별 헤더 */}
+      <div className="flex-1 flex flex-col relative">
+        {/* 상단: 월별 헤더 */}
+        <div className="flex relative border-b border-slate-200 dark:border-slate-700">
+          {months.map(({ year, month, label }, index) => (
+            <div
+              key={`${year}-${month}`}
+              className="flex-shrink-0 px-2 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700 last:border-r-0 text-center"
+              style={{ width: `${monthWidths[index]}%` }}
+            >
+              {label}
             </div>
-          </div>
-        )}
+          ))}
+        </div>
+
+        {/* 하단: 주별 헤더 */}
+        <div className="flex relative">
+          {weeks.map((week, index) => (
+            <div
+              key={`${week.year}-w${week.weekNumber}`}
+              className="flex-shrink-0 px-1 py-2 text-xs font-medium text-slate-500 dark:text-slate-500 border-r border-slate-200 dark:border-slate-700 last:border-r-0 text-center"
+              style={{ width: `${weekWidths[index]}%` }}
+            >
+              W{week.weekNumber}
+            </div>
+          ))}
+
+          {/* 오늘 날짜 표시선 */}
+          {showTodayLine && todayPosition !== null && (
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
+              style={{ left: `${todayPosition}%` }}
+            >
+              <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 px-1 py-0.5 bg-red-500 text-white text-[10px] rounded whitespace-nowrap font-bold">
+                NOW
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

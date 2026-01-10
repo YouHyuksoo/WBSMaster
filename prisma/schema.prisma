@@ -26,14 +26,15 @@ datasource db {
 // 이메일/비밀번호 기반 자체 인증 시스템
 // ============================================
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String   @default("admin123") // 비밀번호 (기본값: admin123)
-  name      String?
-  avatar    String?  // 프로필 이미지 URL
-  role      UserRole @default(MEMBER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String       @id @default(uuid())
+  email       String       @unique
+  password    String       @default("admin123") // 비밀번호 (기본값: admin123)
+  name        String?
+  avatar      String?      // 프로필 이미지 URL
+  role        UserRole     @default(USER)  // 시스템 역할 (기본: 사용자)
+  affiliation Affiliation? // 소속 (고객사, 개발사, 컨설팅, 외주 등)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   // 관계
   ownedProjects Project[]    @relation("ProjectOwner")
@@ -50,20 +51,39 @@ model User {
   chatHistories ChatHistory[] // 채팅 기록
   holidays      Holiday[] @relation("HolidayUser") // 개인 일정
   taskNudges    TaskNudge[] @relation("TaskNudger") // 내가 보낸 재촉
+  weeklyReports WeeklyReport[] @relation("UserWeeklyReports") // 주간보고
 
   @@map("users")
 }
 
+/**
+ * 시스템 역할 Enum
+ * 메뉴 접근 권한 제어용 (프로젝트 역할과 별개)
+ * - ADMIN: 관리자 (모든 기능 접근 가능)
+ * - USER: 일반 사용자 (기본 기능 사용)
+ * - GUEST: 손님 (읽기 전용)
+ */
 enum UserRole {
-  EXECUTIVE    // 경영자
-  DIRECTOR     // 총괄
-  PMO          // PMO (Project Management Office)
-  PM           // PM (Project Manager)
-  PL           // PL (Project Leader)
-  DEVELOPER    // 개발자
-  DESIGNER     // 디자이너
-  OPERATOR     // 오퍼레이터
-  MEMBER       // 일반 멤버
+  ADMIN   // 관리자
+  USER    // 사용자
+  GUEST   // 손님
+}
+
+/**
+ * 소속 Enum
+ * 멤버의 소속 조직 유형
+ * - CLIENT: 고객사
+ * - DEVELOPER: 개발사
+ * - CONSULTING: 컨설팅
+ * - OUTSOURCING: 외주
+ * - OTHER: 기타
+ */
+enum Affiliation {
+  CLIENT       // 고객사
+  DEVELOPER    // 개발사
+  CONSULTING   // 컨설팅
+  OUTSOURCING  // 외주
+  OTHER        // 기타
 }
 
 // ============================================
@@ -98,6 +118,11 @@ model Project {
   holidays     Holiday[]
   wbsItems     WbsItem[]     // WBS 항목
   chatHistories ChatHistory[] // AI 채팅 기록
+  milestones   Milestone[]   // 마일스톤 목록
+  timelineRows TimelineRow[] // 타임라인 행 목록
+  pinpoints    Pinpoint[]    // 핀포인트 목록
+  weeklyReports WeeklyReport[] @relation("ProjectWeeklyReports") // 주간보고
+  processVerificationCategories ProcessVerificationCategory[] // 기능추적표 카테고리
 
   @@map("projects")
 }
@@ -138,6 +163,8 @@ model Task {
   requirementId String?        // 연결된 요구사항 (선택)
   requirement   Requirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
   nudges        TaskNudge[]    // 재촉 목록
+  completedAt   DateTime?      // 완료 일시 (주간보고 연동용)
+  weeklyItems   WeeklyReportItem[] @relation("TaskWeeklyItems") // 주간보고 항목 연결
 
   @@map("tasks")
 }
@@ -340,6 +367,7 @@ model WbsItem {
 
   // 담당자 (다대다)
   assignees   WbsAssignee[]
+  weeklyItems WeeklyReportItem[] @relation("WbsWeeklyItems") // 주간보고 항목 연결
 
   @@unique([projectId, code]) // 프로젝트 내 WBS 코드 유일성
   @@map("wbs_items")
@@ -604,4 +632,285 @@ enum FeedbackRating {
   POSITIVE  // 좋아요 (도움됨)
   NEGATIVE  // 싫어요 (도움안됨)
   NEUTRAL   // 보통
+}
+
+// ============================================
+// 타임라인 행 모델
+// 마일스톤을 배치할 수 있는 행 (태스크, 인프라 등)
+// 부모-자식 계층 관계 지원 (같은 범주의 마일스톤들을 그룹화)
+// ============================================
+model TimelineRow {
+  id          String   @id @default(uuid())
+  name        String                    // 행 이름 (예: "태스크", "인프라")
+  color       String   @default("#94A3B8") // 행 색상 (좌측 라벨 배경)
+  order       Int      @default(0)        // 행 정렬 순서
+  isDefault   Boolean  @default(false)    // 기본 행 여부 (삭제 불가)
+
+  // 부모-자식 관계 (자기 참조)
+  parentId    String?                   // 부모 행 ID (null이면 최상위 행)
+  parent      TimelineRow?  @relation("ChildRows", fields: [parentId], references: [id], onDelete: Cascade)
+  children    TimelineRow[] @relation("ChildRows")
+
+  // 관계
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestones  Milestone[]
+  pinpoints   Pinpoint[] // 핀포인트 목록
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([parentId])
+  @@map("timeline_rows")
+}
+
+// ============================================
+// 마일스톤 모델
+// 프로젝트 주요 이정표 관리 (기간 막대 형태)
+// ============================================
+model Milestone {
+  id          String          @id @default(uuid())
+  name        String          // 마일스톤 이름 (예: "API 개발")
+  description String?         // 상세 설명
+  startDate   DateTime        // 시작일
+  endDate     DateTime        // 종료일
+  status      MilestoneStatus @default(PENDING)
+  color       String          @default("#3B82F6") // 막대 색상 (HEX)
+  order       Int             @default(0)         // 정렬 순서
+
+  // 관계
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rowId       String?         // 타임라인 행 연결
+  row         TimelineRow? @relation(fields: [rowId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([rowId])
+  @@index([startDate])
+  @@map("milestones")
+}
+
+enum MilestoneStatus {
+  PENDING     // 대기중
+  IN_PROGRESS // 진행중
+  COMPLETED   // 완료
+  DELAYED     // 지연
+}
+
+// ============================================
+// 핀포인트 모델
+// 타임라인 상의 특정 시점을 표시하는 삼각형 마커
+// 각 행에 독립적으로 배치 가능
+// ============================================
+model Pinpoint {
+  id          String   @id @default(uuid())
+  name        String   // 핀포인트 이름 (예: "오픈", "베타", "런칭")
+  description String?  // 상세 설명 (선택)
+  date        DateTime // 핀포인트 날짜
+  color       String   @default("#EF4444") // 삼각형 색상 (HEX)
+
+  // 관계
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rowId       String   // 타임라인 행 연결
+  row         TimelineRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([rowId])
+  @@index([date])
+  @@map("pinpoints")
+}
+
+// ============================================
+// 업무 카테고리 Enum
+// 주간보고 업무 유형 분류
+// ============================================
+enum WorkCategory {
+  DOCUMENT      // 문서작업
+  ANALYSIS      // 분석
+  DEVELOPMENT   // 개발
+  DESIGN        // 설계
+  SUPPORT       // 지원
+  MEETING       // 회의
+  REVIEW        // 검토
+  OTHER         // 기타
+}
+
+// ============================================
+// 주간보고 상태 Enum
+// ============================================
+enum ReportStatus {
+  DRAFT       // 작성 중
+  SUBMITTED   // 제출 완료
+}
+
+// ============================================
+// 주간보고 항목 타입 Enum
+// ============================================
+enum ReportItemType {
+  PREVIOUS_RESULT   // 전주 실적
+  NEXT_PLAN         // 차주 계획
+}
+
+// ============================================
+// 주간보고 모델
+// 사용자별 주간 업무보고 관리
+// ============================================
+model WeeklyReport {
+  id            String       @id @default(uuid())
+
+  // 주차 정보 (ISO 주차 기준)
+  year          Int                    // 연도 (예: 2026)
+  weekNumber    Int                    // 주차 (1~53)
+  weekStart     DateTime               // 해당 주 시작일 (월요일)
+  weekEnd       DateTime               // 해당 주 종료일 (일요일)
+
+  // 이슈 섹션 (리치텍스트 HTML)
+  issueContent  String?                // 이슈 내용 (HTML 형식, React-Quill)
+
+  // 메타데이터
+  status        ReportStatus @default(DRAFT)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  submittedAt   DateTime?              // 제출 완료 시간
+
+  // 관계
+  userId        String
+  user          User         @relation("UserWeeklyReports", fields: [userId], references: [id], onDelete: Cascade)
+  projectId     String
+  project       Project      @relation("ProjectWeeklyReports", fields: [projectId], references: [id], onDelete: Cascade)
+
+  // 업무 항목들 (1:N)
+  items         WeeklyReportItem[]
+
+  // 복합 유니크 제약 (같은 프로젝트, 같은 사용자, 같은 주차에 하나의 보고서만)
+  @@unique([projectId, userId, year, weekNumber])
+  @@index([userId])
+  @@index([projectId])
+  @@index([year, weekNumber])
+  @@map("weekly_reports")
+}
+
+// ============================================
+// 주간보고 항목 모델
+// 개별 업무 항목 (전주실적/차주계획)
+// ============================================
+model WeeklyReportItem {
+  id            String         @id @default(uuid())
+
+  // 업무 정보
+  type          ReportItemType         // PREVIOUS_RESULT(전주실적) or NEXT_PLAN(차주계획)
+  category      WorkCategory           // 업무 카테고리
+  title         String                 // 업무 제목
+  description   String?                // 업무 상세 설명
+  targetDate    DateTime?              // 목표일
+  remarks       String?                // 기타/비고
+
+  // 계획에 없던 추가 업무인지 여부
+  isAdditional  Boolean @default(false)
+
+  // 완료 여부 (전주 실적용)
+  isCompleted   Boolean @default(false)
+
+  // 진행률 (0-100)
+  progress      Int     @default(0)
+
+  // Task/WBS 연동 (선택)
+  linkedTaskId  String?                // 연결된 Task ID (nullable)
+  linkedTask    Task?   @relation("TaskWeeklyItems", fields: [linkedTaskId], references: [id], onDelete: SetNull)
+  linkedWbsId   String?                // 연결된 WBS 항목 ID (nullable)
+  linkedWbs     WbsItem? @relation("WbsWeeklyItems", fields: [linkedWbsId], references: [id], onDelete: SetNull)
+
+  // 순서
+  order         Int     @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 관계
+  reportId      String
+  report        WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([type])
+  @@index([linkedTaskId])
+  @@index([linkedWbsId])
+  @@map("weekly_report_items")
+}
+
+// ============================================
+// 공정검증 카테고리 모델
+// 기능추적표의 대분류 (재료관리, SMD공정관리 등)
+// ============================================
+model ProcessVerificationCategory {
+  id          String   @id @default(uuid())
+  name        String   // 카테고리명 (예: 재료관리, SMD공정관리)
+  code        String   // 영문 코드 (예: MATERIAL, SMD_PROCESS)
+  order       Int      @default(0) // 정렬 순서
+  description String?  // 설명
+
+  // 관계
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items       ProcessVerificationItem[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([projectId, code])
+  @@index([projectId])
+  @@map("process_verification_categories")
+}
+
+// ============================================
+// 공정검증 항목 모델
+// 기능추적표의 개별 검증 항목
+// ============================================
+model ProcessVerificationItem {
+  id                  String   @id @default(uuid())
+
+  // Excel 컬럼 매핑
+  category            String           // 구분 (재료, 공정, 검사 등)
+  isApplied           Boolean @default(false) // 적용(Y/N)
+  managementArea      String           // (L1) 관리 영역
+  detailItem          String           // (L2) 세부 관리 항목
+  mesMapping          String?          // (L3) MES/IT 매핑 기능명
+  verificationDetail  String?          // 세부 검증 내용 및 점검 기준
+  managementCode      String           // 관리코드 (M-1-01, P-1-01 등)
+  acceptanceStatus    String?          // 수용 여부
+  existingMes         Boolean @default(false) // 기존MES유무(Y/N)
+  customerRequest     String?          // 고객요청여부
+
+  // 추가 필드
+  order               Int     @default(0) // 정렬 순서
+  remarks             String?          // 비고
+  status              VerificationStatus @default(PENDING) // 검증 상태
+
+  // 관계
+  categoryId          String
+  categoryRef         ProcessVerificationCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([managementCode])
+  @@map("process_verification_items")
+}
+
+// ============================================
+// 공정검증 상태 Enum
+// ============================================
+enum VerificationStatus {
+  PENDING      // 대기
+  IN_PROGRESS  // 진행중
+  VERIFIED     // 검증완료
+  NOT_APPLICABLE // 해당없음
 }

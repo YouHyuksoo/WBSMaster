@@ -140,9 +140,9 @@ export default function MembersPage() {
   // 통계
   const userStats = {
     total: users.length,
-    executives: users.filter((u) => u.role === "EXECUTIVE" || u.role === "DIRECTOR").length,
-    pms: users.filter((u) => u.role === "PMO" || u.role === "PM" || u.role === "PL").length,
-    members: users.filter((u) => u.role === "MEMBER" || u.role === "DEVELOPER" || u.role === "DESIGNER").length,
+    executives: users.filter((u) => u.role === "ADMIN").length,
+    pms: users.filter((u) => u.role === "USER").length,
+    members: users.filter((u) => u.role === "GUEST").length,
   };
 
   const memberStats = {

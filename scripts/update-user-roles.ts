@@ -23,17 +23,17 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("🚀 사용자 역할 업데이트 시작...\n");
 
-  // 유혁수 → PMO
+  // 유혁수 → ADMIN
   const user1 = await prisma.user.update({
     where: { email: "hyuksu.yu@wbsmaster.com" },
-    data: { role: "PMO" },
+    data: { role: "ADMIN" },
   });
   console.log(`✅ ${user1.name}: ${user1.role}`);
 
-  // 김종현 → DIRECTOR (총괄)
+  // 김종현 → USER
   const user2 = await prisma.user.update({
     where: { email: "jonghyun.kim@wbsmaster.com" },
-    data: { role: "DIRECTOR" },
+    data: { role: "USER" },
   });
   console.log(`✅ ${user2.name}: ${user2.role}`);
 

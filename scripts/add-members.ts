@@ -60,7 +60,7 @@ async function main() {
         data: {
           email,
           name: member.name,
-          role: member.role === "PM" ? "PM" : "PL",
+          role: "USER", // 시스템 역할 (ADMIN, USER, GUEST)
         },
       });
       console.log(`사용자 생성: ${member.name} (${email})`);

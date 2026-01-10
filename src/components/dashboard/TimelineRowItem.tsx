@@ -59,6 +59,10 @@ interface TimelineRowItemProps {
     endDate: Date;
     containerRect: DOMRect;
   } | null;
+  /** 자식 행 추가 핸들러 */
+  onAddChildRow?: (parentRowId: string) => void;
+  /** 자식 행 여부 (같은 그룹에 속함) */
+  isChild?: boolean;
 }
 
 /**
@@ -77,6 +81,8 @@ export function TimelineRowItem({
   onResizeStart,
   resizingMilestoneId,
   resizingMilestone,
+  onAddChildRow,
+  isChild = false,
 }: TimelineRowItemProps) {
   // 호버 상태
   const [isHovered, setIsHovered] = useState(false);
@@ -129,19 +135,28 @@ export function TimelineRowItem({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* 왼쪽 라벨 영역 */}
+      {/* 왼쪽 라벨 영역 (자식 행일 때는 숨김 - 부모가 병합) */}
+      {!isChild && (
       <div
-        className="flex-shrink-0 flex items-center justify-between px-3 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+        className={`flex-shrink-0 flex items-center justify-between px-3 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900`}
         style={{ width: labelWidth }}
       >
         {/* 행 이름 + 색상 인디케이터 */}
         <div className="flex items-center gap-2 min-w-0">
-          <div
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ backgroundColor: row.color }}
-          />
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
-            {row.name}
+          {!isChild && (
+            <div
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: row.color }}
+            />
+          )}
+          <span
+            className={`truncate ${
+              isChild
+                ? "text-xs font-normal text-slate-600 dark:text-slate-400"
+                : "text-sm font-medium text-slate-700 dark:text-slate-300"
+            }`}
+          >
+            {isChild ? "→ " : ""}{row.name}
           </span>
           {row.isDefault && (
             <span className="text-[10px] text-slate-400 dark:text-slate-500">
@@ -153,6 +168,15 @@ export function TimelineRowItem({
         {/* 행 액션 버튼들 (호버 시 표시) */}
         {isHovered && !row.isDefault && (
           <div className="flex items-center gap-1 ml-1">
+            {!isChild && (
+              <button
+                onClick={() => onAddChildRow?.(row.id)}
+                className="p-1 text-slate-400 hover:text-blue-500 dark:hover:text-blue-400"
+                title="같은 그룹 행 추가"
+              >
+                <Icon name="add" size="sm" />
+              </button>
+            )}
             <button
               onClick={() => onRowEdit?.(row)}
               className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
@@ -170,6 +194,7 @@ export function TimelineRowItem({
           </div>
         )}
       </div>
+      )}
 
       {/* 오른쪽 타임라인 영역 */}
       <div className="flex-1 relative overflow-hidden timeline-container">

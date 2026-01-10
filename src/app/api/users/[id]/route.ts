@@ -39,6 +39,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         name: true,
         avatar: true,
         role: true,
+        affiliation: true, // 소속 (고객, 개발사, 컨설팅, 외주 등)
         createdAt: true,
         updatedAt: true,
         _count: {
@@ -73,14 +74,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * PATCH /api/users/:id
  * @param email - 사용자 이메일 (로그인용)
  * @param name - 사용자 이름 (표시용)
- * @param role - 사용자 역할 (EXECUTIVE, DIRECTOR, PMO, PM, PL, DEVELOPER, DESIGNER, OPERATOR, MEMBER)
+ * @param role - 시스템 역할 (ADMIN, USER, GUEST)
  * @param avatar - 프로필 이미지 URL
+ * @param affiliation - 소속 (CLIENT, DEVELOPER, CONSULTING, OUTSOURCING, OTHER)
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { email, name, role, avatar } = body;
+    const { email, name, role, avatar, affiliation } = body;
 
     // 사용자 존재 확인
     const existing = await prisma.user.findUnique({ where: { id } });
@@ -102,11 +104,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // 역할 유효성 검사
-    const validRoles = ["EXECUTIVE", "DIRECTOR", "PMO", "PM", "PL", "DEVELOPER", "DESIGNER", "OPERATOR", "MEMBER"];
+    // 시스템 역할 유효성 검사 (ADMIN: 관리자, USER: 사용자, GUEST: 손님)
+    const validRoles = ["ADMIN", "USER", "GUEST"];
     if (role && !validRoles.includes(role)) {
       return NextResponse.json(
         { error: "유효하지 않은 역할입니다." },
+        { status: 400 }
+      );
+    }
+
+    // 소속 유효성 검사
+    const validAffiliations = ["CLIENT", "DEVELOPER", "CONSULTING", "OUTSOURCING", "OTHER", null];
+    if (affiliation !== undefined && !validAffiliations.includes(affiliation)) {
+      return NextResponse.json(
+        { error: "유효하지 않은 소속입니다." },
         { status: 400 }
       );
     }
@@ -118,6 +129,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(name !== undefined && { name }),
         ...(role !== undefined && { role }),
         ...(avatar !== undefined && { avatar }),
+        ...(affiliation !== undefined && { affiliation }),
       },
       select: {
         id: true,
@@ -125,6 +137,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         name: true,
         avatar: true,
         role: true,
+        affiliation: true,
         createdAt: true,
         updatedAt: true,
       },

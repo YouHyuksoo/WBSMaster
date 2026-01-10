@@ -36,7 +36,7 @@ async function main() {
     create: {
       email: "hyuksu.yu@wbsmaster.com",
       name: "유혁수",
-      role: "PMO", // PMO 역할
+      role: "ADMIN", // 관리자
     },
   });
   console.log("✅ 유혁수 등록 완료:", user1);
@@ -48,7 +48,7 @@ async function main() {
     create: {
       email: "jonghyun.kim@wbsmaster.com",
       name: "김종현",
-      role: "DIRECTOR", // 총괄 역할
+      role: "USER", // 사용자
     },
   });
   console.log("✅ 김종현 등록 완료:", user2);

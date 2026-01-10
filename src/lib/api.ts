@@ -266,13 +266,17 @@ export interface TeamMember {
   };
 }
 
+/** 소속 타입 */
+export type Affiliation = "CLIENT" | "DEVELOPER" | "CONSULTING" | "OUTSOURCING" | "OTHER";
+
 /** 사용자 타입 */
 export interface User {
   id: string;
   email: string;
   name?: string;
   avatar?: string;
-  role: "EXECUTIVE" | "DIRECTOR" | "PMO" | "PM" | "PL" | "DEVELOPER" | "DESIGNER" | "OPERATOR" | "MEMBER";
+  role: "ADMIN" | "USER" | "GUEST";
+  affiliation?: Affiliation | null;
   createdAt: string;
 }
 
@@ -452,6 +456,157 @@ export interface AiPersona {
   updatedAt: string;
 }
 
+/** 핀포인트 타입 (삼각형 마커) */
+export interface Pinpoint {
+  id: string;
+  name: string;
+  description?: string | null;
+  date: string;
+  color: string;
+  projectId: string;
+  rowId: string;
+  row?: {
+    id: string;
+    name: string;
+    color: string;
+  };
+  project?: {
+    id: string;
+    name: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 마일스톤 상태 타입 */
+export type MilestoneStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "DELAYED";
+
+/** 타임라인 행 타입 */
+export interface TimelineRow {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
+  isDefault: boolean;
+  projectId: string;
+  /** 부모 행 ID (null이면 최상위 행) */
+  parentId?: string | null;
+  /** 부모 행 정보 */
+  parent?: TimelineRow | null;
+  /** 자식 행들 (계층 구조) */
+  children?: TimelineRow[];
+  milestones?: Milestone[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 마일스톤 타입 (기간 막대 형태) */
+export interface Milestone {
+  id: string;
+  name: string;
+  description?: string | null;
+  startDate: string;    // 시작일
+  endDate: string;      // 종료일
+  status: MilestoneStatus;
+  color: string;
+  order: number;
+  projectId: string;
+  rowId?: string | null;  // 타임라인 행 ID
+  row?: {
+    id: string;
+    name: string;
+    color: string;
+  } | null;
+  project?: {
+    id: string;
+    name: string;
+    startDate?: string | null;
+    endDate?: string | null;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 업무 카테고리 타입 */
+export type WorkCategory = "DOCUMENT" | "ANALYSIS" | "DEVELOPMENT" | "DESIGN" | "SUPPORT" | "MEETING" | "REVIEW" | "OTHER";
+
+/** 주간보고 상태 타입 */
+export type ReportStatus = "DRAFT" | "SUBMITTED";
+
+/** 주간보고 항목 타입 */
+export type ReportItemType = "PREVIOUS_RESULT" | "NEXT_PLAN";
+
+/** 주간보고 항목 타입 */
+export interface WeeklyReportItem {
+  id: string;
+  type: ReportItemType;
+  category: WorkCategory;
+  title: string;
+  description?: string | null;
+  targetDate?: string | null;
+  remarks?: string | null;
+  isAdditional: boolean;
+  isCompleted: boolean;
+  progress: number;
+  linkedTaskId?: string | null;
+  linkedWbsId?: string | null;
+  order: number;
+  reportId: string;
+  createdAt: string;
+  updatedAt: string;
+  linkedTask?: {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+  } | null;
+  linkedWbs?: {
+    id: string;
+    code: string;
+    name: string;
+    level: WbsLevel;
+  } | null;
+}
+
+/** 주간보고 타입 */
+export interface WeeklyReport {
+  id: string;
+  year: number;
+  weekNumber: number;
+  weekStart: string;
+  weekEnd: string;
+  issueContent?: string | null;
+  status: ReportStatus;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt?: string | null;
+  userId: string;
+  projectId: string;
+  user?: {
+    id: string;
+    name?: string | null;
+    email: string;
+    avatar?: string | null;
+  };
+  project?: {
+    id: string;
+    name: string;
+  };
+  items?: WeeklyReportItem[];
+}
+
+/** 자동 로드 데이터 타입 (전주계획 + 완료된 Task) */
+export interface AutoLoadData {
+  previousPlanItems: WeeklyReportItem[];
+  completedTasks: {
+    id: string;
+    title: string;
+    status: string;
+    completedAt: string | null;
+    assigneeId?: string | null;
+  }[];
+}
+
 // ============================================
 // API 클라이언트
 // ============================================
@@ -530,6 +685,63 @@ export const api = {
     /** 오늘의 일정 조회 */
     today: (params?: { projectId?: string; userId?: string }) =>
       get<Holiday[]>("/api/holidays/today", params),
+  },
+
+  /** 타임라인 행 API */
+  timelineRows: {
+    list: (params: { projectId: string }) =>
+      get<TimelineRow[]>("/api/timeline-rows", params as Record<string, string | undefined>),
+    get: (id: string) => get<TimelineRow>(`/api/timeline-rows/${id}`),
+    create: (data: {
+      name: string;
+      projectId: string;
+      color?: string;
+      isDefault?: boolean;
+      /** 부모 행 ID (자식 행 생성 시 지정) */
+      parentId?: string;
+    }) => post<TimelineRow>("/api/timeline-rows", data),
+    update: (id: string, data: Partial<TimelineRow>) =>
+      patch<TimelineRow>(`/api/timeline-rows/${id}`, data),
+    delete: (id: string) => del<{ message: string }>(`/api/timeline-rows/${id}`),
+  },
+
+  /** 마일스톤 API (기간 막대 형태) */
+  milestones: {
+    list: (params: { projectId: string; rowId?: string; status?: MilestoneStatus }) =>
+      get<Milestone[]>("/api/milestones", params as Record<string, string | undefined>),
+    get: (id: string) => get<Milestone>(`/api/milestones/${id}`),
+    create: (data: {
+      name: string;
+      startDate: string;
+      endDate: string;
+      projectId: string;
+      rowId?: string;
+      description?: string;
+      status?: MilestoneStatus;
+      color?: string;
+      order?: number;
+    }) => post<Milestone>("/api/milestones", data),
+    update: (id: string, data: Partial<Milestone>) =>
+      patch<Milestone>(`/api/milestones/${id}`, data),
+    delete: (id: string) => del<{ message: string }>(`/api/milestones/${id}`),
+  },
+
+  /** 핀포인트 API (삼각형 마커) */
+  pinpoints: {
+    list: (params: { projectId: string; rowId?: string }) =>
+      get<Pinpoint[]>("/api/pinpoints", params as Record<string, string | undefined>),
+    get: (id: string) => get<Pinpoint>(`/api/pinpoints/${id}`),
+    create: (data: {
+      name: string;
+      date: string;
+      projectId: string;
+      rowId: string;
+      description?: string;
+      color?: string;
+    }) => post<Pinpoint>("/api/pinpoints", data),
+    update: (id: string, data: Partial<Pinpoint>) =>
+      patch<Pinpoint>(`/api/pinpoints/${id}`, data),
+    delete: (id: string) => del<{ message: string }>(`/api/pinpoints/${id}`),
   },
 
   /** 팀 멤버 API */
@@ -633,5 +845,61 @@ export const api = {
     update: (id: string, data: { name?: string; description?: string; icon?: string; systemPrompt?: string; isActive?: boolean }) =>
       patch<AiPersona>(`/api/ai-personas/${id}`, data),
     delete: (id: string) => del<{ message: string }>(`/api/ai-personas/${id}`),
+  },
+
+  /** 주간보고 API */
+  weeklyReports: {
+    /** 주간보고 목록 조회 */
+    list: (params?: { projectId?: string; userId?: string; year?: string; weekNumber?: string }) =>
+      get<WeeklyReport[]>("/api/weekly-reports", params),
+    /** 주간보고 상세 조회 */
+    get: (id: string) => get<WeeklyReport>(`/api/weekly-reports/${id}`),
+    /** 주간보고 생성 */
+    create: (data: {
+      projectId: string;
+      year: number;
+      weekNumber: number;
+      weekStart: string;
+      weekEnd: string;
+      issueContent?: string;
+    }) => post<WeeklyReport>("/api/weekly-reports", data),
+    /** 주간보고 수정 */
+    update: (id: string, data: {
+      issueContent?: string;
+      status?: ReportStatus;
+    }) => patch<WeeklyReport>(`/api/weekly-reports/${id}`, data),
+    /** 주간보고 삭제 */
+    delete: (id: string) => del<{ message: string }>(`/api/weekly-reports/${id}`),
+    /** 자동 데이터 로드 (전주계획 + 완료된 Task) */
+    autoLoad: (params: { projectId: string; year: string; weekNumber: string }) =>
+      get<AutoLoadData>("/api/weekly-reports/auto-load", params),
+  },
+
+  /** 주간보고 항목 API */
+  weeklyReportItems: {
+    /** 항목 목록 조회 */
+    list: (reportId: string) =>
+      get<WeeklyReportItem[]>(`/api/weekly-reports/${reportId}/items`),
+    /** 항목 추가 */
+    create: (reportId: string, data: {
+      type: ReportItemType;
+      category: WorkCategory;
+      title: string;
+      description?: string;
+      targetDate?: string;
+      remarks?: string;
+      isAdditional?: boolean;
+      isCompleted?: boolean;
+      progress?: number;
+      linkedTaskId?: string;
+      linkedWbsId?: string;
+      order?: number;
+    }) => post<WeeklyReportItem>(`/api/weekly-reports/${reportId}/items`, data),
+    /** 항목 수정 */
+    update: (reportId: string, itemId: string, data: Partial<Omit<WeeklyReportItem, "id" | "reportId" | "createdAt" | "updatedAt">>) =>
+      patch<WeeklyReportItem>(`/api/weekly-reports/${reportId}/items/${itemId}`, data),
+    /** 항목 삭제 */
+    delete: (reportId: string, itemId: string) =>
+      del<{ message: string }>(`/api/weekly-reports/${reportId}/items/${itemId}`),
   },
 };

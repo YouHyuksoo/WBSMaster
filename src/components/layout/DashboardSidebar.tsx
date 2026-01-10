@@ -51,10 +51,13 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { label: "대시보드", icon: "dashboard", href: "/dashboard" },
   { label: "WBS 보기", icon: "account_tree", href: "/dashboard/wbs", filled: true },
+  { label: "마일스톤", icon: "flag_circle", href: "/dashboard/milestones" },
   { label: "TASK 관리", icon: "view_kanban", href: "/dashboard/kanban" },
   { label: "일정 관리", icon: "event", href: "/dashboard/holidays" },
+  { label: "기능추적표", icon: "fact_check", href: "/dashboard/process-verification" },
   { label: "요구사항 점검표", icon: "checklist", href: "/dashboard/requirements" },
   { label: "이슈사항 점검표", icon: "bug_report", href: "/dashboard/issues" },
+  { label: "주간 업무보고", icon: "assignment", href: "/dashboard/weekly-report" },
   { label: "AI 어시스턴트", icon: "smart_toy", href: "/dashboard/chat", filled: true },
 ];
 
