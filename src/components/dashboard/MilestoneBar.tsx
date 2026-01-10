@@ -160,6 +160,7 @@ export function MilestoneBar({
           bg-black/20 rounded-l-md
         `}
         onMouseDown={(e) => handleResizeMouseDown(e, "left")}
+        onClick={(e) => e.stopPropagation()}
         onMouseEnter={() => setHoverSide("left")}
         onMouseLeave={() => setHoverSide(null)}
       >
@@ -191,6 +192,7 @@ export function MilestoneBar({
           bg-black/20 rounded-r-md
         `}
         onMouseDown={(e) => handleResizeMouseDown(e, "right")}
+        onClick={(e) => e.stopPropagation()}
         onMouseEnter={() => setHoverSide("right")}
         onMouseLeave={() => setHoverSide(null)}
       >
