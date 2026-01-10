@@ -51,6 +51,14 @@ interface TimelineRowItemProps {
   onResizeStart?: (milestoneId: string, direction: "left" | "right", event: React.MouseEvent) => void;
   /** 리사이즈 중인 마일스톤 ID */
   resizingMilestoneId?: string | null;
+  /** 리사이즈 중인 마일스톤 (현재 dates 포함) */
+  resizingMilestone?: {
+    id: string;
+    direction: "left" | "right";
+    startDate: Date;
+    endDate: Date;
+    containerRect: DOMRect;
+  } | null;
 }
 
 /**
@@ -68,6 +76,7 @@ export function TimelineRowItem({
   draggingMilestoneId,
   onResizeStart,
   resizingMilestoneId,
+  resizingMilestone,
 }: TimelineRowItemProps) {
   // 호버 상태
   const [isHovered, setIsHovered] = useState(false);
@@ -81,18 +90,32 @@ export function TimelineRowItem({
     },
   });
 
-  // 마일스톤 위치 계산
+  /**
+   * 마일스톤 위치 계산
+   * 리사이징 중인 마일스톤은 현재 resizingMilestone의 dates를 사용해서 실시간 반영
+   */
   const milestonesWithPosition = useMemo(() => {
     return milestones.map((milestone) => {
+      // 리사이징 중인 마일스톤은 현재 리사이즈된 dates 사용
+      const startDate =
+        resizingMilestoneId === milestone.id && resizingMilestone
+          ? resizingMilestone.startDate
+          : new Date(milestone.startDate);
+
+      const endDate =
+        resizingMilestoneId === milestone.id && resizingMilestone
+          ? resizingMilestone.endDate
+          : new Date(milestone.endDate);
+
       const { position, width } = calculateMilestonePosition(
-        new Date(milestone.startDate),
-        new Date(milestone.endDate),
+        startDate,
+        endDate,
         timelineStart,
         timelineEnd
       );
       return { ...milestone, position, width };
     });
-  }, [milestones, timelineStart, timelineEnd]);
+  }, [milestones, timelineStart, timelineEnd, resizingMilestoneId, resizingMilestone]);
 
   return (
     <div
@@ -236,6 +259,8 @@ export function UnassignedRowItem({
   onMilestoneClick,
   draggingMilestoneId,
   onResizeStart,
+  resizingMilestoneId,
+  resizingMilestone,
 }: {
   milestones: Milestone[];
   timelineStart: Date;
@@ -244,19 +269,41 @@ export function UnassignedRowItem({
   onMilestoneClick?: (milestone: Milestone) => void;
   draggingMilestoneId?: string | null;
   onResizeStart?: (milestoneId: string, direction: "left" | "right", event: React.MouseEvent) => void;
+  resizingMilestoneId?: string | null;
+  resizingMilestone?: {
+    id: string;
+    direction: "left" | "right";
+    startDate: Date;
+    endDate: Date;
+    containerRect: DOMRect;
+  } | null;
 }) {
-  // 마일스톤 위치 계산
+  /**
+   * 마일스톤 위치 계산
+   * 리사이징 중인 마일스톤은 현재 resizingMilestone의 dates를 사용해서 실시간 반영
+   */
   const milestonesWithPosition = useMemo(() => {
     return milestones.map((milestone) => {
+      // 리사이징 중인 마일스톤은 현재 리사이즈된 dates 사용
+      const startDate =
+        resizingMilestoneId === milestone.id && resizingMilestone
+          ? resizingMilestone.startDate
+          : new Date(milestone.startDate);
+
+      const endDate =
+        resizingMilestoneId === milestone.id && resizingMilestone
+          ? resizingMilestone.endDate
+          : new Date(milestone.endDate);
+
       const { position, width } = calculateMilestonePosition(
-        new Date(milestone.startDate),
-        new Date(milestone.endDate),
+        startDate,
+        endDate,
         timelineStart,
         timelineEnd
       );
       return { ...milestone, position, width };
     });
-  }, [milestones, timelineStart, timelineEnd]);
+  }, [milestones, timelineStart, timelineEnd, resizingMilestoneId, resizingMilestone]);
 
   if (milestones.length === 0) return null;
 

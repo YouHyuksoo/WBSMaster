@@ -364,13 +364,14 @@ export function MilestoneTimeline({
 
   /**
    * 리사이즈 중 마우스 이동 처리
-   * 마우스 X 위치를 날짜로 변환하고 Optimistic Update 수행
+   * 마우스 X 위치를 날짜로 변환하고 로컬 상태만 업데이트 (실시간 피드백)
+   * API 저장은 mouseup에서만 수행
    */
   useEffect(() => {
     if (!resizingMilestone) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const { id, direction, containerRect, startDate, endDate } = resizingMilestone;
+      const { direction, containerRect, startDate, endDate } = resizingMilestone;
 
       // 마우스 X를 퍼센트로 변환
       const newPercent = getPercentFromMouseX(e.clientX, containerRect);
@@ -396,17 +397,28 @@ export function MilestoneTimeline({
         updatedEndDate = newDate < minEnd ? minEnd : newDate;
       }
 
-      // Optimistic Update
-      updateMilestone.mutate({
-        id,
-        data: {
-          startDate: updatedStartDate.toISOString().split("T")[0],
-          endDate: updatedEndDate.toISOString().split("T")[0],
-        },
+      // 로컬 상태만 업데이트 (실시간 UI 피드백)
+      setResizingMilestone((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          startDate: updatedStartDate,
+          endDate: updatedEndDate,
+        };
       });
     };
 
     const handleMouseUp = () => {
+      // mouseup 시에만 API 호출하여 최종 상태 저장
+      if (resizingMilestone) {
+        updateMilestone.mutate({
+          id: resizingMilestone.id,
+          data: {
+            startDate: resizingMilestone.startDate.toISOString().split("T")[0],
+            endDate: resizingMilestone.endDate.toISOString().split("T")[0],
+          },
+        });
+      }
       setResizingMilestone(null);
     };
 
@@ -492,6 +504,7 @@ export function MilestoneTimeline({
                     draggingMilestoneId={activeMilestone?.id}
                     onResizeStart={handleResizeStart}
                     resizingMilestoneId={resizingMilestone?.id}
+                    resizingMilestone={resizingMilestone}
                   />
                 ))}
 
@@ -503,6 +516,9 @@ export function MilestoneTimeline({
                 labelWidth={LABEL_WIDTH}
                 onMilestoneClick={handleMilestoneClick}
                 draggingMilestoneId={activeMilestone?.id}
+                onResizeStart={handleResizeStart}
+                resizingMilestoneId={resizingMilestone?.id}
+                resizingMilestone={resizingMilestone}
               />
 
               {/* 행 추가 버튼 */}
