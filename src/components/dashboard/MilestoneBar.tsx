@@ -141,7 +141,6 @@ export function MilestoneBar({
       }}
       onClick={onClick}
       {...attributes}
-      {...listeners}
     >
       {/* 좌측 리사이즈 핸들 */}
       <div
@@ -158,8 +157,8 @@ export function MilestoneBar({
         <div className="w-0.5 h-4 bg-white/70 rounded" />
       </div>
 
-      {/* 막대 내용 */}
-      <div className="flex-1 min-w-0 flex items-center gap-1 px-1">
+      {/* 막대 내용 - 드래그 리스너는 중앙 콘텐츠에만 적용 */}
+      <div className="flex-1 min-w-0 flex items-center gap-1 px-1" {...listeners}>
         {/* 상태 아이콘 */}
         <span className="flex-shrink-0 text-white/90 text-xs">
           {status === "COMPLETED" && "✓"}
