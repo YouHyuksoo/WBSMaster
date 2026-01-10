@@ -121,6 +121,15 @@ export function MilestoneBar({
     [onResizeStart]
   );
 
+  /**
+   * 클릭 핸들러 - 리사이징 중이면 모달 열기 방지
+   */
+  const handleClick = useCallback(() => {
+    // 리사이징 중이면 onClick 무시 (모달 열기 방지)
+    if (isResizing) return;
+    onClick?.();
+  }, [onClick, isResizing]);
+
   return (
     <div
       ref={setNodeRef}
@@ -139,7 +148,7 @@ export function MilestoneBar({
         backgroundColor: color,
         ...dragStyle,
       }}
-      onClick={onClick}
+      onClick={handleClick}
       {...attributes}
     >
       {/* 좌측 리사이즈 핸들 */}
