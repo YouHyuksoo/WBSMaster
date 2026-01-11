@@ -213,6 +213,9 @@ export async function POST(request: NextRequest) {
       chartData: response.chartData,
       mindmapData: response.mindmapData,
       processingTimeMs: processingTime,
+      // 전체 건수 정보 (Excel 다운로드용)
+      totalCount: response.totalCount,
+      displayedCount: response.displayedCount,
     });
   } catch (error) {
     console.error("채팅 처리 실패:", error);

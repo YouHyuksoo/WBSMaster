@@ -1,15 +1,32 @@
 /**
- * @file src/app/dashboard/process-verification/components/ImportExcelModal.tsx
+ * @file src/components/common/ImportExcelModal.tsx
  * @description
- * 엑셀 파일 업로드 모달 컴포넌트입니다.
- * 드래그앤드롭 또는 파일 선택으로 엑셀 파일을 업로드하여
- * 공정검증 데이터를 가져올 수 있습니다.
+ * 공통 엑셀 가져오기 모달 컴포넌트입니다.
+ * DB 구조 기반 템플릿을 제공하고 단일 시트 엑셀 파일을 업로드합니다.
  *
  * 초보자 가이드:
- * 1. **템플릿 다운로드**: 정해진 양식의 엑셀 템플릿을 먼저 다운로드
- * 2. **파일 업로드**: .xlsx, .xls 파일만 지원
- * 3. **드래그앤드롭**: 파일을 드래그하여 영역에 놓으면 업로드
- * 4. **기존 데이터 삭제**: 체크 시 기존 데이터를 모두 삭제 후 가져오기
+ * 1. **templateConfig**: DB 컬럼 구조를 정의하여 템플릿 생성
+ * 2. **apiEndpoint**: 업로드할 API 경로
+ * 3. **단일 시트**: 하나의 시트만 처리
+ *
+ * @example
+ * <ImportExcelModal
+ *   isOpen={isOpen}
+ *   onClose={onClose}
+ *   onSuccess={handleSuccess}
+ *   projectId={projectId}
+ *   title="고객요구사항 가져오기"
+ *   apiEndpoint="/api/customer-requirements/import"
+ *   templateConfig={{
+ *     fileName: "고객요구사항_템플릿",
+ *     sheetName: "고객요구사항",
+ *     columns: [
+ *       { header: "관리번호", key: "code", width: 15 },
+ *       { header: "사업부", key: "businessUnit", width: 10, example: "DISPLAY" },
+ *     ],
+ *   }}
+ *   hints={["첫 번째 행은 헤더입니다", "관리번호는 자동 생성됩니다"]}
+ * />
  */
 
 "use client";
@@ -19,81 +36,82 @@ import { utils, writeFile } from "xlsx";
 import { Icon, Button } from "@/components/ui";
 
 /**
- * ImportExcelModal Props 인터페이스
+ * 컬럼 설정 인터페이스
+ */
+export interface ColumnConfig {
+  /** 엑셀 헤더명 */
+  header: string;
+  /** DB 컬럼 키 (참고용) */
+  key: string;
+  /** 컬럼 너비 (문자 수) */
+  width?: number;
+  /** 예시 데이터 */
+  example?: string | number;
+}
+
+/**
+ * 템플릿 설정 인터페이스
+ */
+export interface TemplateConfig {
+  /** 다운로드 파일명 (확장자 제외) */
+  fileName: string;
+  /** 시트명 */
+  sheetName: string;
+  /** 컬럼 설정 배열 */
+  columns: ColumnConfig[];
+}
+
+/**
+ * 가져오기 결과 인터페이스
+ */
+export interface ImportResult {
+  success: boolean;
+  message: string;
+  stats?: {
+    total: number;
+    created: number;
+    skipped: number;
+    errors: string[];
+  };
+}
+
+/**
+ * ImportExcelModal Props
  */
 interface ImportExcelModalProps {
   /** 모달 열림 상태 */
   isOpen: boolean;
   /** 모달 닫기 핸들러 */
   onClose: () => void;
-  /** 가져오기 성공 시 콜백 */
-  onSuccess: (stats: ImportStats) => void;
+  /** 가져오기 성공 콜백 */
+  onSuccess: (result: ImportResult) => void;
   /** 프로젝트 ID */
   projectId: string;
+  /** 모달 제목 */
+  title?: string;
+  /** API 엔드포인트 */
+  apiEndpoint: string;
+  /** 템플릿 설정 */
+  templateConfig: TemplateConfig;
+  /** 안내 문구 배열 */
+  hints?: string[];
+  /** 기존 데이터 삭제 옵션 라벨 */
+  clearExistingLabel?: string;
 }
 
 /**
- * 가져오기 결과 통계
- */
-interface ImportStats {
-  categoriesCreated: number;
-  itemsCreated: number;
-  skippedSheets: string[];
-  errors: string[];
-}
-
-/**
- * 템플릿에 포함될 시트 목록 (카테고리)
- */
-const TEMPLATE_SHEETS = [
-  "재료관리",
-  "SMD공정관리",
-  "후공정관리",
-  "펌웨어SW관리",
-  "OTP롬라이팅관리",
-  "검사관리",
-  "추적성관리",
-  "풀프루프관리",
-  "품질관리",
-  "수리관리",
-  "재작업관리",
-  "WMS물류관리",
-  "작업지시관리",
-  "설비관리",
-  "소모품관리",
-  "피더관리",
-  "라벨관리",
-  "분석및모니터링",
-  "에폭시관리",
-  "플럭스관리",
-  "캐리어지그관리",
-  "이송용매거진관리",
-];
-
-/**
- * 템플릿 헤더 컬럼
- */
-const TEMPLATE_HEADERS = [
-  "구분",
-  "적용여부(Y/N)",
-  "관리 영역",
-  "세부 관리 항목",
-  "MES/IT 매핑",
-  "세부 검증 내용",
-  "관리코드",
-  "수용 여부",
-  "기존MES(Y/N)",
-  "고객 요청",
-];
-
-/**
- * 엑셀 가져오기 모달 컴포넌트
+ * 공통 엑셀 가져오기 모달 컴포넌트
  */
 export function ImportExcelModal({
   isOpen,
   onClose,
   onSuccess,
   projectId,
+  title = "엑셀 가져오기",
+  apiEndpoint,
+  templateConfig,
+  hints = [],
+  clearExistingLabel = "기존 데이터 삭제 후 가져오기",
 }: ImportExcelModalProps) {
   // 상태
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -101,83 +119,47 @@ export function ImportExcelModal({
   const [clearExisting, setClearExisting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
 
   // 파일 input 참조
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /**
    * 템플릿 엑셀 파일 다운로드
-   * 22개 시트와 각 시트별 헤더가 포함된 빈 템플릿 생성
    */
   const handleDownloadTemplate = () => {
-    // 새 워크북 생성
+    const { fileName, sheetName, columns } = templateConfig;
+
+    // 헤더 행
+    const headers = columns.map((col) => col.header);
+
+    // 예시 데이터 행
+    const exampleRow = columns.map((col) => col.example ?? "");
+
+    // 워크시트 생성
+    const sheetData = [headers, exampleRow];
+    const worksheet = utils.aoa_to_sheet(sheetData);
+
+    // 컬럼 너비 설정
+    worksheet["!cols"] = columns.map((col) => ({ wch: col.width || 15 }));
+
+    // 워크북 생성
     const workbook = utils.book_new();
-
-    // 각 시트 생성
-    TEMPLATE_SHEETS.forEach((sheetName) => {
-      // 헤더만 있는 데이터 배열
-      const sheetData = [TEMPLATE_HEADERS];
-
-      // 예시 데이터 행 추가 (사용자 이해를 돕기 위해)
-      const exampleRow = [
-        sheetName, // 구분
-        "Y", // 적용여부
-        "예시 관리 영역", // 관리 영역
-        "예시 세부 항목", // 세부 관리 항목
-        "MES-001", // MES/IT 매핑
-        "검증 내용 예시", // 세부 검증 내용
-        `${sheetName.substring(0, 3).toUpperCase()}-001`, // 관리코드
-        "수용", // 수용 여부
-        "N", // 기존MES
-        "", // 고객 요청
-      ];
-      sheetData.push(exampleRow);
-
-      // 워크시트 생성
-      const worksheet = utils.aoa_to_sheet(sheetData);
-
-      // 컬럼 너비 설정
-      worksheet["!cols"] = [
-        { wch: 15 }, // 구분
-        { wch: 12 }, // 적용여부
-        { wch: 25 }, // 관리 영역
-        { wch: 40 }, // 세부 관리 항목
-        { wch: 15 }, // MES/IT 매핑
-        { wch: 50 }, // 세부 검증 내용
-        { wch: 15 }, // 관리코드
-        { wch: 12 }, // 수용 여부
-        { wch: 12 }, // 기존MES
-        { wch: 30 }, // 고객 요청
-      ];
-
-      // 워크북에 시트 추가
-      utils.book_append_sheet(workbook, worksheet, sheetName);
-    });
+    utils.book_append_sheet(workbook, worksheet, sheetName);
 
     // 파일 다운로드
     const dateStr = new Date().toISOString().split("T")[0];
-    writeFile(workbook, `공정검증_템플릿_${dateStr}.xlsx`);
+    writeFile(workbook, `${fileName}_${dateStr}.xlsx`);
   };
 
   /**
    * 파일 유효성 검사
    */
   const validateFile = (file: File): boolean => {
-    const validTypes = [
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-      "application/vnd.ms-excel", // .xls
-    ];
     const validExtensions = [".xlsx", ".xls"];
-
-    // 확장자 검사
     const extension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-    if (!validExtensions.includes(extension)) {
-      setError("엑셀 파일(.xlsx, .xls)만 업로드할 수 있습니다.");
-      return false;
-    }
 
-    // MIME 타입 검사 (일부 브라우저에서 MIME 타입이 비어있을 수 있음)
-    if (file.type && !validTypes.includes(file.type)) {
+    if (!validExtensions.includes(extension)) {
       setError("엑셀 파일(.xlsx, .xls)만 업로드할 수 있습니다.");
       return false;
     }
@@ -197,6 +179,7 @@ export function ImportExcelModal({
    */
   const handleFileSelect = (file: File) => {
     setError(null);
+    setResult(null);
     if (validateFile(file)) {
       setSelectedFile(file);
     }
@@ -246,6 +229,7 @@ export function ImportExcelModal({
 
     setIsUploading(true);
     setError(null);
+    setResult(null);
 
     try {
       const formData = new FormData();
@@ -253,18 +237,23 @@ export function ImportExcelModal({
       formData.append("projectId", projectId);
       formData.append("clearExisting", String(clearExisting));
 
-      const res = await fetch("/api/process-verification/import", {
+      const res = await fetch(apiEndpoint, {
         method: "POST",
         body: formData,
       });
 
-      const result = await res.json();
+      const data = await res.json();
 
       if (res.ok) {
-        onSuccess(result.stats);
-        handleClose();
+        const importResult: ImportResult = {
+          success: true,
+          message: data.message || "가져오기 완료",
+          stats: data.stats,
+        };
+        setResult(importResult);
+        onSuccess(importResult);
       } else {
-        setError(result.error || "가져오기에 실패했습니다.");
+        setError(data.error || "가져오기에 실패했습니다.");
       }
     } catch (err) {
       console.error("엑셀 업로드 실패:", err);
@@ -281,6 +270,7 @@ export function ImportExcelModal({
     setSelectedFile(null);
     setClearExisting(false);
     setError(null);
+    setResult(null);
     setIsDragging(false);
     onClose();
   };
@@ -312,7 +302,7 @@ export function ImportExcelModal({
           <div className="flex items-center gap-2">
             <Icon name="upload_file" className="text-primary" />
             <h2 className="text-lg font-semibold text-text dark:text-white">
-              엑셀 가져오기
+              {title}
             </h2>
           </div>
           <button
@@ -358,6 +348,45 @@ export function ImportExcelModal({
             </div>
           )}
 
+          {/* 성공 메시지 */}
+          {result?.success && (
+            <div className="space-y-2">
+              <div className="flex items-start gap-2 p-3 bg-success/10 border border-success/20 rounded-lg">
+                <Icon name="check_circle" size="sm" className="text-success mt-0.5" />
+                <div className="text-sm">
+                  <p className="text-success font-medium">{result.message}</p>
+                  {result.stats && (
+                    <p className="text-text-secondary mt-1">
+                      총 {result.stats.total}건 중 {result.stats.created}건 등록
+                      {result.stats.skipped > 0 && `, ${result.stats.skipped}건 건너뜀`}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* 건너뛴 항목 상세 (에러가 있을 경우) */}
+              {result.stats && result.stats.errors && result.stats.errors.length > 0 && (
+                <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Icon name="warning" size="sm" className="text-warning mt-0.5 flex-shrink-0" />
+                    <div className="text-sm flex-1 min-w-0">
+                      <p className="text-warning font-medium mb-2">
+                        건너뛴 항목 상세 ({result.stats.skipped}건)
+                      </p>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {result.stats.errors.map((err, idx) => (
+                          <p key={idx} className="text-xs text-text-secondary truncate">
+                            • {err}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 파일 드롭존 */}
           <div
             className={`
@@ -383,7 +412,6 @@ export function ImportExcelModal({
             />
 
             {selectedFile ? (
-              // 선택된 파일 정보
               <div className="space-y-2">
                 <div className="size-12 mx-auto rounded-xl bg-success/10 flex items-center justify-center">
                   <Icon name="description" className="text-success" />
@@ -401,6 +429,7 @@ export function ImportExcelModal({
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedFile(null);
+                    setResult(null);
                   }}
                   className="text-sm text-primary hover:underline"
                 >
@@ -408,7 +437,6 @@ export function ImportExcelModal({
                 </button>
               </div>
             ) : (
-              // 파일 선택 안내
               <div className="space-y-2">
                 <div className="size-12 mx-auto rounded-xl bg-primary/10 flex items-center justify-center">
                   <Icon name="cloud_upload" className="text-primary" />
@@ -425,43 +453,43 @@ export function ImportExcelModal({
             )}
           </div>
 
-          {/* 옵션 */}
-          <div className="space-y-3">
-            <label className="flex items-start gap-3 p-3 rounded-lg border border-border dark:border-border-dark hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer transition-colors">
-              <input
-                type="checkbox"
-                checked={clearExisting}
-                onChange={(e) => setClearExisting(e.target.checked)}
-                className="mt-0.5 size-4 rounded border-slate-300 text-primary focus:ring-primary"
-              />
-              <div>
-                <p className="font-medium text-text dark:text-white text-sm">
-                  기존 데이터 삭제
-                </p>
-                <p className="text-xs text-text-secondary">
-                  체크 시 현재 프로젝트의 모든 공정검증 데이터를 삭제 후 가져옵니다
-                </p>
-              </div>
-            </label>
-          </div>
+          {/* 기존 데이터 삭제 옵션 */}
+          <label className="flex items-start gap-3 p-3 rounded-lg border border-border dark:border-border-dark hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer transition-colors">
+            <input
+              type="checkbox"
+              checked={clearExisting}
+              onChange={(e) => setClearExisting(e.target.checked)}
+              className="mt-0.5 size-4 rounded border-slate-300 text-primary focus:ring-primary"
+            />
+            <div>
+              <p className="font-medium text-text dark:text-white text-sm">
+                {clearExistingLabel}
+              </p>
+              <p className="text-xs text-text-secondary">
+                체크 시 현재 프로젝트의 기존 데이터를 모두 삭제합니다
+              </p>
+            </div>
+          </label>
 
           {/* 안내 메시지 */}
-          <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
-            <div className="flex items-start gap-2">
-              <Icon name="info" size="sm" className="text-primary mt-0.5" />
-              <div className="text-xs text-text-secondary space-y-1">
-                <p>• 시트 이름이 카테고리로 생성됩니다 (22개 시트 지원)</p>
-                <p>• 첫 번째 행은 헤더로 인식되어 건너뜁니다</p>
-                <p>• 관리코드가 없는 행은 건너뜁니다</p>
+          {hints.length > 0 && (
+            <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Icon name="info" size="sm" className="text-primary mt-0.5" />
+                <div className="text-xs text-text-secondary space-y-1">
+                  {hints.map((hint, idx) => (
+                    <p key={idx}>• {hint}</p>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 푸터 */}
         <div className="flex items-center justify-end gap-2 p-4 border-t border-border dark:border-border-dark bg-slate-50 dark:bg-slate-900/50">
           <Button variant="ghost" onClick={handleClose} disabled={isUploading}>
-            취소
+            닫기
           </Button>
           <Button
             variant="primary"

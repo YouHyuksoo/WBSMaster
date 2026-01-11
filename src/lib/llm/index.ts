@@ -42,6 +42,10 @@ export interface LLMResponse {
   chartType?: "bar" | "line" | "pie" | "area" | "mindmap" | null;
   chartData?: Record<string, unknown>[];
   mindmapData?: MindmapNode;
+  /** 전체 데이터 건수 (LIMIT 적용 전) */
+  totalCount?: number;
+  /** 현재 표시된 건수 */
+  displayedCount?: number;
 }
 
 /**
@@ -789,6 +793,30 @@ export interface SystemPromptConfig {
 }
 
 /**
+ * SELECT 쿼리에서 COUNT 쿼리 생성
+ * LIMIT/OFFSET 제거하고 COUNT(*)로 감싸기
+ */
+function generateCountQuery(sql: string): string | null {
+  const upperSQL = sql.toUpperCase().trim();
+
+  // SELECT 쿼리가 아니면 COUNT 불필요
+  if (!upperSQL.startsWith("SELECT") && !upperSQL.startsWith("WITH")) {
+    return null;
+  }
+
+  // LIMIT/OFFSET 제거
+  let countSql = sql
+    .replace(/\s+LIMIT\s+\d+/gi, "")
+    .replace(/\s+OFFSET\s+\d+/gi, "");
+
+  // ORDER BY 제거 (COUNT에 불필요)
+  countSql = countSql.replace(/\s+ORDER\s+BY\s+[^)]+$/gi, "");
+
+  // COUNT 쿼리로 감싸기
+  return `SELECT COUNT(*) as "totalCount" FROM (${countSql}) AS count_subquery`;
+}
+
+/**
  * 전체 채팅 파이프라인 실행
  * @param config LLM 설정
  * @param userMessage 사용자 메시지
@@ -823,6 +851,8 @@ export async function processChatMessage(
   // 2. SQL 검증 및 실행
   let results: unknown[] | null = null;
   let validatedSql: string | null = sql;
+  let totalCount: number | undefined;
+  let displayedCount: number | undefined;
 
   if (sql) {
     const validation = validateSQL(sql);
@@ -834,7 +864,25 @@ export async function processChatMessage(
     }
 
     try {
+      // SELECT 쿼리인 경우 먼저 전체 건수 조회
+      const countSql = generateCountQuery(sql);
+      if (countSql) {
+        try {
+          const countResult = await executeQuery(countSql) as { totalCount: string | number | bigint }[];
+          if (countResult && countResult[0]) {
+            const rawCount = countResult[0].totalCount;
+            totalCount = typeof rawCount === "bigint" ? Number(rawCount) : Number(rawCount);
+            console.log("[processChatMessage] 전체 건수:", totalCount);
+          }
+        } catch (countError) {
+          console.warn("[processChatMessage] COUNT 쿼리 실패 (무시):", countError);
+        }
+      }
+
+      // 원래 쿼리 실행
       results = await executeQuery(sql);
+      displayedCount = results?.length || 0;
+      console.log("[processChatMessage] 조회 건수:", displayedCount, "/ 전체:", totalCount);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
       return {
@@ -845,7 +893,7 @@ export async function processChatMessage(
   }
 
   // 3. 결과 분석 (분석 프롬프트 + 페르소나 프롬프트 전달)
-  return analyzeResults(
+  const response = await analyzeResults(
     client,
     userMessage,
     validatedSql,
@@ -853,4 +901,17 @@ export async function processChatMessage(
     promptConfig?.analysisSystemPrompt,
     promptConfig?.personaSystemPrompt
   );
+
+  // 4. 전체 건수 정보 추가
+  if (totalCount !== undefined && displayedCount !== undefined) {
+    response.totalCount = totalCount;
+    response.displayedCount = displayedCount;
+
+    // 100건 이상인 경우 안내 메시지 추가
+    if (totalCount > displayedCount) {
+      response.content += `\n\n---\n📊 **데이터 안내**: 전체 ${totalCount.toLocaleString()}건 중 ${displayedCount}건만 표시했습니다.`;
+    }
+  }
+
+  return response;
 }

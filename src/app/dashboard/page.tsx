@@ -18,10 +18,10 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Icon, Button, Card, Input, useToast } from "@/components/ui";
+import { Icon, Button, Card, Input, useToast, ConfirmModal } from "@/components/ui";
 import { useProjects, useTasks, useCreateProject, useUpdateProject, useDeleteProject, useWbsStats, useIssueStats, useRequirementStats, useTodaySchedules, useIssues, useRequirements } from "@/hooks";
 import { useProject } from "@/contexts/ProjectContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -62,6 +62,7 @@ export default function DashboardPage() {
   const [showOverviewModal, setShowOverviewModal] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectWithWbs | null>(null);
   const [overviewProject, setOverviewProject] = useState<ProjectWithWbs | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   /** 프로젝트 상태 필터 */
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   /** 검색어 */
@@ -94,6 +95,12 @@ export default function DashboardPage() {
   const toast = useToast();
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  /** 프로젝트 캐러셀 관련 상태 */
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   /** 프로젝트 목록 조회 */
   const { data: projects = [], isLoading: projectsLoading } = useProjects() as { data: ProjectWithWbs[]; isLoading: boolean; };
@@ -248,6 +255,92 @@ export default function DashboardPage() {
   });
 
   /**
+   * 정렬된 프로젝트 목록 (진행중 프로젝트 우선)
+   * - ACTIVE 상태가 제일 먼저
+   * - 그 다음 PLANNING
+   * - 나머지는 기존 순서 유지
+   */
+  const sortedProjects = [...filteredProjects].sort((a, b) => {
+    const statusOrder: Record<string, number> = {
+      ACTIVE: 0,
+      PLANNING: 1,
+      ON_HOLD: 2,
+      COMPLETED: 3,
+      CANCELLED: 4,
+    };
+    return (statusOrder[a.status] ?? 5) - (statusOrder[b.status] ?? 5);
+  });
+
+  /**
+   * 캐러셀 스크롤 상태 업데이트
+   */
+  const updateScrollButtons = useCallback(() => {
+    if (carouselRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  }, []);
+
+  /**
+   * 캐러셀 자동 스크롤 시작 (호버 시)
+   */
+  const startAutoScroll = useCallback((direction: "left" | "right") => {
+    // 기존 인터벌 정리
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+    }
+
+    // 즉시 한번 스크롤
+    if (carouselRef.current) {
+      const scrollAmount = direction === "left" ? -8 : 8;
+      carouselRef.current.scrollBy({ left: scrollAmount });
+    }
+
+    // 연속 스크롤 시작
+    scrollIntervalRef.current = setInterval(() => {
+      if (carouselRef.current) {
+        const scrollAmount = direction === "left" ? -8 : 8;
+        carouselRef.current.scrollBy({ left: scrollAmount });
+      }
+    }, 16); // 60fps
+  }, []);
+
+  /**
+   * 캐러셀 자동 스크롤 정지 (호버 해제 시)
+   */
+  const stopAutoScroll = useCallback(() => {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  }, []);
+
+  // 컴포넌트 언마운트 시 인터벌 정리
+  useEffect(() => {
+    return () => {
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // 캐러셀 스크롤 상태 감지
+  useEffect(() => {
+    const carousel = carouselRef.current;
+    if (carousel) {
+      updateScrollButtons();
+      carousel.addEventListener("scroll", updateScrollButtons);
+      window.addEventListener("resize", updateScrollButtons);
+
+      return () => {
+        carousel.removeEventListener("scroll", updateScrollButtons);
+        window.removeEventListener("resize", updateScrollButtons);
+      };
+    }
+  }, [updateScrollButtons, sortedProjects]);
+
+  /**
    * 전체 데이터 새로고침
    */
   const handleRefresh = async () => {
@@ -276,6 +369,18 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!quickSchedule.title.trim()) return;
 
+    // 프로젝트 선택 확인
+    if (!selectedProjectId) {
+      toast.error("프로젝트를 먼저 선택해주세요.");
+      return;
+    }
+
+    // 로그인 확인
+    if (!user?.id) {
+      toast.error("로그인이 필요합니다.");
+      return;
+    }
+
     try {
       // 오늘 날짜로 일정 생성
       const today = new Date().toISOString().split("T")[0];
@@ -290,18 +395,22 @@ export default function DashboardPage() {
           isAllDay: quickSchedule.isAllDay,
           startTime: quickSchedule.isAllDay ? null : quickSchedule.startTime,
           endTime: quickSchedule.isAllDay ? null : quickSchedule.endTime,
-          projectId: selectedProjectId || undefined,
+          projectId: selectedProjectId,
+          userId: user.id, // 로그인한 사용자를 등록자로 설정
         }),
       });
 
-      if (!response.ok) throw new Error("일정 생성 실패");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "일정 생성 실패");
+      }
 
       toast.success("일정이 추가되었습니다.");
       queryClient.invalidateQueries({ queryKey: ["today-schedules"] });
       setQuickSchedule({ title: "", type: "MEETING", isAllDay: true, startTime: "", endTime: "" });
       setShowQuickScheduleModal(false);
     } catch (error) {
-      toast.error("일정 추가에 실패했습니다.");
+      toast.error(error instanceof Error ? error.message : "일정 추가에 실패했습니다.");
     }
   };
 
@@ -424,13 +533,20 @@ export default function DashboardPage() {
   /**
    * 프로젝트 삭제 핸들러
    */
-  const handleDeleteProject = async () => {
+  const handleDeleteProject = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  /**
+   * 프로젝트 삭제 확인
+   */
+  const handleConfirmDeleteProject = async () => {
     if (!editingProject) return;
-    if (!confirm(`"${editingProject.name}" 프로젝트를 삭제하시겠습니까?\n\n관련된 모든 태스크와 데이터가 삭제됩니다.`)) return;
 
     try {
       await deleteProject.mutateAsync(editingProject.id);
       toast.success("프로젝트가 삭제되었습니다.");
+      setShowDeleteConfirm(false);
       setShowEditModal(false);
       setEditingProject(null);
     } catch (error) {
@@ -650,14 +766,6 @@ export default function DashboardPage() {
               <option value="COMPLETED">완료</option>
               <option value="CANCELLED">취소</option>
             </select>
-
-            <Link
-              href="/dashboard/projects"
-              className="text-sm text-primary hover:text-primary-hover font-medium flex items-center gap-1 shrink-0"
-            >
-              전체 보기
-              <Icon name="arrow_forward" size="xs" />
-            </Link>
           </div>
         </div>
 
@@ -695,28 +803,74 @@ export default function DashboardPage() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredProjects.slice(0, 6).map((project, index) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onEdit={handleOpenEditModal}
-                onOverview={handleOpenOverviewModal}
-                animationDelay={index * 100}
-              />
-            ))}
+          /* 캐러셀 형식 프로젝트 목록 */
+          <div className="relative flex items-center gap-2">
+            {/* 왼쪽 스크롤 버튼 - 항상 표시, 호버 시 자동 스크롤 */}
+            <button
+              onMouseEnter={() => canScrollLeft && startAutoScroll("left")}
+              onMouseLeave={stopAutoScroll}
+              className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                canScrollLeft
+                  ? "bg-primary/10 text-primary hover:bg-primary hover:text-white hover:scale-110 hover:shadow-lg cursor-pointer"
+                  : "bg-surface dark:bg-surface-dark text-text-secondary/30 cursor-not-allowed"
+              }`}
+            >
+              <Icon name="chevron_left" size="lg" />
+            </button>
+
+            {/* 캐러셀 컨테이너 */}
+            <div
+              ref={carouselRef}
+              className="flex-1 flex gap-4 overflow-x-hidden pb-2"
+            >
+              {sortedProjects.map((project, index) => (
+                <div
+                  key={project.id}
+                  className="flex-shrink-0"
+                  style={{ width: "calc((100% - 32px) / 3)" }}
+                >
+                  <ProjectCard
+                    project={project}
+                    onEdit={handleOpenEditModal}
+                    onOverview={handleOpenOverviewModal}
+                    animationDelay={index * 100}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* 오른쪽 스크롤 버튼 - 항상 표시, 호버 시 자동 스크롤 */}
+            <button
+              onMouseEnter={() => canScrollRight && startAutoScroll("right")}
+              onMouseLeave={stopAutoScroll}
+              className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                canScrollRight
+                  ? "bg-primary/10 text-primary hover:bg-primary hover:text-white hover:scale-110 hover:shadow-lg cursor-pointer"
+                  : "bg-surface dark:bg-surface-dark text-text-secondary/30 cursor-not-allowed"
+              }`}
+            >
+              <Icon name="chevron_right" size="lg" />
+            </button>
           </div>
         )}
 
-        {/* 더 많은 프로젝트가 있을 경우 */}
-        {filteredProjects.length > 6 && (
-          <div className="mt-4 text-center">
+        {/* 프로젝트 수 표시 및 전체 보기 링크 */}
+        {sortedProjects.length > 0 && (
+          <div className="mt-2 flex items-center justify-between text-sm">
+            <span className="text-text-secondary">
+              총 {sortedProjects.length}개 프로젝트
+              {sortedProjects.filter((p) => p.status === "ACTIVE").length > 0 && (
+                <span className="ml-2 text-success">
+                  • 진행중 {sortedProjects.filter((p) => p.status === "ACTIVE").length}개
+                </span>
+              )}
+            </span>
             <Link
               href="/dashboard/projects"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-primary hover:text-primary-hover font-medium hover:bg-primary/10 rounded-lg transition-colors"
+              className="text-primary hover:text-primary-hover font-medium flex items-center gap-1"
             >
-              {filteredProjects.length - 6}개 더 보기
-              <Icon name="arrow_forward" size="sm" />
+              전체 보기
+              <Icon name="arrow_forward" size="xs" />
             </Link>
           </div>
         )}
@@ -1099,6 +1253,23 @@ export default function DashboardPage() {
           onSave={handleSaveOverview}
         />
       )}
+
+      {/* 프로젝트 삭제 확인 모달 */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="프로젝트 삭제"
+        message={
+          editingProject
+            ? `"${editingProject.name}" 프로젝트를 삭제하시겠습니까?\n\n관련된 모든 태스크와 데이터가 삭제됩니다.`
+            : ""
+        }
+        onConfirm={handleConfirmDeleteProject}
+        onCancel={() => setShowDeleteConfirm(false)}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+        isLoading={deleteProject.isPending}
+      />
     </div>
   );
 }

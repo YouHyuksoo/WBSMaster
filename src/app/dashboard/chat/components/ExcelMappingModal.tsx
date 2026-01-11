@@ -14,7 +14,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Icon, Button } from "@/components/ui";
+import { Icon, Button, useToast } from "@/components/ui";
 
 /**
  * 타겟 타입별 필드 정의
@@ -96,6 +96,8 @@ export function ExcelMappingModal({
   onConfirm,
   isLoading = false,
 }: ExcelMappingModalProps) {
+  const toast = useToast();
+
   // 매핑 상태 (수정 가능)
   const [mappings, setMappings] = useState<Record<string, string>>(suggestedMappings);
 
@@ -133,7 +135,7 @@ export function ExcelMappingModal({
   // 확인 버튼 클릭
   const handleConfirm = () => {
     if (!hasTitleMapping) {
-      alert("'제목' 필드는 필수입니다. 매핑을 설정해주세요.");
+      toast.error("'제목' 필드는 필수입니다. 매핑을 설정해주세요.");
       return;
     }
     onConfirm(mappings);

@@ -54,10 +54,12 @@ const menuItems: MenuItem[] = [
   { label: "마일스톤", icon: "flag_circle", href: "/dashboard/milestones" },
   { label: "TASK 관리", icon: "view_kanban", href: "/dashboard/kanban" },
   { label: "일정 관리", icon: "event", href: "/dashboard/holidays" },
+  { label: "고객요구사항", icon: "contact_page", href: "/dashboard/customer-requirements" },
   { label: "기능추적표", icon: "fact_check", href: "/dashboard/process-verification" },
-  { label: "요구사항 점검표", icon: "checklist", href: "/dashboard/requirements" },
+  { label: "업무협조 점검표", icon: "checklist", href: "/dashboard/requirements" },
   { label: "이슈사항 점검표", icon: "bug_report", href: "/dashboard/issues" },
   { label: "주간 업무보고", icon: "assignment", href: "/dashboard/weekly-report" },
+  { label: "문서함 관리", icon: "folder_copy", href: "/dashboard/documents", filled: true },
   { label: "AI 어시스턴트", icon: "smart_toy", href: "/dashboard/chat", filled: true },
 ];
 

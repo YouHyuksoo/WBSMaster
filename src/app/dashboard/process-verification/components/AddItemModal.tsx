@@ -15,6 +15,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useToast } from "@/components/ui";
 import {
   ProcessVerificationCategory,
   VerificationStatus,
@@ -105,6 +106,8 @@ export default function AddItemModal({
   onCreateCategory,
   categories,
 }: AddItemModalProps) {
+  const toast = useToast();
+
   // 관리코드 구성 요소
   const [initial, setInitial] = useState("");
   const [groupNumber, setGroupNumber] = useState("");
@@ -319,7 +322,7 @@ export default function AddItemModal({
     } catch (error) {
       console.error("저장 실패:", error);
       const message = error instanceof Error ? error.message : "저장에 실패했습니다.";
-      alert(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }

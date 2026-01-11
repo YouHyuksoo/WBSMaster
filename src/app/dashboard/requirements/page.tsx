@@ -1,18 +1,18 @@
 /**
  * @file src/app/dashboard/requirements/page.tsx
  * @description
- * 요구사항 점검표 페이지입니다.
- * 프로젝트 요구사항을 체크리스트 형태로 관리합니다.
+ * 업무협조 점검표 페이지입니다.
+ * 프로젝트 업무협조를 체크리스트 형태로 관리합니다.
  * React Query를 사용하여 API와 연동됩니다.
  *
  * 초보자 가이드:
- * 1. **카테고리**: 요구사항을 기능별로 그룹화
+ * 1. **카테고리**: 업무협조를 기능별로 그룹화
  * 2. **상태 배지**: 클릭 시 드롭다운으로 상태 변경 (초안/승인/반려/구현완료)
  * 3. **우선순위**: MUST/SHOULD/COULD/WONT 구분
  *
  * 수정 방법:
- * - 요구사항 추가: useCreateRequirement hook 사용
- * - 요구사항 수정: useUpdateRequirement hook 사용
+ * - 업무협조 추가: useCreateRequirement hook 사용
+ * - 업무협조 수정: useUpdateRequirement hook 사용
  * - 상태 변경: handleStatusChange 함수 사용
  */
 
@@ -20,7 +20,7 @@
 
 import { useState } from "react";
 import { utils, writeFile } from "xlsx";
-import { Icon, Button, Input } from "@/components/ui";
+import { Icon, Button, Input, useToast } from "@/components/ui";
 import {
   useRequirements,
   useCreateRequirement,
@@ -47,7 +47,7 @@ const statusConfig: Record<string, { label: string; icon: string; color: string 
 };
 
 /**
- * 요구사항 점검표 페이지
+ * 업무협조 점검표 페이지
  */
 export default function RequirementsPage() {
   const [filterPriority, setFilterPriority] = useState<string>("all");
@@ -66,6 +66,8 @@ export default function RequirementsPage() {
 
   /** 전역 프로젝트 선택 상태 (헤더에서 선택) */
   const { selectedProjectId, selectedProject } = useProject();
+
+  const toast = useToast();
 
   /** 요구사항 목록 조회 (프로젝트 필터링) */
   const { data: requirements = [], isLoading, error } = useRequirements(
@@ -185,7 +187,7 @@ export default function RequirementsPage() {
   const handleCreateRequirement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProjectId) {
-      alert("프로젝트를 먼저 선택해주세요.");
+      toast.error("프로젝트를 먼저 선택해주세요.");
       return;
     }
     if (!newRequirement.title.trim()) return;
@@ -209,7 +211,7 @@ export default function RequirementsPage() {
    */
   const handleExportToExcel = () => {
     if (filteredRequirements.length === 0) {
-      alert("다운로드할 데이터가 없습니다.");
+      toast.error("다운로드할 데이터가 없습니다.");
       return;
     }
 
@@ -248,12 +250,12 @@ export default function RequirementsPage() {
 
     // 워크북 생성 및 파일 저장
     const workbook = utils.book_new();
-    utils.book_append_sheet(workbook, worksheet, "요구사항");
-    
-    // 파일명 생성 (프로젝트명_요구사항_날짜)
+    utils.book_append_sheet(workbook, worksheet, "업무협조");
+
+    // 파일명 생성 (프로젝트명_업무협조_날짜)
     const projectName = selectedProject?.name || "Project";
     const dateStr = new Date().toISOString().split("T")[0];
-    writeFile(workbook, `${projectName}_요구사항_${dateStr}.xlsx`);
+    writeFile(workbook, `${projectName}_업무협조_${dateStr}.xlsx`);
   };
 
   /** 로딩 상태 */
@@ -287,11 +289,11 @@ export default function RequirementsPage() {
               REQUIREMENTS
             </span>
             <span className="text-slate-400 text-sm font-normal ml-1">
-              / 요구사항 점검표
+              / 업무협조 점검표
             </span>
           </h1>
           <p className="text-text-secondary mt-1">
-            프로젝트 요구사항을 체크리스트로 관리합니다
+            프로젝트 업무협조를 체크리스트로 관리합니다
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -317,7 +319,7 @@ export default function RequirementsPage() {
             onClick={() => setShowModal(true)}
             disabled={!selectedProjectId}
           >
-            요구사항 추가
+            업무협조 추가
           </Button>
         </div>
       </div>
@@ -330,7 +332,7 @@ export default function RequirementsPage() {
             프로젝트를 선택해주세요
           </h3>
           <p className="text-text-secondary">
-            상단 헤더에서 프로젝트를 선택하면 요구사항 목록이 표시됩니다.
+            상단 헤더에서 프로젝트를 선택하면 업무협조 목록이 표시됩니다.
           </p>
         </div>
       )}
@@ -448,7 +450,7 @@ export default function RequirementsPage() {
             <div className="w-64">
               <Input
                 leftIcon="search"
-                placeholder="요구사항 검색..."
+                placeholder="업무협조 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -514,7 +516,7 @@ export default function RequirementsPage() {
             >
               <div>진행상태</div>
               <div>코드</div>
-              <div>요구사항</div>
+              <div>업무협조</div>
               <div>우선순위</div>
               <div>카테고리</div>
               <div>문서</div>
@@ -532,13 +534,13 @@ export default function RequirementsPage() {
                 <Icon name="inbox" size="xl" className="text-text-secondary mb-4" />
                 <p className="text-text-secondary">
                   {requirements.length === 0
-                    ? "등록된 요구사항이 없습니다."
-                    : "검색 조건에 맞는 요구사항이 없습니다."}
+                    ? "등록된 업무협조가 없습니다."
+                    : "검색 조건에 맞는 업무협조가 없습니다."}
                 </p>
               </div>
             )}
 
-            {/* 요구사항 목록 */}
+            {/* 업무협조 목록 */}
             {filteredRequirements.map((req) => {
               const priority = priorityConfig[req.priority] || priorityConfig.SHOULD;
               const status = statusConfig[req.status] || statusConfig.DRAFT;
@@ -776,12 +778,12 @@ export default function RequirementsPage() {
         </>
       )}
 
-      {/* 요구사항 추가 모달 */}
+      {/* 업무협조 추가 모달 */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-md mx-4">
             <h2 className="text-lg font-semibold text-text dark:text-white mb-4">
-              새 요구사항 추가
+              새 업무협조 추가
             </h2>
             <form onSubmit={handleCreateRequirement} className="space-y-4">
               <div>
@@ -793,7 +795,7 @@ export default function RequirementsPage() {
                   onChange={(e) =>
                     setNewRequirement({ ...newRequirement, title: e.target.value })
                   }
-                  placeholder="요구사항 제목"
+                  placeholder="업무협조 제목"
                   required
                 />
               </div>
@@ -806,7 +808,7 @@ export default function RequirementsPage() {
                   onChange={(e) =>
                     setNewRequirement({ ...newRequirement, description: e.target.value })
                   }
-                  placeholder="요구사항 상세 설명"
+                  placeholder="업무협조 상세 설명"
                   className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text placeholder:text-text-secondary resize-none h-24"
                 />
               </div>
@@ -904,12 +906,12 @@ export default function RequirementsPage() {
         </div>
       )}
 
-      {/* 요구사항 수정 모달 */}
+      {/* 업무협조 수정 모달 */}
       {editingRequirement && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold text-text dark:text-white mb-4">
-              요구사항 수정
+              업무협조 수정
             </h2>
             <form onSubmit={handleEditRequirement} className="space-y-4">
               {/* 제목 */}
@@ -922,7 +924,7 @@ export default function RequirementsPage() {
                   onChange={(e) =>
                     setEditingRequirement({ ...editingRequirement, title: e.target.value })
                   }
-                  placeholder="요구사항 제목"
+                  placeholder="업무협조 제목"
                   required
                 />
               </div>
@@ -937,7 +939,7 @@ export default function RequirementsPage() {
                   onChange={(e) =>
                     setEditingRequirement({ ...editingRequirement, description: e.target.value })
                   }
-                  placeholder="요구사항 상세 설명"
+                  placeholder="업무협조 상세 설명"
                   className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text placeholder:text-text-secondary resize-none h-24"
                 />
               </div>

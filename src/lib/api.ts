@@ -611,6 +611,144 @@ export interface AutoLoadData {
   }[];
 }
 
+/** 멤버별 요약 데이터 */
+export interface MemberSummaryData {
+  memberId: string;
+  memberName: string;
+  previousResults: {
+    category: string;
+    title: string;
+    description?: string;
+    isCompleted: boolean;
+    progress: number;
+  }[];
+  nextPlans: {
+    category: string;
+    title: string;
+    description?: string;
+    targetDate?: string;
+  }[];
+}
+
+/** 고객요구사항 적용여부 상태 타입 */
+export type ApplyStatus = "REVIEWING" | "APPLIED" | "REJECTED" | "HOLD";
+
+/** 고객요구사항 타입 */
+export interface CustomerRequirement {
+  id: string;
+  sequence: number;         // 순번
+  code: string;            // 관리번호 (RQIT_00001)
+  businessUnit: string;    // 사업부
+  category?: string | null; // 업무구분
+  functionName: string;    // 기능명
+  content: string;         // 요구사항 내용
+  requestDate?: string | null; // 요청일자
+  requester?: string | null;   // 요청자
+  solution?: string | null;    // 적용방안
+  applyStatus: ApplyStatus;    // 적용여부
+  remarks?: string | null;     // 비고
+  toBeCode?: string | null;    // To-Be 관리번호
+  createdAt: string;
+  updatedAt: string;
+  projectId: string;
+  project?: {
+    id: string;
+    name: string;
+  };
+}
+
+/** 고객요구사항 임포트 결과 타입 */
+export interface CustomerRequirementImportResult {
+  success: boolean;
+  message: string;
+  stats: {
+    total: number;
+    created: number;
+    skipped: number;
+    errors: string[];
+  };
+}
+
+/** 문서 종류 */
+export type DocumentCategory =
+  | "SPECIFICATION"
+  | "MANUAL"
+  | "MEETING"
+  | "REPORT"
+  | "CONTRACT"
+  | "TEMPLATE"
+  | "REFERENCE"
+  | "OTHER";
+
+/** 문서 소스 타입 */
+export type DocumentSourceType =
+  | "ONEDRIVE"
+  | "GOOGLE"
+  | "SERVER_UPLOAD"
+  | "EXTERNAL_LINK";
+
+/** 문서함 타입 */
+export interface Document {
+  id: string;
+  name: string;
+  description?: string | null;
+  category: DocumentCategory;
+  version?: string | null;
+  sourceType: DocumentSourceType;
+  url?: string | null;
+  filePath?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  mimeType?: string | null;
+  tags: string[];
+  isFavorite: boolean;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+  projectId: string;
+  project?: {
+    id: string;
+    name: string;
+  };
+  createdById: string;
+  createdBy?: {
+    id: string;
+    name?: string | null;
+    email: string;
+    avatar?: string | null;
+  };
+}
+
+/** 주간보고 취합(Summary) 타입 */
+export interface WeeklySummary {
+  id: string;
+  year: number;
+  weekNumber: number;
+  weekStart: string;
+  weekEnd: string;
+  title: string;
+  memberIds: string[];
+  reportIds: string[];
+  memberSummaries?: MemberSummaryData[] | null;
+  llmSummary?: string | null;
+  llmInsights?: string | null;
+  llmAnalyzedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  projectId: string;
+  createdById: string;
+  createdBy?: {
+    id: string;
+    name?: string | null;
+    email: string;
+    avatar?: string | null;
+  };
+  project?: {
+    id: string;
+    name: string;
+  };
+}
+
 // ============================================
 // API 클라이언트
 // ============================================
@@ -905,5 +1043,107 @@ export const api = {
     /** 항목 삭제 */
     delete: (reportId: string, itemId: string) =>
       del<{ message: string }>(`/api/weekly-reports/${reportId}/items/${itemId}`),
+  },
+
+  /** 고객요구사항 API */
+  customerRequirements: {
+    /** 목록 조회 (필터링 지원) */
+    list: (params?: { projectId?: string; businessUnit?: string; applyStatus?: string; search?: string }) =>
+      get<CustomerRequirement[]>("/api/customer-requirements", params),
+    /** 단건 조회 */
+    get: (id: string) => get<CustomerRequirement>(`/api/customer-requirements/${id}`),
+    /** 생성 (관리번호 자동 부여) */
+    create: (data: {
+      projectId: string;
+      businessUnit: string;
+      category?: string;
+      functionName: string;
+      content: string;
+      requestDate?: string;
+      requester?: string;
+      solution?: string;
+      applyStatus?: ApplyStatus;
+      remarks?: string;
+      toBeCode?: string;
+    }) => post<CustomerRequirement>("/api/customer-requirements", data),
+    /** 수정 */
+    update: (id: string, data: Partial<CustomerRequirement>) =>
+      patch<CustomerRequirement>(`/api/customer-requirements/${id}`, data),
+    /** 삭제 */
+    delete: (id: string) => del<{ message: string }>(`/api/customer-requirements/${id}`),
+    /** 엑셀 임포트 (FormData 전송) */
+    import: async (formData: FormData): Promise<CustomerRequirementImportResult> => {
+      const response = await fetch("/api/customer-requirements/import", {
+        method: "POST",
+        body: formData,
+      });
+      return handleResponse<CustomerRequirementImportResult>(response);
+    },
+  },
+
+  /** 주간보고 취합 API */
+  weeklySummaries: {
+    /** 취합 보고서 목록 조회 */
+    list: (params?: { projectId?: string; year?: string; weekNumber?: string }) =>
+      get<WeeklySummary[]>("/api/weekly-summaries", params),
+    /** 취합 보고서 상세 조회 */
+    get: (id: string) => get<WeeklySummary>(`/api/weekly-summaries/${id}`),
+    /** 취합 보고서 생성 */
+    create: (data: {
+      projectId: string;
+      year: number;
+      weekNumber: number;
+      weekStart: string;
+      weekEnd: string;
+      title: string;
+      reportIds: string[];
+      createdById: string;
+    }) => post<WeeklySummary>("/api/weekly-summaries", data),
+    /** 취합 보고서 수정 */
+    update: (id: string, data: {
+      title?: string;
+      llmSummary?: string;
+      llmInsights?: string;
+    }) => patch<WeeklySummary>(`/api/weekly-summaries/${id}`, data),
+    /** 취합 보고서 삭제 */
+    delete: (id: string) => del<{ message: string }>(`/api/weekly-summaries/${id}`),
+    /** LLM 분석 실행 */
+    analyze: (id: string) => post<WeeklySummary>(`/api/weekly-summaries/${id}/analyze`),
+  },
+
+  /** 문서함 API */
+  documents: {
+    /** 목록 조회 (필터링 지원) */
+    list: (params?: {
+      projectId?: string;
+      category?: string;
+      sourceType?: string;
+      search?: string;
+      favoriteOnly?: string;
+      isPersonal?: string;
+    }) => get<Document[]>("/api/documents", params),
+    /** 단건 조회 */
+    get: (id: string) => get<Document>(`/api/documents/${id}`),
+    /** 생성 */
+    create: (data: {
+      projectId: string;
+      name: string;
+      description?: string;
+      category: DocumentCategory;
+      version?: string;
+      sourceType: DocumentSourceType;
+      url?: string;
+      filePath?: string;
+      fileName?: string;
+      fileSize?: number;
+      mimeType?: string;
+      tags?: string[];
+      isPersonal?: boolean;
+    }) => post<Document>("/api/documents", data),
+    /** 수정 */
+    update: (id: string, data: Partial<Document>) =>
+      patch<Document>(`/api/documents/${id}`, data),
+    /** 삭제 */
+    delete: (id: string) => del<{ success: boolean }>(`/api/documents/${id}`),
   },
 };

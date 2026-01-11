@@ -52,6 +52,8 @@ model User {
   holidays      Holiday[] @relation("HolidayUser") // 개인 일정
   taskNudges    TaskNudge[] @relation("TaskNudger") // 내가 보낸 재촉
   weeklyReports WeeklyReport[] @relation("UserWeeklyReports") // 주간보고
+  weeklySummaries WeeklySummary[] @relation("SummaryCreator") // 내가 생성한 취합보고
+  documents     Document[] @relation("DocumentCreator") // 내가 등록한 문서
 
   @@map("users")
 }
@@ -122,7 +124,10 @@ model Project {
   timelineRows TimelineRow[] // 타임라인 행 목록
   pinpoints    Pinpoint[]    // 핀포인트 목록
   weeklyReports WeeklyReport[] @relation("ProjectWeeklyReports") // 주간보고
+  weeklySummaries WeeklySummary[] // 주간보고 취합
   processVerificationCategories ProcessVerificationCategory[] // 기능추적표 카테고리
+  customerRequirements CustomerRequirement[] // 고객요구사항
+  documents Document[] // 문서함
 
   @@map("projects")
 }
@@ -914,4 +919,151 @@ enum VerificationStatus {
   IN_PROGRESS  // 진행중
   VERIFIED     // 검증완료
   NOT_APPLICABLE // 해당없음
+}
+
+// ============================================
+// 주간보고 취합(Summary) 모델
+// 여러 멤버의 주간보고를 취합하여 요약
+// LLM 분석을 통한 인사이트 제공
+// ============================================
+model WeeklySummary {
+  id            String   @id @default(uuid())
+
+  // 주차 정보 (ISO 주차 기준)
+  year          Int                  // 연도 (예: 2026)
+  weekNumber    Int                  // 주차 (1~53)
+  weekStart     DateTime             // 해당 주 시작일 (월요일)
+  weekEnd       DateTime             // 해당 주 종료일 (일요일)
+
+  // 취합 정보
+  title         String               // 취합 보고서 제목
+  memberIds     String[]             // 포함된 멤버 ID 목록
+  reportIds     String[]             // 포함된 주간보고 ID 목록
+
+  // 멤버별 요약 (JSON 구조)
+  // [{ memberId, memberName, previousResults: string, nextPlans: string }]
+  memberSummaries Json?
+
+  // LLM 분석 결과
+  llmSummary    String?              // LLM 요약 (전주실적/차주계획 통합 요약)
+  llmInsights   String?              // LLM 인사이트 (리스크, 개선점, 제안 등)
+  llmAnalyzedAt DateTime?            // LLM 분석 완료 시간
+
+  // 메타데이터
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 관계
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById   String
+  createdBy     User     @relation("SummaryCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([year, weekNumber])
+  @@index([createdById])
+  @@map("weekly_summaries")
+}
+
+// ============================================
+// 고객요구사항 모델
+// 사업부별 고객 요구사항 관리
+// ============================================
+model CustomerRequirement {
+  id            String   @id @default(uuid())
+  sequence      Int      // 순번 (자동 부여)
+  code          String   // 관리번호 (RQIT_00001 형식)
+  businessUnit  String   // 사업부 (IT, 생산, 품질 등)
+  category      String?  // 업무구분 (공통, 프로세스 등)
+  functionName  String   // 기능명
+  content       String   // 요구사항 내용
+  requestDate   DateTime? // 요청일자
+  requester     String?  // 요청자 이름
+  solution      String?  // 적용방안
+  applyStatus   ApplyStatus @default(REVIEWING) // 적용여부 상태
+  remarks       String?  // 비고
+  toBeCode      String?  // To-Be 관리번호 (연결용, 텍스트 입력)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 프로젝트 관계
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, code])
+  @@index([projectId])
+  @@index([businessUnit])
+  @@map("customer_requirements")
+}
+
+// ============================================
+// 고객요구사항 적용 상태 Enum
+// ============================================
+enum ApplyStatus {
+  REVIEWING  // 검토중
+  APPLIED    // 적용
+  REJECTED   // 미적용
+  HOLD       // 보류
+}
+
+// ============================================
+// 문서함 모델
+// 프로젝트 문서 관리 (OneDrive, Google, 서버 업로드, 로컬 링크)
+// ============================================
+model Document {
+  id            String   @id @default(uuid())
+  name          String   // 문서명
+  description   String?  // 설명
+  category      DocumentCategory // 문서 종류
+  version       String?  @default("1.0") // 버전
+  sourceType    DocumentSourceType // 소스 타입
+  url           String?  // 외부 링크 (OneDrive, Google, SharePoint 등)
+  filePath      String?  // 서버 업로드 파일 경로
+  fileName      String?  // 원본 파일명
+  fileSize      Int?     // 파일 크기 (bytes)
+  mimeType      String?  // MIME 타입
+  tags          String[] // 태그
+  isFavorite    Boolean  @default(false) // 즐겨찾기
+  isPersonal    Boolean  @default(false) // 개인문서함 여부 (true: 개인, false: 공용)
+  order         Int      @default(0) // 정렬 순서
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 관계
+  projectId     String   // 프로젝트 필수 (공용/개인 모두)
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById   String
+  createdBy     User     @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([category])
+  @@index([createdById])
+  @@index([isPersonal])
+  @@map("documents")
+}
+
+// ============================================
+// 문서 종류 Enum
+// ============================================
+enum DocumentCategory {
+  SPECIFICATION    // 설계서/명세서
+  MANUAL           // 매뉴얼/가이드
+  MEETING          // 회의록
+  REPORT           // 보고서
+  CONTRACT         // 계약서
+  TEMPLATE         // 템플릿
+  REFERENCE        // 참고자료
+  OTHER            // 기타
+}
+
+// ============================================
+// 문서 소스 타입 Enum
+// ============================================
+enum DocumentSourceType {
+  ONEDRIVE         // OneDrive/SharePoint
+  GOOGLE           // Google Drive/Docs
+  SERVER_UPLOAD    // 서버 직접 업로드
+  EXTERNAL_LINK    // 기타 외부 링크
 }

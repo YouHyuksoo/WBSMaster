@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui";
 import {
   ProcessVerificationItem,
   VerificationStatus,
@@ -30,6 +31,8 @@ export default function EditItemModal({
   onClose,
   onSave,
 }: EditItemModalProps) {
+  const toast = useToast();
+
   const [formData, setFormData] = useState({
     category: "",
     isApplied: false,
@@ -76,7 +79,7 @@ export default function EditItemModal({
       onClose();
     } catch (error) {
       console.error("저장 실패:", error);
-      alert("저장에 실패했습니다.");
+      toast.error("저장에 실패했습니다.");
     } finally {
       setIsSaving(false);
     }

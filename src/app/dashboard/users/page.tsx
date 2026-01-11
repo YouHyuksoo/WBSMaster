@@ -19,7 +19,7 @@
 "use client";
 
 import { useState } from "react";
-import { Icon, Button, Input, ImageCropper, useToast } from "@/components/ui";
+import { Icon, Button, Input, ImageCropper, useToast, ConfirmModal } from "@/components/ui";
 import {
   useUsers,
   useCreateUser,
@@ -107,6 +107,11 @@ export default function UsersPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImageCropper, setShowImageCropper] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // 삭제 확인 모달 상태
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [deletingUserName, setDeletingUserName] = useState("");
 
   // 편집 대상
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -241,19 +246,32 @@ export default function UsersPage() {
   };
 
   /**
-   * 사용자 삭제 처리
+   * 사용자 삭제 - 확인 모달 표시
    */
-  const handleDeleteUser = async (id: string, name?: string) => {
-    if (!confirm(`"${name || "사용자"}"를 삭제하시겠습니까?\n\n관련된 프로젝트 멤버십도 함께 삭제됩니다.`)) return;
+  const handleDeleteUser = (id: string, name?: string) => {
+    setDeletingUserId(id);
+    setDeletingUserName(name || "사용자");
+    setShowDeleteConfirm(true);
+  };
+
+  /**
+   * 사용자 삭제 확인
+   */
+  const handleConfirmDeleteUser = async () => {
+    if (!deletingUserId) return;
 
     try {
-      await deleteUser.mutateAsync(id);
+      await deleteUser.mutateAsync(deletingUserId);
       toast.success("사용자가 삭제되었습니다.");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "삭제에 실패했습니다.",
         "삭제 실패"
       );
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletingUserId(null);
+      setDeletingUserName("");
     }
   };
 
@@ -794,6 +812,23 @@ export default function UsersPage() {
           cropShape="round"
         />
       )}
+
+      {/* ========== 사용자 삭제 확인 모달 ========== */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="사용자 삭제"
+        message={`"${deletingUserName}"를 삭제하시겠습니까?\n\n관련된 프로젝트 멤버십도 함께 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.`}
+        onConfirm={handleConfirmDeleteUser}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeletingUserId(null);
+          setDeletingUserName("");
+        }}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+        isLoading={deleteUser.isPending}
+      />
     </div>
   );
 }

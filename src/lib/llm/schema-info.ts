@@ -276,6 +276,191 @@ export const DATABASE_SCHEMA = {
       updatedAt: { type: "datetime", description: "수정일시" },
     },
   },
+  customer_requirements: {
+    tableName: "customer_requirements",
+    description: "고객요구사항 테이블 - 고객사 요구사항 추적 관리",
+    columns: {
+      id: { type: "uuid", description: "요구사항 고유 ID (Primary Key)" },
+      sequence: { type: "int", description: "순번 (자동 부여)" },
+      code: { type: "string", description: "관리번호 (RQIT_00001 형식)" },
+      businessUnit: { type: "string", description: "사업부 (IT, 생산, 품질 등)" },
+      category: { type: "string?", description: "업무구분 (공통, 프로세스 등)" },
+      functionName: { type: "string", description: "기능명" },
+      content: { type: "string", description: "요구사항 내용" },
+      requestDate: { type: "datetime?", description: "요청일자" },
+      requester: { type: "string?", description: "요청자 이름" },
+      solution: { type: "string?", description: "적용방안" },
+      applyStatus: {
+        type: "enum",
+        description: "적용여부 상태",
+        values: ["REVIEWING", "APPLIED", "REJECTED", "HOLD"],
+      },
+      remarks: { type: "string?", description: "비고" },
+      toBeCode: { type: "string?", description: "To-Be 관리번호 (연결용, 텍스트)" },
+      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  documents: {
+    tableName: "documents",
+    description: "문서함 테이블 - 프로젝트 문서 관리 (공용/개인 문서함)",
+    columns: {
+      id: { type: "uuid", description: "문서 고유 ID (Primary Key)" },
+      name: { type: "string", description: "문서명" },
+      description: { type: "string?", description: "설명" },
+      category: {
+        type: "enum",
+        description: "문서 종류",
+        values: ["SPECIFICATION", "MANUAL", "MEETING", "REPORT", "CONTRACT", "TEMPLATE", "REFERENCE", "OTHER"],
+      },
+      version: { type: "string?", description: "버전 (기본: 1.0)" },
+      sourceType: {
+        type: "enum",
+        description: "소스 타입",
+        values: ["ONEDRIVE", "GOOGLE", "SERVER_UPLOAD", "EXTERNAL_LINK"],
+      },
+      url: { type: "string?", description: "외부 링크 (OneDrive, Google, SharePoint 등)" },
+      filePath: { type: "string?", description: "서버 업로드 파일 경로" },
+      fileName: { type: "string?", description: "원본 파일명" },
+      fileSize: { type: "int?", description: "파일 크기 (bytes)" },
+      mimeType: { type: "string?", description: "MIME 타입" },
+      tags: { type: "string[]", description: "태그 배열" },
+      isFavorite: { type: "boolean", description: "즐겨찾기 여부" },
+      isPersonal: { type: "boolean", description: "개인문서함 여부 (true: 개인, false: 공용)" },
+      order: { type: "int", description: "정렬 순서" },
+      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
+      createdById: { type: "uuid", description: "등록자 ID (FK -> users.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  timeline_rows: {
+    tableName: "timeline_rows",
+    description: "타임라인 행 테이블 - 타임라인 차트의 행 구조 (계층형)",
+    columns: {
+      id: { type: "uuid", description: "행 고유 ID (Primary Key)" },
+      name: { type: "string", description: "행 이름 (예: 태스크, 인프라)" },
+      color: { type: "string", description: "행 색상 (좌측 라벨 배경)" },
+      order: { type: "int", description: "행 정렬 순서" },
+      isDefault: { type: "boolean", description: "기본 행 여부 (삭제 불가)" },
+      parentId: { type: "uuid?", description: "부모 행 ID (FK -> timeline_rows.id, 자기 참조)" },
+      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  milestones: {
+    tableName: "milestones",
+    description: "마일스톤 테이블 - 프로젝트 주요 이정표 (기간 막대 형태)",
+    columns: {
+      id: { type: "uuid", description: "마일스톤 고유 ID (Primary Key)" },
+      name: { type: "string", description: "마일스톤 이름 (예: API 개발)" },
+      description: { type: "string?", description: "상세 설명" },
+      startDate: { type: "datetime", description: "시작일" },
+      endDate: { type: "datetime", description: "종료일" },
+      status: {
+        type: "enum",
+        description: "마일스톤 상태",
+        values: ["PENDING", "IN_PROGRESS", "COMPLETED", "DELAYED"],
+      },
+      color: { type: "string", description: "막대 색상 (HEX)" },
+      order: { type: "int", description: "정렬 순서" },
+      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
+      rowId: { type: "uuid?", description: "타임라인 행 ID (FK -> timeline_rows.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  pinpoints: {
+    tableName: "pinpoints",
+    description: "핀포인트 테이블 - 타임라인 상의 중요 시점 마커",
+    columns: {
+      id: { type: "uuid", description: "핀포인트 고유 ID (Primary Key)" },
+      name: { type: "string", description: "핀포인트 이름 (예: 오픈, 베타, 런칭)" },
+      description: { type: "string?", description: "상세 설명" },
+      date: { type: "datetime", description: "핀포인트 날짜" },
+      color: { type: "string", description: "삼각형 색상 (HEX)" },
+      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
+      rowId: { type: "uuid", description: "타임라인 행 ID (FK -> timeline_rows.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  weekly_reports: {
+    tableName: "weekly_reports",
+    description: "주간보고 테이블 - 사용자별 주간 업무보고",
+    columns: {
+      id: { type: "uuid", description: "주간보고 고유 ID (Primary Key)" },
+      year: { type: "int", description: "연도 (예: 2026)" },
+      weekNumber: { type: "int", description: "주차 (1~53, ISO 주차 기준)" },
+      weekStart: { type: "datetime", description: "해당 주 시작일 (월요일)" },
+      weekEnd: { type: "datetime", description: "해당 주 종료일 (일요일)" },
+      issueContent: { type: "string?", description: "이슈 내용 (HTML 형식, React-Quill)" },
+      status: {
+        type: "enum",
+        description: "보고서 상태",
+        values: ["DRAFT", "SUBMITTED"],
+      },
+      submittedAt: { type: "datetime?", description: "제출 완료 시간" },
+      userId: { type: "uuid", description: "사용자 ID (FK -> users.id)" },
+      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  weekly_report_items: {
+    tableName: "weekly_report_items",
+    description: "주간보고 항목 테이블 - 전주실적/차주계획 업무 항목",
+    columns: {
+      id: { type: "uuid", description: "항목 고유 ID (Primary Key)" },
+      type: {
+        type: "enum",
+        description: "항목 타입",
+        values: ["PREVIOUS_RESULT", "NEXT_PLAN"],
+      },
+      category: {
+        type: "enum",
+        description: "업무 카테고리",
+        values: ["DOCUMENT", "ANALYSIS", "DEVELOPMENT", "DESIGN", "TESTING", "MEETING", "EDUCATION", "SUPPORT", "OTHER"],
+      },
+      title: { type: "string", description: "업무 제목" },
+      description: { type: "string?", description: "업무 상세 설명" },
+      targetDate: { type: "datetime?", description: "목표일" },
+      remarks: { type: "string?", description: "기타/비고" },
+      isAdditional: { type: "boolean", description: "계획에 없던 추가 업무 여부" },
+      isCompleted: { type: "boolean", description: "완료 여부 (전주 실적용)" },
+      progress: { type: "int", description: "진행률 (0-100)" },
+      linkedTaskId: { type: "uuid?", description: "연결된 Task ID (FK -> tasks.id)" },
+      linkedWbsId: { type: "uuid?", description: "연결된 WBS 항목 ID (FK -> wbs_items.id)" },
+      order: { type: "int", description: "순서" },
+      reportId: { type: "uuid", description: "주간보고 ID (FK -> weekly_reports.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  weekly_summaries: {
+    tableName: "weekly_summaries",
+    description: "주간보고 취합 테이블 - 여러 멤버의 주간보고를 통합 분석",
+    columns: {
+      id: { type: "uuid", description: "취합 고유 ID (Primary Key)" },
+      year: { type: "int", description: "연도 (예: 2026)" },
+      weekNumber: { type: "int", description: "주차 (1~53)" },
+      weekStart: { type: "datetime", description: "해당 주 시작일 (월요일)" },
+      weekEnd: { type: "datetime", description: "해당 주 종료일 (일요일)" },
+      title: { type: "string", description: "취합 보고서 제목" },
+      memberIds: { type: "string[]", description: "포함된 멤버 ID 목록 (배열)" },
+      reportIds: { type: "string[]", description: "포함된 주간보고 ID 목록 (배열)" },
+      memberSummaries: { type: "json?", description: "멤버별 요약 JSON (memberId, memberName, previousResults, nextPlans)" },
+      llmSummary: { type: "string?", description: "LLM 요약 (전주실적/차주계획 통합)" },
+      llmInsights: { type: "string?", description: "LLM 인사이트 (리스크, 개선점, 제안)" },
+      llmAnalyzedAt: { type: "datetime?", description: "LLM 분석 완료 시간" },
+      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
+      createdById: { type: "uuid", description: "생성자 ID (FK -> users.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
 };
 
 /**
@@ -290,21 +475,33 @@ export const TABLE_RELATIONSHIPS = `
    - N:M → wbs_items (wbs_assignees를 통해)
    - 1:N → requirements (요청자/담당자로)
    - 1:N → issues (보고자/담당자로)
+   - 1:N → weekly_reports (주간보고 작성자)
+   - 1:N → weekly_summaries (취합 보고서 생성자)
+   - 1:N → documents (문서 등록자)
 
 2. **projects** (프로젝트)
    - 1:N → tasks, requirements, issues, wbs_items, holidays, team_members
    - 1:N → process_verification_categories (기능추적표 카테고리)
+   - 1:N → customer_requirements (고객요구사항)
+   - 1:N → documents (문서함)
+   - 1:N → timeline_rows (타임라인 행)
+   - 1:N → milestones (마일스톤)
+   - 1:N → pinpoints (핀포인트)
+   - 1:N → weekly_reports (주간보고)
+   - 1:N → weekly_summaries (주간보고 취합)
    - N:1 → users (소유자)
 
 3. **tasks** (태스크)
    - N:1 → projects
    - N:M → users (담당자)
    - N:1 → requirements (선택적 연결)
+   - 1:N → weekly_report_items (주간보고 항목 연결)
 
 4. **wbs_items** (WBS 항목)
    - 자기참조 (parentId로 계층 구조)
    - N:1 → projects
    - N:M → users (담당자)
+   - 1:N → weekly_report_items (주간보고 항목 연결)
 
 5. **process_verification_categories** (기능추적표 카테고리)
    - N:1 → projects
@@ -312,6 +509,41 @@ export const TABLE_RELATIONSHIPS = `
 
 6. **process_verification_items** (기능추적표 항목)
    - N:1 → process_verification_categories
+
+7. **customer_requirements** (고객요구사항)
+   - N:1 → projects
+
+8. **documents** (문서함)
+   - N:1 → projects
+   - N:1 → users (등록자)
+
+9. **timeline_rows** (타임라인 행)
+   - 자기참조 (parentId로 계층 구조)
+   - N:1 → projects
+   - 1:N → milestones (행에 속한 마일스톤들)
+   - 1:N → pinpoints (행에 속한 핀포인트들)
+
+10. **milestones** (마일스톤)
+    - N:1 → projects
+    - N:1 → timeline_rows (선택적 연결)
+
+11. **pinpoints** (핀포인트)
+    - N:1 → projects
+    - N:1 → timeline_rows
+
+12. **weekly_reports** (주간보고)
+    - N:1 → projects
+    - N:1 → users (작성자)
+    - 1:N → weekly_report_items (보고서 내 항목들)
+
+13. **weekly_report_items** (주간보고 항목)
+    - N:1 → weekly_reports
+    - N:1 → tasks (선택적 연결)
+    - N:1 → wbs_items (선택적 연결)
+
+14. **weekly_summaries** (주간보고 취합)
+    - N:1 → projects
+    - N:1 → users (생성자)
 `;
 
 /**

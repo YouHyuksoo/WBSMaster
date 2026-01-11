@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
       title,
       description,
       date,
+      startDate, // 대시보드에서 startDate로 보낼 수도 있음
       endDate,
       type,
       isAllDay,
@@ -108,8 +109,11 @@ export async function POST(request: NextRequest) {
       userId,
     } = body;
 
+    // startDate가 있으면 date로 사용 (호환성)
+    const eventDate = date || startDate;
+
     // 필수 필드 검증
-    if (!title || !date || !type || !projectId) {
+    if (!title || !eventDate || !type || !projectId) {
       return NextResponse.json(
         { error: "일정 제목, 날짜, 유형, 프로젝트 ID는 필수입니다." },
         { status: 400 }
@@ -129,7 +133,7 @@ export async function POST(request: NextRequest) {
       data: {
         title,
         description: description || null,
-        date: new Date(date),
+        date: new Date(eventDate),
         endDate: endDate ? new Date(endDate) : null,
         type,
         isAllDay: isAllDay !== undefined ? isAllDay : true,

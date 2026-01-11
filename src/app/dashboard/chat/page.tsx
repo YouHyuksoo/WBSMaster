@@ -308,6 +308,8 @@ export default function ChatPage() {
             mindmapData: data.mindmapData,
             createdAt: new Date().toISOString(),
             processingTimeMs: data.processingTimeMs,
+            totalCount: data.totalCount,
+            displayedCount: data.displayedCount,
           };
           setMessages((prev) => [...prev, assistantMessage]);
         } else {
@@ -585,6 +587,61 @@ export default function ChatPage() {
     setFullscreenMindmap(data);
   }, []);
 
+  /**
+   * Excel 다운로드 (전체 데이터)
+   * SQL 쿼리를 받아 LIMIT 없이 전체 데이터를 Excel로 다운로드
+   */
+  const handleExcelDownload = useCallback(
+    async (sqlQuery: string) => {
+      try {
+        toast.info("Excel 파일을 생성 중입니다...");
+
+        const res = await fetch("/api/chat/export", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sqlQuery,
+            fileName: "chat_data_export",
+          }),
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          toast.error(error.error || "Excel 다운로드에 실패했습니다.");
+          return;
+        }
+
+        // Blob으로 변환 후 다운로드
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+
+        // Content-Disposition에서 파일명 추출
+        const contentDisposition = res.headers.get("Content-Disposition");
+        let fileName = "data_export.xlsx";
+        if (contentDisposition) {
+          const match = contentDisposition.match(/filename="(.+)"/);
+          if (match) {
+            fileName = match[1];
+          }
+        }
+
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        toast.success("Excel 파일이 다운로드되었습니다!");
+      } catch (error) {
+        console.error("Excel 다운로드 실패:", error);
+        toast.error("Excel 다운로드 중 오류가 발생했습니다.");
+      }
+    },
+    [toast]
+  );
+
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
       {/* 헤더 */}
@@ -711,6 +768,7 @@ export default function ChatPage() {
               onFeedback={handleFeedback}
               onFeedbackComment={handleFeedbackComment}
               onFullscreenMindmap={handleFullscreenMindmap}
+              onExcelDownload={handleExcelDownload}
             />
           ))
         )}

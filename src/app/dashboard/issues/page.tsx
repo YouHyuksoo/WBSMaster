@@ -20,7 +20,7 @@
 
 import { useState } from "react";
 import { utils, writeFile } from "xlsx";
-import { Icon, Button, Input } from "@/components/ui";
+import { Icon, Button, Input, useToast } from "@/components/ui";
 import {
   useIssues,
   useCreateIssue,
@@ -74,6 +74,8 @@ export default function IssuesPage() {
 
   /** 전역 프로젝트 선택 상태 (헤더에서 선택) */
   const { selectedProjectId, selectedProject } = useProject();
+
+  const toast = useToast();
 
   /** 이슈 목록 조회 (프로젝트 필터링) */
   const { data: issues = [], isLoading, error } = useIssues(
@@ -180,7 +182,7 @@ export default function IssuesPage() {
   const handleCreateIssue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProjectId) {
-      alert("프로젝트를 먼저 선택해주세요.");
+      toast.error("프로젝트를 먼저 선택해주세요.");
       return;
     }
     if (!newIssue.title.trim()) return;
@@ -203,7 +205,7 @@ export default function IssuesPage() {
    */
   const handleExportToExcel = () => {
     if (filteredIssues.length === 0) {
-      alert("다운로드할 데이터가 없습니다.");
+      toast.error("다운로드할 데이터가 없습니다.");
       return;
     }
 

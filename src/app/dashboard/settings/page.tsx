@@ -18,7 +18,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Icon, Button, Input, Card } from "@/components/ui";
+import { Icon, Button, Input, Card, ConfirmModal } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { api, AiPersona } from "@/lib/api";
 
@@ -118,6 +118,11 @@ export default function SettingsPage() {
     systemPrompt: "",
   });
 
+  // 페르소나 삭제 확인 모달 상태
+  const [showDeletePersonaConfirm, setShowDeletePersonaConfirm] = useState(false);
+  const [deletingPersonaId, setDeletingPersonaId] = useState<string | null>(null);
+  const [deletingPersonaName, setDeletingPersonaName] = useState("");
+
   /**
    * AI 설정 불러오기
    */
@@ -190,18 +195,34 @@ export default function SettingsPage() {
   };
 
   /**
-   * 페르소나 삭제
+   * 페르소나 삭제 - 확인 모달 표시
    */
-  const handleDeletePersona = async (id: string) => {
-    if (!confirm("이 페르소나를 삭제하시겠습니까?")) return;
+  const handleDeletePersona = (id: string) => {
+    const persona = personas.find(p => p.id === id);
+    if (persona) {
+      setDeletingPersonaId(id);
+      setDeletingPersonaName(persona.name);
+      setShowDeletePersonaConfirm(true);
+    }
+  };
+
+  /**
+   * 페르소나 삭제 확인
+   */
+  const handleConfirmDeletePersona = async () => {
+    if (!deletingPersonaId) return;
 
     try {
-      await api.personas.delete(id);
+      await api.personas.delete(deletingPersonaId);
       toast.success("페르소나가 삭제되었습니다.");
       loadPersonas();
     } catch (error) {
       console.error("페르소나 삭제 실패:", error);
       toast.error("삭제에 실패했습니다.");
+    } finally {
+      setShowDeletePersonaConfirm(false);
+      setDeletingPersonaId(null);
+      setDeletingPersonaName("");
     }
   };
 
@@ -997,6 +1018,22 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* 페르소나 삭제 확인 모달 */}
+      <ConfirmModal
+        isOpen={showDeletePersonaConfirm}
+        title="페르소나 삭제"
+        message={`"${deletingPersonaName}" 페르소나를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`}
+        onConfirm={handleConfirmDeletePersona}
+        onCancel={() => {
+          setShowDeletePersonaConfirm(false);
+          setDeletingPersonaId(null);
+          setDeletingPersonaName("");
+        }}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+      />
     </div>
   );
 }

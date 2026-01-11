@@ -34,7 +34,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Icon, Button, Input } from "@/components/ui";
+import { Icon, Button, Input, useToast, ConfirmModal } from "@/components/ui";
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useMembers, useRequirements, useNudgeTask, useCurrentUser } from "@/hooks";
 import { useProject } from "@/contexts";
 import type { Task } from "@/lib/api";
@@ -110,6 +110,14 @@ export default function KanbanPage() {
   const [filterAssignee, setFilterAssignee] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [filterDelayedOnly, setFilterDelayedOnly] = useState(false); // 지연된 작업만 보기
+  const [filterTodayOnly, setFilterTodayOnly] = useState(false); // 오늘 등록한 작업만 보기
+
+  // 삭제 확인 모달 상태
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [deletingTaskTitle, setDeletingTaskTitle] = useState("");
+
+  const toast = useToast();
 
   // 새 작업 폼 상태
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -192,6 +200,22 @@ export default function KanbanPage() {
   /** 지연된 작업 수 계산 */
   const delayedTaskCount = tasks.filter(isTaskDelayed).length;
 
+  /**
+   * 오늘 등록 여부 판별 함수
+   * 작업의 createdAt이 오늘인지 확인
+   */
+  const isTaskCreatedToday = (task: Task) => {
+    if (!task.createdAt) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const createdDate = new Date(task.createdAt);
+    createdDate.setHours(0, 0, 0, 0);
+    return createdDate.getTime() === today.getTime();
+  };
+
+  /** 오늘 등록한 작업 수 계산 */
+  const todayCreatedTaskCount = tasks.filter(isTaskCreatedToday).length;
+
   /** 내 작업 수 계산 (currentUser 또는 localStorage user 사용) */
   const activeUserId = currentUser?.id || user?.id;
   const myTaskCount = activeUserId
@@ -239,6 +263,11 @@ export default function KanbanPage() {
 
       // 지연 필터
       if (filterDelayedOnly && !isTaskDelayed(task)) {
+        return false;
+      }
+
+      // 오늘 등록 필터
+      if (filterTodayOnly && !isTaskCreatedToday(task)) {
         return false;
       }
 
@@ -317,15 +346,26 @@ export default function KanbanPage() {
    * 작업 삭제 핸들러 (대기중 상태에서만 가능)
    */
   const handleDeleteTask = async (taskId: string, taskTitle: string) => {
-    if (!window.confirm(`"${taskTitle}" 작업을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
-      return;
-    }
+    setDeletingTaskId(taskId);
+    setDeletingTaskTitle(taskTitle);
+    setShowDeleteConfirm(true);
+  };
+
+  /**
+   * 작업 삭제 확인
+   */
+  const handleConfirmDelete = async () => {
+    if (!deletingTaskId) return;
 
     try {
-      await deleteTask.mutateAsync(taskId);
+      await deleteTask.mutateAsync(deletingTaskId);
+      toast.success("작업이 삭제되었습니다.");
+      setShowDeleteConfirm(false);
+      setDeletingTaskId(null);
+      setDeletingTaskTitle("");
     } catch (err) {
       console.error("작업 삭제 실패:", err);
-      alert("작업 삭제에 실패했습니다.");
+      toast.error("작업 삭제에 실패했습니다.");
     }
   };
 
@@ -427,7 +467,7 @@ export default function KanbanPage() {
    */
   const handleExportToExcel = () => {
     if (tasks.length === 0) {
-      alert("다운로드할 작업이 없습니다.");
+      toast.error("다운로드할 작업이 없습니다.");
       return;
     }
 
@@ -659,6 +699,19 @@ export default function KanbanPage() {
           >
             <Icon name="warning" size="xs" />
             지연 ({delayedTaskCount})
+          </button>
+
+          {/* 오늘 등록 필터 */}
+          <button
+            onClick={() => setFilterTodayOnly(!filterTodayOnly)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
+              filterTodayOnly
+                ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                : "bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text-secondary hover:text-emerald-500"
+            }`}
+          >
+            <Icon name="today" size="xs" />
+            오늘 등록 ({todayCreatedTaskCount})
           </button>
         </div>
         <div className="flex items-center gap-2">
@@ -1214,6 +1267,23 @@ export default function KanbanPage() {
           </div>
         </div>
       )}
+
+      {/* 작업 삭제 확인 모달 */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="작업 삭제"
+        message={`"${deletingTaskTitle}" 작업을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeletingTaskId(null);
+          setDeletingTaskTitle("");
+        }}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+        isLoading={deleteTask.isPending}
+      />
     </div>
   );
 }
@@ -1680,17 +1750,7 @@ function TaskCard({
         </div>
 
         <div className="flex items-center gap-2 text-text-secondary text-xs">
-          {/* 재촉 뱃지 */}
-          {nudgeCount > 0 && (
-            <div
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
-              title={task.nudges?.map((n) => `${n.nudger.name || "알 수 없음"}님이 재촉`).join("\n")}
-            >
-              <Icon name="notifications_active" size="xs" />
-              <span className="text-[10px] font-bold">{nudgeCount}</span>
-            </div>
-          )}
-          {/* 재촉 버튼 */}
+          {/* 재촉 버튼 (재촉 카운트 표시 포함) */}
           {canNudge && onNudge && (
             <button
               onClick={(e) => {
@@ -1699,11 +1759,22 @@ function TaskCard({
               }}
               onPointerDown={(e) => e.stopPropagation()}
               disabled={isNudging}
-              className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors disabled:opacity-50"
-              title="재촉하기"
+              className={`flex items-center gap-1 px-2 py-1 rounded-full transition-colors disabled:opacity-50 ${
+                nudgeCount > 0
+                  ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50"
+                  : "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+              }`}
+              title={nudgeCount > 0
+                ? `${nudgeCount}회 재촉됨\n${task.nudges?.map((n) => `${n.nudger.name || "알 수 없음"}님`).join(", ")}\n클릭하여 추가 재촉`
+                : "재촉하기"
+              }
             >
-              <Icon name="notifications" size="xs" />
-              <span className="text-[10px] font-medium">재촉</span>
+              <Icon name={nudgeCount > 0 ? "notifications_active" : "notifications"} size="xs" />
+              {nudgeCount > 0 ? (
+                <span className="text-[10px] font-bold">{nudgeCount}</span>
+              ) : (
+                <span className="text-[10px] font-medium">재촉</span>
+              )}
             </button>
           )}
           {/* 시작일 ~ 마감일 표시 */}

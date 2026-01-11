@@ -1,7 +1,7 @@
 /**
  * @file src/app/dashboard/components/RequirementStatsSection.tsx
  * @description
- * 요구사항 현황 섹션 컴포넌트입니다.
+ * 업무협조 현황 섹션 컴포넌트입니다.
  * React.memo로 감싸서 props가 변경되지 않으면 리렌더링하지 않습니다.
  */
 
@@ -108,7 +108,7 @@ const RequirementStatsSection = memo(function RequirementStatsSection({
     >
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-text dark:text-white group-hover/req:text-primary transition-colors">요구사항</h3>
+          <h3 className="text-sm font-bold text-text dark:text-white group-hover/req:text-primary transition-colors">업무협조</h3>
           <span className="text-xs text-primary group-hover/req:text-primary-hover flex items-center gap-1">
             전체보기
             <Icon name="arrow_forward" size="xs" className="group-hover/req:translate-x-0.5 transition-transform" />
@@ -117,7 +117,7 @@ const RequirementStatsSection = memo(function RequirementStatsSection({
 
         {/* 상태별 요약 */}
         {total === 0 && isMyDashboard ? (
-          <p className="text-xs text-text-secondary text-center py-4">나와 관련된 요구사항이 없습니다.</p>
+          <p className="text-xs text-text-secondary text-center py-4">나와 관련된 업무협조가 없습니다.</p>
         ) : (
           <div className="grid grid-cols-4 gap-1.5 mb-3">
             <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-1.5 text-center">
@@ -175,7 +175,7 @@ const RequirementStatsSection = memo(function RequirementStatsSection({
           ) : (
             (!reqStats?.assignees || reqStats.assignees.length === 0) ? (
               <p className="text-xs text-text-secondary text-center py-4">
-                담당자가 할당된 요구사항이 없습니다.
+                담당자가 할당된 업무협조가 없습니다.
               </p>
             ) : (
               reqStats.assignees.map((assignee) => (

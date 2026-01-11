@@ -18,7 +18,7 @@
 "use client";
 
 import { useState } from "react";
-import { Icon, Button } from "@/components/ui";
+import { Icon, Button, useToast, ConfirmModal } from "@/components/ui";
 import { useHolidays, useCreateHoliday, useUpdateHoliday, useDeleteHoliday, useMembers } from "@/hooks";
 import type { Holiday } from "@/lib/api";
 import { useProject } from "@/contexts";
@@ -45,6 +45,10 @@ export default function HolidaysPage() {
   const [editingHoliday, setEditingHoliday] = useState<Holiday | null>(null);
   const [newHoliday, setNewHoliday] = useState<HolidayFormState>(initialHolidayFormState);
   const [editHoliday, setEditHoliday] = useState<HolidayFormState>(initialHolidayFormState);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingHolidayId, setDeletingHolidayId] = useState<string | null>(null);
+
+  const toast = useToast();
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -141,61 +145,83 @@ export default function HolidaysPage() {
   const handleCreateHoliday = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProjectId) {
-      alert("헤더에서 프로젝트를 먼저 선택해주세요.");
+      toast.error("헤더에서 프로젝트를 먼저 선택해주세요.");
       return;
     }
     if (!newHoliday.title.trim() || !newHoliday.date) {
-      alert("제목과 날짜를 입력해주세요.");
+      toast.error("제목과 날짜를 입력해주세요.");
       return;
     }
 
-    await createHoliday.mutateAsync({
-      title: newHoliday.title,
-      description: newHoliday.description || undefined,
-      date: newHoliday.date,
-      endDate: newHoliday.endDate || undefined,
-      type: newHoliday.type,
-      isAllDay: newHoliday.isAllDay,
-      startTime: newHoliday.isAllDay ? undefined : newHoliday.startTime || undefined,
-      endTime: newHoliday.isAllDay ? undefined : newHoliday.endTime || undefined,
-      projectId: selectedProjectId,
-      userId: newHoliday.userId || undefined,
-    });
+    try {
+      await createHoliday.mutateAsync({
+        title: newHoliday.title,
+        description: newHoliday.description || undefined,
+        date: newHoliday.date,
+        endDate: newHoliday.endDate || undefined,
+        type: newHoliday.type,
+        isAllDay: newHoliday.isAllDay,
+        startTime: newHoliday.isAllDay ? undefined : newHoliday.startTime || undefined,
+        endTime: newHoliday.isAllDay ? undefined : newHoliday.endTime || undefined,
+        projectId: selectedProjectId,
+        userId: newHoliday.userId || undefined,
+      });
 
-    setNewHoliday(initialHolidayFormState);
-    setShowAddModal(false);
+      toast.success("일정이 추가되었습니다.");
+      setNewHoliday(initialHolidayFormState);
+      setShowAddModal(false);
+    } catch (error) {
+      toast.error("일정 추가에 실패했습니다.");
+    }
   };
 
   const handleUpdateHoliday = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingHoliday) return;
     if (!editHoliday.title.trim() || !editHoliday.date) {
-      alert("제목과 날짜를 입력해주세요.");
+      toast.error("제목과 날짜를 입력해주세요.");
       return;
     }
 
-    await updateHoliday.mutateAsync({
-      id: editingHoliday.id,
-      data: {
-        title: editHoliday.title,
-        description: editHoliday.description || undefined,
-        date: editHoliday.date,
-        endDate: editHoliday.endDate || undefined,
-        type: editHoliday.type,
-        isAllDay: editHoliday.isAllDay,
-        startTime: editHoliday.isAllDay ? undefined : editHoliday.startTime || undefined,
-        endTime: editHoliday.isAllDay ? undefined : editHoliday.endTime || undefined,
-        userId: editHoliday.userId || undefined,
-      },
-    });
+    try {
+      await updateHoliday.mutateAsync({
+        id: editingHoliday.id,
+        data: {
+          title: editHoliday.title,
+          description: editHoliday.description || undefined,
+          date: editHoliday.date,
+          endDate: editHoliday.endDate || undefined,
+          type: editHoliday.type,
+          isAllDay: editHoliday.isAllDay,
+          startTime: editHoliday.isAllDay ? undefined : editHoliday.startTime || undefined,
+          endTime: editHoliday.isAllDay ? undefined : editHoliday.endTime || undefined,
+          userId: editHoliday.userId || undefined,
+        },
+      });
 
-    setShowEditModal(false);
-    setEditingHoliday(null);
+      toast.success("일정이 수정되었습니다.");
+      setShowEditModal(false);
+      setEditingHoliday(null);
+    } catch (error) {
+      toast.error("일정 수정에 실패했습니다.");
+    }
   };
 
   const handleDeleteHoliday = async (id: string) => {
-    if (!confirm("이 일정을 삭제하시겠습니까?")) return;
-    await deleteHoliday.mutateAsync(id);
+    setDeletingHolidayId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingHolidayId) return;
+    try {
+      await deleteHoliday.mutateAsync(deletingHolidayId);
+      toast.success("일정이 삭제되었습니다.");
+      setShowDeleteConfirm(false);
+      setDeletingHolidayId(null);
+    } catch (error) {
+      toast.error("일정 삭제에 실패했습니다.");
+    }
   };
 
   const handleOpenEditModal = (holiday: Holiday) => {
@@ -378,6 +404,22 @@ export default function HolidaysPage() {
         members={members}
         isSubmitting={updateHoliday.isPending}
         editingHoliday={editingHoliday}
+      />
+
+      {/* 삭제 확인 모달 */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="일정 삭제"
+        message="이 일정을 삭제하시겠습니까?"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeletingHolidayId(null);
+        }}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+        isLoading={deleteHoliday.isPending}
       />
     </div>
   );

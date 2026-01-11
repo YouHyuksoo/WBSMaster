@@ -24,7 +24,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { utils, writeFile } from "xlsx";
-import { Icon, Button, Input, useToast } from "@/components/ui";
+import { Icon, Button, Input, useToast, ConfirmModal } from "@/components/ui";
 import { useWbsItems, useCreateWbsItem, useUpdateWbsItem, useDeleteWbsItem, useChangeWbsLevel, useMembers, useCreateTask } from "@/hooks";
 import { useProject } from "@/contexts/ProjectContext";
 import type { WbsItem, WbsLevel } from "@/lib/api";
@@ -66,6 +66,11 @@ export default function WBSPage() {
 
   /** 산출물 미리보기 URL 상태 */
   const [deliverablePreviewUrl, setDeliverablePreviewUrl] = useState<string | null>(null);
+
+  /** 삭제 확인 모달 상태 */
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  const [deletingItemName, setDeletingItemName] = useState("");
 
   // 패널 리사이즈 상태 (폰트 축소에 따른 너비 조정)
   const [panelWidth, setPanelWidth] = useState(defaultPanelWidth);
@@ -671,13 +676,44 @@ export default function WBSPage() {
     setShowAddModal(true);
   };
 
-  /** 항목 삭제 */
-  const handleDelete = async (id: string) => {
-    if (confirm("이 항목과 모든 하위 항목이 삭제됩니다. 계속하시겠습니까?")) {
-      await deleteWbs.mutateAsync(id);
-      if (selectedItemId === id) {
+  /** 항목 삭제 - 확인 모달 표시 */
+  const handleDelete = (id: string) => {
+    // 삭제할 항목 찾기
+    const findItem = (items: WbsItem[]): WbsItem | null => {
+      for (const item of items) {
+        if (item.id === id) return item;
+        if (item.children) {
+          const found = findItem(item.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const item = findItem(wbsTree);
+    if (item) {
+      setDeletingItemId(id);
+      setDeletingItemName(item.name);
+      setShowDeleteConfirm(true);
+    }
+  };
+
+  /** 항목 삭제 확인 */
+  const handleConfirmDelete = async () => {
+    if (!deletingItemId) return;
+
+    try {
+      await deleteWbs.mutateAsync(deletingItemId);
+      if (selectedItemId === deletingItemId) {
         setSelectedItemId(null);
       }
+      toast.success("항목이 삭제되었습니다.");
+    } catch (error) {
+      toast.error("항목 삭제에 실패했습니다.");
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletingItemId(null);
+      setDeletingItemName("");
     }
   };
 
@@ -1457,6 +1493,23 @@ export default function WBSPage() {
       <DeliverablePreviewModal
         url={deliverablePreviewUrl}
         onClose={() => setDeliverablePreviewUrl(null)}
+      />
+
+      {/* 삭제 확인 모달 */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="WBS 항목 삭제"
+        message={`"${deletingItemName}" 항목과 모든 하위 항목이 삭제됩니다.\n\n이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?`}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeletingItemId(null);
+          setDeletingItemName("");
+        }}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+        isLoading={deleteWbs.isPending}
       />
     </div>
   );

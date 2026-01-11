@@ -14,9 +14,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { utils, writeFile } from "xlsx";
-import { CategoryList, ItemTable, FilterBar, EditItemModal, AddItemModal, ImportExcelModal } from "./components";
+import { CategoryList, ItemTable, FilterBar, EditItemModal, AddItemModal } from "./components";
 import { useProject } from "@/contexts";
-import { Icon, Button } from "@/components/ui";
+import { Icon, Button, useToast, ConfirmModal } from "@/components/ui";
+import { ImportExcelModal, type ImportResult } from "@/components/common";
 import {
   ProcessVerificationCategory,
   ProcessVerificationItem,
@@ -50,6 +51,11 @@ export default function ProcessVerificationPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   // 엑셀 가져오기 모달 상태
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  // 삭제 확인 모달 상태
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<ProcessVerificationItem | null>(null);
+
+  const toast = useToast();
 
   // 카테고리 로드
   const loadCategories = useCallback(async () => {
@@ -182,32 +188,34 @@ export default function ProcessVerificationPage() {
 
   // 항목 삭제 핸들러
   const handleDeleteItem = async (item: ProcessVerificationItem) => {
-    const confirmDelete = confirm(
-      `"${item.managementCode}" 항목을 삭제하시겠습니까?\n\n` +
-        `관리 영역: ${item.managementArea}\n` +
-        `세부 항목: ${item.detailItem}\n\n` +
-        "이 작업은 되돌릴 수 없습니다."
-    );
+    setDeletingItem(item);
+    setShowDeleteConfirm(true);
+  };
 
-    if (!confirmDelete) return;
+  // 항목 삭제 확인
+  const handleConfirmDelete = async () => {
+    if (!deletingItem) return;
 
     try {
-      const res = await fetch(`/api/process-verification/items/${item.id}`, {
+      const res = await fetch(`/api/process-verification/items/${deletingItem.id}`, {
         method: "DELETE",
       });
 
       if (res.ok) {
         // 목록에서 제거
-        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        setItems((prev) => prev.filter((i) => i.id !== deletingItem.id));
         // 카테고리 카운트 업데이트를 위해 카테고리 다시 로드
         loadCategories();
+        toast.success("항목이 삭제되었습니다.");
+        setShowDeleteConfirm(false);
+        setDeletingItem(null);
       } else {
         const result = await res.json();
-        alert(`삭제 실패: ${result.error}`);
+        toast.error(`삭제 실패: ${result.error}`);
       }
     } catch (error) {
       console.error("항목 삭제 실패:", error);
-      alert("항목 삭제 중 오류가 발생했습니다.");
+      toast.error("항목 삭제 중 오류가 발생했습니다.");
     }
   };
 
@@ -283,7 +291,7 @@ export default function ProcessVerificationPage() {
    */
   const handleExportToExcel = () => {
     if (filteredItems.length === 0) {
-      alert("다운로드할 데이터가 없습니다.");
+      toast.error("다운로드할 데이터가 없습니다.");
       return;
     }
 
@@ -335,25 +343,18 @@ export default function ProcessVerificationPage() {
   /**
    * 엑셀 가져오기 성공 콜백
    */
-  const handleImportSuccess = (stats: {
-    categoriesCreated: number;
-    itemsCreated: number;
-    skippedSheets: string[];
-    errors: string[];
-  }) => {
-    alert(
-      `Excel 가져오기 완료!\n\n` +
-        `카테고리 생성: ${stats.categoriesCreated}개\n` +
-        `항목 생성: ${stats.itemsCreated}개` +
-        (stats.skippedSheets.length > 0
-          ? `\n건너뛴 시트: ${stats.skippedSheets.length}개`
-          : "") +
-        (stats.errors.length > 0
-          ? `\n오류: ${stats.errors.length}개`
-          : "")
-    );
+  const handleImportSuccess = (result: ImportResult) => {
+    if (result.stats) {
+      toast.success(
+        `Excel 가져오기 완료! (전체: ${result.stats.total}건, 등록: ${result.stats.created}건` +
+          (result.stats.skipped > 0 ? `, 건너뜀: ${result.stats.skipped}건` : "") +
+          (result.stats.errors.length > 0 ? `, 오류: ${result.stats.errors.length}개` : "") +
+          ")"
+      );
+    }
     loadCategories();
     loadItems();
+    setIsImportModalOpen(false);
   };
 
   return (
@@ -543,14 +544,59 @@ export default function ProcessVerificationPage() {
       />
 
       {/* 엑셀 가져오기 모달 */}
-      {selectedProjectId && (
-        <ImportExcelModal
-          isOpen={isImportModalOpen}
-          onClose={() => setIsImportModalOpen(false)}
-          onSuccess={handleImportSuccess}
-          projectId={selectedProjectId}
-        />
-      )}
+      <ImportExcelModal
+        isOpen={isImportModalOpen}
+        projectId={selectedProjectId || ""}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={handleImportSuccess}
+        title="공정검증 데이터 가져오기"
+        apiEndpoint="/api/process-verification/import"
+        templateConfig={{
+          fileName: "공정검증_템플릿",
+          sheetName: "공정검증",
+          columns: [
+            { header: "구분", key: "category", width: 15, example: "재료관리" },
+            { header: "적용여부(Y/N)", key: "isApplied", width: 12, example: "Y" },
+            { header: "관리 영역", key: "managementArea", width: 25, example: "자재 입고" },
+            { header: "세부 관리 항목", key: "detailItem", width: 40, example: "자재 입고 검수" },
+            { header: "MES/IT 매핑", key: "mesMapping", width: 15, example: "MES-001" },
+            { header: "세부 검증 내용", key: "verificationDetail", width: 50, example: "입고 시 바코드 스캔 검증" },
+            { header: "관리코드", key: "managementCode", width: 15, example: "MAT-001" },
+            { header: "수용 여부", key: "acceptanceStatus", width: 12, example: "수용" },
+            { header: "기존MES(Y/N)", key: "existingMes", width: 12, example: "N" },
+            { header: "고객 요청", key: "customerRequest", width: 30, example: "" },
+          ],
+        }}
+        hints={[
+          "첫 번째 행은 헤더로 인식됩니다",
+          "구분: 카테고리명 (재료관리, SMD공정관리 등)",
+          "관리코드가 없는 행은 건너뜁니다",
+          "적용여부, 기존MES: Y 또는 N",
+        ]}
+        clearExistingLabel="기존 공정검증 데이터 삭제 후 가져오기"
+      />
+
+      {/* 삭제 확인 모달 */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="항목 삭제"
+        message={
+          deletingItem
+            ? `"${deletingItem.managementCode}" 항목을 삭제하시겠습니까?\n\n` +
+              `관리 영역: ${deletingItem.managementArea}\n` +
+              `세부 항목: ${deletingItem.detailItem}\n\n` +
+              "이 작업은 되돌릴 수 없습니다."
+            : ""
+        }
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setDeletingItem(null);
+        }}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+      />
     </div>
   );
 }

@@ -19,7 +19,7 @@ import { Icon, Button } from "@/components/ui";
 import { useWeeklyReports, useCurrentUser, useMembers } from "@/hooks";
 import { useProject } from "@/contexts";
 import { ReportWithRelations, WeekInfo } from "../types";
-import { REPORT_STATUS_MAP, formatShortDate, getProjectWeekInfo, getISOWeekInfo } from "../constants";
+import { REPORT_STATUS_MAP, formatShortDate, getProjectWeekInfo, getProjectTotalWeeks } from "../constants";
 
 interface ReportListViewProps {
   /** 보고서 선택 시 콜백 (상세 화면으로 전환) */
@@ -36,10 +36,25 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
   const { selectedProject, selectedProjectId } = useProject();
   const { data: currentUser } = useCurrentUser();
 
-  // 필터 상태
+  // 프로젝트 시작일 기반 현재 주차 정보
+  const currentProjectWeek = useMemo(() => {
+    if (selectedProject?.startDate) {
+      return getProjectWeekInfo(new Date(), new Date(selectedProject.startDate));
+    }
+    return null;
+  }, [selectedProject?.startDate]);
+
+  // 필터 상태 - 프로젝트 주차 기반으로 기본값 설정
   const [yearFilter, setYearFilter] = useState<number>(new Date().getFullYear());
-  const [weekFilter, setWeekFilter] = useState<number | "all">("all");
+  const [weekFilter, setWeekFilter] = useState<number | "all">("all"); // 초기값은 all, useEffect에서 금주로 설정
   const [memberFilter, setMemberFilter] = useState<"mine" | "all">("mine"); // 기본값: 내꺼만 보기
+
+  // 프로젝트 선택 시 금주로 필터 초기화
+  React.useEffect(() => {
+    if (currentProjectWeek) {
+      setWeekFilter(currentProjectWeek.week);
+    }
+  }, [selectedProjectId, currentProjectWeek?.week]);
 
   // 주간보고 조회 (memberFilter에 따라 userId 필터 적용)
   const { data: reports, isLoading } = useWeeklyReports({
@@ -54,21 +69,12 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
     selectedProjectId ? { projectId: selectedProjectId } : undefined
   );
 
-  // 금주 주간보고 조회 (통계용 - 전체 멤버)
-  const currentISOWeek = useMemo(() => getISOWeekInfo(new Date()), []);
+  // 금주 주간보고 조회 (통계용 - 전체 멤버, 프로젝트 주차 기준)
   const { data: currentWeekReports = [] } = useWeeklyReports({
     projectId: selectedProjectId || undefined,
-    year: String(currentISOWeek.year),
-    weekNumber: String(currentISOWeek.week),
+    year: currentProjectWeek ? String(currentProjectWeek.year) : undefined,
+    weekNumber: currentProjectWeek ? String(currentProjectWeek.week) : undefined,
   });
-
-  // 현재 주차 정보 계산
-  const currentWeekInfo = useMemo(() => {
-    if (selectedProject?.startDate) {
-      return getProjectWeekInfo(new Date(), new Date(selectedProject.startDate));
-    }
-    return null;
-  }, [selectedProject?.startDate]);
 
   // 금주 통계 계산
   const weeklyStats = useMemo(() => {
@@ -91,19 +97,25 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
     return [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
   }, []);
 
-  // 주차 옵션 생성 (1~53주)
+  // 주차 옵션 생성 (프로젝트 기준: 1주차 ~ 현재주차+4)
   const weekOptions = useMemo(() => {
-    const weeks: number[] = [];
-    for (let i = 1; i <= 53; i++) {
-      weeks.push(i);
+    if (!selectedProject?.startDate) {
+      // 프로젝트가 없으면 기본 1~53주
+      return Array.from({ length: 53 }, (_, i) => i + 1);
     }
-    return weeks;
-  }, []);
+    const totalWeeks = getProjectTotalWeeks(
+      new Date(selectedProject.startDate),
+      selectedProject.endDate ? new Date(selectedProject.endDate) : undefined
+    );
+    // 현재 주차 + 4주 여유 (미래 주차 작성 가능)
+    const maxWeek = Math.max(totalWeeks + 4, currentProjectWeek?.week || 1);
+    return Array.from({ length: maxWeek }, (_, i) => i + 1);
+  }, [selectedProject?.startDate, selectedProject?.endDate, currentProjectWeek?.week]);
 
   /** 새 보고서 작성 핸들러 */
   const handleCreateNew = () => {
-    if (currentWeekInfo) {
-      onCreateNew(currentWeekInfo);
+    if (currentProjectWeek) {
+      onCreateNew(currentProjectWeek);
     }
   };
 
@@ -195,7 +207,7 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
           </select>
 
           {/* 새 보고서 작성 버튼 */}
-          <Button onClick={handleCreateNew} disabled={!currentWeekInfo}>
+          <Button onClick={handleCreateNew} disabled={!currentProjectWeek}>
             <Icon name="add" size="sm" className="mr-1" />
             주간보고 작성
           </Button>
@@ -203,15 +215,17 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
       </div>
 
       {/* 금주 통계 카드 */}
-      <div className="flex items-center gap-2 mb-2">
-        <Icon name="calendar_today" size="sm" className="text-primary" />
-        <span className="text-sm font-medium text-foreground">
-          {currentISOWeek.year}년 {currentISOWeek.week}주차 현황
-        </span>
-        <span className="text-xs text-muted-foreground">
-          ({formatShortDate(currentISOWeek.weekStart)} ~ {formatShortDate(currentISOWeek.weekEnd)})
-        </span>
-      </div>
+      {currentProjectWeek && (
+        <div className="flex items-center gap-2 mb-2">
+          <Icon name="calendar_today" size="sm" className="text-primary" />
+          <span className="text-sm font-medium text-foreground">
+            {currentProjectWeek.week}주차 현황
+          </span>
+          <span className="text-xs text-muted-foreground">
+            ({formatShortDate(currentProjectWeek.weekStart)} ~ {formatShortDate(currentProjectWeek.weekEnd)})
+          </span>
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* 전체 멤버 */}
         <div className="bg-card rounded-xl border border-border p-4">
@@ -376,7 +390,7 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
           <div className="flex flex-col items-center justify-center py-12">
             <Icon name="description" size="xl" className="text-muted-foreground mb-4" />
             <p className="text-muted-foreground mb-4">등록된 주간보고가 없습니다.</p>
-            <Button onClick={handleCreateNew} disabled={!currentWeekInfo}>
+            <Button onClick={handleCreateNew} disabled={!currentProjectWeek}>
               <Icon name="add" size="sm" className="mr-1" />
               주간보고 작성
             </Button>

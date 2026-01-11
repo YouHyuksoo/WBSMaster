@@ -9,6 +9,8 @@
  * 3. **ReportDetailView**: 주간보고 상세/등록/수정 뷰
  * 4. **ReportItemRow**: 항목 행 컴포넌트
  * 5. **ItemModal**: 항목 추가/수정 모달
+ * 6. **SummaryPanel**: 취합 보고서 목록 패널
+ * 7. **SummaryModal**: 취합 보고서 생성/상세 모달
  */
 
 export { WeekCarousel } from "./WeekCarousel";
@@ -16,3 +18,5 @@ export { ReportListView } from "./ReportListView";
 export { ReportDetailView } from "./ReportDetailView";
 export { ReportItemRow } from "./ReportItemRow";
 export { ItemModal } from "./ItemModal";
+export { SummaryPanel } from "./SummaryPanel";
+export { SummaryModal } from "./SummaryModal";

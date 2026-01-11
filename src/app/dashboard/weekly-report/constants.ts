@@ -106,12 +106,12 @@ export function formatShortDate(date: Date | string | null | undefined): string 
 
 /**
  * 프로젝트 시작일 기반 주차 정보 계산
- * 프로젝트 시작일부터 7일 단위로 주차를 계산합니다.
+ * 프로젝트 시작일이 속한 주의 월요일을 1주차 시작으로 계산합니다.
  *
  * @example
- * projectStartDate = 2025-01-01 (수요일)
- * currentDate = 2025-01-15
- * -> week: 3 (1주: 01-01~01-07, 2주: 01-08~01-14, 3주: 01-15~01-21)
+ * projectStartDate = 2026-01-08 (수요일)
+ * -> 1주차: 01/06 (월) ~ 01/12 (일) - 시작일이 속한 주의 월요일부터
+ * -> 2주차: 01/13 (월) ~ 01/19 (일)
  *
  * @param currentDate 현재 날짜
  * @param projectStartDate 프로젝트 시작일
@@ -130,27 +130,33 @@ export function getProjectWeekInfo(
   const projectStart = new Date(projectStartDate);
   projectStart.setHours(0, 0, 0, 0);
 
+  // 프로젝트 시작일이 속한 주의 월요일 계산
+  const projectStartDay = projectStart.getDay();
+  const daysFromMondayToStart = projectStartDay === 0 ? 6 : projectStartDay - 1;
+  const projectFirstMonday = new Date(projectStart);
+  projectFirstMonday.setDate(projectStart.getDate() - daysFromMondayToStart);
+  projectFirstMonday.setHours(0, 0, 0, 0);
+
   // 현재 날짜 정규화
   const current = new Date(currentDate);
   current.setHours(0, 0, 0, 0);
 
-  // 프로젝트 시작일부터 현재까지의 일수 계산
-  const diffTime = current.getTime() - projectStart.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  // 현재 날짜가 속한 주의 월요일 계산
+  const currentDay = current.getDay();
+  const daysFromMonday = currentDay === 0 ? 6 : currentDay - 1;
+  const currentMonday = new Date(current);
+  currentMonday.setDate(current.getDate() - daysFromMonday);
+  currentMonday.setHours(0, 0, 0, 0);
 
-  // 주차 계산 (0일차 = 1주차, 7일차 = 2주차)
-  const weekNumber = Math.floor(diffDays / 7) + 1;
+  // 프로젝트 첫 월요일부터 현재 월요일까지의 주 수 계산
+  const diffTime = currentMonday.getTime() - projectFirstMonday.getTime();
+  const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+  const weekNumber = diffWeeks + 1;
 
-  // 현재 주차의 시작일(월요일) 계산
-  const dayOfWeek = current.getDay();
-  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 월요일 = 0
-
-  const weekStart = new Date(current);
-  weekStart.setDate(current.getDate() - daysFromMonday);
-  weekStart.setHours(0, 0, 0, 0);
-
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
+  // 주의 시작일(월요일)과 종료일(일요일) 계산
+  const weekStart = new Date(currentMonday);
+  const weekEnd = new Date(currentMonday);
+  weekEnd.setDate(currentMonday.getDate() + 6);
   weekEnd.setHours(23, 59, 59, 999);
 
   return {
@@ -163,6 +169,7 @@ export function getProjectWeekInfo(
 
 /**
  * 프로젝트 시작일 기반으로 특정 주차의 날짜 범위 계산
+ * 프로젝트 시작일이 속한 주의 월요일을 1주차 시작으로 계산합니다.
  *
  * @param projectStartDate 프로젝트 시작일
  * @param weekNumber 주차 번호 (1부터 시작)
@@ -176,13 +183,35 @@ export function getProjectWeekDateRange(
   const projectStart = new Date(projectStartDate);
   projectStart.setHours(0, 0, 0, 0);
 
-  // 프로젝트 시작일부터 weekNumber-1주를 곱한 일수만큼 더함
-  const weekStart = new Date(projectStart);
-  weekStart.setDate(projectStart.getDate() + (weekNumber - 1) * 7);
+  // 프로젝트 시작일이 속한 주의 월요일 계산
+  const projectStartDay = projectStart.getDay();
+  const daysFromMondayToStart = projectStartDay === 0 ? 6 : projectStartDay - 1;
+  const projectFirstMonday = new Date(projectStart);
+  projectFirstMonday.setDate(projectStart.getDate() - daysFromMondayToStart);
+  projectFirstMonday.setHours(0, 0, 0, 0);
+
+  // N주차의 월요일 = 첫 월요일 + (N-1) * 7일
+  const weekStart = new Date(projectFirstMonday);
+  weekStart.setDate(projectFirstMonday.getDate() + (weekNumber - 1) * 7);
 
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
   weekEnd.setHours(23, 59, 59, 999);
 
   return { start: weekStart, end: weekEnd };
+}
+
+/**
+ * 프로젝트의 총 주차 수 계산
+ * @param projectStartDate 프로젝트 시작일
+ * @param projectEndDate 프로젝트 종료일 (없으면 현재 날짜 기준)
+ * @returns 총 주차 수
+ */
+export function getProjectTotalWeeks(
+  projectStartDate: Date,
+  projectEndDate?: Date
+): number {
+  const endDate = projectEndDate || new Date();
+  const endWeekInfo = getProjectWeekInfo(endDate, projectStartDate);
+  return Math.max(1, endWeekInfo.week);
 }

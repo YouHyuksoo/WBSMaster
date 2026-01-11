@@ -18,7 +18,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Icon, Button, Input, ImageCropper, useToast } from "@/components/ui";
+import { Icon, Button, Input, ImageCropper, useToast, ConfirmModal } from "@/components/ui";
 import {
   useMembers,
   useInviteMember,
@@ -75,6 +75,12 @@ export default function MembersPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showEditMemberModal, setShowEditMemberModal] = useState(false);
+  const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState(false);
+  const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [deletingUserName, setDeletingUserName] = useState<string>("");
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [removingMemberName, setRemovingMemberName] = useState<string>("");
 
   // 편집 대상
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -224,12 +230,24 @@ export default function MembersPage() {
   /**
    * 사용자 삭제 처리
    */
-  const handleDeleteUser = async (id: string, name?: string) => {
-    if (!confirm(`"${name || "사용자"}"를 삭제하시겠습니까?\n\n관련된 프로젝트 멤버십도 함께 삭제됩니다.`)) return;
+  const handleDeleteUser = (id: string, name?: string) => {
+    setDeletingUserId(id);
+    setDeletingUserName(name || "사용자");
+    setShowDeleteUserConfirm(true);
+  };
+
+  /**
+   * 사용자 삭제 확인
+   */
+  const handleConfirmDeleteUser = async () => {
+    if (!deletingUserId) return;
 
     try {
-      await deleteUser.mutateAsync(id);
+      await deleteUser.mutateAsync(deletingUserId);
       toast.success("사용자가 삭제되었습니다.");
+      setShowDeleteUserConfirm(false);
+      setDeletingUserId(null);
+      setDeletingUserName("");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "삭제에 실패했습니다.",
@@ -282,12 +300,24 @@ export default function MembersPage() {
   /**
    * 멤버 제거 처리
    */
-  const handleRemoveMember = async (id: string, name?: string) => {
-    if (!confirm(`"${name || "멤버"}"를 프로젝트에서 제거하시겠습니까?`)) return;
+  const handleRemoveMember = (id: string, name?: string) => {
+    setRemovingMemberId(id);
+    setRemovingMemberName(name || "멤버");
+    setShowRemoveMemberConfirm(true);
+  };
+
+  /**
+   * 멤버 제거 확인
+   */
+  const handleConfirmRemoveMember = async () => {
+    if (!removingMemberId) return;
 
     try {
-      await removeMember.mutateAsync(id);
+      await removeMember.mutateAsync(removingMemberId);
       toast.success("멤버가 프로젝트에서 제거되었습니다.");
+      setShowRemoveMemberConfirm(false);
+      setRemovingMemberId(null);
+      setRemovingMemberName("");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "멤버 제거에 실패했습니다.",
@@ -1028,6 +1058,40 @@ export default function MembersPage() {
           cropShape="round"
         />
       )}
+
+      {/* 사용자 삭제 확인 모달 */}
+      <ConfirmModal
+        isOpen={showDeleteUserConfirm}
+        title="사용자 삭제"
+        message={`"${deletingUserName}"를 삭제하시겠습니까?\n\n관련된 프로젝트 멤버십도 함께 삭제됩니다.`}
+        onConfirm={handleConfirmDeleteUser}
+        onCancel={() => {
+          setShowDeleteUserConfirm(false);
+          setDeletingUserId(null);
+          setDeletingUserName("");
+        }}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+        isLoading={deleteUser.isPending}
+      />
+
+      {/* 멤버 제거 확인 모달 */}
+      <ConfirmModal
+        isOpen={showRemoveMemberConfirm}
+        title="멤버 제거"
+        message={`"${removingMemberName}"를 프로젝트에서 제거하시겠습니까?`}
+        onConfirm={handleConfirmRemoveMember}
+        onCancel={() => {
+          setShowRemoveMemberConfirm(false);
+          setRemovingMemberId(null);
+          setRemovingMemberName("");
+        }}
+        confirmText="제거"
+        cancelText="취소"
+        variant="warning"
+        isLoading={removeMember.isPending}
+      />
     </div>
   );
 }

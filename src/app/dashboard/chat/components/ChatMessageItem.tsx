@@ -12,7 +12,7 @@
  * - 피드백 (좋아요/싫어요) UI
  */
 
-import React, { memo, useState } from "react";
+import React, { memo, useState, useRef, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Icon, Card } from "@/components/ui";
@@ -37,6 +37,10 @@ export interface ChatMessage {
   mindmapData?: MindmapNode;
   createdAt: string;
   processingTimeMs?: number;
+  /** 전체 데이터 건수 (LIMIT 적용 전) */
+  totalCount?: number;
+  /** 표시된 데이터 건수 (LIMIT 적용 후) */
+  displayedCount?: number;
   feedback?: {
     rating: FeedbackRating;
     comment?: string;
@@ -48,6 +52,8 @@ interface ChatMessageItemProps {
   onFeedback: (messageId: string, rating: FeedbackRating) => void;
   onFeedbackComment: (messageId: string, comment: string) => void;
   onFullscreenMindmap: (data: MindmapNode) => void;
+  /** Excel 다운로드 핸들러 (SQL 쿼리를 전달받아 전체 데이터 Excel 다운로드) */
+  onExcelDownload?: (sqlQuery: string) => void;
 }
 
 /**
@@ -58,8 +64,10 @@ const ChatMessageItem = memo(function ChatMessageItem({
   onFeedback,
   onFeedbackComment,
   onFullscreenMindmap,
+  onExcelDownload,
 }: ChatMessageItemProps) {
   const [feedbackInput, setFeedbackInput] = useState("");
+  const messageRef = useRef<HTMLDivElement>(null);
 
   const handleFeedbackKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && feedbackInput.trim()) {
@@ -68,8 +76,27 @@ const ChatMessageItem = memo(function ChatMessageItem({
     }
   };
 
+  /**
+   * 메시지 시작 부분으로 스크롤
+   */
+  const scrollToTop = useCallback(() => {
+    if (messageRef.current) {
+      messageRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  /**
+   * 메시지 끝 부분으로 스크롤
+   */
+  const scrollToBottom = useCallback(() => {
+    if (messageRef.current) {
+      messageRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, []);
+
   return (
     <div
+      ref={messageRef}
       className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
     >
       <div
@@ -143,6 +170,34 @@ const ChatMessageItem = memo(function ChatMessageItem({
                   <code className="text-green-400">{message.sqlQuery}</code>
                 </pre>
               </details>
+            )}
+
+            {/* Excel 다운로드 버튼 (전체 건수가 표시 건수보다 많을 때) */}
+            {message.sqlQuery &&
+             message.totalCount !== undefined &&
+             message.displayedCount !== undefined &&
+             message.totalCount > message.displayedCount && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <Icon name="info" size="sm" className="text-amber-500 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    전체 {message.totalCount.toLocaleString()}건 중 {message.displayedCount.toLocaleString()}건만 표시됩니다.
+                  </p>
+                  <p className="text-xs text-text-secondary mt-0.5">
+                    전체 데이터가 필요하시면 Excel로 다운로드하세요.
+                  </p>
+                </div>
+                {onExcelDownload && (
+                  <button
+                    onClick={() => onExcelDownload(message.sqlQuery!)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium transition-colors flex-shrink-0"
+                    title="전체 데이터 Excel 다운로드"
+                  >
+                    <Icon name="download" size="sm" />
+                    <span>Excel 다운로드</span>
+                  </button>
+                )}
+              </div>
             )}
 
             {/* 차트 표시 - chartData 유효성 검사 후 렌더링 */}
@@ -219,6 +274,25 @@ const ChatMessageItem = memo(function ChatMessageItem({
                       title="개선필요"
                     >
                       <Icon name="thumb_down" size="sm" />
+                    </button>
+
+                    {/* 구분선 */}
+                    <div className="w-px h-4 bg-border dark:bg-border-dark mx-1" />
+
+                    {/* 스크롤 버튼 */}
+                    <button
+                      onClick={scrollToTop}
+                      className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-all"
+                      title="응답 처음으로"
+                    >
+                      <Icon name="keyboard_arrow_up" size="sm" />
+                    </button>
+                    <button
+                      onClick={scrollToBottom}
+                      className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-all"
+                      title="응답 마지막으로"
+                    >
+                      <Icon name="keyboard_arrow_down" size="sm" />
                     </button>
                   </div>
                 </div>

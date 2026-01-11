@@ -12,7 +12,7 @@
  */
 
 import React, { memo, useState, useRef, useCallback, useEffect } from "react";
-import { Icon, Button } from "@/components/ui";
+import { Icon, Button, useToast } from "@/components/ui";
 import { EXAMPLE_GROUPS, ExampleGroup } from "./constants";
 
 /**
@@ -105,6 +105,8 @@ const ChatInput = memo(function ChatInput({
   suggestedInput,
   onSuggestedInputHandled,
 }: ChatInputProps) {
+  const toast = useToast();
+
   // 로컬 상태 - 부모 컴포넌트와 분리
   const [inputMessage, setInputMessage] = useState("");
   const [showExamplePopover, setShowExamplePopover] = useState(false);
@@ -217,7 +219,7 @@ const ChatInput = memo(function ChatInput({
       } catch (err) {
         // 권한 거부 또는 마이크 없음
         console.error("마이크 권한 오류:", err);
-        alert("마이크 사용 권한이 필요합니다.\n브라우저에서 마이크 권한을 허용해주세요.");
+        toast.error("마이크 사용 권한이 필요합니다. 브라우저에서 마이크 권한을 허용해주세요.");
       }
     }
   }, [isListening]);
