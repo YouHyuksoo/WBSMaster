@@ -348,8 +348,10 @@ model WbsItem {
   order       Int           @default(0) // 같은 레벨 내 순서
   status      TaskStatus    @default(PENDING) // 진행 상태
   progress    Int           @default(0) // 진행률 0-100
-  startDate   DateTime?     // 시작일
-  endDate     DateTime?     // 종료일
+  startDate   DateTime?     // 계획 시작일
+  endDate     DateTime?     // 계획 종료일
+  actualStartDate DateTime? // 실제 시작일
+  actualEndDate   DateTime? // 실제 종료일
   weight      Int           @default(1) // 가중치 (진행률 계산용)
   deliverableName String?   // 산출물명
   deliverableLink String?   // 산출물 링크 (URL)
@@ -883,7 +885,7 @@ model ProcessVerificationItem {
   detailItem          String           // (L2) 세부 관리 항목
   mesMapping          String?          // (L3) MES/IT 매핑 기능명
   verificationDetail  String?          // 세부 검증 내용 및 점검 기준
-  managementCode      String           // 관리코드 (M-1-01, P-1-01 등)
+  managementCode      String  @unique  // 관리코드 (M-1-01, P-1-01 등) - 유일키
   acceptanceStatus    String?          // 수용 여부
   existingMes         Boolean @default(false) // 기존MES유무(Y/N)
   customerRequest     String?          // 고객요청여부
@@ -901,7 +903,6 @@ model ProcessVerificationItem {
   updatedAt           DateTime @updatedAt
 
   @@index([categoryId])
-  @@index([managementCode])
   @@map("process_verification_items")
 }
 

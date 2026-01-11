@@ -66,6 +66,8 @@ export interface NewItemForm {
   assigneeIds: string[];
   startDate: string;
   endDate: string;
+  actualStartDate: string;  // 실제 시작일
+  actualEndDate: string;    // 실제 종료일
   progress: number;
   weight: number;
   deliverableName: string;

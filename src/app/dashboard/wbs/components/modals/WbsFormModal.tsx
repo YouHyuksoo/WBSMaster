@@ -183,11 +183,11 @@ export function WbsFormModal({
                 일정 및 진행
               </h3>
 
-              {/* 일정 */}
+              {/* 계획 일정 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    시작일
+                    계획 시작일
                   </label>
                   <input
                     type="date"
@@ -198,13 +198,39 @@ export function WbsFormModal({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    종료일
+                    계획 종료일
                   </label>
                   <input
                     type="date"
                     value={formData.endDate}
                     onChange={(e) => onFormChange({ endDate: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* 실제 일정 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-emerald-600 dark:text-emerald-400 mb-1">
+                    실제 시작일
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.actualStartDate}
+                    onChange={(e) => onFormChange({ actualStartDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-emerald-300 dark:border-emerald-700 text-text dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-emerald-600 dark:text-emerald-400 mb-1">
+                    실제 종료일
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.actualEndDate}
+                    onChange={(e) => onFormChange({ actualEndDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-emerald-300 dark:border-emerald-700 text-text dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                   />
                 </div>
               </div>

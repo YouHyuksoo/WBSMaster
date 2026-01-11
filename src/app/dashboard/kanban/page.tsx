@@ -548,8 +548,14 @@ export default function KanbanPage() {
       <div className="px-6 py-4 border-b border-border dark:border-border-dark bg-background-white dark:bg-surface-dark shrink-0">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-text">
-              TASK Kanban Board
+            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+              <Icon name="view_kanban" className="text-[#00f3ff]" />
+              <span className="tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-[#00f3ff] to-[#fa00ff]">
+                KANBAN BOARD
+              </span>
+              <span className="text-slate-400 text-sm font-normal ml-1">
+                / 작업 현황
+              </span>
             </h1>
             {/* 현재 선택된 프로젝트 표시 */}
             {selectedProject && (

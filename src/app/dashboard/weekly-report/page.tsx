@@ -71,11 +71,6 @@ export default function WeeklyReportPage() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
-        {/* 페이지 타이틀 */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">주간 업무보고</h1>
-        </div>
-
         {/* 뷰 전환 */}
         {viewMode === "list" ? (
           <ReportListView

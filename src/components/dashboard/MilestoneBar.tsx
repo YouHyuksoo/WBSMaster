@@ -26,6 +26,8 @@ interface MilestoneBarProps {
   id: string;
   /** 마일스톤 이름 */
   name: string;
+  /** 설명 */
+  description?: string;
   /** 시작일 */
   startDate: string;
   /** 종료일 */
@@ -57,11 +59,31 @@ const STATUS_STYLES: Record<MilestoneStatus, string> = {
 };
 
 /**
+ * 배경색의 밝기를 계산하여 텍스트 색상 결정
+ * @param hexColor - HEX 색상 코드 (#RRGGBB)
+ * @returns 밝은 배경이면 true, 어두운 배경이면 false
+ */
+function isLightBackground(hexColor: string): boolean {
+  // HEX 색상에서 RGB 추출
+  const hex = hexColor.replace("#", "");
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  // 상대적 휘도 계산 (YIQ 공식)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+  // 밝기가 150 이상이면 밝은 배경
+  return brightness > 150;
+}
+
+/**
  * 마일스톤 기간 막대 컴포넌트
  */
 export function MilestoneBar({
   id,
   name,
+  description,
   startDate,
   endDate,
   status,
@@ -75,6 +97,8 @@ export function MilestoneBar({
 }: MilestoneBarProps) {
   // 리사이즈 호버 상태
   const [hoverSide, setHoverSide] = useState<"left" | "right" | null>(null);
+  // 툴팁 호버 상태
+  const [isHovered, setIsHovered] = useState(false);
 
   // @dnd-kit 드래그 훅
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
@@ -98,15 +122,36 @@ export function MilestoneBar({
   // 날짜 포맷팅
   const formattedDates = useMemo(() => {
     const start = new Date(startDate).toLocaleDateString("ko-KR", {
+      year: "numeric",
       month: "short",
       day: "numeric",
     });
     const end = new Date(endDate).toLocaleDateString("ko-KR", {
+      year: "numeric",
       month: "short",
       day: "numeric",
     });
     return `${start} ~ ${end}`;
   }, [startDate, endDate]);
+
+  // 기간 일수 계산
+  const durationDays = useMemo(() => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    return diff;
+  }, [startDate, endDate]);
+
+  // 상태 한글명
+  const statusLabel = useMemo(() => {
+    const labels: Record<MilestoneStatus, string> = {
+      PENDING: "대기",
+      IN_PROGRESS: "진행중",
+      COMPLETED: "완료",
+      DELAYED: "지연",
+    };
+    return labels[status];
+  }, [status]);
 
   /**
    * 리사이즈 핸들 마우스 다운
@@ -135,7 +180,7 @@ export function MilestoneBar({
       ref={setNodeRef}
       className={`
         absolute top-1 h-10 rounded-md cursor-pointer
-        flex items-center px-2 gap-1 overflow-hidden
+        flex items-center px-2 gap-1
         transition-shadow duration-150
         hover:shadow-lg hover:z-20
         ${STATUS_STYLES[status]}
@@ -149,6 +194,8 @@ export function MilestoneBar({
         ...dragStyle,
       }}
       onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       {...attributes}
     >
       {/* 좌측 리사이즈 핸들 */}
@@ -169,16 +216,18 @@ export function MilestoneBar({
 
       {/* 막대 내용 - 드래그 리스너는 중앙 콘텐츠에만 적용 */}
       <div className="flex-1 min-w-0 flex items-center gap-1 px-1" {...listeners}>
-        {/* 상태 아이콘 */}
-        <span className="flex-shrink-0 text-white/90 text-xs">
-          {status === "COMPLETED" && "✓"}
-          {status === "IN_PROGRESS" && "▶"}
-          {status === "PENDING" && "○"}
-          {status === "DELAYED" && "⚠"}
+        {/* 상태 아이콘 - 배경색에 따라 텍스트 색상 자동 조절 */}
+        <span className={`flex-shrink-0 text-sm ${isLightBackground(color) ? "text-slate-700/90" : "text-white/90"}`}>
+          {status === "COMPLETED" && "🟢"}
+          {status === "IN_PROGRESS" && (
+            <span className="inline-block animate-spin">🌀</span>
+          )}
+          {status === "PENDING" && "⚪"}
+          {status === "DELAYED" && "🔴"}
         </span>
 
-        {/* 마일스톤 이름 */}
-        <span className="text-white font-medium text-xs truncate">
+        {/* 마일스톤 이름 - 배경색에 따라 텍스트 색상 자동 조절 */}
+        <span className={`font-medium text-xs truncate ${isLightBackground(color) ? "text-slate-800" : "text-white"}`}>
           {name}
         </span>
       </div>
@@ -199,20 +248,42 @@ export function MilestoneBar({
         <div className="w-0.5 h-4 bg-white/70 rounded" />
       </div>
 
-      {/* 툴팁 (호버 시 표시) */}
-      <div
-        className={`
-          absolute bottom-full left-1/2 -translate-x-1/2 mb-1
-          px-2 py-1 bg-slate-900 text-white text-xs rounded
-          whitespace-nowrap pointer-events-none
-          opacity-0 group-hover:opacity-100 transition-opacity
-          z-30
-        `}
-      >
-        {name}
-        <br />
-        {formattedDates}
-      </div>
+      {/* 툴팁 (호버 시 표시) - 차트 스타일 */}
+      {isHovered && !isDragging && !isResizing && (
+        <div
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none"
+        >
+          <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[200px] max-w-[280px]">
+            {/* 헤더: 이름 + 상태 */}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="font-semibold text-sm truncate">{name}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                status === "COMPLETED" ? "bg-green-500/20 text-green-400" :
+                status === "IN_PROGRESS" ? "bg-blue-500/20 text-blue-400" :
+                status === "DELAYED" ? "bg-red-500/20 text-red-400" :
+                "bg-slate-500/20 text-slate-400"
+              }`}>
+                {statusLabel}
+              </span>
+            </div>
+
+            {/* 설명 */}
+            {description && (
+              <p className="text-xs text-slate-300 mb-2 line-clamp-2">{description}</p>
+            )}
+
+            {/* 기간 정보 */}
+            <div className="flex items-center gap-2 text-xs text-slate-400 border-t border-slate-700 pt-2">
+              <span>📅</span>
+              <span>{formattedDates}</span>
+              <span className="text-slate-500">|</span>
+              <span className="text-blue-400 font-medium">{durationDays}일</span>
+            </div>
+          </div>
+          {/* 화살표 */}
+          <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
+        </div>
+      )}
     </div>
   );
 }
@@ -230,26 +301,36 @@ export function MilestoneBarOverlay({
   color: string;
   status: MilestoneStatus;
 }) {
+  // 배경색에 따라 텍스트 색상 결정
+  const isLight = isLightBackground(color);
+  const textColorClass = isLight ? "text-slate-800" : "text-white";
+  const iconColorClass = isLight ? "text-slate-700/90" : "text-white/90";
+
+  // 오버레이용 스타일
+  const overlayStatusStyle = STATUS_STYLES[status];
+
   return (
     <div
       className={`
         h-10 rounded-md cursor-grabbing
         flex items-center px-3 gap-2 overflow-hidden
         shadow-xl opacity-95
-        ${STATUS_STYLES[status]}
+        ${overlayStatusStyle}
       `}
       style={{
         backgroundColor: color,
         minWidth: "120px",
       }}
     >
-      <span className="flex-shrink-0 text-white/90 text-xs">
-        {status === "COMPLETED" && "✓"}
-        {status === "IN_PROGRESS" && "▶"}
-        {status === "PENDING" && "○"}
-        {status === "DELAYED" && "⚠"}
+      <span className={`flex-shrink-0 text-sm ${iconColorClass}`}>
+        {status === "COMPLETED" && "🟢"}
+        {status === "IN_PROGRESS" && (
+          <span className="inline-block animate-spin">🌀</span>
+        )}
+        {status === "PENDING" && "⚪"}
+        {status === "DELAYED" && "🔴"}
       </span>
-      <span className="text-white font-medium text-sm truncate">{name}</span>
+      <span className={`font-medium text-sm truncate ${textColorClass}`}>{name}</span>
     </div>
   );
 }

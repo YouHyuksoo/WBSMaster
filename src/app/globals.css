@@ -564,6 +564,22 @@ textarea {
   animation: pulseGlow 2s ease-in-out infinite;
 }
 
+/* 진행 중 마일스톤 미묘한 펄스 효과 */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    opacity: 0.92;
+    box-shadow: 0 0 12px 3px rgba(59, 130, 246, 0.25);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
 /* 시머(로딩) 효과 */
 @keyframes shimmer {
   0% {

@@ -221,6 +221,9 @@ export function DailyTaskChart({ projectId }: DailyTaskChartProps) {
             <span className="tracking-wider bg-clip-text text-transparent bg-linear-to-r from-[#00f3ff] to-[#fa00ff]">
               PROJECT WORKLOAD
             </span>
+            <span className="text-slate-400 text-sm font-normal ml-1">
+              / 일자별 할당건수
+            </span>
           </h2>
           <p className="text-slate-400 text-xs mt-1 font-mono tracking-wide">
             DAILY TASK DISTRIBUTION // PROJECT ID: {projectId.slice(0, 8)}...

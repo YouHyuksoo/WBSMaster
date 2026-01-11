@@ -125,6 +125,8 @@ interface UpdateWbsItemData {
   progress?: number;
   startDate?: string;
   endDate?: string;
+  actualStartDate?: string; // 실제 시작일
+  actualEndDate?: string;   // 실제 종료일
   weight?: number;
   assigneeIds?: string[];
   order?: number;

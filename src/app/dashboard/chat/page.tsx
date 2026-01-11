@@ -30,6 +30,7 @@ import ChatInput from "./components/ChatInput";
 import MindmapRenderer, { MindmapNode } from "./components/MindmapRenderer";
 import { EXAMPLE_GROUPS, ExampleGroup } from "./components/constants";
 import { ExcelMappingModal } from "./components/ExcelMappingModal";
+import { SuggestionsCarousel } from "./components/SuggestionsCarousel";
 
 /**
  * 피드백 타입
@@ -67,16 +68,19 @@ export default function ChatPage() {
   const [suggestions, setSuggestions] = useState<ExampleGroup[]>(EXAMPLE_GROUPS);
   const [isRefreshingSuggestions, setIsRefreshingSuggestions] = useState(false);
 
+  // 제안 클릭 시 입력창에 텍스트 설정 (바로 전송하지 않음)
+  const [suggestedInput, setSuggestedInput] = useState("");
+
   // localStorage에서 저장된 제안 불러오기 (최초 로드 시)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(SUGGESTIONS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as ExampleGroup[];
-        // 유효성 검증: 5개 카테고리, 각각 questions 배열 존재
+        // 유효성 검증: 7개 카테고리, 각각 questions 배열 존재
         if (
           Array.isArray(parsed) &&
-          parsed.length === 5 &&
+          parsed.length === 7 &&
           parsed.every((g) => g.title && Array.isArray(g.questions))
         ) {
           setSuggestions(parsed);
@@ -690,37 +694,13 @@ export default function ChatPage() {
               </button>
             </div>
 
-            {/* 그룹별 예시 질문 - 동적 상태 사용 */}
-            <div className="grid grid-cols-5 gap-4 w-full max-w-6xl">
-              {suggestions.map((group) => (
-                <div
-                  key={group.title}
-                  className="p-3 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark min-h-[200px]"
-                >
-                  {/* 그룹 헤더 */}
-                  <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-border dark:border-border-dark">
-                    <Icon name={group.icon} size="xs" className={group.color} />
-                    <span className="text-sm font-semibold text-text dark:text-white">
-                      {group.title}
-                    </span>
-                  </div>
-                  {/* 질문 목록 - 클릭 시 바로 전송, 줄넘김 허용 */}
-                  <div className="space-y-2">
-                    {group.questions.map((question, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSendMessage(question)}
-                        disabled={isLoading || !selectedProjectId}
-                        className="w-full text-left text-[11px] leading-relaxed py-2 px-2 text-text-secondary rounded hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={question}
-                      >
-                        {question}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* 그룹별 예시 질문 - 카로셀로 표시 */}
+            <SuggestionsCarousel
+              suggestions={suggestions}
+              onQuestionClick={(question) => setSuggestedInput(question)}
+              isLoading={isLoading}
+              isProjectSelected={!!selectedProjectId}
+            />
           </div>
         ) : (
           // 메시지 목록 - ChatMessageItem 사용
@@ -765,6 +745,8 @@ export default function ChatPage() {
         suggestions={suggestions}
         onRefreshSuggestions={refreshSuggestions}
         isRefreshingSuggestions={isRefreshingSuggestions}
+        suggestedInput={suggestedInput}
+        onSuggestedInputHandled={() => setSuggestedInput("")}
       />
 
       {/* 채팅 기록 삭제 확인 모달 */}

@@ -7,3 +7,6 @@
 export { default as CategoryList } from "./CategoryList";
 export { default as ItemTable } from "./ItemTable";
 export { default as FilterBar } from "./FilterBar";
+export { default as EditItemModal } from "./EditItemModal";
+export { default as AddItemModal } from "./AddItemModal";
+export { ImportExcelModal } from "./ImportExcelModal";

@@ -27,6 +27,7 @@ import { useProject } from "@/contexts/ProjectContext";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Project } from "@/lib/api";
 import { DailyTaskChart } from "@/components/dashboard/DailyTaskChart";
+import { AssigneeTaskChart } from "@/components/dashboard/AssigneeTaskChart";
 import { ProjectOverviewModal } from "@/components/dashboard/ProjectOverviewModal";
 
 // 분리된 대시보드 컴포넌트들 (React.memo 적용)
@@ -742,9 +743,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 일자별 작업 부하 차트 */}
-      <div className="mt-6">
+      {/* 작업 부하 차트 섹션 - 2개 나란히 배치 */}
+      <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {/* 일자별 작업 부하 차트 */}
         <DailyTaskChart projectId={selectedProjectId || projects?.[0]?.id || ""} />
+
+        {/* 담당자별 작업 현황 차트 */}
+        <AssigneeTaskChart projectId={selectedProjectId || projects?.[0]?.id || ""} />
       </div>
 
       {/* 프로젝트 생성 모달 */}

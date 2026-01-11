@@ -32,7 +32,7 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sqlQuery?: string;
-  chartType?: "bar" | "bar3d" | "line" | "pie" | "area" | "mindmap";
+  chartType?: "bar" | "line" | "pie" | "area" | "mindmap";
   chartData?: Record<string, unknown>[];
   mindmapData?: MindmapNode;
   createdAt: string;
@@ -105,19 +105,21 @@ const ChatMessageItem = memo(function ChatMessageItem({
                       </code>
                     );
                   },
-                  // 테이블 스타일링
+                  // 테이블 스타일링 (라이트/다크 모드 지원)
                   table: ({ children }) => (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full border-collapse">{children}</table>
+                    <div className="overflow-x-auto my-2">
+                      <table className="min-w-full border-collapse text-sm">{children}</table>
                     </div>
                   ),
                   th: ({ children }) => (
-                    <th className="px-3 py-2 text-left bg-background-dark border border-border-dark">
+                    <th className="px-3 py-2 text-left font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600">
                       {children}
                     </th>
                   ),
                   td: ({ children }) => (
-                    <td className="px-3 py-2 border border-border-dark">{children}</td>
+                    <td className="px-3 py-2 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300">
+                      {children}
+                    </td>
                   ),
                 }}
               >

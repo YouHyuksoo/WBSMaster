@@ -13,36 +13,25 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { CategoryList, ItemTable, FilterBar } from "./components";
+import { utils, writeFile } from "xlsx";
+import { CategoryList, ItemTable, FilterBar, EditItemModal, AddItemModal, ImportExcelModal } from "./components";
+import { useProject } from "@/contexts";
+import { Icon, Button } from "@/components/ui";
 import {
   ProcessVerificationCategory,
   ProcessVerificationItem,
   FilterState,
+  verificationStatusConfig,
 } from "./types";
-
-/**
- * 기본 프로젝트 ID 가져오기 (첫 번째 프로젝트 사용)
- */
-async function getDefaultProjectId(): Promise<string | null> {
-  try {
-    const res = await fetch("/api/projects");
-    if (!res.ok) return null;
-    const projects = await res.json();
-    return projects[0]?.id || null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * 기능추적표 페이지 컴포넌트
  */
 export default function ProcessVerificationPage() {
-  const searchParams = useSearchParams();
+  /** 전역 프로젝트 선택 상태 (헤더에서 선택) */
+  const { selectedProjectId, selectedProject } = useProject();
 
   // 상태
-  const [projectId, setProjectId] = useState<string | null>(null);
   const [categories, setCategories] = useState<ProcessVerificationCategory[]>([]);
   const [items, setItems] = useState<ProcessVerificationItem[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -54,28 +43,22 @@ export default function ProcessVerificationPage() {
   });
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-
-  // 프로젝트 ID 초기화
-  useEffect(() => {
-    const urlProjectId = searchParams.get("projectId");
-    if (urlProjectId) {
-      setProjectId(urlProjectId);
-    } else {
-      getDefaultProjectId().then((id) => {
-        if (id) setProjectId(id);
-      });
-    }
-  }, [searchParams]);
+  // 수정 모달 상태
+  const [editingItem, setEditingItem] = useState<ProcessVerificationItem | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // 추가 모달 상태
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  // 엑셀 가져오기 모달 상태
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // 카테고리 로드
   const loadCategories = useCallback(async () => {
-    if (!projectId) return;
+    if (!selectedProjectId) return;
 
     setIsLoadingCategories(true);
     try {
       const res = await fetch(
-        `/api/process-verification/categories?projectId=${projectId}`
+        `/api/process-verification/categories?projectId=${selectedProjectId}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -86,16 +69,16 @@ export default function ProcessVerificationPage() {
     } finally {
       setIsLoadingCategories(false);
     }
-  }, [projectId]);
+  }, [selectedProjectId]);
 
   // 항목 로드
   const loadItems = useCallback(async () => {
-    if (!projectId) return;
+    if (!selectedProjectId) return;
 
     setIsLoadingItems(true);
     try {
       const params = new URLSearchParams();
-      params.set("projectId", projectId);
+      params.set("projectId", selectedProjectId);
 
       if (selectedCategoryId) {
         params.set("categoryId", selectedCategoryId);
@@ -117,7 +100,7 @@ export default function ProcessVerificationPage() {
     } finally {
       setIsLoadingItems(false);
     }
-  }, [projectId, selectedCategoryId, filter.isApplied, filter.search]);
+  }, [selectedProjectId, selectedCategoryId, filter.isApplied, filter.search]);
 
   // 프로젝트 ID 변경 시 카테고리 로드
   useEffect(() => {
@@ -141,11 +124,21 @@ export default function ProcessVerificationPage() {
 
   // 통계 계산
   const stats = useMemo(() => {
+    const total = items.length;
+    const applied = items.filter((item) => item.isApplied).length;
+    const notApplied = total - applied;
+    const verified = items.filter((item) => item.status === "VERIFIED").length;
+    const inProgress = items.filter((item) => item.status === "IN_PROGRESS").length;
     return {
-      total: filteredItems.length,
-      applied: filteredItems.filter((item) => item.isApplied).length,
+      total,
+      applied,
+      notApplied,
+      verified,
+      inProgress,
+      filteredTotal: filteredItems.length,
+      filteredApplied: filteredItems.filter((item) => item.isApplied).length,
     };
-  }, [filteredItems]);
+  }, [items, filteredItems]);
 
   // 카테고리 선택 핸들러
   const handleSelectCategory = (categoryId: string | null) => {
@@ -181,104 +174,383 @@ export default function ProcessVerificationPage() {
     }
   };
 
-  // Excel 가져오기 핸들러
-  const handleImportExcel = async () => {
-    if (!projectId) {
-      alert("프로젝트가 선택되지 않았습니다.");
-      return;
-    }
+  // 항목 수정 모달 열기
+  const handleEditItem = (item: ProcessVerificationItem) => {
+    setEditingItem(item);
+    setIsEditModalOpen(true);
+  };
 
-    const confirmImport = confirm(
-      "Excel 데이터를 가져오시겠습니까?\n\n" +
-        "scripts/excel_data.xlsx 파일의 데이터가 등록됩니다.\n" +
-        "(기존 데이터는 유지됩니다)"
+  // 항목 삭제 핸들러
+  const handleDeleteItem = async (item: ProcessVerificationItem) => {
+    const confirmDelete = confirm(
+      `"${item.managementCode}" 항목을 삭제하시겠습니까?\n\n` +
+        `관리 영역: ${item.managementArea}\n` +
+        `세부 항목: ${item.detailItem}\n\n` +
+        "이 작업은 되돌릴 수 없습니다."
     );
 
-    if (!confirmImport) return;
+    if (!confirmDelete) return;
 
-    setIsImporting(true);
     try {
-      const res = await fetch("/api/process-verification/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, clearExisting: false }),
+      const res = await fetch(`/api/process-verification/items/${item.id}`, {
+        method: "DELETE",
       });
 
-      const result = await res.json();
-
       if (res.ok) {
-        alert(
-          `Excel 가져오기 완료!\n\n` +
-            `카테고리 생성: ${result.stats.categoriesCreated}개\n` +
-            `항목 생성: ${result.stats.itemsCreated}개\n` +
-            (result.stats.skippedSheets.length > 0
-              ? `건너뛴 시트: ${result.stats.skippedSheets.join(", ")}`
-              : "")
-        );
+        // 목록에서 제거
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        // 카테고리 카운트 업데이트를 위해 카테고리 다시 로드
         loadCategories();
-        loadItems();
       } else {
-        alert(`가져오기 실패: ${result.error}`);
+        const result = await res.json();
+        alert(`삭제 실패: ${result.error}`);
       }
     } catch (error) {
-      console.error("Excel 가져오기 실패:", error);
-      alert("Excel 가져오기 중 오류가 발생했습니다.");
-    } finally {
-      setIsImporting(false);
+      console.error("항목 삭제 실패:", error);
+      alert("항목 삭제 중 오류가 발생했습니다.");
     }
   };
 
-  // 프로젝트가 없는 경우
-  if (!projectId && !isLoadingCategories) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center text-slate-500">
-          <p>프로젝트를 찾을 수 없습니다.</p>
-          <p className="text-sm mt-2">먼저 프로젝트를 생성해주세요.</p>
-        </div>
-      </div>
+  // 항목 추가 핸들러
+  const handleAddItem = async (data: {
+    categoryId: string;
+    category: string;
+    isApplied: boolean;
+    managementArea: string;
+    detailItem: string;
+    mesMapping: string;
+    verificationDetail: string;
+    managementCode: string;
+    acceptanceStatus: string;
+    existingMes: boolean;
+    customerRequest: string;
+    remarks: string;
+    status: string;
+  }) => {
+    try {
+      const res = await fetch("/api/process-verification/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        const newItem = await res.json();
+        setItems((prev) => [...prev, newItem]);
+        // 카테고리 카운트 업데이트
+        loadCategories();
+      } else {
+        const result = await res.json();
+        throw new Error(result.error || "추가 실패");
+      }
+    } catch (error) {
+      console.error("항목 추가 실패:", error);
+      throw error;
+    }
+  };
+
+  /**
+   * 새 카테고리 생성 핸들러
+   * AddItemModal에서 새 카테고리 추가 시 호출됨
+   */
+  const handleCreateCategory = async (data: {
+    code: string;
+    name: string;
+  }): Promise<ProcessVerificationCategory> => {
+    const res = await fetch("/api/process-verification/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectId: selectedProjectId,
+        code: data.code,
+        name: data.name,
+      }),
+    });
+
+    if (res.ok) {
+      const newCategory = await res.json();
+      // 카테고리 목록 업데이트
+      setCategories((prev) => [...prev, newCategory]);
+      return newCategory;
+    } else {
+      const result = await res.json();
+      throw new Error(result.error || "카테고리 생성 실패");
+    }
+  };
+
+  /**
+   * 엑셀 다운로드 핸들러
+   */
+  const handleExportToExcel = () => {
+    if (filteredItems.length === 0) {
+      alert("다운로드할 데이터가 없습니다.");
+      return;
+    }
+
+    // 엑셀 데이터 변환
+    const excelData = filteredItems.map((item) => ({
+      "관리코드": item.managementCode,
+      "구분": item.category,
+      "관리 영역": item.managementArea,
+      "세부 관리 항목": item.detailItem,
+      "세부 검증 내용": item.verificationDetail || "",
+      "MES/IT 매핑": item.mesMapping || "",
+      "기존MES": item.existingMes ? "Y" : "N",
+      "적용": item.isApplied ? "Y" : "N",
+      "상태": verificationStatusConfig[item.status]?.label || item.status,
+      "수용 여부": item.acceptanceStatus || "",
+      "고객 요청": item.customerRequest || "",
+      "비고": item.remarks || "",
+    }));
+
+    // 워크시트 생성
+    const worksheet = utils.json_to_sheet(excelData);
+
+    // 컬럼 너비 설정
+    worksheet["!cols"] = [
+      { wch: 12 }, // 관리코드
+      { wch: 15 }, // 구분
+      { wch: 25 }, // 관리 영역
+      { wch: 40 }, // 세부 관리 항목
+      { wch: 50 }, // 세부 검증 내용
+      { wch: 20 }, // MES/IT 매핑
+      { wch: 8 },  // 기존MES
+      { wch: 8 },  // 적용
+      { wch: 12 }, // 상태
+      { wch: 15 }, // 수용 여부
+      { wch: 30 }, // 고객 요청
+      { wch: 30 }, // 비고
+    ];
+
+    // 워크북 생성 및 파일 저장
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, "기능추적표");
+
+    // 파일명 생성 (프로젝트명_기능추적표_날짜)
+    const projectName = selectedProject?.name || "Project";
+    const dateStr = new Date().toISOString().split("T")[0];
+    writeFile(workbook, `${projectName}_기능추적표_${dateStr}.xlsx`);
+  };
+
+  /**
+   * 엑셀 가져오기 성공 콜백
+   */
+  const handleImportSuccess = (stats: {
+    categoriesCreated: number;
+    itemsCreated: number;
+    skippedSheets: string[];
+    errors: string[];
+  }) => {
+    alert(
+      `Excel 가져오기 완료!\n\n` +
+        `카테고리 생성: ${stats.categoriesCreated}개\n` +
+        `항목 생성: ${stats.itemsCreated}개` +
+        (stats.skippedSheets.length > 0
+          ? `\n건너뛴 시트: ${stats.skippedSheets.length}개`
+          : "") +
+        (stats.errors.length > 0
+          ? `\n오류: ${stats.errors.length}개`
+          : "")
     );
-  }
+    loadCategories();
+    loadItems();
+  };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
-      {/* 헤더 */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4">
-        <h1 className="text-xl font-bold text-slate-800">기능추적표</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          공정검증 항목을 관리하고 검증 상태를 추적합니다.
-        </p>
-      </div>
-
-      {/* 필터 바 */}
-      <FilterBar
-        filter={filter}
-        onFilterChange={handleFilterChange}
-        onImportExcel={handleImportExcel}
-        isImporting={isImporting}
-        totalCount={stats.total}
-        appliedCount={stats.applied}
-      />
-
-      {/* 메인 컨텐츠 */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* 카테고리 사이드바 */}
-        <CategoryList
-          categories={categories}
-          selectedCategoryId={selectedCategoryId}
-          onSelectCategory={handleSelectCategory}
-          isLoading={isLoadingCategories}
-        />
-
-        {/* 항목 테이블 */}
-        <div className="flex-1 overflow-auto bg-white">
-          <ItemTable
-            items={filteredItems}
-            isLoading={isLoadingItems}
-            onUpdateItem={handleUpdateItem}
-          />
+    <div className="p-6 space-y-6 h-full overflow-auto bg-slate-50 dark:bg-slate-950">
+      {/* 헤더 - 대시보드 차트 스타일 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <Icon name="fact_check" className="text-[#00f3ff]" />
+            <span className="tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-[#00f3ff] to-[#fa00ff]">
+              PROCESS VERIFICATION
+            </span>
+            <span className="text-slate-400 text-sm font-normal ml-1">
+              / 기능추적표
+            </span>
+          </h1>
+          <p className="text-text-secondary mt-1">
+            공정검증 항목을 관리하고 검증 상태를 추적합니다
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* 현재 선택된 프로젝트 표시 */}
+          {selectedProject && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+              <Icon name="folder" size="sm" className="text-primary" />
+              <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
+            </div>
+          )}
+          <Button
+            variant="primary"
+            leftIcon="add"
+            onClick={() => setIsAddModalOpen(true)}
+            disabled={!selectedProjectId || categories.length === 0}
+          >
+            새 항목 추가
+          </Button>
+          <Button
+            variant="outline"
+            leftIcon="download"
+            onClick={handleExportToExcel}
+            disabled={!selectedProjectId || filteredItems.length === 0}
+            className="hidden sm:flex"
+          >
+            엑셀 다운로드
+          </Button>
+          <Button
+            variant="outline"
+            leftIcon="upload"
+            onClick={() => setIsImportModalOpen(true)}
+            disabled={!selectedProjectId}
+          >
+            Excel 가져오기
+          </Button>
         </div>
       </div>
+
+      {/* 프로젝트 미선택 안내 */}
+      {!selectedProjectId && (
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 text-center">
+          <Icon name="folder_open" size="xl" className="text-primary mb-4" />
+          <h3 className="text-lg font-semibold text-text dark:text-white mb-2">
+            프로젝트를 선택해주세요
+          </h3>
+          <p className="text-text-secondary">
+            상단 헤더에서 프로젝트를 선택하면 기능추적표 목록이 표시됩니다.
+          </p>
+        </div>
+      )}
+
+      {selectedProjectId && (
+        <>
+          {/* 통계 카드 */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            {/* 적용률 카드 */}
+            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon name="speed" size="xs" className="text-primary" />
+                <span className="text-xs font-semibold text-primary">적용률</span>
+              </div>
+              <p className="text-2xl font-bold text-primary mb-1">
+                {stats.total > 0 ? Math.round((stats.applied / stats.total) * 100) : 0}%
+              </p>
+              <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
+                  style={{ width: stats.total > 0 ? `${(stats.applied / stats.total) * 100}%` : "0%" }}
+                />
+              </div>
+            </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Icon name="checklist" size="xs" className="text-primary" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
+                  <p className="text-[10px] text-text-secondary">전체</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
+                  <Icon name="check_circle" size="xs" className="text-success" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.applied}</p>
+                  <p className="text-[10px] text-text-secondary">적용</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
+                  <Icon name="pending" size="xs" className="text-warning" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.notApplied}</p>
+                  <p className="text-[10px] text-text-secondary">미적용</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                  <Icon name="category" size="xs" className="text-cyan-500" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-text dark:text-white">{categories.length}</p>
+                  <p className="text-[10px] text-text-secondary">카테고리</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 필터 바 */}
+          <FilterBar
+            filter={filter}
+            onFilterChange={handleFilterChange}
+            totalCount={stats.filteredTotal}
+            appliedCount={stats.filteredApplied}
+          />
+
+          {/* 메인 컨텐츠 */}
+          <div className="flex flex-1 overflow-hidden rounded-xl border border-border dark:border-border-dark bg-background-white dark:bg-surface-dark">
+            {/* 카테고리 사이드바 */}
+            <CategoryList
+              categories={categories}
+              selectedCategoryId={selectedCategoryId}
+              onSelectCategory={handleSelectCategory}
+              isLoading={isLoadingCategories}
+            />
+
+            {/* 항목 테이블 */}
+            <div className="flex-1 overflow-auto">
+              <ItemTable
+                items={filteredItems}
+                isLoading={isLoadingItems}
+                onUpdateItem={handleUpdateItem}
+                onEditItem={handleEditItem}
+                onDeleteItem={handleDeleteItem}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 수정 모달 */}
+      <EditItemModal
+        item={editingItem}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingItem(null);
+        }}
+        onSave={handleUpdateItem}
+      />
+
+      {/* 추가 모달 */}
+      <AddItemModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSave={handleAddItem}
+        onCreateCategory={handleCreateCategory}
+        categories={categories}
+        defaultCategoryId={selectedCategoryId}
+      />
+
+      {/* 엑셀 가져오기 모달 */}
+      {selectedProjectId && (
+        <ImportExcelModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={handleImportSuccess}
+          projectId={selectedProjectId}
+        />
+      )}
     </div>
   );
 }

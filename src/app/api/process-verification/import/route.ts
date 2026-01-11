@@ -1,20 +1,19 @@
 /**
  * @file src/app/api/process-verification/import/route.ts
  * @description
- * Excel 파일에서 공정검증 데이터를 가져오는 API 라우트입니다.
- * 서버 사이드에서 xlsx 패키지를 사용하여 Excel 데이터를 파싱합니다.
+ * Excel 파일을 업로드하여 공정검증 데이터를 가져오는 API 라우트입니다.
+ * FormData로 업로드된 엑셀 파일을 파싱하여 DB에 저장합니다.
  *
  * 초보자 가이드:
- * POST /api/process-verification/import
+ * POST /api/process-verification/import (multipart/form-data)
+ * - file: 엑셀 파일 (.xlsx, .xls)
  * - projectId: 프로젝트 ID (필수)
- * - clearExisting: 기존 데이터 삭제 여부 (선택, 기본값 false)
+ * - clearExisting: 기존 데이터 삭제 여부 (선택, 기본값 "false")
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
-import * as fs from "fs";
-import * as path from "path";
 
 /**
  * 시트 이름을 영문 코드로 변환
@@ -62,12 +61,32 @@ function parseYesNo(value: string | undefined | null): boolean {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { projectId, clearExisting = false } = body;
+    // FormData 파싱
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+    const projectId = formData.get("projectId") as string | null;
+    const clearExisting = formData.get("clearExisting") === "true";
+
+    // 필수 값 검증
+    if (!file) {
+      return NextResponse.json(
+        { error: "엑셀 파일이 필요합니다." },
+        { status: 400 }
+      );
+    }
 
     if (!projectId) {
       return NextResponse.json(
         { error: "프로젝트 ID는 필수입니다." },
+        { status: 400 }
+      );
+    }
+
+    // 파일 확장자 검증
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls")) {
+      return NextResponse.json(
+        { error: "엑셀 파일(.xlsx, .xls)만 업로드할 수 있습니다." },
         { status: 400 }
       );
     }
@@ -84,20 +103,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Excel 파일 경로 (scripts 폴더의 excel_data.xlsx)
-    const excelPath = path.join(process.cwd(), "scripts", "excel_data.xlsx");
+    // 파일을 ArrayBuffer로 변환 후 XLSX 파싱
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
 
-    if (!fs.existsSync(excelPath)) {
-      return NextResponse.json(
-        { error: "Excel 파일을 찾을 수 없습니다. scripts/excel_data.xlsx 파일이 필요합니다." },
-        { status: 404 }
-      );
-    }
-
-    // Excel 파일 읽기
-    const workbook = XLSX.readFile(excelPath);
-
-    // 대상 시트 목록 (재료관리 ~ 이송용매거진관리)
+    // 대상 시트 목록 (시트가 없어도 계속 진행)
     const targetSheets = [
       "재료관리",
       "SMD공정관리",
@@ -125,6 +135,7 @@ export async function POST(request: NextRequest) {
 
     // 기존 데이터 삭제 (옵션)
     if (clearExisting) {
+      // 카테고리 삭제 시 cascade로 items도 삭제됨
       await prisma.processVerificationCategory.deleteMany({
         where: { projectId },
       });
@@ -137,15 +148,22 @@ export async function POST(request: NextRequest) {
       errors: [] as string[],
     };
 
-    // 각 시트 처리
-    for (let idx = 0; idx < targetSheets.length; idx++) {
-      const sheetName = targetSheets[idx];
+    // 시트 이름 매칭 (정확히 일치하거나 targetSheets에 있는 시트만 처리)
+    // 워크북의 모든 시트를 순회하며 targetSheets에 포함된 것만 처리
+    const sheetsToProcess = workbook.SheetNames.filter(
+      (name) => targetSheets.includes(name)
+    );
 
-      if (!workbook.SheetNames.includes(sheetName)) {
-        stats.skippedSheets.push(sheetName);
-        continue;
+    // targetSheets 중 워크북에 없는 시트는 skippedSheets에 추가
+    targetSheets.forEach((sheet) => {
+      if (!workbook.SheetNames.includes(sheet)) {
+        stats.skippedSheets.push(sheet);
       }
+    });
 
+    // 각 시트 처리
+    for (let idx = 0; idx < sheetsToProcess.length; idx++) {
+      const sheetName = sheetsToProcess[idx];
       const sheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
 
@@ -162,12 +180,14 @@ export async function POST(request: NextRequest) {
         });
 
         if (!category) {
+          // 시트 순서대로 order 값 설정
+          const existingOrder = targetSheets.indexOf(sheetName);
           category = await prisma.processVerificationCategory.create({
             data: {
               projectId,
               name: sheetName,
               code,
-              order: idx,
+              order: existingOrder >= 0 ? existingOrder : idx,
               description: `${sheetName} 관련 공정검증 항목`,
             },
           });

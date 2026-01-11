@@ -16,10 +16,10 @@
 
 import React, { useState, useMemo } from "react";
 import { Icon, Button } from "@/components/ui";
-import { useWeeklyReports, useCurrentUser } from "@/hooks";
+import { useWeeklyReports, useCurrentUser, useMembers } from "@/hooks";
 import { useProject } from "@/contexts";
 import { ReportWithRelations, WeekInfo } from "../types";
-import { REPORT_STATUS_MAP, formatShortDate, getProjectWeekInfo } from "../constants";
+import { REPORT_STATUS_MAP, formatShortDate, getProjectWeekInfo, getISOWeekInfo } from "../constants";
 
 interface ReportListViewProps {
   /** 보고서 선택 시 콜백 (상세 화면으로 전환) */
@@ -49,6 +49,19 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
     weekNumber: weekFilter === "all" ? undefined : String(weekFilter),
   });
 
+  // 전체 멤버 조회 (금주 통계용)
+  const { data: members = [] } = useMembers(
+    selectedProjectId ? { projectId: selectedProjectId } : undefined
+  );
+
+  // 금주 주간보고 조회 (통계용 - 전체 멤버)
+  const currentISOWeek = useMemo(() => getISOWeekInfo(new Date()), []);
+  const { data: currentWeekReports = [] } = useWeeklyReports({
+    projectId: selectedProjectId || undefined,
+    year: String(currentISOWeek.year),
+    weekNumber: String(currentISOWeek.week),
+  });
+
   // 현재 주차 정보 계산
   const currentWeekInfo = useMemo(() => {
     if (selectedProject?.startDate) {
@@ -56,6 +69,21 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
     }
     return null;
   }, [selectedProject?.startDate]);
+
+  // 금주 통계 계산
+  const weeklyStats = useMemo(() => {
+    const totalMembers = members.length;
+    const submittedCount = currentWeekReports.filter((r) => r.status === "SUBMITTED").length;
+    const draftCount = currentWeekReports.filter((r) => r.status === "DRAFT").length;
+    const notSubmittedCount = Math.max(0, totalMembers - submittedCount - draftCount);
+
+    return {
+      totalMembers,
+      submittedCount,
+      draftCount,
+      notSubmittedCount,
+    };
+  }, [members.length, currentWeekReports]);
 
   // 연도 옵션 생성 (현재 연도 ± 2년)
   const yearOptions = useMemo(() => {
@@ -89,23 +117,30 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
 
   return (
     <div className="space-y-6">
-      {/* 헤더 + 필터 */}
+      {/* 헤더: 타이틀 + 프로젝트 배지 + 필터 + 버튼 */}
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-foreground">주간보고 목록</h2>
+        {/* 좌측: 타이틀 */}
+        <h1 className="text-xl font-bold text-white flex items-center gap-2">
+          <Icon name="summarize" className="text-[#00f3ff]" />
+          <span className="tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-[#00f3ff] to-[#fa00ff]">
+            WEEKLY REPORT
+          </span>
+          <span className="text-slate-400 text-sm font-normal ml-1">
+            / 주간 업무보고
+          </span>
+        </h1>
+
+        {/* 우측: 프로젝트 배지 + 필터 + 버튼 */}
+        <div className="flex items-center gap-3">
           {/* 프로젝트 표시 */}
           {selectedProject && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
               <Icon name="folder" size="sm" className="text-primary" />
-              <span className="text-sm font-medium text-foreground">
+              <span className="text-sm font-medium text-primary">
                 {selectedProject.name}
               </span>
             </div>
           )}
-        </div>
-
-        {/* 필터 + 새 작성 버튼 */}
-        <div className="flex items-center gap-3">
           {/* 멤버 필터 (내꺼만/전체) */}
           <div className="flex rounded-lg border border-border overflow-hidden">
             <button
@@ -164,6 +199,70 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
             <Icon name="add" size="sm" className="mr-1" />
             주간보고 작성
           </Button>
+        </div>
+      </div>
+
+      {/* 금주 통계 카드 */}
+      <div className="flex items-center gap-2 mb-2">
+        <Icon name="calendar_today" size="sm" className="text-primary" />
+        <span className="text-sm font-medium text-foreground">
+          {currentISOWeek.year}년 {currentISOWeek.week}주차 현황
+        </span>
+        <span className="text-xs text-muted-foreground">
+          ({formatShortDate(currentISOWeek.weekStart)} ~ {formatShortDate(currentISOWeek.weekEnd)})
+        </span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* 전체 멤버 */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-500/10">
+              <Icon name="groups" className="text-blue-500" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">전체 멤버</p>
+              <p className="text-2xl font-bold text-foreground">{weeklyStats.totalMembers}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 제출 완료 */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-500/10">
+              <Icon name="check_circle" className="text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">제출 완료</p>
+              <p className="text-2xl font-bold text-emerald-500">{weeklyStats.submittedCount}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 작성 중 */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/10">
+              <Icon name="edit_note" className="text-amber-500" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">작성 중</p>
+              <p className="text-2xl font-bold text-amber-500">{weeklyStats.draftCount}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 미제출 */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-red-500/10">
+              <Icon name="warning" className="text-red-500" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">미제출</p>
+              <p className="text-2xl font-bold text-red-500">{weeklyStats.notSubmittedCount}</p>
+            </div>
+          </div>
         </div>
       </div>
 

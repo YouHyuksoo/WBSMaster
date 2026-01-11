@@ -78,6 +78,10 @@ interface ChatInputProps {
   onRefreshSuggestions?: () => void;
   /** 제안 새로고침 중 여부 */
   isRefreshingSuggestions?: boolean;
+  /** 외부에서 입력창에 텍스트 설정 (제안 클릭 시 사용) */
+  suggestedInput?: string;
+  /** 외부 입력 처리 완료 시 호출 */
+  onSuggestedInputHandled?: () => void;
 }
 
 /**
@@ -98,6 +102,8 @@ const ChatInput = memo(function ChatInput({
   suggestions = EXAMPLE_GROUPS,
   onRefreshSuggestions,
   isRefreshingSuggestions = false,
+  suggestedInput,
+  onSuggestedInputHandled,
 }: ChatInputProps) {
   // 로컬 상태 - 부모 컴포넌트와 분리
   const [inputMessage, setInputMessage] = useState("");
@@ -111,6 +117,19 @@ const ChatInput = memo(function ChatInput({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  /**
+   * 외부에서 제안된 입력 처리
+   * suggestedInput이 변경되면 입력창에 설정
+   */
+  useEffect(() => {
+    if (suggestedInput) {
+      setInputMessage(suggestedInput);
+      onSuggestedInputHandled?.();
+      // 입력창에 포커스
+      inputRef.current?.focus();
+    }
+  }, [suggestedInput, onSuggestedInputHandled]);
 
   /**
    * 음성 인식 초기화

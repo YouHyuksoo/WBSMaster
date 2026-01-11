@@ -270,10 +270,18 @@ export default function IssuesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* 헤더 */}
+      {/* 헤더 - 대시보드 차트 스타일 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text dark:text-white">이슈사항 점검표</h1>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <Icon name="bug_report" className="text-[#00f3ff]" />
+            <span className="tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-[#00f3ff] to-[#fa00ff]">
+              ISSUE TRACKER
+            </span>
+            <span className="text-slate-400 text-sm font-normal ml-1">
+              / 이슈사항 점검표
+            </span>
+          </h1>
           <p className="text-text-secondary mt-1">
             프로젝트 이슈를 등록하고 관리합니다
           </p>

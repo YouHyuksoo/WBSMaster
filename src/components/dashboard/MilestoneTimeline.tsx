@@ -13,7 +13,7 @@
  *
  * 구조:
  * ┌───────────────────────────────────────────────────┐
- * │ 헤더: 📍 마일스톤 타임라인  [+ 행 추가] [+ 추가]  │
+ * │ 헤더: 📍 마일스톤 타임라인  [+ 그룹행 추가] [+ 추가]│
  * ├─────────┬─────────────────────────────────────────┤
  * │  기간   │   1월    2월    3월    4월    5월   ... │
  * ├─────────┼─────────────────────────────────────────┤
@@ -36,9 +36,11 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCenter,
+  pointerWithin,
+  rectIntersection,
   useDraggable,
   useDroppable,
+  CollisionDetection,
 } from "@dnd-kit/core";
 import { Icon } from "@/components/ui";
 import {
@@ -96,18 +98,104 @@ interface DroppableRowAreaProps {
 }
 
 function DroppableRowArea({ rowId, children, className, style, onClick }: DroppableRowAreaProps) {
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef, isOver, active } = useDroppable({
     id: `row-${rowId}`,
   });
+
+  // 마일스톤이나 핀포인트를 드래그 중일 때만 드롭 피드백 표시
+  const showDropFeedback = isOver && active && (
+    String(active.id).startsWith("milestone-") ||
+    String(active.id).startsWith("pinpoint-")
+  );
 
   return (
     <div
       ref={setNodeRef}
-      className={`${className} ${isOver ? "bg-blue-100/50 dark:bg-blue-900/30" : ""}`}
+      className={`${className} ${showDropFeedback ? "!bg-blue-200/70 dark:!bg-blue-800/50 ring-2 ring-blue-400 ring-inset" : ""}`}
       style={style}
       onClick={onClick}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * 드래그 가능한 부모 행 라벨 컴포넌트
+ * 그룹(부모 행)을 드래그하여 순서를 변경할 수 있게 해줍니다.
+ */
+interface DraggableRowLabelProps {
+  /** 행 데이터 */
+  row: TimelineRow;
+  /** 그룹 높이 */
+  groupHeight: number;
+  /** 선택 여부 */
+  isSelected: boolean;
+  /** 클릭 핸들러 */
+  onClick: () => void;
+  /** 라벨 너비 */
+  labelWidth: number;
+}
+
+function DraggableRowLabel({ row, groupHeight, isSelected, onClick, labelWidth }: DraggableRowLabelProps) {
+  // 드래그 가능 설정
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({
+    id: `row-${row.id}`,
+  });
+
+  // 드롭 가능 설정 (다른 행이 이 위로 드롭될 수 있음)
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `row-drop-${row.id}`,
+  });
+
+  // 행 색상을 연하게 만들어 배경으로 사용
+  const bgColorStyle = {
+    backgroundColor: `${row.color}20`, // 20 = 12.5% opacity in hex
+  };
+
+  return (
+    <div
+      ref={(node) => {
+        setDragRef(node);
+        setDropRef(node);
+      }}
+      className={`flex-shrink-0 flex items-center justify-between relative border-r border-slate-200 dark:border-slate-700 transition-all cursor-pointer ${
+        isSelected
+          ? "ring-2 ring-blue-500 ring-inset"
+          : "hover:brightness-95 dark:hover:brightness-110"
+      } ${isDragging ? "opacity-50 shadow-lg z-50" : ""} ${
+        isOver ? "ring-2 ring-green-500 ring-inset" : ""
+      }`}
+      style={{
+        width: labelWidth,
+        height: groupHeight,
+        paddingLeft: "24px",
+        ...bgColorStyle,
+      }}
+      onClick={onClick}
+    >
+      {/* 드래그 핸들 아이콘 */}
+      <div
+        className="absolute left-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing select-none p-1"
+        {...attributes}
+        {...listeners}
+      >
+        ⋮⋮
+      </div>
+      <div className="flex items-center gap-2 min-w-0 px-1">
+        <div
+          className="w-3 h-3 rounded-full flex-shrink-0 border border-white/50 shadow-sm"
+          style={{ backgroundColor: row.color }}
+        />
+        <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+          {row.name}
+        </span>
+      </div>
     </div>
   );
 }
@@ -172,6 +260,9 @@ export function MilestoneTimeline({
     name: string;
     rowId?: string; // 핀포인트 삭제 시 필요
   } | null>(null);
+
+  // 알림 모달 상태
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   // 드래그 상태 (마일스톤)
   const [activeMilestone, setActiveMilestone] = useState<Milestone | null>(null);
@@ -242,14 +333,22 @@ export function MilestoneTimeline({
   /**
    * 행 렌더링 (그룹별 병합 표시)
    * 같은 parentId를 가진 행들을 그룹으로 묶어서 표시
+   * 정렬: order 기준, 동일 시 createdAt 기준
    */
   const displayRows = useMemo(() => {
     const result: (TimelineRow & { isChild?: boolean })[] = [];
 
+    // 안정적인 정렬 함수: order 기준, 동일 시 createdAt 기준
+    const stableSort = (a: TimelineRow, b: TimelineRow) => {
+      if (a.order !== b.order) return a.order - b.order;
+      // order가 같으면 createdAt으로 정렬 (오래된 것이 먼저)
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    };
+
     // 부모 행들만 필터링 (parentId가 null인 행들)
     const parentRows = rows
       .filter((row) => !row.parentId)
-      .sort((a, b) => a.order - b.order);
+      .sort(stableSort);
 
     // 각 부모와 자식 행들을 그룹으로 표시
     parentRows.forEach((parent) => {
@@ -259,7 +358,7 @@ export function MilestoneTimeline({
       // 같은 parentId를 가진 자식 행들 추가
       const children = rows
         .filter((row) => row.parentId === parent.id)
-        .sort((a, b) => a.order - b.order);
+        .sort(stableSort);
 
       children.forEach((child) => {
         result.push({ ...child, isChild: true });
@@ -313,9 +412,11 @@ export function MilestoneTimeline({
       const activeId = String(active.id);
 
       // 행 순서 변경 (부모 행만)
-      if (activeId.startsWith("row-") && over) {
+      if (activeId.startsWith("row-") && !activeId.startsWith("row-drop-") && over) {
         const activeRowId = activeId.replace("row-", "");
-        const overRowId = String(over.id).replace("row-", "");
+        const overId = String(over.id);
+        // row-drop-xxx 또는 row-xxx 형식에서 ID 추출
+        const overRowId = overId.replace("row-drop-", "").replace("row-", "");
 
         if (activeRowId !== overRowId) {
           const activeRow = rows.find((r) => r.id === activeRowId && !r.parentId);
@@ -788,12 +889,12 @@ export function MilestoneTimeline({
             className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md transition-colors"
           >
             <Icon name="add" size="sm" />
-            행 추가
+            그룹행 추가
           </button>
           <button
             onClick={() => {
               if (!selectedRowId) {
-                alert("행을 먼저 선택해주세요");
+                setAlertMessage("핀포인트를 추가하려면 먼저 그룹을 선택해주세요.");
                 return;
               }
               setPinpointDate(new Date().toISOString().split("T")[0]);
@@ -919,7 +1020,7 @@ export function MilestoneTimeline({
       ) : (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
@@ -952,30 +1053,14 @@ export function MilestoneTimeline({
                   >
                     {/* 그룹 컨테이너: 부모 라벨이 자식들에 걸쳐 병합됨 */}
                     <div className="flex">
-                      {/* 부모 라벨 - 전체 그룹 높이 */}
-                      <div
-                        className={`flex-shrink-0 flex items-center justify-between relative border-r border-slate-200 dark:border-slate-700 transition-colors cursor-pointer ${
-                          selectedRowId === row.id
-                            ? "bg-blue-50 dark:bg-blue-900/20"
-                            : "bg-white dark:bg-slate-900 hover:bg-slate-50/50 dark:hover:bg-slate-800/50"
-                        }`}
-                        style={{ width: LABEL_WIDTH, height: groupHeight, paddingLeft: "24px" }}
+                      {/* 부모 라벨 - 전체 그룹 높이 (드래그 가능) */}
+                      <DraggableRowLabel
+                        row={row}
+                        groupHeight={groupHeight}
+                        isSelected={selectedRowId === row.id}
                         onClick={() => setSelectedRowId(row.id)}
-                      >
-                        {/* 드래그 핸들 아이콘 */}
-                        <div className="absolute left-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing select-none">
-                          ⋮⋮
-                        </div>
-                        <div className="flex items-center gap-2 min-w-0 px-1">
-                          <div
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: row.color }}
-                          />
-                          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
-                            {row.name}
-                          </span>
-                        </div>
-                      </div>
+                        labelWidth={LABEL_WIDTH}
+                      />
 
                       {/* 그룹의 모든 행들 (부모 + 자식) - DroppableRowArea로 드롭 영역 설정 */}
                       <div className="flex-1">
@@ -983,12 +1068,11 @@ export function MilestoneTimeline({
                           <DroppableRowArea
                             key={currentRow.id}
                             rowId={currentRow.id}
-                            className={`flex relative overflow-visible timeline-container transition-colors hover:bg-blue-50/50 dark:hover:bg-blue-900/10${
-                              rowIdx < allRowsInGroup.length - 1
-                                ? " border-b border-slate-200 dark:border-slate-700"
-                                : " border-b border-slate-200 dark:border-slate-700"
-                            }`}
-                            style={{ height: ROW_HEIGHT }}
+                            className={`flex relative overflow-visible timeline-container transition-colors hover:brightness-95 dark:hover:brightness-110 border-b border-slate-200 dark:border-slate-700`}
+                            style={{
+                              height: ROW_HEIGHT,
+                              backgroundColor: `${row.color}10`, // 그룹 색상 배경 (6% opacity)
+                            }}
                             onClick={(e) => {
                               // 핀포인트 선택 해제
                               if (selectedPinpointId) {
@@ -1025,6 +1109,7 @@ export function MilestoneTimeline({
                                   key={milestone.id}
                                   id={milestone.id}
                                   name={milestone.name}
+                                  description={milestone.description ?? undefined}
                                   startDate={milestone.startDate}
                                   endDate={milestone.endDate}
                                   status={milestone.status}
@@ -1099,7 +1184,7 @@ export function MilestoneTimeline({
             {rows.length === 0 && milestones.length === 0 && (
               <div className="py-8 text-center text-slate-400 dark:text-slate-500">
                 <p className="mb-2">아직 행이나 마일스톤이 없습니다.</p>
-                <p className="text-sm">상단의 [행 추가] 또는 [마일스톤 추가] 버튼을 클릭하여 추가해 주세요.</p>
+                <p className="text-sm">상단의 [그룹행 추가] 또는 [마일스톤 추가] 버튼을 클릭하여 추가해 주세요.</p>
               </div>
             )}
           </div>
@@ -1184,6 +1269,28 @@ export function MilestoneTimeline({
                 className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors"
               >
                 삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 알림 모달 */}
+      {alertMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg max-w-sm p-6">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+              알림
+            </h3>
+            <p className="text-slate-700 dark:text-slate-300 mb-6">
+              {alertMessage}
+            </p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setAlertMessage(null)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
+              >
+                확인
               </button>
             </div>
           </div>

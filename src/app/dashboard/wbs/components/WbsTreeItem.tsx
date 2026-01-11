@@ -293,7 +293,7 @@ export function WbsTreeItem({
           </span>
         )}
 
-        {/* 기간 */}
+        {/* 계획 기간 */}
         <div className="w-32 flex-shrink-0 text-center">
           {item.startDate && item.endDate ? (
             <div className="flex items-center justify-center gap-1">
@@ -313,6 +313,31 @@ export function WbsTreeItem({
                   {workDays}일
                 </span>
               )}
+            </div>
+          ) : (
+            <span className="text-[11px] text-text-secondary">-</span>
+          )}
+        </div>
+
+        {/* 실제 기간 */}
+        <div className="w-32 flex-shrink-0 text-center">
+          {item.actualStartDate || item.actualEndDate ? (
+            <div className="flex items-center justify-center gap-1">
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                {item.actualStartDate
+                  ? new Date(item.actualStartDate).toLocaleDateString("ko-KR", {
+                      month: "2-digit",
+                      day: "2-digit",
+                    })
+                  : "-"}
+                ~
+                {item.actualEndDate
+                  ? new Date(item.actualEndDate).toLocaleDateString("ko-KR", {
+                      month: "2-digit",
+                      day: "2-digit",
+                    })
+                  : "-"}
+              </span>
             </div>
           ) : (
             <span className="text-[11px] text-text-secondary">-</span>

@@ -328,6 +328,10 @@ export interface WbsItem {
   progress: number;
   startDate?: string;
   endDate?: string;
+  /** 실제 시작일 */
+  actualStartDate?: string;
+  /** 실제 종료일 */
+  actualEndDate?: string;
   weight: number;
   /** 산출물명 */
   deliverableName?: string;

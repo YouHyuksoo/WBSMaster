@@ -81,6 +81,28 @@ export const EXAMPLE_GROUPS: ExampleGroup[] = [
     ],
   },
   {
+    title: "기능추적표",
+    icon: "checklist",
+    color: "text-cyan-500",
+    questions: [
+      "현재 프로젝트의 기능추적표 카테고리별 항목 수를 보여줘",
+      "적용된 공정검증 항목 목록을 알려줘",
+      "미적용 상태인 기능추적표 항목 수를 알려줘",
+      "기능추적표 현황을 차트로 보여줘",
+    ],
+  },
+  {
+    title: "주간보고",
+    icon: "summarize",
+    color: "text-orange-500",
+    questions: [
+      "이번 주 주간보고 작성 현황을 알려줘",
+      "최근 주간보고 목록을 보여줘",
+      "주간보고에 등록된 항목 수를 알려줘",
+      "완료된 주간보고 현황을 차트로 보여줘",
+    ],
+  },
+  {
     title: "도움말",
     icon: "help",
     color: "text-purple-500",

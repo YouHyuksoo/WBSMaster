@@ -26,6 +26,7 @@ import { useMemo } from "react";
 import { useProject } from "@/contexts/ProjectContext";
 import { useProjects } from "@/hooks/useProjects";
 import { MilestoneTimeline } from "@/components/dashboard/MilestoneTimeline";
+import { Icon } from "@/components/ui";
 import {
   MilestonePageHeader,
   MilestonePageContent,
@@ -55,7 +56,20 @@ export default function MilestonesPage() {
 
   // 프로젝트 선택됨 → 헤더 + 타임라인 표시
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-4 md:px-6 lg:px-8 py-4">
+      {/* 페이지 타이틀 - 대시보드 차트 스타일 */}
+      <div className="mb-2">
+        <h1 className="text-xl font-bold text-white flex items-center gap-2">
+          <Icon name="flag" className="text-[#00f3ff]" />
+          <span className="tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-[#00f3ff] to-[#fa00ff]">
+            MILESTONES
+          </span>
+          <span className="text-slate-400 text-sm font-normal ml-1">
+            / 마일스톤 관리
+          </span>
+        </h1>
+      </div>
+
       <MilestonePageHeader selectedProject={selectedProject} />
 
       <MilestonePageContent>

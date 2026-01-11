@@ -177,6 +177,8 @@ export default function WBSPage() {
     assigneeIds: [] as string[],
     startDate: "",
     endDate: "",
+    actualStartDate: "", // 실제 시작일
+    actualEndDate: "",   // 실제 종료일
     progress: 0, // 진행률
     weight: 1, // 가중치 (대분류용)
     deliverableName: "", // 산출물명
@@ -637,6 +639,8 @@ export default function WBSPage() {
       assigneeIds: [],
       startDate: "",
       endDate: "",
+      actualStartDate: "",
+      actualEndDate: "",
       progress: 0,
       weight: 1,
       deliverableName: "",
@@ -657,6 +661,8 @@ export default function WBSPage() {
       assigneeIds: item.assignees?.map((a) => a.id) || [],
       startDate: item.startDate?.split("T")[0] || "",
       endDate: item.endDate?.split("T")[0] || "",
+      actualStartDate: item.actualStartDate?.split("T")[0] || "",
+      actualEndDate: item.actualEndDate?.split("T")[0] || "",
       progress: item.progress || 0,
       weight: item.weight || 1,
       deliverableName: item.deliverableName || "",
@@ -738,6 +744,8 @@ export default function WBSPage() {
         assigneeIds: newItem.assigneeIds.length > 0 ? newItem.assigneeIds : undefined,
         startDate: newItem.startDate || undefined,
         endDate: newItem.endDate || undefined,
+        actualStartDate: newItem.actualStartDate || undefined,
+        actualEndDate: newItem.actualEndDate || undefined,
         progress: newItem.progress,
         weight: newItem.level === "LEVEL1" ? newItem.weight : undefined, // 대분류만 가중치 저장
         deliverableName: newItem.deliverableName || undefined,
@@ -774,6 +782,8 @@ export default function WBSPage() {
       assigneeIds: [],
       startDate: "",
       endDate: "",
+      actualStartDate: "",
+      actualEndDate: "",
       progress: 0,
       weight: 1, // 가중치 초기화
       deliverableName: "",
@@ -838,7 +848,15 @@ export default function WBSPage() {
       {/* 상단 툴바 */}
       <div className="h-14 border-b border-border dark:border-border-dark flex items-center justify-between px-6 bg-background-white dark:bg-surface-dark shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-lg font-bold text-text dark:text-white">WBS 관리</h1>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <Icon name="account_tree" className="text-[#00f3ff]" />
+            <span className="tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-[#00f3ff] to-[#fa00ff]">
+              WBS
+            </span>
+            <span className="text-slate-400 text-sm font-normal ml-1">
+              / 작업분류체계
+            </span>
+          </h1>
 
           {/* 현재 선택된 프로젝트 표시 */}
           {selectedProject && (
@@ -931,6 +949,8 @@ export default function WBSPage() {
                 assigneeIds: [],
                 startDate: "",
                 endDate: "",
+                actualStartDate: "",
+                actualEndDate: "",
                 progress: 0,
                 weight: 1, // 가중치 초기화
                 deliverableName: "",
@@ -1112,7 +1132,10 @@ export default function WBSPage() {
                     WBS 항목
                   </div>
                   <div className="w-32 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
-                    기간
+                    계획기간
+                  </div>
+                  <div className="w-32 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
+                    실제기간
                   </div>
                   <div className="w-16 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
                     진행률
@@ -1405,482 +1428,36 @@ export default function WBSPage() {
       )}
 
       {/* 일괄 배정 모달 */}
-      {showBulkAssignModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-md">
-            {/* 모달 헤더 */}
-            <div className="flex items-center justify-between p-4 border-b border-border dark:border-border-dark">
-              <div className="flex items-center gap-2">
-                <Icon name="group_add" size="sm" className="text-primary" />
-                <h2 className="text-lg font-bold text-text dark:text-white">
-                  일괄 담당자 배정
-                </h2>
-              </div>
-              <button
-                onClick={() => {
-                  setShowBulkAssignModal(false);
-                  setBulkAssigneeIds([]);
-                }}
-                className="size-8 rounded-lg hover:bg-surface dark:hover:bg-background-dark flex items-center justify-center"
-              >
-                <Icon name="close" size="sm" className="text-text-secondary" />
-              </button>
-            </div>
+      <BulkAssignModal
+        isOpen={showBulkAssignModal}
+        checkedCount={checkedIds.size}
+        teamMembers={teamMembers}
+        selectedAssigneeIds={bulkAssigneeIds}
+        onAssigneeChange={setBulkAssigneeIds}
+        onAssign={handleBulkAssign}
+        onClose={() => setShowBulkAssignModal(false)}
+      />
 
-            {/* 모달 내용 */}
-            <div className="p-4 space-y-4">
-              {/* 선택된 항목 수 */}
-              <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg">
-                <Icon name="check_circle" size="sm" className="text-primary" />
-                <span className="text-sm text-text dark:text-white">
-                  <strong className="text-primary">{checkedIds.size}개</strong> 항목이 선택되었습니다.
-                </span>
-              </div>
-
-              {/* 담당자 선택 */}
-              <div>
-                <label className="block text-sm font-medium text-text dark:text-white mb-2">
-                  배정할 담당자
-                </label>
-                <div className="space-y-2 max-h-60 overflow-y-auto border border-border dark:border-border-dark rounded-lg p-2">
-                  {teamMembers.length === 0 ? (
-                    <p className="text-sm text-text-secondary text-center py-4">
-                      팀 멤버가 없습니다.
-                    </p>
-                  ) : (
-                    teamMembers.map((member) => (
-                      <label
-                        key={member.userId}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface dark:hover:bg-background-dark cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={bulkAssigneeIds.includes(member.userId)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setBulkAssigneeIds([...bulkAssigneeIds, member.userId]);
-                            } else {
-                              setBulkAssigneeIds(bulkAssigneeIds.filter((id) => id !== member.userId));
-                            }
-                          }}
-                          className="size-4 rounded border-border text-primary focus:ring-primary"
-                        />
-                        {member.user?.avatar ? (
-                          <img
-                            src={member.user.avatar}
-                            alt={member.user?.name || ""}
-                            className="size-8 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center">
-                            <span className="text-sm font-semibold text-primary">
-                              {member.user?.name?.charAt(0) || "?"}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-text dark:text-white">
-                            {member.user?.name || "알 수 없음"}
-                          </p>
-                          <p className="text-xs text-text-secondary">
-                            {member.role}
-                          </p>
-                        </div>
-                      </label>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* 모달 푸터 */}
-            <div className="flex justify-end gap-2 p-4 border-t border-border dark:border-border-dark">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowBulkAssignModal(false);
-                  setBulkAssigneeIds([]);
-                }}
-              >
-                취소
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleBulkAssign}
-                disabled={bulkAssigneeIds.length === 0}
-                leftIcon="group_add"
-              >
-                {bulkAssigneeIds.length > 0
-                  ? `${bulkAssigneeIds.length}명 배정`
-                  : "담당자 선택"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* WBS 항목 추가/수정 모달 - 넓은 레이아웃 */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            {/* 모달 헤더 */}
-            <div className="flex items-center justify-between p-5 border-b border-border dark:border-border-dark">
-              <div className="flex items-center gap-3">
-                <span className={`px-3 py-1.5 rounded-lg text-sm font-medium text-white ${levelColors[newItem.level]}`}>
-                  {levelNames[newItem.level]}
-                </span>
-                <h2 className="text-lg font-bold text-text dark:text-white">
-                  {editingItem ? "WBS 항목 수정" : `${levelNames[newItem.level]} 추가`}
-                </h2>
-                {newItem.parentId && (
-                  <span className="text-xs text-text-secondary bg-surface dark:bg-background-dark px-2 py-1 rounded">
-                    상위 항목에 추가됨
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setEditingItem(null);
-                }}
-                className="text-text-secondary hover:text-text dark:hover:text-white p-1 rounded-lg hover:bg-surface dark:hover:bg-background-dark transition-colors"
-              >
-                <Icon name="close" size="md" />
-              </button>
-            </div>
-
-            {/* 모달 본문 - 2열 레이아웃 */}
-            <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-140px)]">
-              <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 좌측 컬럼: 기본 정보 */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide flex items-center gap-2">
-                    <Icon name="info" size="sm" />
-                    기본 정보
-                  </h3>
-
-                  {/* 항목명 */}
-                  <div>
-                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                      항목명 <span className="text-error">*</span>
-                    </label>
-                    <Input
-                      value={newItem.name}
-                      onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                      placeholder={`${levelNames[newItem.level]} 항목명 입력`}
-                      required
-                    />
-                  </div>
-
-                  {/* 설명 */}
-                  <div>
-                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                      설명
-                    </label>
-                    <textarea
-                      value={newItem.description}
-                      onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                      placeholder="항목에 대한 상세 설명을 입력하세요"
-                      className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white resize-none h-24 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                    />
-                  </div>
-
-                  {/* 담당자 선택 */}
-                  <div>
-                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                      담당자 {newItem.assigneeIds.length > 0 && (
-                        <span className="text-primary">({newItem.assigneeIds.length}명 선택)</span>
-                      )}
-                    </label>
-                    <div className="max-h-40 overflow-y-auto border border-border dark:border-border-dark rounded-lg bg-surface dark:bg-background-dark">
-                      {teamMembers.length === 0 ? (
-                        <p className="text-sm text-text-secondary p-4 text-center">
-                          팀 멤버가 없습니다. 먼저 팀 멤버를 추가해주세요.
-                        </p>
-                      ) : (
-                        <div className="p-2 grid grid-cols-2 gap-1">
-                          {teamMembers.map((member) => (
-                            <label
-                              key={member.userId}
-                              className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                                newItem.assigneeIds.includes(member.userId)
-                                  ? "bg-primary/10 border border-primary/30"
-                                  : "hover:bg-surface-hover dark:hover:bg-surface-dark border border-transparent"
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={newItem.assigneeIds.includes(member.userId)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setNewItem({
-                                      ...newItem,
-                                      assigneeIds: [...newItem.assigneeIds, member.userId],
-                                    });
-                                  } else {
-                                    setNewItem({
-                                      ...newItem,
-                                      assigneeIds: newItem.assigneeIds.filter((id) => id !== member.userId),
-                                    });
-                                  }
-                                }}
-                                className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                              />
-                              <span className="text-sm text-text dark:text-white truncate">
-                                {member.user?.name || member.user?.email || "알 수 없음"}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 우측 컬럼: 일정 및 산출물 */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide flex items-center gap-2">
-                    <Icon name="calendar_month" size="sm" />
-                    일정 및 진행
-                  </h3>
-
-                  {/* 일정 */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                        시작일
-                      </label>
-                      <input
-                        type="date"
-                        value={newItem.startDate}
-                        onChange={(e) => setNewItem({ ...newItem, startDate: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                        종료일
-                      </label>
-                      <input
-                        type="date"
-                        value={newItem.endDate}
-                        onChange={(e) => setNewItem({ ...newItem, endDate: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* 진행률 (수정 모드에서만 표시) */}
-                  {editingItem && (
-                    <div className="bg-surface dark:bg-background-dark rounded-lg p-4">
-                      <label className="block text-sm font-medium text-text dark:text-white mb-3">
-                        진행률
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={newItem.progress}
-                          onChange={(e) => setNewItem({ ...newItem, progress: parseInt(e.target.value) })}
-                          className="flex-1 h-2 bg-background-white dark:bg-surface-dark rounded-lg appearance-none cursor-pointer accent-primary"
-                        />
-                        <div className="flex items-center gap-1 min-w-[80px]">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={newItem.progress}
-                            onChange={(e) => {
-                              const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
-                              setNewItem({ ...newItem, progress: val });
-                            }}
-                            className="w-16 px-2 py-1.5 text-center rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white text-sm font-medium"
-                          />
-                          <span className="text-sm text-text-secondary font-medium">%</span>
-                        </div>
-                      </div>
-                      {/* 진행률 미리보기 바 */}
-                      <div className="mt-3 h-3 bg-background-white dark:bg-surface-dark rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-300 ${
-                            newItem.progress >= 80 ? "bg-emerald-500" :
-                            newItem.progress >= 50 ? "bg-sky-500" :
-                            newItem.progress >= 20 ? "bg-amber-500" : "bg-primary"
-                          }`}
-                          style={{ width: `${newItem.progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 가중치 섹션 (대분류 LEVEL1만) */}
-                  {newItem.level === "LEVEL1" && (
-                    <div className="bg-surface dark:bg-background-dark rounded-lg p-4">
-                      <label className="block text-sm font-medium text-text dark:text-white mb-3">
-                        <span className="flex items-center gap-2">
-                          <Icon name="percent" size="sm" className="text-primary" />
-                          가중치 (%)
-                          <span className="text-xs text-text-secondary font-normal">
-                            (전체 100% 중 차지하는 비중)
-                          </span>
-                        </span>
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="range"
-                          min="1"
-                          max="100"
-                          step="1"
-                          value={newItem.weight}
-                          onChange={(e) => setNewItem({ ...newItem, weight: parseInt(e.target.value) })}
-                          className="flex-1 h-2 bg-background-white dark:bg-surface-dark rounded-lg appearance-none cursor-pointer accent-primary"
-                        />
-                        <div className="flex items-center gap-1 min-w-[80px]">
-                          <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={newItem.weight}
-                            onChange={(e) => {
-                              const val = Math.min(100, Math.max(1, parseInt(e.target.value) || 1));
-                              setNewItem({ ...newItem, weight: val });
-                            }}
-                            className="w-16 px-2 py-1.5 text-center rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white text-sm font-medium"
-                          />
-                          <span className="text-sm text-text-secondary font-medium">%</span>
-                        </div>
-                      </div>
-                      {/* 가중치 시각화 바 */}
-                      <div className="mt-3 h-3 bg-background-white dark:bg-surface-dark rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-300 bg-primary"
-                          style={{ width: `${newItem.weight}%` }}
-                        />
-                      </div>
-                      <p className="mt-2 text-xs text-text-secondary">
-                        예: 분석 15%, 설계 20%, 개발 40%, 테스트 15%, 이행 10% = 총 100%
-                      </p>
-                    </div>
-                  )}
-
-                  {/* 산출물 섹션 */}
-                  <div className="pt-2">
-                    <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide flex items-center gap-2 mb-3">
-                      <Icon name="description" size="sm" />
-                      산출물
-                    </h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                          산출물명
-                        </label>
-                        <input
-                          type="text"
-                          value={newItem.deliverableName}
-                          onChange={(e) => setNewItem({ ...newItem, deliverableName: e.target.value })}
-                          placeholder="예: 요구사항 정의서, 화면설계서"
-                          className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                          산출물 링크
-                        </label>
-                        <div className="relative">
-                          <Icon
-                            name="link"
-                            size="sm"
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
-                          />
-                          <input
-                            type="url"
-                            value={newItem.deliverableLink}
-                            onChange={(e) => setNewItem({ ...newItem, deliverableLink: e.target.value })}
-                            placeholder="https://..."
-                            className="w-full pl-10 pr-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 모달 푸터 - 버튼 */}
-              <div className="flex items-center justify-end gap-3 p-5 border-t border-border dark:border-border-dark bg-surface/50 dark:bg-background-dark/50">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setEditingItem(null);
-                  }}
-                >
-                  취소
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  leftIcon={editingItem ? "save" : "add"}
-                  disabled={createWbs.isPending || updateWbs.isPending}
-                >
-                  {createWbs.isPending || updateWbs.isPending
-                    ? "처리 중..."
-                    : editingItem
-                    ? "수정 완료"
-                    : "항목 추가"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* WBS 항목 추가/수정 모달 */}
+      <WbsFormModal
+        isOpen={showAddModal}
+        editingItem={editingItem}
+        teamMembers={teamMembers}
+        formData={newItem}
+        onFormChange={(data) => setNewItem({ ...newItem, ...data })}
+        onSubmit={handleSubmit}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingItem(null);
+        }}
+        isSubmitting={createWbs.isPending || updateWbs.isPending}
+      />
 
       {/* 산출물 미리보기 모달 */}
-      {deliverablePreviewUrl && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl w-full max-w-5xl h-[85vh] mx-4 flex flex-col overflow-hidden">
-            {/* 모달 헤더 */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border dark:border-border-dark">
-              <div className="flex items-center gap-2">
-                <Icon name="description" size="sm" className="text-primary" />
-                <h3 className="font-semibold text-text dark:text-white">산출물 미리보기</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* 새 창에서 열기 버튼 */}
-                <a
-                  href={deliverablePreviewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-surface dark:bg-background-dark text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <Icon name="open_in_new" size="xs" />
-                  <span>새 창에서 열기</span>
-                </a>
-                {/* 닫기 버튼 */}
-                <button
-                  onClick={() => setDeliverablePreviewUrl(null)}
-                  className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-text transition-colors"
-                >
-                  <Icon name="close" size="sm" />
-                </button>
-              </div>
-            </div>
-            {/* iframe 컨테이너 */}
-            <div className="flex-1 bg-surface dark:bg-background-dark">
-              <iframe
-                src={getEmbedUrl(deliverablePreviewUrl)}
-                className="w-full h-full border-0"
-                title="산출물 미리보기"
-                allow="fullscreen"
-                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <DeliverablePreviewModal
+        url={deliverablePreviewUrl}
+        onClose={() => setDeliverablePreviewUrl(null)}
+      />
     </div>
   );
 }

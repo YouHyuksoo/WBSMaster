@@ -199,7 +199,7 @@ export const DATABASE_SCHEMA = {
       id: { type: "uuid", description: "일정 고유 ID (Primary Key)" },
       title: { type: "string", description: "일정 제목" },
       description: { type: "string?", description: "일정 상세 설명" },
-      date: { type: "datetime", description: "시작일" },
+      date: { type: "datetime", description: "일정 날짜 또는 시작일 (컬럼명은 'date'임, startDate 아님!)" },
       endDate: { type: "datetime?", description: "종료일 (기간 일정용)" },
       type: {
         type: "enum",
@@ -235,6 +235,47 @@ export const DATABASE_SCHEMA = {
       updatedAt: { type: "datetime", description: "수정일시" },
     },
   },
+  process_verification_categories: {
+    tableName: "process_verification_categories",
+    description: "기능추적표(공정검증) 카테고리 테이블 - 재료관리, SMD공정관리, 검사관리 등의 카테고리",
+    columns: {
+      id: { type: "uuid", description: "카테고리 고유 ID (Primary Key)" },
+      name: { type: "string", description: "카테고리명 (예: 재료관리, SMD공정관리, 검사관리)" },
+      code: { type: "string", description: "영문 코드 (예: MATERIAL, SMD_PROCESS, INSPECTION)" },
+      order: { type: "int", description: "정렬 순서" },
+      description: { type: "string?", description: "카테고리 설명" },
+      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  process_verification_items: {
+    tableName: "process_verification_items",
+    description: "기능추적표(공정검증) 항목 테이블 - 각 카테고리 내 세부 검증 항목",
+    columns: {
+      id: { type: "uuid", description: "항목 고유 ID (Primary Key)" },
+      category: { type: "string", description: "구분 (재료, 공정, 검사 등)" },
+      isApplied: { type: "boolean", description: "적용 여부 (Y/N)" },
+      managementArea: { type: "string", description: "(L1) 관리 영역" },
+      detailItem: { type: "string", description: "(L2) 세부 관리 항목" },
+      mesMapping: { type: "string?", description: "(L3) MES/IT 매핑 기능명" },
+      verificationDetail: { type: "string?", description: "세부 검증 내용 및 점검 기준" },
+      managementCode: { type: "string", description: "관리코드 (M-1-01, P-1-01 등)" },
+      acceptanceStatus: { type: "string?", description: "수용 여부" },
+      existingMes: { type: "boolean", description: "기존 MES 유무 (Y/N)" },
+      customerRequest: { type: "string?", description: "고객 요청 여부" },
+      order: { type: "int", description: "정렬 순서" },
+      remarks: { type: "string?", description: "비고" },
+      status: {
+        type: "enum",
+        description: "검증 상태",
+        values: ["PENDING", "IN_PROGRESS", "VERIFIED", "NOT_APPLICABLE"],
+      },
+      categoryId: { type: "uuid", description: "카테고리 ID (FK -> process_verification_categories.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
 };
 
 /**
@@ -252,6 +293,7 @@ export const TABLE_RELATIONSHIPS = `
 
 2. **projects** (프로젝트)
    - 1:N → tasks, requirements, issues, wbs_items, holidays, team_members
+   - 1:N → process_verification_categories (기능추적표 카테고리)
    - N:1 → users (소유자)
 
 3. **tasks** (태스크)
@@ -263,6 +305,13 @@ export const TABLE_RELATIONSHIPS = `
    - 자기참조 (parentId로 계층 구조)
    - N:1 → projects
    - N:M → users (담당자)
+
+5. **process_verification_categories** (기능추적표 카테고리)
+   - N:1 → projects
+   - 1:N → process_verification_items (카테고리 내 항목들)
+
+6. **process_verification_items** (기능추적표 항목)
+   - N:1 → process_verification_categories
 `;
 
 /**

@@ -17,7 +17,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Icon } from "@/components/ui";
 import {
   useCreateMilestone,
@@ -76,7 +76,13 @@ export function MilestoneModal({
   const [endDate, setEndDate] = useState("");
   const [status, setStatus] = useState<MilestoneStatus>("PENDING");
   const [color, setColor] = useState(COLOR_OPTIONS[0]);
-  const [rowId, setRowId] = useState<string>("");
+  const [rowId, setRowId] = useState<string>(""); // 선택된 그룹 ID (표시용)
+  const [originalRowId, setOriginalRowId] = useState<string | null>(null); // 원래 rowId (수정 모드에서 보존)
+  const [rowIdChanged, setRowIdChanged] = useState(false); // 사용자가 그룹을 변경했는지 여부
+
+  // 에러/확인 모달 상태
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // 뮤테이션 훅
   const createMilestone = useCreateMilestone();
@@ -85,6 +91,11 @@ export function MilestoneModal({
 
   // 수정 모드 여부
   const isEditMode = !!milestone;
+
+  // 그룹(부모 행)만 필터링 - parentId가 null인 행들
+  const groupRows = useMemo(() => {
+    return rows.filter((row) => !row.parentId);
+  }, [rows]);
 
   // 마일스톤 데이터로 폼 초기화
   useEffect(() => {
@@ -95,7 +106,17 @@ export function MilestoneModal({
       setEndDate(milestone.endDate.split("T")[0]);
       setStatus(milestone.status);
       setColor(milestone.color);
-      setRowId(milestone.rowId || "");
+      // 수정 모드: 원래 rowId 보존
+      setOriginalRowId(milestone.rowId || null);
+      setRowIdChanged(false);
+      // 현재 rowId가 자식 행이면 부모 그룹 ID로 표시
+      const currentRow = rows.find((r) => r.id === milestone.rowId);
+      if (currentRow?.parentId) {
+        // 자식 행이면 부모 ID로 표시
+        setRowId(currentRow.parentId);
+      } else {
+        setRowId(milestone.rowId || "");
+      }
     } else {
       // 생성 모드 - 폼 초기화
       setName("");
@@ -108,10 +129,15 @@ export function MilestoneModal({
       setEndDate(nextWeek.toISOString().split("T")[0]);
       setStatus("PENDING");
       setColor(COLOR_OPTIONS[0]);
-      // 첫 번째 행을 기본 선택
-      setRowId(rows.length > 0 ? rows[0].id : "");
+      // 첫 번째 그룹을 기본 선택
+      setRowId(groupRows.length > 0 ? groupRows[0].id : "");
+      setOriginalRowId(null);
+      setRowIdChanged(false);
     }
-  }, [milestone, isOpen, rows]);
+    // 에러/확인 상태 초기화
+    setErrorMessage(null);
+    setShowDeleteConfirm(false);
+  }, [milestone, isOpen, rows, groupRows]);
 
   // 저장 핸들러
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,14 +145,16 @@ export function MilestoneModal({
 
     if (!name.trim() || !startDate || !endDate) return;
 
-    // 시작일이 종료일보다 늦으면 경고
+    // 시작일이 종료일보다 늦으면 에러 모달 표시
     if (new Date(startDate) > new Date(endDate)) {
-      alert("시작일은 종료일보다 빨라야 합니다.");
+      setErrorMessage("시작일은 종료일보다 빨라야 합니다.");
       return;
     }
 
     try {
       if (isEditMode && milestone) {
+        // 수정 모드: 그룹이 변경되지 않았으면 원래 rowId 유지
+        const finalRowId = rowIdChanged ? (rowId || null) : originalRowId;
         await updateMilestone.mutateAsync({
           id: milestone.id,
           data: {
@@ -136,10 +164,11 @@ export function MilestoneModal({
             endDate,
             status,
             color,
-            rowId: rowId || null,
+            rowId: finalRowId,
           },
         });
       } else {
+        // 생성 모드: 선택한 그룹 ID 사용
         await createMilestone.mutateAsync({
           name,
           description,
@@ -154,12 +183,18 @@ export function MilestoneModal({
       onClose();
     } catch (error) {
       console.error("마일스톤 저장 실패:", error);
+      setErrorMessage("마일스톤 저장에 실패했습니다.");
     }
   };
 
-  // 삭제 핸들러
-  const handleDelete = async () => {
-    if (!milestone || !confirm("마일스톤을 삭제하시겠습니까?")) return;
+  // 삭제 확인 핸들러
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  // 삭제 실행 핸들러
+  const handleDeleteConfirm = async () => {
+    if (!milestone) return;
 
     try {
       await deleteMilestone.mutateAsync({
@@ -169,7 +204,9 @@ export function MilestoneModal({
       onClose();
     } catch (error) {
       console.error("마일스톤 삭제 실패:", error);
+      setErrorMessage("마일스톤 삭제에 실패했습니다.");
     }
+    setShowDeleteConfirm(false);
   };
 
   if (!isOpen) return null;
@@ -258,19 +295,22 @@ export function MilestoneModal({
             </div>
           </div>
 
-          {/* 행 선택 */}
-          {rows.length > 0 && (
+          {/* 그룹 선택 (부모 행만 표시) */}
+          {groupRows.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                배치할 행
+                배치할 그룹
               </label>
               <select
                 value={rowId}
-                onChange={(e) => setRowId(e.target.value)}
+                onChange={(e) => {
+                  setRowId(e.target.value);
+                  setRowIdChanged(true); // 사용자가 그룹을 변경함
+                }}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">미배정</option>
-                {rows.map((row) => (
+                {groupRows.map((row) => (
                   <option key={row.id} value={row.id}>
                     {row.name}
                   </option>
@@ -324,7 +364,7 @@ export function MilestoneModal({
             {isEditMode ? (
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 disabled={isLoading}
                 className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
               >
@@ -354,6 +394,53 @@ export function MilestoneModal({
             </div>
           </div>
         </form>
+
+        {/* 에러 메시지 모달 */}
+        {errorMessage && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
+            <div className="bg-white dark:bg-slate-700 rounded-lg shadow-lg p-4 max-w-xs mx-4">
+              <p className="text-slate-900 dark:text-slate-100 text-sm mb-4">
+                {errorMessage}
+              </p>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setErrorMessage(null)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 삭제 확인 모달 */}
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
+            <div className="bg-white dark:bg-slate-700 rounded-lg shadow-lg p-4 max-w-xs mx-4">
+              <p className="text-slate-900 dark:text-slate-100 text-sm mb-4">
+                마일스톤을 삭제하시겠습니까?
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-600 hover:bg-slate-200 dark:hover:bg-slate-500 rounded-md transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteConfirm}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors"
+                >
+                  삭제
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
