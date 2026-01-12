@@ -5,14 +5,14 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Points, PointMaterial, Float, Stars, Torus, Box, Sphere, MeshDistortMaterial } from "@react-three/drei";
 import * as random from "maath/random/dist/maath-random.cjs";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
-import { ArrowRight, CheckCircle2, Layers, BarChart3, Zap, MousePointer2, Box as BoxIcon, Circle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Layers, BarChart3, Zap, MousePointer2, Box as BoxIcon, Circle, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 // ==========================================
 // 🎨 Theme 1: "Stardust" (우주/입자)
 // ==========================================
 function Stardust(props: any) {
-  const ref = useRef<any>();
+  const ref = useRef<any>(null);
   const [sphere] = useState(() =>
     random.inSphere(new Float32Array(5000), { radius: 1.5 })
   );
@@ -61,7 +61,7 @@ function NetworkShape() {
 // 🎨 Theme 3: "Cubes" (블록/데이터)
 // ==========================================
 function FloatingCubes() {
-  const group = useRef<any>();
+  const group = useRef<any>(null);
   
   useFrame((state) => {
     if (group.current) {
@@ -160,17 +160,17 @@ const itemVariants = {
   visible: {
     y: 0,
     opacity: 1,
-    transition: { type: "spring", stiffness: 100, damping: 12 },
+    transition: { type: "spring" as const, stiffness: 100, damping: 12 },
   },
 };
 
 const cardHoverVariants = {
-  hover: { 
-    y: -15, 
+  hover: {
+    y: -15,
     scale: 1.05,
     boxShadow: "0px 20px 40px rgba(59, 130, 246, 0.2)",
     borderColor: "rgba(59, 130, 246, 0.5)",
-    transition: { type: "spring", stiffness: 300 }
+    transition: { type: "spring" as const, stiffness: 300 }
   }
 };
 
@@ -205,7 +205,7 @@ export default function LandingPage3D() {
         <p className="text-xs text-gray-400 mb-3 font-bold uppercase tracking-wider">Select Theme</p>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { id: "stardust", label: "Stardust", icon: <Stars size={14} /> },
+            { id: "stardust", label: "Stardust", icon: <Sparkles size={14} /> },
             { id: "network", label: "Network", icon: <Layers size={14} /> },
             { id: "cubes", label: "Cubes", icon: <BoxIcon size={14} /> },
             { id: "fluid", label: "Fluid", icon: <Circle size={14} /> },

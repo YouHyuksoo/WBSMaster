@@ -80,7 +80,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: "spring", stiffness: 100, damping: 15 },
+    transition: { type: "spring" as const, stiffness: 100, damping: 15 },
   },
 };
 
@@ -90,7 +90,7 @@ const cardVariants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: "spring", stiffness: 100, damping: 15 },
+    transition: { type: "spring" as const, stiffness: 100, damping: 15 },
   },
 };
 
@@ -312,7 +312,7 @@ export default function LandingPage() {
                         key={i}
                         initial={{ scale: 0, x: -20 }}
                         animate={{ scale: 1, x: 0 }}
-                        transition={{ delay: 0.8 + i * 0.1, type: "spring" }}
+                        transition={{ delay: 0.8 + i * 0.1, type: "spring" as const }}
                         className="size-8 rounded-full border-2 border-background-white bg-card flex items-center justify-center"
                       >
                         <Icon
@@ -338,12 +338,12 @@ export default function LandingPage() {
                 className="lg:w-1/2 w-full"
                 initial={{ opacity: 0, x: 50, rotateY: -10 }}
                 animate={{ opacity: 1, x: 0, rotateY: 0 }}
-                transition={{ delay: 0.5, duration: 0.8, type: "spring" }}
+                transition={{ delay: 0.5, duration: 0.8, type: "spring" as const }}
               >
                 <motion.div
                   className="relative rounded-xl bg-linear-to-br from-gray-100 to-gray-200 dark:from-[#1e2936] dark:to-[#111827] p-2 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
                   whileHover={{ scale: 1.02, rotateY: 5 }}
-                  transition={{ type: "spring", stiffness: 300 }}
+                  transition={{ type: "spring" as const, stiffness: 300 }}
                 >
                   <div className="absolute inset-0 bg-white/40 dark:bg-black/20 backdrop-blur-[1px] z-0 rounded-xl" />
                   <div className="relative z-10 w-full aspect-4/3 rounded-lg bg-card overflow-hidden shadow-inner border border-white/50 dark:border-white/5">
@@ -479,7 +479,7 @@ export default function LandingPage() {
                   key={feature.title}
                   variants={cardVariants}
                   whileHover={{ y: -10, scale: 1.02 }}
-                  transition={{ type: "spring", stiffness: 300 }}
+                  transition={{ type: "spring" as const, stiffness: 300 }}
                 >
                   <Card hover className="h-full">
                     <CardHeader>
