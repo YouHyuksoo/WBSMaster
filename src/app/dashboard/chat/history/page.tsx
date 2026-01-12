@@ -277,9 +277,9 @@ export default function ChatHistoryPage() {
   const getRatingStyle = (rating: string) => {
     switch (rating) {
       case "POSITIVE":
-        return "bg-emerald-500/20 text-emerald-500";
+        return "bg-success/10 text-success";
       case "NEGATIVE":
-        return "bg-rose-500/20 text-rose-500";
+        return "bg-error/10 text-error";
       default:
         return "bg-slate-500/20 text-slate-500";
     }
@@ -322,28 +322,29 @@ export default function ChatHistoryPage() {
   };
 
   return (
-    <div className="min-h-screen p-6 max-w-7xl mx-auto bg-background dark:bg-background-dark">
+    <div className="p-6 space-y-6">
       {/* 헤더 */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard/chat">
-            <Button variant="ghost" size="sm" leftIcon="arrow_back">
-              채팅으로 돌아가기
-            </Button>
-          </Link>
-          <div className="w-px h-6 bg-border dark:bg-border-dark" />
-          <div>
-            <h1 className="text-2xl font-bold text-text dark:text-white">채팅 분석</h1>
-            <p className="text-sm text-text-secondary">AI 응답 품질 및 피드백 분석</p>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <Icon name="analytics" className="text-[#00f3ff]" />
+            <span className="tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-[#00f3ff] to-[#fa00ff]">
+              CHAT ANALYTICS
+            </span>
+            <span className="text-slate-400 text-sm font-normal ml-1">
+              / 채팅 분석
+            </span>
+          </h1>
+          <p className="text-text-secondary mt-1">AI 응답 품질 및 피드백 분석</p>
         </div>
 
-        {/* 삭제 버튼 영역 */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/chat">
+            <Button variant="outline" leftIcon="arrow_back">채팅으로 돌아가기</Button>
+          </Link>
           {selectedIds.size > 0 && (
             <Button
               variant="outline"
-              size="sm"
               leftIcon="delete"
               onClick={openSelectedDeleteModal}
               className="text-error border-error hover:bg-error/10"
@@ -353,11 +354,10 @@ export default function ChatHistoryPage() {
           )}
           {feedbacks.length > 0 && (
             <Button
-              variant="ghost"
-              size="sm"
+              variant="outline"
               leftIcon="delete_sweep"
               onClick={openAllDeleteModal}
-              className="text-text-secondary hover:text-error"
+              className="text-error border-error hover:bg-error/10"
             >
               전체 삭제
             </Button>
@@ -367,42 +367,88 @@ export default function ChatHistoryPage() {
 
       {/* 통계 카드 */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
-          <Card className="p-4">
-            <div className="text-sm text-text-secondary mb-1">전체 피드백</div>
-            <div className="text-2xl font-bold text-text dark:text-white">{stats.total}</div>
-          </Card>
-          <Card className="p-4">
-            <div className="text-sm text-text-secondary mb-1">긍정률</div>
-            <div className="text-2xl font-bold text-emerald-500">{stats.positiveRate}%</div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-1 text-sm text-text-secondary mb-1">
-              <Icon name="thumb_up" size="xs" className="text-emerald-500" />
-              긍정
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          {/* 전체 피드백 */}
+          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+            <div className="flex items-center gap-2">
+              <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Icon name="feedback" size="xs" className="text-primary" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
+                <p className="text-[10px] text-text-secondary">전체</p>
+              </div>
             </div>
-            <div className="text-2xl font-bold text-emerald-500">{stats.positive}</div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-1 text-sm text-text-secondary mb-1">
-              <Icon name="thumb_down" size="xs" className="text-rose-500" />
-              부정
+          </div>
+
+          {/* 긍정률 */}
+          <div className="bg-gradient-to-br from-success/10 to-success/20 border border-success/30 rounded-xl p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Icon name="speed" size="xs" className="text-success" />
+              <span className="text-xs font-semibold text-success">긍정률</span>
             </div>
-            <div className="text-2xl font-bold text-rose-500">{stats.negative}</div>
-          </Card>
-          <Card className="p-4">
-            <div className="text-sm text-text-secondary mb-1">평균 처리시간</div>
-            <div className="text-2xl font-bold text-primary">{formatTime(stats.avgProcessingTimeMs)}</div>
-          </Card>
-          <Card className="p-4">
-            <div className="text-sm text-text-secondary mb-1">평균 SQL 실행</div>
-            <div className="text-2xl font-bold text-sky-500">{formatTime(stats.avgSqlExecTimeMs)}</div>
-          </Card>
+            <p className="text-2xl font-bold text-success mb-1">{stats.positiveRate}%</p>
+            <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-success to-emerald-400 rounded-full" style={{ width: `${stats.positiveRate}%` }} />
+            </div>
+          </div>
+
+          {/* 긍정 피드백 */}
+          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+            <div className="flex items-center gap-2">
+              <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
+                <Icon name="thumb_up" size="xs" className="text-success" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-text dark:text-white">{stats.positive}</p>
+                <p className="text-[10px] text-text-secondary">긍정</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 부정 피드백 */}
+          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+            <div className="flex items-center gap-2">
+              <div className="size-8 rounded-lg bg-error/10 flex items-center justify-center">
+                <Icon name="thumb_down" size="xs" className="text-error" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-text dark:text-white">{stats.negative}</p>
+                <p className="text-[10px] text-text-secondary">부정</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 평균 처리시간 */}
+          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+            <div className="flex items-center gap-2">
+              <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Icon name="schedule" size="xs" className="text-primary" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-text dark:text-white">{formatTime(stats.avgProcessingTimeMs)}</p>
+                <p className="text-[10px] text-text-secondary">처리시간</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 평균 SQL 실행시간 */}
+          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+            <div className="flex items-center gap-2">
+              <div className="size-8 rounded-lg bg-info/10 flex items-center justify-center">
+                <Icon name="database" size="xs" className="text-info" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-text dark:text-white">{formatTime(stats.avgSqlExecTimeMs)}</p>
+                <p className="text-[10px] text-text-secondary">SQL 실행</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* 필터 */}
-      <Card className="p-4 mb-6">
+      <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <Icon name="filter_alt" size="sm" className="text-text-secondary" />
@@ -485,7 +531,7 @@ export default function ChatHistoryPage() {
             </>
           )}
         </div>
-      </Card>
+      </div>
 
       {/* 피드백 목록 */}
       <div className="space-y-4">
@@ -494,14 +540,14 @@ export default function ChatHistoryPage() {
             <Icon name="progress_activity" size="lg" className="text-primary animate-spin" />
           </div>
         ) : feedbacks.length === 0 ? (
-          <Card className="p-12 text-center">
+          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-12 text-center">
             <Icon name="feedback" size="lg" className="text-text-secondary mx-auto mb-4" />
             <h3 className="text-lg font-medium text-text dark:text-white mb-2">피드백이 없습니다</h3>
             <p className="text-text-secondary">AI 응답에 피드백을 남겨보세요.</p>
-          </Card>
+          </div>
         ) : (
           feedbacks.map((feedback) => (
-            <Card key={feedback.id} className="overflow-hidden">
+            <div key={feedback.id} className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden">
               {/* 헤더 */}
               <div className="flex items-center justify-between p-4 hover:bg-surface/50 dark:hover:bg-surface-dark/50 transition-colors">
                 <div className="flex items-center gap-3">
@@ -682,24 +728,24 @@ export default function ChatHistoryPage() {
                   {/* 상세 피드백 */}
                   <div className="mt-4 flex gap-3">
                     {feedback.isSqlCorrect !== null && (
-                      <span className={`text-xs px-2 py-1 rounded ${feedback.isSqlCorrect ? "bg-emerald-500/20 text-emerald-500" : "bg-rose-500/20 text-rose-500"}`}>
+                      <span className={`text-xs px-2 py-1 rounded ${feedback.isSqlCorrect ? "bg-success/10 text-success" : "bg-error/10 text-error"}`}>
                         SQL {feedback.isSqlCorrect ? "정확" : "부정확"}
                       </span>
                     )}
                     {feedback.isResponseHelpful !== null && (
-                      <span className={`text-xs px-2 py-1 rounded ${feedback.isResponseHelpful ? "bg-emerald-500/20 text-emerald-500" : "bg-rose-500/20 text-rose-500"}`}>
+                      <span className={`text-xs px-2 py-1 rounded ${feedback.isResponseHelpful ? "bg-success/10 text-success" : "bg-error/10 text-error"}`}>
                         응답 {feedback.isResponseHelpful ? "유용" : "개선필요"}
                       </span>
                     )}
                     {feedback.isChartUseful !== null && (
-                      <span className={`text-xs px-2 py-1 rounded ${feedback.isChartUseful ? "bg-emerald-500/20 text-emerald-500" : "bg-rose-500/20 text-rose-500"}`}>
+                      <span className={`text-xs px-2 py-1 rounded ${feedback.isChartUseful ? "bg-success/10 text-success" : "bg-error/10 text-error"}`}>
                         차트 {feedback.isChartUseful ? "유용" : "개선필요"}
                       </span>
                     )}
                   </div>
                 </div>
               )}
-            </Card>
+            </div>
           ))
         )}
 
