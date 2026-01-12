@@ -26,7 +26,7 @@ import {
   useUpdateUser,
   useDeleteUser,
 } from "@/hooks";
-import type { User } from "@/lib/api";
+import type { User, Affiliation } from "@/lib/api";
 
 /**
  * 시스템 역할 설정
@@ -120,7 +120,7 @@ export default function UsersPage() {
   const [formEmail, setFormEmail] = useState("");
   const [formName, setFormName] = useState("");
   const [formRole, setFormRole] = useState("USER");
-  const [formAffiliation, setFormAffiliation] = useState<string | null>(null);
+  const [formAffiliation, setFormAffiliation] = useState<Affiliation | null>(null);
   const [formAvatar, setFormAvatar] = useState("");
   const [formPassword, setFormPassword] = useState(""); // 비밀번호 (선택적)
 
@@ -628,7 +628,7 @@ export default function UsersPage() {
                 </label>
                 <select
                   value={formAffiliation || ""}
-                  onChange={(e) => setFormAffiliation(e.target.value || null)}
+                  onChange={(e) => setFormAffiliation(e.target.value as Affiliation || null)}
                   className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white"
                 >
                   <option value="">선택 안함</option>
@@ -776,7 +776,7 @@ export default function UsersPage() {
                 </label>
                 <select
                   value={formAffiliation || ""}
-                  onChange={(e) => setFormAffiliation(e.target.value || null)}
+                  onChange={(e) => setFormAffiliation(e.target.value as Affiliation || null)}
                   className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white"
                 >
                   <option value="">선택 안함</option>

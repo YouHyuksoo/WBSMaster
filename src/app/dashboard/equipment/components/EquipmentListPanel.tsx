@@ -73,15 +73,15 @@ export function EquipmentListPanel({
     [equipments]
   );
   const uniqueLines = useMemo(
-    () => Array.from(new Set(equipments.map((eq) => eq.lineCode).filter(Boolean))),
+    () => Array.from(new Set(equipments.map((eq) => eq.lineCode).filter((x): x is string => Boolean(x)))),
     [equipments]
   );
   const uniqueDivisions = useMemo(
-    () => Array.from(new Set(equipments.map((eq) => eq.divisionCode).filter(Boolean))),
+    () => Array.from(new Set(equipments.map((eq) => eq.divisionCode).filter((x): x is string => Boolean(x)))),
     [equipments]
   );
   const uniqueLocations = useMemo(
-    () => Array.from(new Set(equipments.map((eq) => eq.location).filter(Boolean))),
+    () => Array.from(new Set(equipments.map((eq) => eq.location).filter((x): x is string => Boolean(x)))),
     [equipments]
   );
 

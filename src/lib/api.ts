@@ -1044,9 +1044,9 @@ export const api = {
     list: (params?: { search?: string; email?: string; name?: string }) =>
       get<User[]>("/api/users", params),
     get: (id: string) => get<User>(`/api/users/${id}`),
-    create: (data: { id?: string; email: string; name?: string; avatar?: string }) =>
+    create: (data: { id?: string; email: string; name?: string; avatar?: string; affiliation?: Affiliation }) =>
       post<User>("/api/users", data),
-    update: (id: string, data: { name?: string; role?: string; avatar?: string }) =>
+    update: (id: string, data: { name?: string; role?: string; avatar?: string; affiliation?: Affiliation; password?: string }) =>
       patch<User>(`/api/users/${id}`, data),
     delete: (id: string) => del<{ message: string }>(`/api/users/${id}`),
   },
@@ -1305,11 +1305,19 @@ export const api = {
       positionY?: number;
       description?: string;
       location?: string;
+      lineCode?: string;         // 라인코드 (예: L1, L2, LINE-A)
+      divisionCode?: string;     // 사업부 코드 (예: DIV-A, 사업부1)
+      imageUrl?: string;         // 설비 이미지 URL
       manufacturer?: string;
       modelNumber?: string;
       serialNumber?: string;
       purchaseDate?: string;
       warrantyEndDate?: string;
+      ipAddress?: string;        // IP 주소 (예: 192.168.1.100)
+      portNumber?: number;       // PORT 번호 (예: 8080)
+      isLogTarget?: boolean;     // 로그수집대상 여부
+      isInterlockTarget?: boolean; // 인터락대상 여부
+      isBarcodeEnabled?: boolean;  // 바코드 식별가능 여부
     }) => post<Equipment>("/api/equipment", data),
     /** 설비 수정 */
     update: (id: string, data: Partial<Equipment>) =>
@@ -1359,6 +1367,8 @@ export const api = {
       color?: string;
       animated?: boolean;
       order?: number;
+      sourceHandle?: string;  // 출발 핸들 (top, right, bottom, left)
+      targetHandle?: string;  // 도착 핸들 (top, right, bottom, left)
     }) => post<EquipmentConnection>("/api/equipment/connections", data),
     /** 연결 수정 */
     update: (id: string, data: Partial<EquipmentConnection>) =>

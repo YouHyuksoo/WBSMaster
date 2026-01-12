@@ -36,6 +36,8 @@ import ReactFlow, {
   NodeDragHandler,
   useReactFlow,
   ReactFlowProvider,
+  SelectionMode,
+  ConnectionMode,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Equipment, EquipmentConnection } from "@/lib/api";
@@ -709,9 +711,9 @@ function EquipmentCanvasInner({
         selectNodesOnDrag={false}
         panOnDrag={[1, 2]}
         selectionOnDrag={true}
-        selectionMode="partial"
+        selectionMode={SelectionMode.Partial}
         multiSelectionKeyCode="Shift"
-        connectionMode="loose"
+        connectionMode={ConnectionMode.Loose}
         connectionRadius={50}
         defaultEdgeOptions={{
           type: edgeType,

@@ -104,12 +104,12 @@ export default function EquipmentPage() {
     isLoading: isLoadingConnections,
   } = useEquipmentConnections({ projectId: selectedProjectId || undefined });
 
-  // 고유 사업부, 라인 목록 추출
+  // 고유 사업부, 라인 목록 추출 (타입 가드로 null/undefined 제외)
   const uniqueDivisions = Array.from(
-    new Set(equipments.map((eq) => eq.divisionCode).filter(Boolean))
+    new Set(equipments.map((eq) => eq.divisionCode).filter((x): x is string => Boolean(x)))
   );
   const uniqueLines = Array.from(
-    new Set(equipments.map((eq) => eq.lineCode).filter(Boolean))
+    new Set(equipments.map((eq) => eq.lineCode).filter((x): x is string => Boolean(x)))
   );
 
   // 필터링된 설비 목록 (라인 선택 필수)

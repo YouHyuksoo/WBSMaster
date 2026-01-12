@@ -19,7 +19,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type User } from "@/lib/api";
+import { api, type User, type Affiliation } from "@/lib/api";
 
 /** 쿼리 키 */
 export const userKeys = {
@@ -60,7 +60,7 @@ export function useCreateUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { id?: string; email: string; name?: string; avatar?: string }) =>
+    mutationFn: (data: { id?: string; email: string; name?: string; avatar?: string; affiliation?: Affiliation }) =>
       api.users.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
@@ -79,7 +79,7 @@ export function useUpdateUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { email?: string; name?: string; role?: string; avatar?: string } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { email?: string; name?: string; role?: string; avatar?: string; affiliation?: Affiliation; password?: string } }) =>
       api.users.update(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
