@@ -202,6 +202,7 @@ export default function UsersPage() {
         email: formEmail,
         name: formName || undefined,
         avatar: formAvatar || undefined,
+        affiliation: formAffiliation || undefined,
       });
       toast.success("사용자가 등록되었습니다.");
       handleCloseModal();
@@ -233,6 +234,7 @@ export default function UsersPage() {
           name: formName || undefined,
           role: formRole,
           avatar: formAvatar || undefined,
+          affiliation: formAffiliation || undefined,
         },
       });
       toast.success("사용자 정보가 저장되었습니다.");
