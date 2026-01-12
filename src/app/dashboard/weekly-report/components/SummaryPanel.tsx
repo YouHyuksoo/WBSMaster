@@ -7,12 +7,13 @@
  * 초보자 가이드:
  * 1. **취합 목록**: 프로젝트별 취합 보고서 리스트
  * 2. **LLM 분석**: 분석 완료 여부 표시
- * 3. **상세 보기**: 클릭 시 상세 모달 열기
+ * 3. **상세 보기**: 클릭 시 취합 페이지로 이동
  */
 
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon, Button, ConfirmModal, useToast } from "@/components/ui";
 import { WeeklySummary } from "@/lib/api";
 import { useWeeklySummaries, useDeleteWeeklySummary } from "@/hooks";
@@ -20,8 +21,8 @@ import { useWeeklySummaries, useDeleteWeeklySummary } from "@/hooks";
 interface SummaryPanelProps {
   /** 프로젝트 ID */
   projectId: string;
-  /** 취합 보고서 클릭 핸들러 */
-  onSelectSummary: (summary: WeeklySummary) => void;
+  /** 취합 보고서 클릭 핸들러 (레거시, 선택적) */
+  onSelectSummary?: (summary: WeeklySummary) => void;
   /** 새 취합 생성 클릭 핸들러 */
   onCreateNew: () => void;
 }
@@ -34,9 +35,18 @@ export function SummaryPanel({
   onSelectSummary,
   onCreateNew,
 }: SummaryPanelProps) {
+  const router = useRouter();
   const toast = useToast();
   const { data: summaries = [], isLoading } = useWeeklySummaries({ projectId });
   const deleteSummary = useDeleteWeeklySummary();
+
+  /** 취합 보고서 클릭 - 상세 페이지로 이동 */
+  const handleSelectSummary = (summary: WeeklySummary) => {
+    // 페이지로 이동
+    router.push(`/dashboard/weekly-report/summary/${summary.id}`);
+    // 레거시 콜백 호출 (필요한 경우)
+    onSelectSummary?.(summary);
+  };
 
   // 삭제 확인 모달 상태
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -104,7 +114,7 @@ export function SummaryPanel({
             {summaries.map((summary) => (
               <div
                 key={summary.id}
-                onClick={() => onSelectSummary(summary)}
+                onClick={() => handleSelectSummary(summary)}
                 className="p-3 rounded-lg bg-background dark:bg-background-dark hover:bg-primary/5 border border-transparent hover:border-primary/20 cursor-pointer transition-all group"
               >
                 {/* 제목 */}

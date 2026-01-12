@@ -1539,7 +1539,7 @@ function TaskCard({
     return Array.from(assigneeMap.values());
   })();
 
-  // 완료된 task: 컴팩트 뷰 (isExpanded가 false일 때)
+  // 완료된 task: 컴팩트 뷰 (isExpanded가 false일 때) - 글래스모피즘
   if (isCompleted && !isExpanded) {
     return (
       <div
@@ -1549,9 +1549,14 @@ function TaskCard({
         }}
         onPointerDown={(e) => e.stopPropagation()}
         className={`
-          bg-success/5 dark:bg-success/10 p-2.5 rounded-lg border border-success/20
-          cursor-pointer transition-all hover:bg-success/10 dark:hover:bg-success/20
-          ${isDragging ? "opacity-50 shadow-lg ring-2 ring-primary scale-105" : ""}
+          relative p-2.5 rounded-xl border border-white/10 dark:border-white/5
+          cursor-pointer transition-all
+          backdrop-blur-md bg-gradient-to-br from-emerald-500/10 to-emerald-600/5
+          dark:from-emerald-400/15 dark:to-emerald-500/10
+          hover:from-emerald-500/20 hover:to-emerald-600/10
+          dark:hover:from-emerald-400/25 dark:hover:to-emerald-500/15
+          shadow-lg hover:shadow-xl
+          ${isDragging ? "opacity-50 shadow-2xl ring-2 ring-primary scale-105" : ""}
         `}
       >
         <div className="flex items-center gap-2">
@@ -1566,10 +1571,10 @@ function TaskCard({
                 <img
                   src={primaryAssignee.avatar}
                   alt={primaryAssignee.name || ""}
-                  className="size-5 rounded-full object-cover"
+                  className="size-5 rounded-full object-cover ring-2 ring-white/20"
                 />
               ) : (
-                <div className="size-5 rounded-full bg-success/30 flex items-center justify-center text-[9px] font-bold text-success">
+                <div className="size-5 rounded-full bg-success/30 backdrop-blur-sm flex items-center justify-center text-[9px] font-bold text-success ring-2 ring-white/20">
                   {primaryAssignee.name?.charAt(0) || "?"}
                 </div>
               )}
@@ -1591,13 +1596,20 @@ function TaskCard({
         onSelectTask?.(task);
       }}
       className={`
-        bg-background-white dark:bg-[#283039] p-4 rounded-lg shadow-sm border
-        cursor-grab active:cursor-grabbing transition-all group
-        ${isDragging ? "opacity-50 shadow-lg ring-2 ring-primary scale-105" : ""}
-        ${isSelected ? "ring-2 ring-primary border-primary shadow-md" : ""}
-        ${isCompleted && !isSelected ? "opacity-80 hover:opacity-100 border-success/30 dark:border-success/20 bg-success/5 dark:bg-success/10" : ""}
-        ${isDelayed && !isSelected ? "border-rose-400 dark:border-rose-500 ring-1 ring-rose-200 dark:ring-rose-900/50" : ""}
-        ${!isCompleted && !isDelayed && !isSelected ? "border-border dark:border-transparent hover:ring-2 hover:ring-primary/50 hover:shadow-md" : ""}
+        relative p-4 rounded-xl border transition-all group
+        cursor-grab active:cursor-grabbing
+        backdrop-blur-lg shadow-lg hover:shadow-xl
+        ${isDragging ? "opacity-50 shadow-2xl ring-2 ring-primary scale-105" : ""}
+        ${isSelected ? "ring-2 ring-primary border-primary/50 shadow-2xl bg-gradient-to-br from-primary/10 via-transparent to-primary/5 dark:from-primary/20 dark:via-transparent dark:to-primary/10" : ""}
+        ${isCompleted && !isSelected
+          ? "opacity-90 hover:opacity-100 border-white/10 dark:border-white/5 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 dark:from-emerald-400/15 dark:to-emerald-500/10 hover:from-emerald-500/15 hover:to-emerald-600/10 dark:hover:from-emerald-400/20 dark:hover:to-emerald-500/15"
+          : ""}
+        ${isDelayed && !isSelected
+          ? "border-rose-400/30 dark:border-rose-500/20 ring-1 ring-rose-200/20 dark:ring-rose-900/30 bg-gradient-to-br from-rose-500/10 to-rose-600/5 dark:from-rose-400/15 dark:to-rose-500/10"
+          : ""}
+        ${!isCompleted && !isDelayed && !isSelected
+          ? "border-white/10 dark:border-white/5 bg-gradient-to-br from-white/80 to-white/40 dark:from-slate-800/80 dark:to-slate-900/60 hover:from-white/90 hover:to-white/50 dark:hover:from-slate-800/90 dark:hover:to-slate-900/70 hover:ring-2 hover:ring-primary/30"
+          : ""}
       `}
     >
       {/* 드래그 핸들 아이콘 */}
@@ -1605,7 +1617,7 @@ function TaskCard({
         <div className="flex items-center gap-2">
           <Icon name="drag_indicator" size="xs" className="text-text-secondary opacity-50 group-hover:opacity-100" />
           {isCompleted ? (
-            <div className="flex items-center gap-1 text-success text-xs font-bold">
+            <div className="flex items-center gap-1 text-success text-xs font-bold backdrop-blur-sm bg-emerald-500/15 dark:bg-emerald-400/20 px-2 py-1 rounded-full border border-emerald-300/30 dark:border-emerald-400/20 shadow-md">
               <Icon name="check_circle" size="xs" />
               <span>완료</span>
               {/* 축소 버튼 */}
@@ -1615,19 +1627,19 @@ function TaskCard({
                   onToggleCompleted?.(task.id);
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="ml-1 p-0.5 rounded hover:bg-success/20 transition-colors"
+                className="ml-1 p-0.5 rounded-full hover:bg-success/20 dark:hover:bg-success/30 transition-colors"
                 title="축소"
               >
                 <Icon name="expand_less" size="xs" className="text-success" />
               </button>
             </div>
           ) : isDelayed ? (
-            <div className="flex items-center gap-1 text-rose-500 dark:text-rose-400 text-xs font-bold">
+            <div className="flex items-center gap-1 text-rose-500 dark:text-rose-400 text-xs font-bold backdrop-blur-sm bg-rose-500/10 dark:bg-rose-400/15 px-2 py-1 rounded-full border border-rose-300/30 dark:border-rose-400/20 shadow-md">
               <Icon name="warning" size="xs" />
               <span>지연</span>
             </div>
           ) : (
-            <span className={`${priority.bgColor} ${priority.textColor} text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider`}>
+            <span className={`${priority.bgColor} ${priority.textColor} text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider backdrop-blur-sm border border-white/20 dark:border-white/10 shadow-md`}>
               {priority.label}
             </span>
           )}
@@ -1683,17 +1695,17 @@ function TaskCard({
         </p>
       )}
 
-      {/* 연결된 요구사항 */}
+      {/* 연결된 요구사항 - 글래스모피즘 */}
       {task.requirement && (
-        <div className="mb-3 px-2 py-1.5 rounded bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800">
+        <div className="mb-3 px-2 py-1.5 rounded-lg backdrop-blur-sm bg-gradient-to-br from-purple-500/20 to-purple-600/10 dark:from-purple-400/25 dark:to-purple-500/15 border border-purple-200/30 dark:border-purple-400/20 shadow-md">
           <div className="flex items-center gap-1.5">
             <Icon name="link" size="xs" className="text-purple-600 dark:text-purple-400 flex-shrink-0" />
             {task.requirement.code && (
-              <span className="text-[10px] font-bold text-white bg-purple-600 dark:bg-purple-500 px-1.5 py-0.5 rounded flex-shrink-0">
+              <span className="text-[10px] font-bold text-white bg-purple-600/90 dark:bg-purple-500/90 backdrop-blur-sm px-1.5 py-0.5 rounded flex-shrink-0 shadow-sm">
                 {task.requirement.code}
               </span>
             )}
-            <span className="text-[11px] font-medium text-purple-600 dark:text-purple-400 truncate">
+            <span className="text-[11px] font-medium text-purple-700 dark:text-purple-300 truncate">
               {task.requirement.title}
             </span>
           </div>
@@ -1702,7 +1714,7 @@ function TaskCard({
 
       {/* 하단: 담당자 및 메타 정보 */}
       <div className="flex items-center justify-between mt-3">
-        {/* 다중 담당자 표시 (아바타 + 이름) */}
+        {/* 다중 담당자 표시 (아바타 + 이름) - 글래스모피즘 효과 */}
         <div className="flex items-center gap-2">
           <div className="flex -space-x-1.5">
             {allAssignees.length > 0 ? (
@@ -1713,13 +1725,13 @@ function TaskCard({
                       key={assignee.id}
                       src={assignee.avatar}
                       alt={assignee.name || "담당자"}
-                      className="size-6 rounded-full object-cover border-2 border-background-white dark:border-[#283039]"
+                      className="size-6 rounded-full object-cover border-2 border-white/30 dark:border-white/10 ring-1 ring-white/20 dark:ring-white/5 shadow-md"
                       title={assignee.name || ""}
                     />
                   ) : (
                     <div
                       key={assignee.id}
-                      className="size-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-white border-2 border-background-white dark:border-[#283039]"
+                      className="size-6 rounded-full bg-primary/80 backdrop-blur-sm flex items-center justify-center text-[10px] font-bold text-white border-2 border-white/30 dark:border-white/10 ring-1 ring-white/20 dark:ring-white/5 shadow-md"
                       title={assignee.name || ""}
                     >
                       {assignee.name?.charAt(0) || "?"}
@@ -1727,13 +1739,13 @@ function TaskCard({
                   )
                 ))}
                 {allAssignees.length > 3 && (
-                  <div className="size-6 rounded-full bg-text-secondary flex items-center justify-center text-[10px] font-bold text-white border-2 border-background-white dark:border-[#283039]">
+                  <div className="size-6 rounded-full bg-text-secondary/80 backdrop-blur-sm flex items-center justify-center text-[10px] font-bold text-white border-2 border-white/30 dark:border-white/10 ring-1 ring-white/20 dark:ring-white/5 shadow-md">
                     +{allAssignees.length - 3}
                   </div>
                 )}
               </>
             ) : (
-              <div className="size-6 rounded-full bg-text-secondary/50 flex items-center justify-center text-[10px] font-bold text-white">
+              <div className="size-6 rounded-full bg-text-secondary/50 backdrop-blur-sm flex items-center justify-center text-[10px] font-bold text-white ring-1 ring-white/10 shadow-sm">
                 --
               </div>
             )}
@@ -1750,7 +1762,7 @@ function TaskCard({
         </div>
 
         <div className="flex items-center gap-2 text-text-secondary text-xs">
-          {/* 재촉 버튼 (재촉 카운트 표시 포함) */}
+          {/* 재촉 버튼 (재촉 카운트 표시 포함) - 글래스모피즘 */}
           {canNudge && onNudge && (
             <button
               onClick={(e) => {
@@ -1759,10 +1771,10 @@ function TaskCard({
               }}
               onPointerDown={(e) => e.stopPropagation()}
               disabled={isNudging}
-              className={`flex items-center gap-1 px-2 py-1 rounded-full transition-colors disabled:opacity-50 ${
+              className={`flex items-center gap-1 px-2 py-1 rounded-full transition-all disabled:opacity-50 backdrop-blur-sm shadow-md ${
                 nudgeCount > 0
-                  ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50"
-                  : "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                  ? "bg-gradient-to-br from-amber-400/30 to-amber-500/20 dark:from-amber-400/40 dark:to-amber-500/30 border border-amber-300/30 dark:border-amber-400/20 text-amber-700 dark:text-amber-300 hover:from-amber-400/40 hover:to-amber-500/30 dark:hover:from-amber-400/50 dark:hover:to-amber-500/40"
+                  : "bg-gradient-to-br from-amber-300/20 to-amber-400/10 dark:from-amber-400/25 dark:to-amber-500/15 border border-amber-200/30 dark:border-amber-400/20 text-amber-600 dark:text-amber-400 hover:from-amber-300/30 hover:to-amber-400/20 dark:hover:from-amber-400/35 dark:hover:to-amber-500/25"
               }`}
               title={nudgeCount > 0
                 ? `${nudgeCount}회 재촉됨\n${task.nudges?.map((n) => `${n.nudger.name || "알 수 없음"}님`).join(", ")}\n클릭하여 추가 재촉`

@@ -11,13 +11,14 @@
  * 1. **ViewMode**: 'list' | 'detail' 상태로 뷰 전환 관리
  * 2. **ReportListView**: 목록 테이블 컴포넌트
  * 3. **ReportDetailView**: 등록/수정 화면 컴포넌트
- * 4. **SummaryPanel**: 취합 보고서 리스트 (우측)
- * 5. **SummaryModal**: 취합 생성/상세 모달
+ * 4. **SummaryPanel**: 취합 보고서 리스트 (우측) - 클릭 시 취합 페이지로 이동
+ * 5. **SummaryModal**: 취합 생성 모달
  *
  * @example
  * - 목록에서 행 클릭 → 해당 보고서 수정 모드로 상세 뷰 전환
  * - "주간보고 작성" 버튼 클릭 → 새 작성 모드로 상세 뷰 전환
  * - "새 취합" 버튼 클릭 → 취합 모달 열기
+ * - 취합 보고서 클릭 → /dashboard/weekly-report/summary/[id] 페이지로 이동
  */
 
 "use client";
@@ -31,7 +32,6 @@ import {
 } from "./components";
 import { ViewMode, WeekInfo, ReportWithRelations } from "./types";
 import { useProject } from "@/contexts";
-import { WeeklySummary } from "@/lib/api";
 import { getProjectWeekInfo } from "./constants";
 
 /**
@@ -50,9 +50,8 @@ export default function WeeklyReportPage() {
   // 초기 주차 정보 (새 작성 모드에서 사용)
   const [initialWeekInfo, setInitialWeekInfo] = useState<WeekInfo | null>(null);
 
-  // 취합 모달 상태
+  // 취합 모달 상태 (새 취합 생성용)
   const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [selectedSummary, setSelectedSummary] = useState<WeeklySummary | null>(null);
 
   // 현재 주차 정보 (프로젝트 시작일 기준)
   const currentWeekInfo = useMemo(() => {
@@ -93,18 +92,9 @@ export default function WeeklyReportPage() {
   };
 
   /**
-   * 취합 보고서 클릭 핸들러 (상세 보기)
-   */
-  const handleSelectSummary = (summary: WeeklySummary) => {
-    setSelectedSummary(summary);
-    setShowSummaryModal(true);
-  };
-
-  /**
    * 새 취합 생성 모달 열기
    */
   const handleCreateSummary = () => {
-    setSelectedSummary(null);
     setShowSummaryModal(true);
   };
 
@@ -113,7 +103,6 @@ export default function WeeklyReportPage() {
    */
   const handleCloseSummaryModal = () => {
     setShowSummaryModal(false);
-    setSelectedSummary(null);
   };
 
   return (
@@ -135,7 +124,6 @@ export default function WeeklyReportPage() {
               <div className="w-80 shrink-0">
                 <SummaryPanel
                   projectId={selectedProjectId}
-                  onSelectSummary={handleSelectSummary}
                   onCreateNew={handleCreateSummary}
                 />
               </div>
@@ -152,13 +140,13 @@ export default function WeeklyReportPage() {
         )}
       </div>
 
-      {/* 취합 모달 (프로젝트 선택 및 주차 정보 있을 때만) */}
+      {/* 취합 생성 모달 (프로젝트 선택 및 주차 정보 있을 때만) */}
       {selectedProjectId && currentWeekInfo && (
         <SummaryModal
           isOpen={showSummaryModal}
           onClose={handleCloseSummaryModal}
           projectId={selectedProjectId}
-          summary={selectedSummary}
+          summary={null}
           weekInfo={currentWeekInfo}
         />
       )}
