@@ -20,7 +20,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Icon } from "@/components/ui";
+import { Icon, Button, Input, useToast } from "@/components/ui";
 import { useProject } from "@/contexts/ProjectContext";
 
 /** 로컬 사용자 타입 */
@@ -42,11 +42,16 @@ interface DashboardHeaderProps {
  */
 export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState<LocalUser | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
@@ -161,6 +166,71 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     } else {
       document.documentElement.classList.remove("dark");
       localStorage.setItem("theme", "light");
+    }
+  };
+
+  /**
+   * 비밀번호 변경 모달 열기
+   */
+  const handleOpenPasswordModal = () => {
+    setShowProfileMenu(false);
+    setShowPasswordModal(true);
+    setNewPassword("");
+    setConfirmPassword("");
+  };
+
+  /**
+   * 비밀번호 변경 처리
+   */
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user) {
+      toast.error("사용자 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    // 유효성 검사
+    if (!newPassword.trim()) {
+      toast.error("새 비밀번호를 입력해주세요.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("비밀번호는 최소 6자 이상이어야 합니다.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "비밀번호 변경에 실패했습니다.");
+      }
+
+      toast.success("비밀번호가 변경되었습니다.");
+      setShowPasswordModal(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다.",
+        "비밀번호 변경 실패"
+      );
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -363,14 +433,13 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
               {/* 메뉴 항목 */}
               <div className="py-1">
-                <Link
-                  href="/dashboard/settings"
-                  onClick={() => setShowProfileMenu(false)}
-                  className="flex items-center gap-3 px-4 py-2 text-sm text-text dark:text-white hover:bg-surface dark:hover:bg-background-dark transition-colors"
+                <button
+                  onClick={handleOpenPasswordModal}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-text dark:text-white hover:bg-surface dark:hover:bg-background-dark transition-colors w-full text-left"
                 >
-                  <Icon name="settings" size="sm" className="text-text-secondary" />
-                  설정
-                </Link>
+                  <Icon name="lock" size="sm" className="text-text-secondary" />
+                  비밀번호 변경
+                </button>
                 <Link
                   href="/dashboard/help"
                   onClick={() => setShowProfileMenu(false)}
@@ -396,6 +465,74 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
           )}
         </div>
       </div>
+
+      {/* 비밀번호 변경 모달 */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-text dark:text-white">비밀번호 변경</h2>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="text-text-secondary hover:text-text dark:hover:text-white"
+              >
+                <Icon name="close" size="md" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              {/* 안내 메시지 */}
+              <div className="p-3 bg-info/10 rounded-lg border border-info/20">
+                <div className="flex items-start gap-2">
+                  <Icon name="info" size="sm" className="text-info mt-0.5" />
+                  <p className="text-xs text-text dark:text-white">
+                    비밀번호는 최소 6자 이상이어야 합니다.
+                  </p>
+                </div>
+              </div>
+
+              <Input
+                label="새 비밀번호 *"
+                leftIcon="lock"
+                type="password"
+                placeholder="새 비밀번호 입력"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+              />
+
+              <Input
+                label="비밀번호 확인 *"
+                leftIcon="lock"
+                type="password"
+                placeholder="새 비밀번호 재입력"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  onClick={() => setShowPasswordModal(false)}
+                  type="button"
+                >
+                  취소
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  type="submit"
+                  disabled={isChangingPassword}
+                >
+                  {isChangingPassword ? "변경 중..." : "변경"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
