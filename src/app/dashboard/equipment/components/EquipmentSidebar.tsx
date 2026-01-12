@@ -21,6 +21,8 @@ import { Equipment } from "@/lib/api";
 import { useUpdateEquipment, useDeleteEquipment } from "../hooks/useEquipment";
 import { STATUS_CONFIG, TYPE_CONFIG } from "../types";
 import { PropertyEditor } from "./PropertyEditor";
+import { BUSINESS_UNITS } from "@/constants/business-units";
+import { LOCATIONS } from "@/constants/locations";
 
 /** Props 타입 */
 interface EquipmentSidebarProps {
@@ -145,32 +147,32 @@ export function EquipmentSidebar({ equipment, onClose }: EquipmentSidebarProps) 
       </div>
 
       {/* 본문 */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {/* 기본 정보 탭 */}
         {activeTab === "basic" && (
           <>
         {/* 설비명 */}
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-text dark:text-white w-20 shrink-0">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-text dark:text-white w-16 shrink-0">
             설비명:
           </label>
           <input
             type="text"
             value={editData.name}
             onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-            className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
 
         {/* 타입 + 상태 (1행) */}
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-text dark:text-white w-20 shrink-0">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-text dark:text-white w-16 shrink-0">
             타입:
           </label>
           <select
             value={editData.type}
             onChange={(e) => setEditData({ ...editData, type: e.target.value as any })}
-            className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
           >
             {Object.entries(TYPE_CONFIG).map(([key, config]) => (
               <option key={key} value={key}>
@@ -178,13 +180,13 @@ export function EquipmentSidebar({ equipment, onClose }: EquipmentSidebarProps) 
               </option>
             ))}
           </select>
-          <label className="text-sm font-medium text-text dark:text-white w-12 shrink-0 text-right">
+          <label className="text-xs font-medium text-text dark:text-white w-10 shrink-0 text-right">
             상태:
           </label>
           <select
             value={editData.status}
             onChange={(e) => setEditData({ ...editData, status: e.target.value as any })}
-            className="w-24 px-2 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-20 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
           >
             {Object.entries(STATUS_CONFIG).map(([key, config]) => (
               <option key={key} value={key}>
@@ -195,22 +197,27 @@ export function EquipmentSidebar({ equipment, onClose }: EquipmentSidebarProps) 
         </div>
 
         {/* 위치 */}
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-text dark:text-white w-20 shrink-0">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-text dark:text-white w-16 shrink-0">
             위치:
           </label>
-          <input
-            type="text"
+          <select
             value={editData.location || ""}
             onChange={(e) => setEditData({ ...editData, location: e.target.value })}
-            placeholder="예: 1공장 2라인"
-            className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+            className="flex-1 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">선택 안함</option>
+            {LOCATIONS.map((loc) => (
+              <option key={loc} value={loc}>
+                {loc}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* 라인코드 */}
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-text dark:text-white w-20 shrink-0">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-text dark:text-white w-16 shrink-0">
             라인코드:
           </label>
           <input
@@ -218,27 +225,32 @@ export function EquipmentSidebar({ equipment, onClose }: EquipmentSidebarProps) 
             value={editData.lineCode || ""}
             onChange={(e) => setEditData({ ...editData, lineCode: e.target.value })}
             placeholder="예: L1, L2, LINE-A"
-            className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
 
         {/* 사업부 코드 */}
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-text dark:text-white w-20 shrink-0">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-text dark:text-white w-16 shrink-0">
             사업부:
           </label>
-          <input
-            type="text"
+          <select
             value={editData.divisionCode || ""}
             onChange={(e) => setEditData({ ...editData, divisionCode: e.target.value })}
-            placeholder="예: DIV-A, 사업부1"
-            className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+            className="flex-1 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">선택 안함</option>
+            {BUSINESS_UNITS.map((unit) => (
+              <option key={unit} value={unit}>
+                {unit}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* 이미지 URL */}
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-text dark:text-white w-20 shrink-0">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-text dark:text-white w-16 shrink-0">
             이미지:
           </label>
           <input
@@ -246,15 +258,15 @@ export function EquipmentSidebar({ equipment, onClose }: EquipmentSidebarProps) 
             value={editData.imageUrl || ""}
             onChange={(e) => setEditData({ ...editData, imageUrl: e.target.value })}
             placeholder="이미지 URL 입력"
-            className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
         {editData.imageUrl && (
-          <div className="pl-[92px]">
+          <div className="pl-[72px]">
             <img
               src={editData.imageUrl}
               alt="설비 이미지 미리보기"
-              className="w-full h-32 object-cover rounded-lg border border-border dark:border-border-dark"
+              className="w-full h-24 object-cover rounded-lg border border-border dark:border-border-dark"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
@@ -263,121 +275,121 @@ export function EquipmentSidebar({ equipment, onClose }: EquipmentSidebarProps) 
         )}
 
         {/* 설명 */}
-        <div className="flex gap-3">
-          <label className="text-sm font-medium text-text dark:text-white w-20 shrink-0 pt-2">
+        <div className="flex gap-2">
+          <label className="text-xs font-medium text-text dark:text-white w-16 shrink-0 pt-1.5">
             설명:
           </label>
           <textarea
             value={editData.description || ""}
             onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-            rows={3}
-            className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+            rows={2}
+            className="flex-1 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary resize-none"
           />
         </div>
 
         {/* 제조사 정보 */}
-        <div className="border-t border-border dark:border-border-dark pt-4">
-          <h3 className="text-sm font-semibold text-text dark:text-white mb-3">제조사 정보</h3>
+        <div className="border-t border-border dark:border-border-dark pt-3">
+          <h3 className="text-xs font-semibold text-text dark:text-white mb-2">제조사 정보</h3>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-text-secondary w-20 shrink-0">제조사:</label>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] text-text-secondary w-16 shrink-0">제조사:</label>
               <input
                 type="text"
                 value={editData.manufacturer || ""}
                 onChange={(e) => setEditData({ ...editData, manufacturer: e.target.value })}
-                className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 px-2 py-1 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-text-secondary w-20 shrink-0">모델번호:</label>
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] text-text-secondary w-16 shrink-0">모델번호:</label>
               <input
                 type="text"
                 value={editData.modelNumber || ""}
                 onChange={(e) => setEditData({ ...editData, modelNumber: e.target.value })}
-                className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 px-2 py-1 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-text-secondary w-20 shrink-0">시리얼번호:</label>
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] text-text-secondary w-16 shrink-0">시리얼번호:</label>
               <input
                 type="text"
                 value={editData.serialNumber || ""}
                 onChange={(e) => setEditData({ ...editData, serialNumber: e.target.value })}
-                className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 px-2 py-1 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
         </div>
 
         {/* 네트워크 및 연동 정보 */}
-        <div className="border border-border dark:border-border-dark rounded-lg p-3">
-          <h3 className="text-xs font-semibold text-text dark:text-white mb-3 flex items-center gap-2">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+        <div className="border border-border dark:border-border-dark rounded-lg p-2">
+          <h3 className="text-[10px] font-semibold text-text dark:text-white mb-2 flex items-center gap-1">
+            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
               settings_ethernet
             </span>
             네트워크 및 연동 정보
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {/* IP 주소 */}
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-text-secondary w-20 shrink-0">IP 주소:</label>
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] text-text-secondary w-16 shrink-0">IP 주소:</label>
               <input
                 type="text"
                 value={editData.ipAddress || ""}
                 onChange={(e) => setEditData({ ...editData, ipAddress: e.target.value })}
                 placeholder="예: 192.168.1.100"
-                className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 px-2 py-1 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             {/* PORT 번호 */}
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-text-secondary w-20 shrink-0">PORT:</label>
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] text-text-secondary w-16 shrink-0">PORT:</label>
               <input
                 type="number"
                 value={editData.portNumber || ""}
                 onChange={(e) => setEditData({ ...editData, portNumber: e.target.value ? parseInt(e.target.value) : null })}
                 placeholder="예: 8080"
-                className="flex-1 px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 px-2 py-1 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             {/* 체크박스 옵션들 */}
-            <div className="space-y-2 pt-2 border-t border-border dark:border-border-dark">
+            <div className="space-y-1 pt-1.5 border-t border-border dark:border-border-dark">
               {/* 로그수집대상 */}
-              <label className="flex items-center gap-2 cursor-pointer hover:bg-surface dark:hover:bg-background-dark p-2 rounded-lg transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-surface dark:hover:bg-background-dark p-1.5 rounded-lg transition-colors">
                 <input
                   type="checkbox"
                   checked={editData.isLogTarget || false}
                   onChange={(e) => setEditData({ ...editData, isLogTarget: e.target.checked })}
-                  className="w-4 h-4 text-primary bg-surface dark:bg-background-dark border-border dark:border-border-dark rounded focus:ring-primary focus:ring-2"
+                  className="w-3 h-3 text-primary bg-surface dark:bg-background-dark border-border dark:border-border-dark rounded focus:ring-primary focus:ring-2"
                 />
-                <span className="text-xs text-text dark:text-white">로그수집대상</span>
+                <span className="text-[10px] text-text dark:text-white">로그수집대상</span>
               </label>
 
               {/* 인터락대상 */}
-              <label className="flex items-center gap-2 cursor-pointer hover:bg-surface dark:hover:bg-background-dark p-2 rounded-lg transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-surface dark:hover:bg-background-dark p-1.5 rounded-lg transition-colors">
                 <input
                   type="checkbox"
                   checked={editData.isInterlockTarget || false}
                   onChange={(e) => setEditData({ ...editData, isInterlockTarget: e.target.checked })}
-                  className="w-4 h-4 text-primary bg-surface dark:bg-background-dark border-border dark:border-border-dark rounded focus:ring-primary focus:ring-2"
+                  className="w-3 h-3 text-primary bg-surface dark:bg-background-dark border-border dark:border-border-dark rounded focus:ring-primary focus:ring-2"
                 />
-                <span className="text-xs text-text dark:text-white">인터락대상</span>
+                <span className="text-[10px] text-text dark:text-white">인터락대상</span>
               </label>
 
               {/* 바코드 식별가능 */}
-              <label className="flex items-center gap-2 cursor-pointer hover:bg-surface dark:hover:bg-background-dark p-2 rounded-lg transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer hover:bg-surface dark:hover:bg-background-dark p-1.5 rounded-lg transition-colors">
                 <input
                   type="checkbox"
                   checked={editData.isBarcodeEnabled || false}
                   onChange={(e) => setEditData({ ...editData, isBarcodeEnabled: e.target.checked })}
-                  className="w-4 h-4 text-primary bg-surface dark:bg-background-dark border-border dark:border-border-dark rounded focus:ring-primary focus:ring-2"
+                  className="w-3 h-3 text-primary bg-surface dark:bg-background-dark border-border dark:border-border-dark rounded focus:ring-primary focus:ring-2"
                 />
-                <span className="text-xs text-text dark:text-white">바코드 식별가능</span>
+                <span className="text-[10px] text-text dark:text-white">바코드 식별가능</span>
               </label>
             </div>
           </div>

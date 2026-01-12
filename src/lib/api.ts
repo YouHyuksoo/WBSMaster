@@ -1316,6 +1316,12 @@ export const api = {
       patch<Equipment>(`/api/equipment/${id}`, data),
     /** 설비 삭제 */
     delete: (id: string) => del<{ message: string }>(`/api/equipment/${id}`),
+    /** 설비 위치 일괄 업데이트 (캔버스 저장용) */
+    bulkUpdate: (updates: { id: string; positionX: number; positionY: number }[]) =>
+      post<{ success: boolean; updatedCount: number; message: string }>(
+        "/api/equipment/bulk-update",
+        { updates }
+      ),
   },
 
   /** 설비 속성 API */

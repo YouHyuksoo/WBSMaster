@@ -8,14 +8,16 @@
  * 1. **ReactFlow**: 노드 기반 다이어그램 라이브러리
  * 2. **nodes**: 설비 목록을 노드로 변환 (positionX/Y가 0이 아닌 것만 표시)
  * 3. **edges**: 연결 정보를 엣지로 변환 (id, source, target)
- * 4. **onNodeDragStop**: 노드 드래그 종료 시 위치 DB 업데이트
+ * 4. **저장/원복 모드**: 드래그/정렬 시 로컬 상태만 변경, 저장 버튼으로 일괄 DB 저장
  * 5. **onConnect**: 핸들 드래그로 연결 생성 시 DB 저장
  * 6. **onNodesDelete**: 노드 삭제 시 위치를 (0, 0)으로 초기화 (캔버스에서만 제거)
+ * 7. **distributeHorizontal/Vertical**: 균등 분배 시 최소 간격 보장 (겹침 방지)
  *
  * 수정 방법:
  * - 캔버스 스타일: ReactFlow className 수정
  * - 연결선 색상: CONNECTION_TYPE_CONFIG 수정
  * - 캔버스 제거 기준: positionX === 0 && positionY === 0 필터 조건
+ * - 균등 분배 간격: MIN_GAP 상수 수정 (가로 360px, 세로 200px)
  */
 
 "use client";
@@ -38,9 +40,16 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { Equipment, EquipmentConnection } from "@/lib/api";
 import { EquipmentNode } from "./EquipmentNode";
-import { useUpdateEquipment } from "../hooks/useEquipment";
+import { useUpdateEquipment, useBulkUpdateEquipment } from "../hooks/useEquipment";
 import { useCreateConnection, useDeleteConnection } from "../hooks/useEquipmentConnections";
 import { CONNECTION_TYPE_CONFIG } from "../types";
+
+/** 원본 위치 타입 */
+interface OriginalPosition {
+  id: string;
+  positionX: number;
+  positionY: number;
+}
 
 /** 노드 타입 정의 */
 const nodeTypes = {
@@ -71,7 +80,12 @@ function EquipmentCanvasInner({
   const [edgeType, setEdgeType] = useState<"smoothstep" | "straight" | "step" | "bezier">("smoothstep");
   const reactFlowInstance = useReactFlow();
 
+  // 원본 위치 저장 (저장/원복 기능용)
+  const originalPositionsRef = useRef<OriginalPosition[]>([]);
+  const [hasChanges, setHasChanges] = useState(false);
+
   const updateEquipment = useUpdateEquipment();
+  const bulkUpdateEquipment = useBulkUpdateEquipment();
   const createConnection = useCreateConnection();
   const deleteConnection = useDeleteConnection();
 
@@ -81,39 +95,47 @@ function EquipmentCanvasInner({
 
   // DB 데이터 → React Flow 노드 변환 (캔버스에 배치된 것만)
   useEffect(() => {
-    const flowNodes: Node[] = equipments
-      .filter((eq) => eq.positionX !== 0 || eq.positionY !== 0) // 위치가 (0, 0)이 아닌 것만
-      .map((eq) => ({
-        id: eq.id,
-        type: "equipment",
-        position: { x: eq.positionX, y: eq.positionY },
-        data: {
-          equipment: eq,
-          isSelected: selectedId === eq.id,
-          onRemove: (nodeId: string) => {
-            // 🚀 즉시 화면에서 제거 (낙관적 업데이트)
-            setNodes((prevNodes) => prevNodes.filter((node) => node.id !== nodeId));
+    const canvasEquipments = equipments.filter((eq) => eq.positionX !== 0 || eq.positionY !== 0);
 
-            // 백그라운드에서 DB 업데이트 (위치를 (0, 0)으로 초기화)
-            updateEquipmentRef.current.mutate(
-              {
-                id: nodeId,
-                data: {
-                  positionX: 0,
-                  positionY: 0,
-                },
+    // 원본 위치 저장 (최초 로드 시 또는 데이터 변경 시)
+    originalPositionsRef.current = canvasEquipments.map((eq) => ({
+      id: eq.id,
+      positionX: eq.positionX,
+      positionY: eq.positionY,
+    }));
+    setHasChanges(false); // 데이터 로드 시 변경사항 초기화
+
+    const flowNodes: Node[] = canvasEquipments.map((eq) => ({
+      id: eq.id,
+      type: "equipment",
+      position: { x: eq.positionX, y: eq.positionY },
+      data: {
+        equipment: eq,
+        isSelected: selectedId === eq.id,
+        onRemove: (nodeId: string) => {
+          // 🚀 즉시 화면에서 제거 (낙관적 업데이트)
+          setNodes((prevNodes) => prevNodes.filter((node) => node.id !== nodeId));
+
+          // 백그라운드에서 DB 업데이트 (위치를 (0, 0)으로 초기화)
+          updateEquipmentRef.current.mutate(
+            {
+              id: nodeId,
+              data: {
+                positionX: 0,
+                positionY: 0,
               },
-              {
-                onError: (error) => {
-                  console.error("캔버스에서 제거 실패:", error);
-                  // 실패 시 사용자에게 알림 (토스트 등)
-                  alert("캔버스에서 제거하는데 실패했습니다. 페이지를 새로고침해주세요.");
-                },
-              }
-            );
-          },
+            },
+            {
+              onError: (error) => {
+                console.error("캔버스에서 제거 실패:", error);
+                // 실패 시 사용자에게 알림 (토스트 등)
+                alert("캔버스에서 제거하는데 실패했습니다. 페이지를 새로고침해주세요.");
+              },
+            }
+          );
         },
-      }));
+      },
+    }));
     setNodes(flowNodes);
   }, [equipments, selectedId]);
 
@@ -129,7 +151,7 @@ function EquipmentCanvasInner({
       animated: conn.animated,
       style: {
         stroke: conn.color || CONNECTION_TYPE_CONFIG[conn.type]?.color || "#94A3B8",
-        strokeWidth: 2,
+        strokeWidth: 3,
       },
       type: edgeType, // 선택된 타입 적용
       // 선택된 엣지 스타일
@@ -138,26 +160,13 @@ function EquipmentCanvasInner({
     setEdges(flowEdges);
   }, [connections, setEdges, edgeType]);
 
-  // 노드 드래그 종료 → DB 위치 업데이트
+  // 노드 드래그 종료 → 로컬 상태만 변경 (저장 버튼 클릭 시 DB 저장)
   const handleNodeDragStop: NodeDragHandler = useCallback(
     (event, node) => {
-      // 백그라운드에서 DB 업데이트 (React Flow가 이미 화면은 업데이트함)
-      updateEquipment.mutate(
-        {
-          id: node.id,
-          data: {
-            positionX: node.position.x,
-            positionY: node.position.y,
-          },
-        },
-        {
-          onError: (error) => {
-            console.error("위치 저장 실패:", error);
-          },
-        }
-      );
+      // React Flow가 이미 화면을 업데이트함 - 변경사항 플래그만 설정
+      setHasChanges(true);
     },
-    [updateEquipment]
+    []
   );
 
   // 연결 유효성 검증 (어떤 핸들이든 연결 허용)
@@ -200,7 +209,7 @@ function EquipmentCanvasInner({
         animated: false,
         style: {
           stroke: CONNECTION_TYPE_CONFIG.FLOW.color,
-          strokeWidth: 2,
+          strokeWidth: 3,
         },
         type: edgeType, // 선택된 타입 적용
       };
@@ -357,29 +366,13 @@ function EquipmentCanvasInner({
         setNodes((prevNodes) => [...prevNodes, newNode]);
       }
 
-      // 백그라운드에서 DB 업데이트
-      updateEquipment.mutate(
-        {
-          id: equipmentId,
-          data: {
-            positionX: position.x,
-            positionY: position.y,
-          },
-        },
-        {
-          onError: (error) => {
-            console.error("위치 업데이트 실패:", error);
-            // 실패 시 노드 제거
-            setNodes((prevNodes) => prevNodes.filter((node) => node.id !== equipmentId));
-            alert("설비를 배치하는데 실패했습니다. 다시 시도해주세요.");
-          },
-        }
-      );
+      // 변경사항 플래그 설정 (저장 버튼 클릭 시 DB 저장)
+      setHasChanges(true);
 
       // 드롭한 설비 선택
       onSelectNode(equipmentId);
     },
-    [reactFlowInstance, updateEquipment, onSelectNode, equipments, selectedId, draggingEquipmentId]
+    [reactFlowInstance, onSelectNode, equipments, selectedId, draggingEquipmentId]
   );
 
   // 노드 삭제 (캔버스에서만 제거, DB 삭제 X)
@@ -394,6 +387,7 @@ function EquipmentCanvasInner({
             positionX: 0,
             positionY: 0,
           },
+          skipInvalidation: true, // 위치 초기화 시 refetch 건너뛰기
         });
       });
     },
@@ -434,7 +428,7 @@ function EquipmentCanvasInner({
 
     const minX = Math.min(...selectedNodes.map((node) => node.position.x));
 
-    // 1단계: 화면 즉시 업데이트
+    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         if (selectedNodes.find((sn) => sn.id === n.id)) {
@@ -443,15 +437,8 @@ function EquipmentCanvasInner({
         return n;
       })
     );
-
-    // 2단계: DB 업데이트 (비동기)
-    selectedNodes.forEach((node) => {
-      updateEquipment.mutate({
-        id: node.id,
-        data: { positionX: minX, positionY: node.position.y },
-      });
-    });
-  }, [getSelectedNodes, updateEquipment, setNodes]);
+    setHasChanges(true);
+  }, [getSelectedNodes, setNodes]);
 
   // 우측 정렬
   const alignRight = useCallback(() => {
@@ -460,7 +447,7 @@ function EquipmentCanvasInner({
 
     const maxX = Math.max(...selectedNodes.map((node) => node.position.x));
 
-    // 1단계: 화면 즉시 업데이트
+    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         if (selectedNodes.find((sn) => sn.id === n.id)) {
@@ -469,15 +456,8 @@ function EquipmentCanvasInner({
         return n;
       })
     );
-
-    // 2단계: DB 업데이트 (비동기)
-    selectedNodes.forEach((node) => {
-      updateEquipment.mutate({
-        id: node.id,
-        data: { positionX: maxX, positionY: node.position.y },
-      });
-    });
-  }, [getSelectedNodes, updateEquipment, setNodes]);
+    setHasChanges(true);
+  }, [getSelectedNodes, setNodes]);
 
   // 상단 정렬
   const alignTop = useCallback(() => {
@@ -486,7 +466,7 @@ function EquipmentCanvasInner({
 
     const minY = Math.min(...selectedNodes.map((node) => node.position.y));
 
-    // 1단계: 화면 즉시 업데이트
+    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         if (selectedNodes.find((sn) => sn.id === n.id)) {
@@ -495,15 +475,8 @@ function EquipmentCanvasInner({
         return n;
       })
     );
-
-    // 2단계: DB 업데이트 (비동기)
-    selectedNodes.forEach((node) => {
-      updateEquipment.mutate({
-        id: node.id,
-        data: { positionX: node.position.x, positionY: minY },
-      });
-    });
-  }, [getSelectedNodes, updateEquipment, setNodes]);
+    setHasChanges(true);
+  }, [getSelectedNodes, setNodes]);
 
   // 하단 정렬
   const alignBottom = useCallback(() => {
@@ -512,7 +485,7 @@ function EquipmentCanvasInner({
 
     const maxY = Math.max(...selectedNodes.map((node) => node.position.y));
 
-    // 1단계: 화면 즉시 업데이트
+    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         if (selectedNodes.find((sn) => sn.id === n.id)) {
@@ -521,25 +494,47 @@ function EquipmentCanvasInner({
         return n;
       })
     );
-
-    // 2단계: DB 업데이트 (비동기)
-    selectedNodes.forEach((node) => {
-      updateEquipment.mutate({
-        id: node.id,
-        data: { positionX: node.position.x, positionY: maxY },
-      });
-    });
-  }, [getSelectedNodes, updateEquipment, setNodes]);
+    setHasChanges(true);
+  }, [getSelectedNodes, setNodes]);
 
   // 수평 균등 분배
   const distributeHorizontal = useCallback(() => {
     const selectedNodes = getSelectedNodes();
-    if (selectedNodes.length < 3) return;
+    if (selectedNodes.length < 2) return; // 2개 이상부터 작동
 
     const sortedNodes = [...selectedNodes].sort((a, b) => a.position.x - b.position.x);
+    const MIN_GAP = 360; // 노드 너비(320px) + 여유 공간(40px)
+
+    // 2개만 선택한 경우: 최소 간격으로 배치
+    if (sortedNodes.length === 2) {
+      const newPositions = [
+        { id: sortedNodes[0].id, x: sortedNodes[0].position.x, y: sortedNodes[0].position.y },
+        { id: sortedNodes[1].id, x: sortedNodes[0].position.x + MIN_GAP, y: sortedNodes[1].position.y },
+      ];
+
+      setNodes((nds) =>
+        nds.map((n) => {
+          const newPos = newPositions.find((np) => np.id === n.id);
+          if (newPos) {
+            return { ...n, position: { x: newPos.x, y: newPos.y } };
+          }
+          return n;
+        })
+      );
+      setHasChanges(true);
+      return;
+    }
+
+    // 3개 이상: 균등 분배
     const minX = sortedNodes[0].position.x;
     const maxX = sortedNodes[sortedNodes.length - 1].position.x;
-    const gap = (maxX - minX) / (sortedNodes.length - 1);
+    const currentRange = maxX - minX;
+    const minRange = MIN_GAP * (sortedNodes.length - 1);
+
+    // 간격이 너무 작으면 최소 간격으로 재계산
+    const gap = currentRange < minRange
+      ? MIN_GAP
+      : currentRange / (sortedNodes.length - 1);
 
     // 새 위치 계산
     const newPositions = sortedNodes.map((node, index) => ({
@@ -548,7 +543,7 @@ function EquipmentCanvasInner({
       y: node.position.y,
     }));
 
-    // 1단계: 화면 즉시 업데이트 (모든 노드를 한 번에)
+    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         const newPos = newPositions.find((np) => np.id === n.id);
@@ -558,25 +553,47 @@ function EquipmentCanvasInner({
         return n;
       })
     );
-
-    // 2단계: DB 업데이트 (비동기)
-    newPositions.forEach((pos) => {
-      updateEquipment.mutate({
-        id: pos.id,
-        data: { positionX: pos.x, positionY: pos.y },
-      });
-    });
-  }, [getSelectedNodes, updateEquipment, setNodes]);
+    setHasChanges(true);
+  }, [getSelectedNodes, setNodes]);
 
   // 수직 균등 분배
   const distributeVertical = useCallback(() => {
     const selectedNodes = getSelectedNodes();
-    if (selectedNodes.length < 3) return;
+    if (selectedNodes.length < 2) return; // 2개 이상부터 작동
 
     const sortedNodes = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
+    const MIN_GAP = 200; // 노드 높이 + 여유 공간
+
+    // 2개만 선택한 경우: 최소 간격으로 배치
+    if (sortedNodes.length === 2) {
+      const newPositions = [
+        { id: sortedNodes[0].id, x: sortedNodes[0].position.x, y: sortedNodes[0].position.y },
+        { id: sortedNodes[1].id, x: sortedNodes[1].position.x, y: sortedNodes[0].position.y + MIN_GAP },
+      ];
+
+      setNodes((nds) =>
+        nds.map((n) => {
+          const newPos = newPositions.find((np) => np.id === n.id);
+          if (newPos) {
+            return { ...n, position: { x: newPos.x, y: newPos.y } };
+          }
+          return n;
+        })
+      );
+      setHasChanges(true);
+      return;
+    }
+
+    // 3개 이상: 균등 분배
     const minY = sortedNodes[0].position.y;
     const maxY = sortedNodes[sortedNodes.length - 1].position.y;
-    const gap = (maxY - minY) / (sortedNodes.length - 1);
+    const currentRange = maxY - minY;
+    const minRange = MIN_GAP * (sortedNodes.length - 1);
+
+    // 간격이 너무 작으면 최소 간격으로 재계산
+    const gap = currentRange < minRange
+      ? MIN_GAP
+      : currentRange / (sortedNodes.length - 1);
 
     // 새 위치 계산
     const newPositions = sortedNodes.map((node, index) => ({
@@ -585,7 +602,7 @@ function EquipmentCanvasInner({
       y: minY + gap * index,
     }));
 
-    // 1단계: 화면 즉시 업데이트 (모든 노드를 한 번에)
+    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         const newPos = newPositions.find((np) => np.id === n.id);
@@ -595,15 +612,72 @@ function EquipmentCanvasInner({
         return n;
       })
     );
+    setHasChanges(true);
+  }, [getSelectedNodes, setNodes]);
 
-    // 2단계: DB 업데이트 (비동기)
-    newPositions.forEach((pos) => {
-      updateEquipment.mutate({
-        id: pos.id,
-        data: { positionX: pos.x, positionY: pos.y },
-      });
+  // ========== 저장/원복 기능 ==========
+
+  // 위치 저장 (변경된 노드만 DB에 업데이트)
+  const handleSavePositions = useCallback(() => {
+    // 변경된 노드만 필터링
+    const updates = nodes
+      .filter((node) => {
+        const original = originalPositionsRef.current.find((o) => o.id === node.id);
+        if (!original) return true; // 새로 추가된 노드
+        return original.positionX !== node.position.x || original.positionY !== node.position.y;
+      })
+      .map((node) => ({
+        id: node.id,
+        positionX: node.position.x,
+        positionY: node.position.y,
+      }));
+
+    // 변경사항이 없으면 저장 안 함
+    if (updates.length === 0) {
+      setHasChanges(false);
+      return;
+    }
+
+    console.log(`${updates.length}개 노드 위치 저장 중...`);
+
+    bulkUpdateEquipment.mutate(updates, {
+      onSuccess: () => {
+        // 저장 성공 시 원본 위치 업데이트
+        originalPositionsRef.current = nodes.map((node) => ({
+          id: node.id,
+          positionX: node.position.x,
+          positionY: node.position.y,
+        }));
+        setHasChanges(false);
+        console.log(`${updates.length}개 노드 위치 저장 완료!`);
+      },
+      onError: (error) => {
+        console.error("위치 저장 실패:", error);
+        alert("위치 저장에 실패했습니다. 다시 시도해주세요.");
+      },
     });
-  }, [getSelectedNodes, updateEquipment, setNodes]);
+  }, [nodes, bulkUpdateEquipment]);
+
+  // 위치 원복 (원본 상태로 복원)
+  const handleResetPositions = useCallback(() => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        const original = originalPositionsRef.current.find((o) => o.id === node.id);
+        if (original) {
+          return { ...node, position: { x: original.positionX, y: original.positionY } };
+        }
+        return node;
+      })
+    );
+    setHasChanges(false);
+  }, [setNodes]);
+
+  // 변경된 노드 개수 계산
+  const changedNodeCount = nodes.filter((node) => {
+    const original = originalPositionsRef.current.find((o) => o.id === node.id);
+    if (!original) return true; // 새로 추가된 노드
+    return original.positionX !== node.position.x || original.positionY !== node.position.y;
+  }).length;
 
   return (
     <div
@@ -612,6 +686,7 @@ function EquipmentCanvasInner({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
+      onContextMenu={(e) => e.preventDefault()}
     >
       <ReactFlow
         nodes={displayNodes}
@@ -673,7 +748,7 @@ function EquipmentCanvasInner({
         />
 
         {/* 도구 패널 */}
-        <Panel position="top-center" className="flex gap-4 bg-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg p-2">
+        <Panel position="top-center" className="flex gap-3 bg-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg p-2 whitespace-nowrap">
           {/* 연결선 타입 선택 */}
           <div className="flex items-center gap-1 pr-4 border-r border-border dark:border-border-dark">
             <span className="text-xs font-semibold text-text-secondary mr-2">연결선:</span>
@@ -810,6 +885,40 @@ function EquipmentCanvasInner({
                 view_agenda
               </span>
             </button>
+          </div>
+
+          {/* 저장/원복 버튼 */}
+          <div className="flex items-center gap-1 pl-3 border-l border-border dark:border-border-dark">
+            {hasChanges ? (
+              <>
+                <span className="text-[10px] text-warning font-medium px-1.5 py-0.5 bg-warning/10 rounded">
+                  {changedNodeCount}
+                </span>
+                <button
+                  onClick={handleResetPositions}
+                  className="p-1.5 rounded hover:bg-slate-500/20 text-slate-500 transition-colors"
+                  title="원복 (변경사항 취소)"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                    undo
+                  </span>
+                </button>
+                <button
+                  onClick={handleSavePositions}
+                  disabled={bulkUpdateEquipment.isPending}
+                  className="p-1.5 rounded bg-primary hover:bg-primary-hover text-white transition-colors disabled:opacity-50"
+                  title="저장 (DB에 반영)"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                    {bulkUpdateEquipment.isPending ? "sync" : "save"}
+                  </span>
+                </button>
+              </>
+            ) : (
+              <span className="material-symbols-outlined text-success" style={{ fontSize: 18 }} title="저장됨">
+                check_circle
+              </span>
+            )}
           </div>
         </Panel>
       </ReactFlow>

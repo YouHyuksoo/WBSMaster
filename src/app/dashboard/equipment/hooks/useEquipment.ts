@@ -50,15 +50,24 @@ export function useCreateEquipment() {
   });
 }
 
+/** 설비 수정 변수 타입 */
+interface UpdateEquipmentVariables {
+  id: string;
+  data: Partial<Equipment>;
+  skipInvalidation?: boolean; // true면 쿼리 무효화 건너뛰기 (드래그, 정렬 등)
+}
+
 /** 설비 수정 훅 */
 export function useUpdateEquipment() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Equipment> }) =>
-      api.equipment.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["equipment"] });
+  return useMutation<Equipment, Error, UpdateEquipmentVariables>({
+    mutationFn: ({ id, data }) => api.equipment.update(id, data),
+    onSuccess: (_, variables) => {
+      // skipInvalidation이 true가 아닐 때만 쿼리 무효화 (DB refetch)
+      if (!variables.skipInvalidation) {
+        queryClient.invalidateQueries({ queryKey: ["equipment"] });
+      }
     },
   });
 }
@@ -70,6 +79,26 @@ export function useDeleteEquipment() {
   return useMutation({
     mutationFn: (id: string) => api.equipment.delete(id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["equipment"] });
+    },
+  });
+}
+
+/** 설비 위치 일괄 업데이트 타입 */
+interface BulkUpdatePosition {
+  id: string;
+  positionX: number;
+  positionY: number;
+}
+
+/** 설비 위치 일괄 업데이트 훅 (캔버스 저장용) */
+export function useBulkUpdateEquipment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (updates: BulkUpdatePosition[]) => api.equipment.bulkUpdate(updates),
+    onSuccess: () => {
+      // 저장 성공 시 쿼리 무효화하여 최신 데이터 반영
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
     },
   });

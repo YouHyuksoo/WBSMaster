@@ -41,13 +41,14 @@ export const EquipmentNode = memo(({ data }: NodeProps<EquipmentNodeData>) => {
   return (
     <div
       className={`
-        px-4 py-3 rounded-xl border-2 bg-white dark:bg-surface-dark shadow-lg min-w-[260px]
-        transition-all cursor-pointer relative
-        ${isSelected ? "ring-2 ring-primary shadow-2xl scale-105" : "hover:shadow-xl"}
+        px-4 py-3 rounded-xl border-2 shadow-lg min-w-[320px]
+        bg-white dark:bg-surface-dark cursor-pointer relative
+        ${isSelected ? "ring-2 ring-primary animate-pulse-subtle" : "hover:shadow-xl"}
         ${statusInfo.borderColor}
       `}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onContextMenu={(e) => e.preventDefault()}
     >
       {/* 호버 시 액션 버튼 */}
       {isHovered && (
@@ -201,38 +202,46 @@ export const EquipmentNode = memo(({ data }: NodeProps<EquipmentNodeData>) => {
         </div>
       )}
 
-      {/* 사업부 + 라인 + 위치 정보 */}
-      <div className="space-y-1">
-        {/* 사업부 */}
-        {equipment.divisionCode && (
-          <div className="flex items-center gap-1 text-xs text-text-secondary dark:text-text-secondary">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              business
-            </span>
-            <span className="truncate">{equipment.divisionCode}</span>
-          </div>
-        )}
+      {/* 사업부 / 라인 / 위치 (한 줄 표시) */}
+      {(equipment.divisionCode || equipment.lineCode || equipment.location) && (
+        <div className="flex items-center gap-2 text-xs text-text-secondary dark:text-text-secondary">
+          {/* 사업부 */}
+          {equipment.divisionCode && (
+            <>
+              <div className="flex items-center gap-1">
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                  business
+                </span>
+                <span className="truncate">{equipment.divisionCode}</span>
+              </div>
+              {(equipment.lineCode || equipment.location) && <span>•</span>}
+            </>
+          )}
 
-        {/* 라인 코드 */}
-        {equipment.lineCode && (
-          <div className="flex items-center gap-1 text-xs text-text-secondary dark:text-text-secondary">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              view_timeline
-            </span>
-            <span className="truncate">{equipment.lineCode}</span>
-          </div>
-        )}
+          {/* 라인 코드 */}
+          {equipment.lineCode && (
+            <>
+              <div className="flex items-center gap-1">
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                  view_timeline
+                </span>
+                <span className="truncate">{equipment.lineCode}</span>
+              </div>
+              {equipment.location && <span>•</span>}
+            </>
+          )}
 
-        {/* 위치 정보 */}
-        {equipment.location && (
-          <div className="flex items-center gap-1 text-xs text-text-secondary dark:text-text-secondary">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              location_on
-            </span>
-            <span className="truncate">{equipment.location}</span>
-          </div>
-        )}
-      </div>
+          {/* 위치 정보 */}
+          {equipment.location && (
+            <div className="flex items-center gap-1">
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                location_on
+              </span>
+              <span className="truncate">{equipment.location}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 이미지 팝업 (버튼 클릭 시 표시) */}
       {showImagePopup && equipment.imageUrl && (

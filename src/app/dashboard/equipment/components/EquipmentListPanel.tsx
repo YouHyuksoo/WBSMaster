@@ -147,7 +147,7 @@ export function EquipmentListPanel({
   return (
     <div
       ref={panelRef}
-      className="w-80 border-r border-border dark:border-border-dark bg-background-white dark:bg-surface-dark flex flex-col h-full"
+      className="w-96 border-r border-border dark:border-border-dark bg-background-white dark:bg-surface-dark flex flex-col h-full"
     >
       {/* 헤더 */}
       <div className="p-4 border-b border-border dark:border-border-dark">
@@ -268,7 +268,7 @@ export function EquipmentListPanel({
             </p>
           </div>
         ) : (
-          <div className="p-2 space-y-2">
+          <div className="p-2 grid grid-cols-2 gap-2">
             {filteredEquipments.map((equipment) => {
               const statusInfo = STATUS_CONFIG[equipment.status];
               const typeInfo = TYPE_CONFIG[equipment.type];
@@ -317,28 +317,38 @@ export function EquipmentListPanel({
                   </div>
 
                   {/* 설비명 */}
-                  <h3 className="text-sm font-semibold text-text dark:text-white mb-1 truncate">
+                  <h3 className="text-sm font-semibold text-text dark:text-white mb-2 truncate">
                     {equipment.name}
                   </h3>
 
-                  {/* 하단: 타입 + 위치 */}
-                  <div className="flex items-center gap-2 text-xs text-text-secondary">
-                    <div className="flex items-center gap-1">
-                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
-                        {typeInfo.icon}
-                      </span>
-                      <span>{typeInfo.label}</span>
-                    </div>
+                  {/* 하단: 사업부 / 라인 / 위치 (아이콘 포함) */}
+                  <div className="flex items-center gap-1.5 text-xs text-text-secondary flex-wrap">
+                    {equipment.divisionCode && (
+                      <div className="flex items-center gap-1 bg-surface dark:bg-background-dark px-2 py-0.5 rounded">
+                        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                          business
+                        </span>
+                        <span className="truncate">{equipment.divisionCode}</span>
+                      </div>
+                    )}
+                    {equipment.lineCode && (
+                      <div className="flex items-center gap-1 bg-surface dark:bg-background-dark px-2 py-0.5 rounded">
+                        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                          linear_scale
+                        </span>
+                        <span className="truncate">{equipment.lineCode}</span>
+                      </div>
+                    )}
                     {equipment.location && (
-                      <>
-                        <span>•</span>
-                        <div className="flex items-center gap-1 truncate">
-                          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
-                            location_on
-                          </span>
-                          <span className="truncate">{equipment.location}</span>
-                        </div>
-                      </>
+                      <div className="flex items-center gap-1 bg-surface dark:bg-background-dark px-2 py-0.5 rounded">
+                        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                          location_on
+                        </span>
+                        <span className="truncate">{equipment.location}</span>
+                      </div>
+                    )}
+                    {!equipment.divisionCode && !equipment.lineCode && !equipment.location && (
+                      <span className="text-text-secondary/50 italic">정보 없음</span>
                     )}
                   </div>
                 </button>
