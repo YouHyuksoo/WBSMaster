@@ -74,11 +74,5 @@ export const DEFAULT_FORM_DATA: CustomerRequirementFormData = {
   toBeCode: "",
 };
 
-/** 사업부 목록 (실제 등록된 코드 기준) */
-export const BUSINESS_UNITS = [
-  "V_HNS",
-  "V_DISP",
-  "V_IVI",
-  "V_PCBA",
-  "IT",
-] as const;
+/** 사업부 목록 (공통 상수에서 import) */
+export { BUSINESS_UNITS } from "@/constants/business-units";

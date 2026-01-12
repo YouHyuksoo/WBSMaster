@@ -49,10 +49,14 @@ export default function CustomerRequirementsPage() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterRequester, setFilterRequester] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  /** 정렬 기준 (createdAt: 등록일, requestedDate: 요청일) */
+  const [sortBy, setSortBy] = useState<"createdAt" | "requestedDate">("createdAt");
   /** 현재 선택된 탭 (active: 활성 요구사항, inactive: 미적용/보류) */
   const [activeTab, setActiveTab] = useState<"active" | "inactive">("active");
   /** 상태 드롭다운이 열린 요구사항 ID */
   const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
+  /** 드롭다운이 위로 열려야 하는지 여부 */
+  const [dropdownOpenUpward, setDropdownOpenUpward] = useState(false);
 
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
@@ -99,9 +103,9 @@ export default function CustomerRequirementsPage() {
   // 현재 탭에 해당하는 요구사항 목록
   const tabRequirements = activeTab === "active" ? activeRequirements : inactiveRequirements;
 
-  // 필터링된 요구사항
+  // 필터링 및 정렬된 요구사항
   const filteredRequirements = useMemo(() => {
-    return tabRequirements.filter((req) => {
+    const filtered = tabRequirements.filter((req) => {
       const matchesBusinessUnit =
         filterBusinessUnit === "all" || req.businessUnit === filterBusinessUnit;
       const matchesCategory =
@@ -115,7 +119,19 @@ export default function CustomerRequirementsPage() {
         req.content?.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesBusinessUnit && matchesCategory && matchesRequester && matchesSearch;
     });
-  }, [tabRequirements, filterBusinessUnit, filterCategory, filterRequester, searchQuery]);
+
+    // 정렬 적용 (내림차순)
+    return filtered.sort((a, b) => {
+      if (sortBy === "createdAt") {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } else {
+        // requestedDate 정렬 (null 값은 맨 뒤로)
+        if (!a.requestDate) return 1;
+        if (!b.requestDate) return -1;
+        return new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime();
+      }
+    });
+  }, [tabRequirements, filterBusinessUnit, filterCategory, filterRequester, searchQuery, sortBy]);
 
   // 페이지네이션 계산
   const totalPages = Math.ceil(filteredRequirements.length / itemsPerPage);
@@ -124,10 +140,10 @@ export default function CustomerRequirementsPage() {
     return filteredRequirements.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredRequirements, currentPage, itemsPerPage]);
 
-  // 필터/탭 변경 시 페이지 리셋
+  // 필터/탭/정렬 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, filterBusinessUnit, filterCategory, filterRequester, searchQuery]);
+  }, [activeTab, filterBusinessUnit, filterCategory, filterRequester, searchQuery, sortBy]);
 
   // 통계 계산
   const stats = useMemo(() => {
@@ -548,6 +564,15 @@ export default function CustomerRequirementsPage() {
                 <option key={requester} value={requester}>{requester}</option>
               ))}
             </select>
+            {/* 정렬 기준 */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "createdAt" | "requestedDate")}
+              className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+            >
+              <option value="createdAt">등록일 기준</option>
+              <option value="requestedDate">요청일 기준</option>
+            </select>
           </div>
 
           {/* 요구사항 목록 테이블 */}
@@ -594,7 +619,18 @@ export default function CustomerRequirementsPage() {
                   {/* 상태 배지 (클릭 시 드롭다운) */}
                   <div className="relative">
                     <button
-                      onClick={() => setOpenStatusDropdown(openStatusDropdown === req.id ? null : req.id)}
+                      onClick={(e) => {
+                        if (openStatusDropdown === req.id) {
+                          setOpenStatusDropdown(null);
+                        } else {
+                          setOpenStatusDropdown(req.id);
+                          // 버튼의 위치를 계산하여 위로 열릴지 결정
+                          const buttonRect = e.currentTarget.getBoundingClientRect();
+                          const spaceBelow = window.innerHeight - buttonRect.bottom;
+                          const dropdownHeight = 200; // 드롭다운 예상 높이
+                          setDropdownOpenUpward(spaceBelow < dropdownHeight);
+                        }
+                      }}
                       className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${statusConfig.bgColor} ${statusConfig.color}`}
                       title="클릭하여 상태 변경"
                     >
@@ -609,7 +645,7 @@ export default function CustomerRequirementsPage() {
                           className="fixed inset-0 z-10"
                           onClick={() => setOpenStatusDropdown(null)}
                         />
-                        <div className="absolute left-0 top-full mt-1 z-20 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[120px]">
+                        <div className={`absolute left-0 ${dropdownOpenUpward ? 'bottom-full mb-1' : 'top-full mt-1'} z-20 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[120px]`}>
                           {Object.entries(APPLY_STATUS_CONFIG).map(([key, config]) => (
                             <button
                               key={key}

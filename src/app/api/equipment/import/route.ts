@@ -20,7 +20,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
 import { EquipmentType, EquipmentStatus } from "@prisma/client";
-import { getAuthenticatedUser } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 
 /** 설비 타입 유추 함수 */
 function inferEquipmentType(name: string): EquipmentType {
@@ -104,7 +104,7 @@ function inferEquipmentFromRow(row: any, divisionCode: string, index: number) {
 export async function POST(request: NextRequest) {
   try {
     // 인증 확인
-    const user = await getAuthenticatedUser();
+    const user = await getUser();
     if (!user) {
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }

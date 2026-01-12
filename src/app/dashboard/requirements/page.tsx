@@ -25,6 +25,7 @@ import {
   useRequirements,
   useCreateRequirement,
   useUpdateRequirement,
+  useDeleteRequirement,
   useMembers,
 } from "@/hooks";
 import { useProject } from "@/contexts";
@@ -61,6 +62,8 @@ export default function RequirementsPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   /** 상태 드롭다운이 열린 요구사항 ID */
   const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
+  /** 드롭다운이 위로 열려야 하는지 여부 */
+  const [dropdownOpenUpward, setDropdownOpenUpward] = useState(false);
   /** 현재 선택된 탭 (active: 활성 요구사항, implemented: 구현완료) */
   const [activeTab, setActiveTab] = useState<"active" | "implemented">("active");
 
@@ -79,6 +82,9 @@ export default function RequirementsPage() {
 
   /** 요구사항 수정 */
   const updateRequirement = useUpdateRequirement();
+
+  /** 요구사항 삭제 */
+  const deleteRequirement = useDeleteRequirement();
 
   /** 프로젝트 팀 멤버 목록 조회 */
   const { data: teamMembers = [] } = useMembers(
@@ -154,6 +160,22 @@ export default function RequirementsPage() {
       data: { status: newStatus },
     });
     setOpenStatusDropdown(null);
+  };
+
+  /**
+   * 요구사항 삭제 핸들러
+   * @param id 요구사항 ID
+   * @param title 요구사항 제목 (확인 메시지용)
+   */
+  const handleDeleteRequirement = async (id: string, title: string) => {
+    if (!confirm(`"${title}" 요구사항을 삭제하시겠습니까?`)) return;
+
+    try {
+      await deleteRequirement.mutateAsync(id);
+      toast.success("요구사항이 삭제되었습니다.");
+    } catch (error) {
+      toast.error("삭제에 실패했습니다.");
+    }
   };
 
   /**
@@ -512,7 +534,7 @@ export default function RequirementsPage() {
             {/* 테이블 헤더 */}
             <div
               className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1350px]"
-              style={{ gridTemplateColumns: "80px 80px 1fr 70px 100px 80px 100px 100px 80px 90px 100px 50px" }}
+              style={{ gridTemplateColumns: "80px 80px 1fr 70px 100px 80px 100px 100px 80px 90px 100px 80px" }}
             >
               <div>진행상태</div>
               <div>코드</div>
@@ -525,7 +547,7 @@ export default function RequirementsPage() {
               <div>요청일</div>
               <div>마감일</div>
               <div>연결 태스크</div>
-              <div>수정</div>
+              <div>관리</div>
             </div>
 
             {/* 빈 목록 */}
@@ -556,12 +578,23 @@ export default function RequirementsPage() {
                 <div
                   key={req.id}
                   className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1350px]"
-                  style={{ gridTemplateColumns: "80px 80px 1fr 70px 100px 80px 100px 100px 80px 90px 100px 50px" }}
+                  style={{ gridTemplateColumns: "80px 80px 1fr 70px 100px 80px 100px 100px 80px 90px 100px 80px" }}
                 >
                   {/* 상태 배지 (클릭 시 드롭다운) */}
                   <div className="relative">
                     <button
-                      onClick={() => setOpenStatusDropdown(openStatusDropdown === req.id ? null : req.id)}
+                      onClick={(e) => {
+                        if (openStatusDropdown === req.id) {
+                          setOpenStatusDropdown(null);
+                        } else {
+                          setOpenStatusDropdown(req.id);
+                          // 버튼의 위치를 계산하여 위로 열릴지 결정
+                          const buttonRect = e.currentTarget.getBoundingClientRect();
+                          const spaceBelow = window.innerHeight - buttonRect.bottom;
+                          const dropdownHeight = 200; // 드롭다운 예상 높이
+                          setDropdownOpenUpward(spaceBelow < dropdownHeight);
+                        }
+                      }}
                       className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                         req.status === "IMPLEMENTED"
                           ? "bg-primary/10 text-primary"
@@ -585,7 +618,7 @@ export default function RequirementsPage() {
                           className="fixed inset-0 z-10"
                           onClick={() => setOpenStatusDropdown(null)}
                         />
-                        <div className="absolute left-0 top-full mt-1 z-20 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[120px]">
+                        <div className={`absolute left-0 ${dropdownOpenUpward ? 'bottom-full mb-1' : 'top-full mt-1'} z-20 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[120px]`}>
                           {Object.entries(statusConfig).map(([key, config]) => (
                             <button
                               key={key}
@@ -761,14 +794,21 @@ export default function RequirementsPage() {
                     )}
                   </div>
 
-                  {/* 수정 버튼 */}
-                  <div>
+                  {/* 수정/삭제 버튼 */}
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => setEditingRequirement(req)}
                       className="size-7 rounded-lg flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
                       title="수정"
                     >
                       <Icon name="edit" size="xs" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRequirement(req.id, req.title)}
+                      className="size-7 rounded-lg flex items-center justify-center hover:bg-error/10 text-text-secondary hover:text-error transition-colors"
+                      title="삭제"
+                    >
+                      <Icon name="delete" size="xs" />
                     </button>
                   </div>
                 </div>
