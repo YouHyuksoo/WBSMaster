@@ -122,6 +122,7 @@ export default function UsersPage() {
   const [formRole, setFormRole] = useState("USER");
   const [formAffiliation, setFormAffiliation] = useState<string | null>(null);
   const [formAvatar, setFormAvatar] = useState("");
+  const [formPassword, setFormPassword] = useState(""); // 비밀번호 (선택적)
 
   // 데이터 조회
   const { data: users = [], isLoading, error } = useUsers();
@@ -157,6 +158,7 @@ export default function UsersPage() {
     setFormRole("USER");
     setFormAffiliation(null);
     setFormAvatar("");
+    setFormPassword("");
     setShowAddModal(true);
   };
 
@@ -170,6 +172,7 @@ export default function UsersPage() {
     setFormRole(user.role);
     setFormAffiliation(user.affiliation || null);
     setFormAvatar(user.avatar || "");
+    setFormPassword(""); // 비밀번호는 비워둠 (변경하지 않음)
     setShowEditModal(true);
   };
 
@@ -185,6 +188,7 @@ export default function UsersPage() {
     setFormRole("USER");
     setFormAffiliation(null);
     setFormAvatar("");
+    setFormPassword("");
   };
 
   /**
@@ -235,6 +239,7 @@ export default function UsersPage() {
           role: formRole,
           avatar: formAvatar || undefined,
           affiliation: formAffiliation || undefined,
+          password: formPassword.trim() !== "" ? formPassword : undefined,
         },
       });
       toast.success("사용자 정보가 저장되었습니다.");
@@ -748,6 +753,21 @@ export default function UsersPage() {
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
               />
+
+              {/* 비밀번호 변경 (선택적) */}
+              <div>
+                <Input
+                  label="비밀번호 (변경 시에만 입력)"
+                  leftIcon="lock"
+                  type="password"
+                  placeholder="변경하지 않으려면 비워두세요"
+                  value={formPassword}
+                  onChange={(e) => setFormPassword(e.target.value)}
+                />
+                <p className="text-xs text-text-secondary mt-1">
+                  비밀번호를 변경하지 않으려면 비워두세요.
+                </p>
+              </div>
 
               {/* 소속 선택 */}
               <div>

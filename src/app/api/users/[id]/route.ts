@@ -77,12 +77,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * @param role - 시스템 역할 (ADMIN, USER, GUEST)
  * @param avatar - 프로필 이미지 URL
  * @param affiliation - 소속 (CLIENT, DEVELOPER, CONSULTING, OUTSOURCING, OTHER)
+ * @param password - 비밀번호 (변경 시에만 전달)
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { email, name, role, avatar, affiliation } = body;
+    const { email, name, role, avatar, affiliation, password } = body;
 
     // 사용자 존재 확인
     const existing = await prisma.user.findUnique({ where: { id } });
@@ -130,6 +131,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(role !== undefined && { role }),
         ...(avatar !== undefined && { avatar }),
         ...(affiliation !== undefined && { affiliation }),
+        ...(password !== undefined && password.trim() !== "" && { password }),
       },
       select: {
         id: true,
