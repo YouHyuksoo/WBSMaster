@@ -6,5 +6,6 @@
  */
 
 export { BulkAssignModal } from "./BulkAssignModal";
+export { BulkTaskAssignModal } from "./BulkTaskAssignModal";
 export { WbsFormModal } from "./WbsFormModal";
 export { DeliverablePreviewModal } from "./DeliverablePreviewModal";

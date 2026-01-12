@@ -34,7 +34,7 @@ import { levelNames, levelColors, statusColors, statusNames, zoomLevels, default
 import type { NewItemForm } from "./types";
 import { applyCalculatedDates, calculateProjectSchedule, isDelayed, getDelayDays, getDisplayStatus, getAllItemIds, flattenItems, filterByAssignee, getEmbedUrl } from "./utils/wbsHelpers";
 import { generateDates, getItemPosition, calculateChartRange } from "./utils/ganttHelpers";
-import { WbsTreeItem, BulkAssignModal, WbsFormModal, DeliverablePreviewModal } from "./components";
+import { WbsTreeItem, BulkAssignModal, BulkTaskAssignModal, WbsFormModal, DeliverablePreviewModal } from "./components";
 
 // 헬퍼 함수들은 ./utils/wbsHelpers.ts 및 ./utils/ganttHelpers.ts로 이동됨
 // WbsTreeItem 컴포넌트는 ./components/WbsTreeItem.tsx로 이동됨
@@ -60,6 +60,8 @@ export default function WBSPage() {
   const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
   /** 일괄 배정할 담당자 ID 목록 */
   const [bulkAssigneeIds, setBulkAssigneeIds] = useState<string[]>([]);
+  /** TASK 일괄 배정 모달 표시 여부 */
+  const [showBulkTaskAssignModal, setShowBulkTaskAssignModal] = useState(false);
 
   /** 담당자 필터 상태 (null: 전체, "unassigned": 미할당, 그 외: 담당자 ID) */
   const [filterAssigneeId, setFilterAssigneeId] = useState<string | null>(null);
@@ -766,6 +768,77 @@ export default function WBSPage() {
     }
   };
 
+  /**
+   * 선택된 WBS 항목들을 가져오기 (재귀 탐색)
+   */
+  const getSelectedWbsItems = (): WbsItem[] => {
+    const items: WbsItem[] = [];
+    const findItems = (list: WbsItem[]) => {
+      list.forEach((item) => {
+        if (checkedIds.has(item.id)) {
+          items.push(item);
+        }
+        if (item.children) {
+          findItems(item.children);
+        }
+      });
+    };
+    findItems(wbsTree);
+    return items;
+  };
+
+  /**
+   * TASK 일괄 배정 핸들러
+   * - 담당자가 있는 항목: 해당 담당자에게 자동 배정
+   * - 담당자가 없는 항목: 모달에서 선택한 담당자에게 배정
+   */
+  const handleBulkTaskAssign = async (assigneeIdForUnassigned: string | null) => {
+    if (!selectedProjectId) return;
+    if (checkedIds.size === 0) return;
+
+    const selectedItems = getSelectedWbsItems();
+    if (selectedItems.length === 0) return;
+
+    try {
+      // 각 항목을 TASK로 등록
+      const promises = selectedItems.map((item) => {
+        // 담당자 결정: WBS에 담당자가 있으면 그대로, 없으면 선택한 담당자
+        const assigneeIds =
+          item.assignees && item.assignees.length > 0
+            ? item.assignees.map((a) => a.id)
+            : assigneeIdForUnassigned
+            ? [assigneeIdForUnassigned]
+            : [];
+
+        return createTask.mutateAsync({
+          title: `[${item.code}] ${item.name}`,
+          description: item.description || `WBS에서 생성됨\n\nWBS 코드: ${item.code}`,
+          projectId: selectedProjectId,
+          assigneeIds,
+          dueDate: item.endDate?.split("T")[0],
+          priority: "MEDIUM",
+          // status는 API에서 기본값 PENDING으로 생성됨
+        });
+      });
+
+      await Promise.all(promises);
+
+      toast.success(
+        `${selectedItems.length}개 항목이 TASK로 등록되었습니다.`,
+        "TASK 일괄 배정 완료"
+      );
+
+      // 상태 초기화
+      setShowBulkTaskAssignModal(false);
+      setCheckedIds(new Set());
+    } catch (error: any) {
+      toast.error(
+        error?.message || "TASK 일괄 배정 중 오류가 발생했습니다.",
+        "TASK 배정 실패"
+      );
+    }
+  };
+
   /** 항목 생성/수정 */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1145,6 +1218,13 @@ export default function WBSPage() {
                         일괄 담당자 배정
                       </button>
                       <button
+                        onClick={() => setShowBulkTaskAssignModal(true)}
+                        className="px-3 py-1.5 bg-success text-white text-sm rounded-lg hover:bg-success/90 transition-colors flex items-center gap-2"
+                      >
+                        <Icon name="task_alt" size="sm" />
+                        TASK 배정
+                      </button>
+                      <button
                         onClick={() => setCheckedIds(new Set())}
                         className="px-3 py-1.5 text-text-secondary hover:text-text hover:bg-surface dark:hover:bg-surface-dark text-sm rounded-lg transition-colors"
                       >
@@ -1472,6 +1552,16 @@ export default function WBSPage() {
         onAssigneeChange={setBulkAssigneeIds}
         onAssign={handleBulkAssign}
         onClose={() => setShowBulkAssignModal(false)}
+      />
+
+      {/* TASK 일괄 배정 모달 */}
+      <BulkTaskAssignModal
+        isOpen={showBulkTaskAssignModal}
+        selectedItems={getSelectedWbsItems()}
+        teamMembers={teamMembers}
+        onAssign={handleBulkTaskAssign}
+        onClose={() => setShowBulkTaskAssignModal(false)}
+        isLoading={createTask.isPending}
       />
 
       {/* WBS 항목 추가/수정 모달 */}
