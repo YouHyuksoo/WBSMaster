@@ -50,19 +50,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 트랜잭션으로 일괄 업데이트 (타임아웃 60초로 설정 - 대량 데이터 처리용)
+    // 트랜잭션으로 일괄 업데이트 (Interactive transaction - 타임아웃 60초)
     const result = await prisma.$transaction(
-      updates.map((update) =>
-        prisma.equipment.update({
-          where: { id: update.id },
-          data: {
-            positionX: update.positionX,
-            positionY: update.positionY,
-          },
-        })
-      ),
+      async (tx) => {
+        const results = [];
+        for (const update of updates) {
+          const updated = await tx.equipment.update({
+            where: { id: update.id },
+            data: {
+              positionX: update.positionX,
+              positionY: update.positionY,
+            },
+          });
+          results.push(updated);
+        }
+        return results;
+      },
       {
-        timeout: 60000, // 60초 타임아웃 (기본 5초 → 60초)
+        timeout: 60000, // 60초 타임아웃
       }
     );
 
