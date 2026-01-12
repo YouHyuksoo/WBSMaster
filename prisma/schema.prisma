@@ -128,6 +128,7 @@ model Project {
   processVerificationCategories ProcessVerificationCategory[] // 기능추적표 카테고리
   customerRequirements CustomerRequirement[] // 고객요구사항
   documents Document[] // 문서함
+  equipments Equipment[] // 설비 목록
 
   @@map("projects")
 }
@@ -1066,4 +1067,219 @@ enum DocumentSourceType {
   GOOGLE           // Google Drive/Docs
   SERVER_UPLOAD    // 서버 직접 업로드
   EXTERNAL_LINK    // 기타 외부 링크
+}
+
+// ============================================
+// 설비 모델
+// MES 설비 관리 - 노드 기반 시각화
+// ============================================
+model Equipment {
+  id          String   @id @default(uuid())
+  code        String   // 설비 코드 (예: EQ-001)
+  name        String   // 설비명
+  type        EquipmentType // 설비 타입
+  status      EquipmentStatus @default(ACTIVE) // 상태
+
+  // React Flow 위치
+  positionX   Float    @default(0) // X 좌표
+  positionY   Float    @default(0) // Y 좌표
+
+  // 기본 정보
+  description String?  // 설명
+  location    String?  // 물리적 위치 (예: A동 2층)
+  lineCode    String?  // 라인코드 (예: L1, L2, LINE-A)
+  divisionCode String? // 사업부 코드 (예: DIV-A, 사업부1)
+  imageUrl    String?  // 설비 이미지 URL
+  manufacturer String? // 제조사
+  modelNumber String?  // 모델번호
+  serialNumber String? // 시리얼번호
+  purchaseDate DateTime? // 구매일
+  warrantyEndDate DateTime? // 보증기한
+
+  // 네트워크 및 연동 정보
+  ipAddress   String?  // IP 주소 (예: 192.168.1.100)
+  portNumber  Int?     // PORT 번호 (예: 8080)
+  isLogTarget Boolean  @default(false) // 로그수집대상 여부
+  isInterlockTarget Boolean @default(false) // 인터락대상 여부
+  isBarcodeEnabled Boolean @default(false) // 바코드 식별가능 여부
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 관계
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // 동적 속성 (1:N)
+  properties  EquipmentProperty[]
+
+  // 설비 간 연결 (다대다, 양방향)
+  connectionsFrom EquipmentConnection[] @relation("ConnectionFrom")
+  connectionsTo   EquipmentConnection[] @relation("ConnectionTo")
+
+  @@unique([projectId, code]) // 프로젝트 내 설비 코드 유일성
+  @@index([projectId])
+  @@index([type])
+  @@index([status])
+  @@map("equipments")
+}
+
+// ============================================
+// 설비 타입 Enum
+// ============================================
+enum EquipmentType {
+  MACHINE    // 기계 (예: 사출기, CNC)
+  TOOL       // 공구/도구
+  DEVICE     // 장치 (예: 센서, 컨트롤러)
+  CONVEYOR   // 컨베이어/운반장치
+  STORAGE    // 보관/저장설비
+  INSPECTION // 검사장비
+  PC         // PC/컴퓨터
+  PRINTER    // 프린터
+  SCANNER    // 스캐너
+  DIO        // DIO (Digital Input/Output)
+
+  // 자동창고/물류
+  AUTO_RACK_IN          // 자동렉 입고
+  AUTO_RACK_OUT_REQUEST // 자동렉 출고요청
+  AUTO_RACK_OUT         // 자동렉 출고
+
+  // 마킹/부착/투입
+  PID_MARKING  // PID 마킹
+  PID_ATTACH   // PID 부착
+  PCB_INPUT    // PCB 투입
+  TAPE_ATTACH  // 테이프 부착
+
+  // SMD 제조 설비
+  SCREEN_PRINTER  // 스크린 프린터 (솔더 페이스트 도포)
+  SPI            // SPI (Solder Paste Inspection)
+  CHIP_MOUNTER   // 칩 마운터/픽앤플레이스 (SMT)
+  MOI            // MOI (Mount Optical Inspection)
+  REFLOW_OVEN    // 리플로우 오븐
+  AOI            // AOI (Automated Optical Inspection)
+  ICT            // ICT (In-Circuit Test)
+  FCT            // FCT (Functional Circuit Test)
+  CURING         // 경화기
+  ROUTER         // 라우터
+
+  // HANES (와이어 하네스) 제조 설비
+  WIRE_CUTTING      // 전선 절단기
+  WIRE_STRIPPING    // 피복 제거기
+  CRIMPING          // 압착기 (터미널 압착)
+  TWIST_MACHINE     // 트위스트 머신 (전선 꼬기)
+  HARNESS_ASSEMBLY  // 하네스 조립대/지그
+  TAPING_MACHINE    // 테이핑 머신
+  CONNECTOR_INSERT  // 커넥터 삽입기
+  HARNESS_TESTER    // 하네스 테스터 (도통 검사)
+  SOLDERING         // 솔더링 장비
+  SEALING           // 실링 장비
+
+  // X-RAY
+  XRAY_INSPECTOR // X-Ray Inspector
+  XRAY_COUNTER   // X-Ray Counter
+
+  // ODC/IC
+  ODC_WRITE       // ODC-Write
+  ODC_VERIFY      // ODC-Verify
+  TEMP_IC         // Temp IC
+  VERIFY_TEMP_IC  // Verify Temp IC
+
+  // 검사/측정
+  CONFORMAL_COATING_INSPECTION // 컨포멀 코팅검사
+  TENSION_METER       // 텐션측정기
+  VISCOSITY_METER     // 점도측정기
+  THERMO_HYGROMETER   // 온습도계
+
+  // 기타
+  ESG_GATE  // ESG GATE
+  LOADER    // 로더/언로더
+  OTHER     // 기타
+}
+
+// ============================================
+// 설비 상태 Enum
+// ============================================
+enum EquipmentStatus {
+  ACTIVE      // 가동중
+  MAINTENANCE // 정비중
+  INACTIVE    // 휴지
+  BROKEN      // 고장
+  RESERVED    // 예약됨
+}
+
+// ============================================
+// 동적 속성 모델
+// 사용자가 설비별로 커스텀 속성 추가 가능
+// ============================================
+model EquipmentProperty {
+  id          String   @id @default(uuid())
+  key         String   // 속성명 (예: "온도", "압력", "용량")
+  value       String   // 속성값 (문자열로 저장)
+  valueType   PropertyValueType @default(TEXT) // 값 타입
+  unit        String?  // 단위 (예: "℃", "MPa", "ton")
+  order       Int      @default(0) // 표시 순서
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 관계
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentId])
+  @@map("equipment_properties")
+}
+
+// ============================================
+// 속성 값 타입 Enum
+// ============================================
+enum PropertyValueType {
+  TEXT     // 텍스트
+  NUMBER   // 숫자
+  DATE     // 날짜
+  BOOLEAN  // 참/거짓
+}
+
+// ============================================
+// 설비 연결 모델 (다대다)
+// 설비 간의 흐름/연결 관계 표시 (React Flow Edge용)
+// ============================================
+model EquipmentConnection {
+  id          String   @id @default(uuid())
+  label       String?  // 연결 라벨 (예: "원료공급", "제품이동")
+  type        ConnectionType @default(FLOW) // 연결 타입
+  order       Int      @default(0) // 여러 연결이 있을 때 우선순위
+
+  // React Flow 스타일
+  color       String?  @default("#94A3B8") // 선 색상
+  animated    Boolean  @default(false) // 애니메이션 효과
+
+  // React Flow 핸들 정보 (어느 방향에서 연결되었는지)
+  sourceHandle String?  @default("right") // 출발 핸들 (top, right, bottom, left)
+  targetHandle String?  @default("left")  // 도착 핸들 (top, right, bottom, left)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 관계 (다대다)
+  fromEquipmentId String
+  fromEquipment   Equipment @relation("ConnectionFrom", fields: [fromEquipmentId], references: [id], onDelete: Cascade)
+
+  toEquipmentId   String
+  toEquipment     Equipment @relation("ConnectionTo", fields: [toEquipmentId], references: [id], onDelete: Cascade)
+
+  @@index([fromEquipmentId])
+  @@index([toEquipmentId])
+  @@map("equipment_connections")
+}
+
+// ============================================
+// 연결 타입 Enum
+// ============================================
+enum ConnectionType {
+  FLOW       // 흐름 (재료, 제품)
+  SIGNAL     // 신호 (데이터, 제어)
+  POWER      // 전력
+  DEPENDENCY // 의존성
+  OTHER      // 기타
 }

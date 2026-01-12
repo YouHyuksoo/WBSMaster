@@ -749,6 +749,147 @@ export interface WeeklySummary {
   };
 }
 
+/** 설비 타입 */
+export type EquipmentType =
+  | "MACHINE"
+  | "TOOL"
+  | "DEVICE"
+  | "CONVEYOR"
+  | "STORAGE"
+  | "INSPECTION"
+  | "PC"
+  | "PRINTER"
+  | "SCANNER"
+  | "DIO"
+  // 자동창고/물류
+  | "AUTO_RACK_IN"
+  | "AUTO_RACK_OUT_REQUEST"
+  | "AUTO_RACK_OUT"
+  // 마킹/부착/투입
+  | "PID_MARKING"
+  | "PID_ATTACH"
+  | "PCB_INPUT"
+  | "TAPE_ATTACH"
+  // SMD 제조
+  | "SCREEN_PRINTER"
+  | "SPI"
+  | "CHIP_MOUNTER"
+  | "MOI"
+  | "REFLOW_OVEN"
+  | "AOI"
+  | "ICT"
+  | "FCT"
+  | "CURING"
+  | "ROUTER"
+  // HANES (와이어 하네스) 제조
+  | "WIRE_CUTTING"
+  | "WIRE_STRIPPING"
+  | "CRIMPING"
+  | "TWIST_MACHINE"
+  | "HARNESS_ASSEMBLY"
+  | "TAPING_MACHINE"
+  | "CONNECTOR_INSERT"
+  | "HARNESS_TESTER"
+  | "SOLDERING"
+  | "SEALING"
+  // X-RAY
+  | "XRAY_INSPECTOR"
+  | "XRAY_COUNTER"
+  // ODC/IC
+  | "ODC_WRITE"
+  | "ODC_VERIFY"
+  | "TEMP_IC"
+  | "VERIFY_TEMP_IC"
+  // 검사/측정
+  | "CONFORMAL_COATING_INSPECTION"
+  | "TENSION_METER"
+  | "VISCOSITY_METER"
+  | "THERMO_HYGROMETER"
+  // 기타
+  | "ESG_GATE"
+  | "LOADER"
+  | "OTHER";
+
+/** 설비 상태 */
+export type EquipmentStatus = "ACTIVE" | "MAINTENANCE" | "INACTIVE" | "BROKEN" | "RESERVED";
+
+/** 속성 값 타입 */
+export type PropertyValueType = "TEXT" | "NUMBER" | "DATE" | "BOOLEAN";
+
+/** 연결 타입 */
+export type ConnectionType = "FLOW" | "SIGNAL" | "POWER" | "DEPENDENCY" | "OTHER";
+
+/** 설비 타입 */
+export interface Equipment {
+  id: string;
+  projectId: string;
+  code: string;
+  name: string;
+  type: EquipmentType;
+  status: EquipmentStatus;
+  positionX: number;
+  positionY: number;
+  description?: string | null;
+  location?: string | null;
+  lineCode?: string | null;
+  divisionCode?: string | null;
+  imageUrl?: string | null;
+  manufacturer?: string | null;
+  modelNumber?: string | null;
+  serialNumber?: string | null;
+  purchaseDate?: string | null;
+  warrantyEndDate?: string | null;
+  ipAddress?: string | null;
+  portNumber?: number | null;
+  isLogTarget: boolean;
+  isInterlockTarget: boolean;
+  isBarcodeEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  properties?: EquipmentProperty[];
+  connectionsFrom?: EquipmentConnection[];
+  connectionsTo?: EquipmentConnection[];
+}
+
+/** 설비 속성 타입 */
+export interface EquipmentProperty {
+  id: string;
+  key: string;
+  value: string;
+  valueType: PropertyValueType;
+  unit?: string | null;
+  order: number;
+  equipmentId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 설비 연결 타입 */
+export interface EquipmentConnection {
+  id: string;
+  label?: string | null;
+  type: ConnectionType;
+  color?: string | null;
+  animated: boolean;
+  order: number;
+  sourceHandle?: string | null; // React Flow 출발 핸들 (top, right, bottom, left)
+  targetHandle?: string | null; // React Flow 도착 핸들 (top, right, bottom, left)
+  fromEquipmentId: string;
+  toEquipmentId: string;
+  createdAt: string;
+  updatedAt: string;
+  fromEquipment?: {
+    id: string;
+    code: string;
+    name: string;
+  };
+  toEquipment?: {
+    id: string;
+    code: string;
+    name: string;
+  };
+}
+
 // ============================================
 // API 클라이언트
 // ============================================
@@ -1145,5 +1286,79 @@ export const api = {
       patch<Document>(`/api/documents/${id}`, data),
     /** 삭제 */
     delete: (id: string) => del<{ success: boolean }>(`/api/documents/${id}`),
+  },
+
+  /** 설비 관리 API */
+  equipment: {
+    /** 설비 목록 조회 */
+    list: (params?: { projectId?: string }) =>
+      get<Equipment[]>("/api/equipment", params),
+    /** 설비 상세 조회 */
+    get: (id: string) => get<Equipment>(`/api/equipment/${id}`),
+    /** 설비 생성 (코드 자동 생성) */
+    create: (data: {
+      projectId: string;
+      name: string;
+      type: EquipmentType;
+      status?: EquipmentStatus;
+      positionX?: number;
+      positionY?: number;
+      description?: string;
+      location?: string;
+      manufacturer?: string;
+      modelNumber?: string;
+      serialNumber?: string;
+      purchaseDate?: string;
+      warrantyEndDate?: string;
+    }) => post<Equipment>("/api/equipment", data),
+    /** 설비 수정 */
+    update: (id: string, data: Partial<Equipment>) =>
+      patch<Equipment>(`/api/equipment/${id}`, data),
+    /** 설비 삭제 */
+    delete: (id: string) => del<{ message: string }>(`/api/equipment/${id}`),
+  },
+
+  /** 설비 속성 API */
+  equipmentProperties: {
+    /** 속성 목록 조회 */
+    list: (equipmentId: string) =>
+      get<EquipmentProperty[]>(`/api/equipment/${equipmentId}/properties`),
+    /** 속성 추가 */
+    create: (equipmentId: string, data: {
+      key: string;
+      value: string;
+      valueType?: PropertyValueType;
+      unit?: string;
+      order?: number;
+    }) => post<EquipmentProperty>(`/api/equipment/${equipmentId}/properties`, data),
+    /** 속성 수정 */
+    update: (equipmentId: string, propertyId: string, data: Partial<EquipmentProperty>) =>
+      patch<EquipmentProperty>(`/api/equipment/${equipmentId}/properties/${propertyId}`, data),
+    /** 속성 삭제 */
+    delete: (equipmentId: string, propertyId: string) =>
+      del<{ message: string }>(`/api/equipment/${equipmentId}/properties/${propertyId}`),
+  },
+
+  /** 설비 연결 API */
+  equipmentConnections: {
+    /** 연결 목록 조회 */
+    list: (params?: { projectId?: string }) =>
+      get<EquipmentConnection[]>("/api/equipment/connections", params),
+    /** 연결 생성 */
+    create: (data: {
+      fromEquipmentId: string;
+      toEquipmentId: string;
+      label?: string;
+      type?: ConnectionType;
+      color?: string;
+      animated?: boolean;
+      order?: number;
+    }) => post<EquipmentConnection>("/api/equipment/connections", data),
+    /** 연결 수정 */
+    update: (id: string, data: Partial<EquipmentConnection>) =>
+      patch<EquipmentConnection>(`/api/equipment/connections/${id}`, data),
+    /** 연결 삭제 */
+    delete: (id: string) =>
+      del<{ message: string }>(`/api/equipment/connections/${id}`),
   },
 };
