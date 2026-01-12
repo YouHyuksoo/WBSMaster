@@ -525,7 +525,7 @@ export default function KanbanPage() {
         "우선순위": priorityNames[task.priority] || task.priority,
         "주 담당자": task.assignee?.name || "",
         "협업자": task.assignees?.map((a) => a.name).filter(Boolean).join(", ") || "",
-        "연결된 요구사항": task.requirement ? (task.requirement.code ? `[${task.requirement.code}] ${task.requirement.title}` : task.requirement.title) : "",
+        "업무협조요청": task.requirement ? (task.requirement.code ? `[${task.requirement.code}] ${task.requirement.title}` : task.requirement.title) : "",
         "시작일": task.startDate ? new Date(task.startDate).toLocaleDateString("ko-KR") : "",
         "마감일": task.dueDate ? new Date(task.dueDate).toLocaleDateString("ko-KR") : "",
         "생성일": task.createdAt ? new Date(task.createdAt).toLocaleDateString("ko-KR") : "",
@@ -546,7 +546,7 @@ export default function KanbanPage() {
       { wch: 10 },  // 우선순위
       { wch: 15 },  // 주 담당자
       { wch: 30 },  // 협업자
-      { wch: 40 },  // 연결된 요구사항
+      { wch: 40 },  // 업무협조요청
       { wch: 12 },  // 시작일
       { wch: 12 },  // 마감일
       { wch: 12 },  // 생성일
@@ -897,17 +897,17 @@ export default function KanbanPage() {
                   </div>
                 </div>
 
-                {/* 연결된 요구사항 */}
+                {/* 업무협조요청 */}
                 <div>
                   <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
-                    연결된 요구사항
+                    업무협조요청
                   </label>
                   <select
                     value={selectedTask.requirementId || ""}
                     onChange={(e) => setSelectedTask({ ...selectedTask, requirementId: e.target.value || null })}
                     className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
                   >
-                    <option value="">요구사항 없음</option>
+                    <option value="">협조요청 없음</option>
                     {requirements.map((req) => (
                       <option key={req.id} value={req.id}>
                         {req.code ? `[${req.code}] ` : ""}{req.title}
@@ -1097,17 +1097,17 @@ export default function KanbanPage() {
                     />
                   </div>
 
-                  {/* 요구사항 연결 (선택) */}
+                  {/* 업무협조요청 연결 (선택) */}
                   <div>
                     <label className="block text-sm font-medium text-text dark:text-white mb-2">
-                      연결된 요구사항
+                      업무협조요청
                     </label>
                     <select
                       value={newTaskRequirementId}
                       onChange={(e) => setNewTaskRequirementId(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
                     >
-                      <option value="">요구사항 없음</option>
+                      <option value="">협조요청 없음</option>
                       {requirements.map((req) => (
                         <option key={req.id} value={req.id}>
                           {req.code ? `[${req.code}] ` : ""}{req.title}
@@ -1115,7 +1115,7 @@ export default function KanbanPage() {
                       ))}
                     </select>
                     <p className="text-xs text-text-secondary mt-1">
-                      이 작업이 특정 요구사항과 관련된 경우 연결하세요
+                      이 작업이 특정 업무협조요청과 관련된 경우 연결하세요
                     </p>
                   </div>
 
@@ -1695,7 +1695,7 @@ function TaskCard({
         </p>
       )}
 
-      {/* 연결된 요구사항 - 글래스모피즘 */}
+      {/* 업무협조요청 - 글래스모피즘 */}
       {task.requirement && (
         <div className="mb-3 px-2 py-1.5 rounded-lg backdrop-blur-sm bg-gradient-to-br from-purple-500/20 to-purple-600/10 dark:from-purple-400/25 dark:to-purple-500/15 border border-purple-200/30 dark:border-purple-400/20 shadow-md">
           <div className="flex items-center gap-1.5">
