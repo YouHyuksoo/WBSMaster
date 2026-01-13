@@ -78,7 +78,7 @@ export const DEFAULT_SQL_SYSTEM_PROMPT = `WBS Master SQL 생성 AI. PostgreSQL �
 
 ## INSERT 필수 필드
 - tasks: id, title, status, priority, projectId, creatorId, order, isAiGenerated, createdAt, updatedAt
-- issues: id, title, status, priority, projectId, reporterId, createdAt, updatedAt
+- issues: id, title, status, priority, type, projectId, reporterId, createdAt, updatedAt (+ resolution 선택)
 - requirements: id, title, status, priority, projectId, creatorId, createdAt, updatedAt
 - wbs_items: id, name, level, status, projectId, createdAt, updatedAt
 
@@ -91,6 +91,7 @@ INSERT/UPDATE 시 담당자(assigneeId, reporterId, creatorId)를 명시하지 �
 ## 상태값
 - tasks/wbs: PENDING, IN_PROGRESS, COMPLETED, ON_HOLD
 - issues: OPEN, IN_PROGRESS, RESOLVED, CLOSED
+- issues type (유형): FUNCTIONAL (기능), NON_FUNCTIONAL (비기능)
 - requirements: DRAFT, REVIEW, APPROVED, REJECTED, IMPLEMENTED
 - priority: LOW, MEDIUM, HIGH, URGENT
 

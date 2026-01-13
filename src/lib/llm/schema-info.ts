@@ -24,8 +24,13 @@ export const DATABASE_SCHEMA = {
       avatar: { type: "string?", description: "프로필 이미지 URL" },
       role: {
         type: "enum",
-        description: "사용자 역할",
-        values: ["EXECUTIVE", "DIRECTOR", "PMO", "PM", "PL", "DEVELOPER", "DESIGNER", "OPERATOR", "MEMBER"],
+        description: "시스템 역할",
+        values: ["ADMIN", "USER", "GUEST"],
+      },
+      affiliation: {
+        type: "enum?",
+        description: "소속 (고객사, 개발사, 컨설팅, 외주 등)",
+        values: ["CLIENT", "DEVELOPER", "CONSULTING", "OUTSOURCING", "HAENGSUNG", "OTHER"],
       },
       createdAt: { type: "datetime", description: "생성일시" },
       updatedAt: { type: "datetime", description: "수정일시" },
@@ -46,6 +51,11 @@ export const DATABASE_SCHEMA = {
       startDate: { type: "datetime?", description: "시작일" },
       endDate: { type: "datetime?", description: "종료일" },
       progress: { type: "int", description: "진행률 (0-100)" },
+      purpose: { type: "string?", description: "프로젝트 목적" },
+      organizationChart: { type: "json?", description: "프로젝트 조직도 (JSON: {role, name, department}[])" },
+      successIndicators: { type: "string[]", description: "성공지표 (문자열 배열)" },
+      futureVision: { type: "string?", description: "추구하는 미래모습" },
+      visionImage: { type: "string?", description: "미래 비전 이미지 URL" },
       ownerId: { type: "uuid", description: "프로젝트 소유자 ID (FK -> users.id)" },
       createdAt: { type: "datetime", description: "생성일시" },
       updatedAt: { type: "datetime", description: "수정일시" },
@@ -70,9 +80,11 @@ export const DATABASE_SCHEMA = {
       },
       startDate: { type: "datetime?", description: "시작일" },
       dueDate: { type: "datetime?", description: "마감일" },
+      completedAt: { type: "datetime?", description: "완료 일시 (주간보고 연동용)" },
       order: { type: "int", description: "칸반 보드 내 순서" },
       isAiGenerated: { type: "boolean", description: "AI 생성 여부" },
       projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
+      assigneeId: { type: "uuid?", description: "주 담당자 ID (FK -> users.id)" },
       creatorId: { type: "uuid", description: "생성자 ID (FK -> users.id)" },
       requirementId: { type: "uuid?", description: "연결된 요구사항 ID (FK -> requirements.id)" },
       createdAt: { type: "datetime", description: "생성일시" },
@@ -142,6 +154,12 @@ export const DATABASE_SCHEMA = {
         description: "이슈 분류",
         values: ["BUG", "IMPROVEMENT", "QUESTION", "FEATURE", "DOCUMENTATION", "OTHER"],
       },
+      type: {
+        type: "enum",
+        description: "이슈 유형 (기능/비기능)",
+        values: ["FUNCTIONAL", "NON_FUNCTIONAL"],
+      },
+      resolution: { type: "string?", description: "처리내용 (해결 방법이나 조치 사항)" },
       reportDate: { type: "datetime", description: "보고일" },
       dueDate: { type: "datetime?", description: "목표 해결일" },
       resolvedDate: { type: "datetime?", description: "실제 해결일" },
@@ -465,6 +483,111 @@ export const DATABASE_SCHEMA = {
       updatedAt: { type: "datetime", description: "수정일시" },
     },
   },
+  equipments: {
+    tableName: "equipments",
+    description: "MES 설비 관리 테이블 - 노드 기반 시각화",
+    columns: {
+      id: { type: "uuid", description: "설비 고유 ID (Primary Key)" },
+      code: { type: "string", description: "설비 코드 (예: EQ-001)" },
+      name: { type: "string", description: "설비명" },
+      type: {
+        type: "enum",
+        description: "설비 타입",
+        values: ["MACHINE", "TOOL", "DEVICE", "CONVEYOR", "STORAGE", "INSPECTION", "PC", "PRINTER", "SCANNER", "DIO", "SCREEN_PRINTER", "SPI", "CHIP_MOUNTER", "MOI", "REFLOW_OVEN", "AOI", "ICT", "FCT", "OTHER"],
+      },
+      status: {
+        type: "enum",
+        description: "설비 상태",
+        values: ["ACTIVE", "MAINTENANCE", "INACTIVE", "BROKEN", "RESERVED"],
+      },
+      positionX: { type: "float", description: "X 좌표 (React Flow 위치)" },
+      positionY: { type: "float", description: "Y 좌표 (React Flow 위치)" },
+      description: { type: "string?", description: "설명" },
+      location: { type: "string?", description: "물리적 위치 (예: A동 2층)" },
+      lineCode: { type: "string?", description: "라인코드 (예: L1, L2, LINE-A)" },
+      divisionCode: { type: "string?", description: "사업부 코드" },
+      imageUrl: { type: "string?", description: "설비 이미지 URL" },
+      manufacturer: { type: "string?", description: "제조사" },
+      modelNumber: { type: "string?", description: "모델번호" },
+      serialNumber: { type: "string?", description: "시리얼번호" },
+      ipAddress: { type: "string?", description: "IP 주소" },
+      portNumber: { type: "int?", description: "PORT 번호" },
+      isLogTarget: { type: "boolean", description: "로그수집대상 여부" },
+      isInterlockTarget: { type: "boolean", description: "인터락대상 여부" },
+      isBarcodeEnabled: { type: "boolean", description: "바코드 식별가능 여부" },
+      logCollectionPath: { type: "string?", description: "로그수집위치" },
+      systemType: {
+        type: "enum?",
+        description: "시스템 종류",
+        values: ["WINDOWS_XP", "WINDOWS_10", "WINDOWS_11", "LINUX", "OTHER"],
+      },
+      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  equipment_properties: {
+    tableName: "equipment_properties",
+    description: "설비 동적 속성 테이블 - 사용자가 설비별로 커스텀 속성 추가",
+    columns: {
+      id: { type: "uuid", description: "속성 고유 ID (Primary Key)" },
+      key: { type: "string", description: "속성명 (예: 온도, 압력, 용량)" },
+      value: { type: "string", description: "속성값" },
+      valueType: {
+        type: "enum",
+        description: "값 타입",
+        values: ["TEXT", "NUMBER", "DATE", "BOOLEAN"],
+      },
+      unit: { type: "string?", description: "단위 (예: ℃, MPa, ton)" },
+      order: { type: "int", description: "표시 순서" },
+      equipmentId: { type: "uuid", description: "설비 ID (FK -> equipments.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  equipment_connections: {
+    tableName: "equipment_connections",
+    description: "설비 연결 테이블 - 설비 간의 흐름/연결 관계 (React Flow Edge용)",
+    columns: {
+      id: { type: "uuid", description: "연결 고유 ID (Primary Key)" },
+      label: { type: "string?", description: "연결 라벨 (예: 원료공급, 제품이동)" },
+      type: {
+        type: "enum",
+        description: "연결 타입",
+        values: ["FLOW", "SIGNAL", "POWER", "DEPENDENCY", "OTHER"],
+      },
+      order: { type: "int", description: "우선순위" },
+      color: { type: "string?", description: "선 색상" },
+      animated: { type: "boolean", description: "애니메이션 효과" },
+      sourceHandle: { type: "string?", description: "출발 핸들 (top, right, bottom, left)" },
+      targetHandle: { type: "string?", description: "도착 핸들 (top, right, bottom, left)" },
+      fromEquipmentId: { type: "uuid", description: "출발 설비 ID (FK -> equipments.id)" },
+      toEquipmentId: { type: "uuid", description: "도착 설비 ID (FK -> equipments.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+      updatedAt: { type: "datetime", description: "수정일시" },
+    },
+  },
+  notifications: {
+    tableName: "notifications",
+    description: "알림 테이블 - 사용자별 알림 관리",
+    columns: {
+      id: { type: "uuid", description: "알림 고유 ID (Primary Key)" },
+      type: {
+        type: "enum",
+        description: "알림 타입",
+        values: ["TASK_ASSIGNED", "MILESTONE_DUE_SOON", "ISSUE_URGENT"],
+      },
+      title: { type: "string", description: "알림 제목" },
+      message: { type: "string", description: "알림 내용" },
+      link: { type: "string?", description: "클릭 시 이동 경로" },
+      isRead: { type: "boolean", description: "읽음 여부" },
+      relatedId: { type: "string?", description: "관련 엔티티 ID" },
+      projectId: { type: "string?", description: "관련 프로젝트 ID" },
+      projectName: { type: "string?", description: "프로젝트명 (삭제되어도 남음)" },
+      userId: { type: "uuid", description: "사용자 ID (FK -> users.id)" },
+      createdAt: { type: "datetime", description: "생성일시" },
+    },
+  },
 };
 
 /**
@@ -482,6 +605,7 @@ export const TABLE_RELATIONSHIPS = `
    - 1:N → weekly_reports (주간보고 작성자)
    - 1:N → weekly_summaries (취합 보고서 생성자)
    - 1:N → documents (문서 등록자)
+   - 1:N → notifications (알림)
 
 2. **projects** (프로젝트)
    - 1:N → tasks, requirements, issues, wbs_items, holidays, team_members
@@ -493,6 +617,7 @@ export const TABLE_RELATIONSHIPS = `
    - 1:N → pinpoints (핀포인트)
    - 1:N → weekly_reports (주간보고)
    - 1:N → weekly_summaries (주간보고 취합)
+   - 1:N → equipments (설비 목록)
    - N:1 → users (소유자)
 
 3. **tasks** (태스크)
@@ -549,6 +674,21 @@ export const TABLE_RELATIONSHIPS = `
 14. **weekly_summaries** (주간보고 취합)
     - N:1 → projects
     - N:1 → users (생성자)
+
+15. **equipments** (설비)
+    - N:1 → projects
+    - 1:N → equipment_properties (동적 속성)
+    - N:M → equipments (equipment_connections를 통해)
+
+16. **equipment_properties** (설비 동적 속성)
+    - N:1 → equipments
+
+17. **equipment_connections** (설비 연결)
+    - N:1 → equipments (출발 설비)
+    - N:1 → equipments (도착 설비)
+
+18. **notifications** (알림)
+    - N:1 → users
 `;
 
 /**
