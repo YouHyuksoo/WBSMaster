@@ -108,8 +108,8 @@ export default function DashboardPage() {
   /** 현재 선택된 프로젝트 */
   const { selectedProjectId } = useProject();
 
-  // 태스크 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
-  const taskFilters = useMemo(
+  // 프로젝트 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const projectFilters = useMemo(
     () => ({
       projectId: selectedProjectId || undefined,
     }),
@@ -117,33 +117,25 @@ export default function DashboardPage() {
   );
 
   /** 태스크 목록 조회 (선택된 프로젝트) */
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks(taskFilters);
+  const { data: tasks = [], isLoading: tasksLoading } = useTasks(projectFilters);
 
   /** WBS 단위업무 기반 담당자별 통계 */
-  const { data: wbsStats, isLoading: wbsStatsLoading } = useWbsStats();
+  const { data: wbsStats, isLoading: wbsStatsLoading } = useWbsStats(projectFilters);
 
   /** 이슈 통계 (카테고리별, 해결/미해결) */
-  const { data: issueStats, isLoading: issueStatsLoading } = useIssueStats();
+  const { data: issueStats, isLoading: issueStatsLoading } = useIssueStats(projectFilters);
 
   /** 요구사항 통계 (담당자별 처리 현황) */
-  const { data: reqStats, isLoading: reqStatsLoading } = useRequirementStats();
+  const { data: reqStats, isLoading: reqStatsLoading } = useRequirementStats(projectFilters);
 
   /** 이슈 목록 조회 (MY 대시보드 필터용) */
-  const { data: issues = [] } = useIssues();
+  const { data: issues = [] } = useIssues(projectFilters);
 
   /** 요구사항 목록 조회 (MY 대시보드 필터용) */
-  const { data: requirements = [] } = useRequirements();
-
-  // 일정 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
-  const scheduleFilters = useMemo(
-    () => ({
-      projectId: selectedProjectId || undefined,
-    }),
-    [selectedProjectId]
-  );
+  const { data: requirements = [] } = useRequirements(projectFilters);
 
   /** 오늘의 일정 조회 (전체 인원) */
-  const { data: todaySchedules = [], isLoading: schedulesLoading } = useTodaySchedules(scheduleFilters);
+  const { data: todaySchedules = [], isLoading: schedulesLoading } = useTodaySchedules(projectFilters);
 
   /** 프로젝트 생성 */
   const createProject = useCreateProject();

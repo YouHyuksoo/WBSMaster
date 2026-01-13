@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies();
     cookieStore.set("userId", user.id, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // 내부망(HTTP) 접속 허용을 위해 false로 변경
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 7, // 7일
       path: "/",

@@ -7,14 +7,12 @@
  * 기능:
  * - 프로젝트 정보 표시 (이름, 설명, 상태, 기간)
  * - 진행률 바 애니메이션
- * - 클릭 시 칸반보드로 이동
- * - 개요 버튼
+ * - 개요 버튼 지원
  */
 
 "use client";
 
 import React, { memo, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui";
 import type { Project } from "@/lib/api";
 
@@ -68,7 +66,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: string 
 };
 
 /**
- * 프로젝트 카드 컴포넌트 - 클릭하면 칸반보드로 이동, 애니메이션 적용
+ * 프로젝트 카드 컴포넌트 - 정보를 표시하는 카드 (클릭 이동 기능 제거됨)
  */
 const ProjectCard = memo(function ProjectCard({
   project,
@@ -78,7 +76,6 @@ const ProjectCard = memo(function ProjectCard({
 }: ProjectCardProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [progressAnimated, setProgressAnimated] = useState(0);
-  const router = useRouter();
 
   const { label, color, icon: statusIcon } = statusConfig[project.status] || statusConfig.PLANNING;
   const displayProgress = project.calculatedProgress ?? project.progress;
@@ -108,27 +105,19 @@ const ProjectCard = memo(function ProjectCard({
     return new Date(dateStr).toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
   };
 
-  /** 카드 클릭 핸들러 (칸반으로 이동) */
-  const handleCardClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
-    router.push(`/dashboard/kanban?projectId=${project.id}`);
-  };
-
   return (
     <div
-      onClick={handleCardClick}
       className={`
         relative bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-5
-        cursor-pointer group block
+        group block
         transform transition-all duration-500 ease-out
         ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}
-        hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 hover:scale-[1.02]
-        active:scale-[0.98]
+        hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5
       `}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-bold text-text dark:text-white group-hover:text-primary transition-colors truncate">
+          <h3 className="text-lg font-bold text-text dark:text-white transition-colors truncate">
             {project.name}
           </h3>
           <p className="text-sm text-text-secondary mt-1 line-clamp-1">

@@ -285,6 +285,7 @@ export default function ChatPage() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include", // 쿠키 인증 정보 포함
           body: JSON.stringify({
             message: inputMessage,
             projectId: selectedProjectId || null,

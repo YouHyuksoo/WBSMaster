@@ -44,6 +44,7 @@ const defaultOptions: RequestInit = {
   headers: {
     "Content-Type": "application/json",
   },
+  credentials: "include", // 쿠키 인증 정보 포함
 };
 
 /** GET 요청 */
