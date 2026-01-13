@@ -447,6 +447,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
       const { url } = await response.json();
       setEditAvatar(url);
       setShowImageCropper(false);
+      setShowProfileModal(true); // 프로필 모달 다시 열기
       toast.success("이미지가 업로드되었습니다.");
     } catch (error) {
       console.error("이미지 업로드 실패:", error);
@@ -454,6 +455,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         error instanceof Error ? error.message : "이미지 업로드에 실패했습니다.",
         "업로드 실패"
       );
+      // 실패해도 프로필 모달 다시 열기
+      setShowProfileModal(true);
     } finally {
       setIsUploadingImage(false);
     }
@@ -952,7 +955,10 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                   {/* 호버 시 카메라 아이콘 오버레이 */}
                   <button
                     type="button"
-                    onClick={() => setShowImageCropper(true)}
+                    onClick={() => {
+                      setShowProfileModal(false);
+                      setShowImageCropper(true);
+                    }}
                     disabled={isUploadingImage}
                     className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   >
@@ -961,7 +967,10 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowImageCropper(true)}
+                  onClick={() => {
+                    setShowProfileModal(false);
+                    setShowImageCropper(true);
+                  }}
                   disabled={isUploadingImage}
                   className="text-sm text-primary hover:underline flex items-center gap-1"
                 >
