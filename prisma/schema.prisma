@@ -534,12 +534,13 @@ model SlackSettings {
   isEnabled       Boolean  @default(true) // 전체 알림 활성화
 
   // 알림 조건
-  notifyTaskCompleted    Boolean @default(true)  // Task 완료 시
-  notifyTaskCreated      Boolean @default(false) // Task 생성 시
-  notifyTaskDelayed      Boolean @default(true)  // Task 지연 시
-  notifyIssueCreated     Boolean @default(true)  // 이슈 등록 시
-  notifyIssueResolved    Boolean @default(false) // 이슈 해결 시
-  notifyProjectProgress  Boolean @default(false) // 프로젝트 진행률 변경 시
+  notifyTaskCompleted       Boolean @default(true)  // Task 완료 시
+  notifyTaskCreated         Boolean @default(false) // Task 생성 시
+  notifyTaskDelayed         Boolean @default(true)  // Task 지연 시
+  notifyIssueCreated        Boolean @default(true)  // 이슈 등록 시
+  notifyIssueResolved       Boolean @default(false) // 이슈 해결 시
+  notifyRequirementCreated  Boolean @default(false) // 고객요구사항 등록 시
+  notifyProjectProgress     Boolean @default(false) // 프로젝트 진행률 변경 시
 
   // 추가 옵션
   mentionOnUrgent Boolean @default(false) // 긴급 시 @channel 멘션

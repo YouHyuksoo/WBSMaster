@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         notifyTaskDelayed: true,
         notifyIssueCreated: true,
         notifyIssueResolved: false,
+        notifyRequirementCreated: false,  // 고객요구사항 등록 시
         notifyProjectProgress: false,
         mentionOnUrgent: false,
         dailyReportTime: null,
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
       notifyTaskDelayed,
       notifyIssueCreated,
       notifyIssueResolved,
+      notifyRequirementCreated,  // 고객요구사항 등록 시
       notifyProjectProgress,
       mentionOnUrgent,
       dailyReportTime,
@@ -114,6 +116,7 @@ export async function POST(request: NextRequest) {
           notifyTaskDelayed: notifyTaskDelayed ?? true,
           notifyIssueCreated: notifyIssueCreated ?? true,
           notifyIssueResolved: notifyIssueResolved ?? false,
+          notifyRequirementCreated: notifyRequirementCreated ?? false,
           notifyProjectProgress: notifyProjectProgress ?? false,
           mentionOnUrgent: mentionOnUrgent ?? false,
           dailyReportTime: dailyReportTime || null,
@@ -131,6 +134,7 @@ export async function POST(request: NextRequest) {
           notifyTaskDelayed: notifyTaskDelayed ?? true,
           notifyIssueCreated: notifyIssueCreated ?? true,
           notifyIssueResolved: notifyIssueResolved ?? false,
+          notifyRequirementCreated: notifyRequirementCreated ?? false,
           notifyProjectProgress: notifyProjectProgress ?? false,
           mentionOnUrgent: mentionOnUrgent ?? false,
           dailyReportTime: dailyReportTime || null,
