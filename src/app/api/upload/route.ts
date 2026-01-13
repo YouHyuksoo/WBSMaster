@@ -69,18 +69,26 @@ export async function POST(request: NextRequest) {
     // 파일 이름 생성 (userId_timestamp.extension)
     const fileExt = file.name.split(".").pop() || "jpg";
     const fileName = `${user!.id}_${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const filePath = `${user!.id}/${fileName}`;
 
     // 파일을 ArrayBuffer로 변환
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
+
+    // 기존 파일 삭제 시도 (같은 이름이 있으면 제거)
+    await supabase.storage
+      .from(BUCKET_NAME)
+      .remove([filePath])
+      .catch(() => {
+        // 파일이 없을 수 있으니 에러 무시
+      });
 
     // 업로드 (버킷이 이미 존재한다고 가정)
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(filePath, buffer, {
         contentType: file.type,
-        upsert: true,
+        upsert: false, // upsert 대신 remove 후 upload
       });
 
     if (uploadError) {
