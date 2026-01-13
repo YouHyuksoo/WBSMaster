@@ -370,7 +370,7 @@ export function DocumentListPanel({
                         title="문서 복사"
                         disabled={createMutation.isPending}
                       >
-                        <Icon name="content_duplicate" size="xs" />
+                        <Icon name="file_copy" size="xs" />
                       </button>
                       <button
                         onClick={(e) => {
