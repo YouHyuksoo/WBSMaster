@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { Icon, Button, Input, ImageCropper, useToast } from "@/components/ui";
 import { useProject } from "@/contexts/ProjectContext";
 import { TodayStatsScroller } from "@/components/dashboard/TodayStatsScroller";
+import { createClient } from "@/lib/supabase/client";
 
 /** 로컬 사용자 타입 */
 interface LocalUser {
@@ -427,25 +428,41 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
   /**
    * 이미지 크롭 완료 후 업로드 처리
+   * 클라이언트에서 직접 Supabase Storage에 업로드 (RLS 정책 적용)
    */
   const handleImageCropComplete = async (blob: Blob) => {
+    if (!user) {
+      toast.error("사용자 정보를 찾을 수 없습니다.");
+      return;
+    }
+
     setIsUploadingImage(true);
     try {
-      const formData = new FormData();
-      formData.append("file", blob, "avatar.jpg");
+      const supabase = createClient();
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      // 파일 이름 생성 (userId 폴더 안에 저장)
+      const fileName = `${Date.now()}.jpg`;
+      const filePath = `${user.id}/${fileName}`;
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "업로드 실패");
+      // Supabase Storage에 직접 업로드
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, blob, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error("업로드 실패:", uploadError);
+        throw new Error(uploadError.message || "업로드 실패");
       }
 
-      const { url } = await response.json();
-      setEditAvatar(url);
+      // Public URL 생성
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      setEditAvatar(publicUrl);
       setShowImageCropper(false);
       setShowProfileModal(true); // 프로필 모달 다시 열기
       toast.success("이미지가 업로드되었습니다.");

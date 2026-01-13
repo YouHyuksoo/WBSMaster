@@ -181,12 +181,12 @@ export function DocumentListPanel({
       createMutation.mutate({
         projectId,
         name: `${doc.name} (복사본)`,
-        description: doc.description,
+        description: doc.description ?? undefined,
         category: doc.category,
         version: "1.0",
         sourceType: doc.sourceType,
-        url: doc.url,
-        tags: doc.tags,
+        url: doc.url ?? undefined,
+        tags: doc.tags ?? undefined,
         isPersonal,
       });
       toast.success(`"${doc.name}" 문서가 복사되었습니다.`);

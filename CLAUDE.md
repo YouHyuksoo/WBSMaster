@@ -560,6 +560,75 @@ onChange={(e) => setAffiliation(e.target.value as Affiliation)}
 - nullable 필드 필터링 시 타입 가드 사용
 - 외부 라이브러리 enum은 import해서 사용
 
+## 🚨 Supabase Storage RLS 규칙 (2026-01-13 학습) - 매우 중요!
+
+### 핵심 문제
+이 프로젝트는 **자체 인증 시스템(Prisma User + bcrypt)**을 사용하고, **Supabase Auth를 사용하지 않음**.
+따라서 Supabase Storage에서 `authenticated` 역할로 인식되지 않아 RLS 정책이 실패함.
+
+### 증상
+```
+StorageApiError: new row violates row-level security policy (403)
+```
+
+### 원인
+- Supabase Storage RLS 정책이 `authenticated` 역할에만 적용됨
+- 자체 인증 사용 시 Supabase에서는 `anon` (익명) 역할로 인식
+- 서버 사이드 API에서 Storage 업로드 시 사용자 세션이 전달되지 않음
+
+### ✅ 해결 방법
+
+**Supabase 대시보드에서 Storage RLS 정책 수정:**
+
+1. **Storage** → **Policies** → 해당 버킷 (예: `avatars`)
+2. INSERT/UPDATE/DELETE 정책의 **Applied to**를 `authenticated` → `public`으로 변경
+3. 또는 새로운 public 정책 추가
+
+**현재 avatars 버킷 정책 (수정 후):**
+| 정책 이름 | Command | Applied to |
+|-----------|---------|------------|
+| avatars_public_read | SELECT | public |
+| avatars_authenticated_insert | INSERT | **public** (수정됨) |
+| avatars_authenticated_update | UPDATE | **public** (수정됨) |
+| avatars_authenticated_delete | DELETE | **public** (수정됨) |
+
+### 클라이언트 직접 업로드 방식
+
+서버 API(`/api/upload`)를 거치지 않고 클라이언트에서 직접 Supabase Storage에 업로드:
+
+```typescript
+import { createClient } from "@/lib/supabase/client";
+
+const handleUpload = async (blob: Blob, userId: string) => {
+  const supabase = createClient();
+  const fileName = `${Date.now()}.jpg`;
+  const filePath = `${userId}/${fileName}`;
+
+  const { error } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, blob, {
+      contentType: "image/jpeg",
+      upsert: true,
+    });
+
+  if (error) throw error;
+
+  const { data: { publicUrl } } = supabase.storage
+    .from("avatars")
+    .getPublicUrl(filePath);
+
+  return publicUrl;
+};
+```
+
+### ❌ 절대 하지 말 것
+- RLS 정책이 `authenticated`인 상태에서 자체 인증으로 업로드 시도
+- 서버 사이드에서 ANON_KEY로 Storage 업로드 (세션 전달 안 됨)
+
+### ✅ 반드시 할 것
+- 새 Storage 버킷 생성 시 RLS 정책을 `public`으로 설정
+- 업로드 실패 시 RLS 정책 Applied to 확인
+
 ## Git 브랜치
 
 - **main**: 메인 브랜치

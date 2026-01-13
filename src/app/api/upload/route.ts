@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     // 파일 이름 생성 (userId_timestamp.extension)
     const fileExt = file.name.split(".").pop() || "jpg";
     const fileName = `${user!.id}_${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const filePath = `avatars/${fileName}`;
 
     // 파일을 ArrayBuffer로 변환
     const arrayBuffer = await file.arrayBuffer();
