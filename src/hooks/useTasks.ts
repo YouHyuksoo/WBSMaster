@@ -31,11 +31,13 @@ export const taskKeys = {
 
 /**
  * 태스크 목록 조회 Hook
+ * - projectId는 필수 (항상 특정 프로젝트의 task만 조회)
  */
 export function useTasks(filters?: { projectId?: string; status?: string; assigneeId?: string }) {
   return useQuery({
     queryKey: taskKeys.list(filters),
     queryFn: () => api.tasks.list(filters),
+    // ⭐ projectId가 필수 (선택된 프로젝트의 task만 조회)
     enabled: !!filters?.projectId,
     staleTime: 1000 * 60 * 5, // 5분간 캐시
     refetchOnWindowFocus: false,

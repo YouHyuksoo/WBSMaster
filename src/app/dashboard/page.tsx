@@ -105,8 +105,19 @@ export default function DashboardPage() {
   /** 프로젝트 목록 조회 */
   const { data: projects = [], isLoading: projectsLoading } = useProjects() as { data: ProjectWithWbs[]; isLoading: boolean; };
 
-  /** 태스크 목록 조회 (전체) */
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks();
+  /** 현재 선택된 프로젝트 */
+  const { selectedProjectId } = useProject();
+
+  // 태스크 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const taskFilters = useMemo(
+    () => ({
+      projectId: selectedProjectId || undefined,
+    }),
+    [selectedProjectId]
+  );
+
+  /** 태스크 목록 조회 (선택된 프로젝트) */
+  const { data: tasks = [], isLoading: tasksLoading } = useTasks(taskFilters);
 
   /** WBS 단위업무 기반 담당자별 통계 */
   const { data: wbsStats, isLoading: wbsStatsLoading } = useWbsStats();
@@ -122,9 +133,6 @@ export default function DashboardPage() {
 
   /** 요구사항 목록 조회 (MY 대시보드 필터용) */
   const { data: requirements = [] } = useRequirements();
-
-  /** 현재 선택된 프로젝트 */
-  const { selectedProjectId } = useProject();
 
   // 일정 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
   const scheduleFilters = useMemo(
