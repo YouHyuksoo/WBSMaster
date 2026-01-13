@@ -56,7 +56,7 @@ const menuItems: MenuItem[] = [
   { label: "일정 관리", icon: "event", href: "/dashboard/holidays" },
   { label: "고객요구사항", icon: "contact_page", href: "/dashboard/customer-requirements" },
   { label: "기능추적표", icon: "fact_check", href: "/dashboard/process-verification" },
-  { label: "설비 관리", icon: "precision_manufacturing", href: "/dashboard/equipment", filled: true },
+  { label: "공정설비구성", icon: "precision_manufacturing", href: "/dashboard/equipment", filled: true },
   { label: "업무협조 점검표", icon: "checklist", href: "/dashboard/requirements" },
   { label: "이슈사항 점검표", icon: "bug_report", href: "/dashboard/issues" },
   { label: "주간 업무보고", icon: "assignment", href: "/dashboard/weekly-report" },
