@@ -70,6 +70,9 @@ export function DocumentListPanel({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingDocument, setDeletingDocument] = useState<Document | null>(null);
 
+  // 선택 상태
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+
   // 페이지네이션
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -305,8 +308,12 @@ export function DocumentListPanel({
               return (
                 <div
                   key={doc.id}
-                  className="px-4 py-3 hover:bg-surface dark:hover:bg-background-dark transition-colors cursor-pointer"
-                  onClick={() => onOpenDocument(doc)}
+                  className={`px-4 py-3 transition-colors cursor-pointer ${
+                    selectedDocumentId === doc.id
+                      ? "bg-primary/10 border-l-2 border-primary"
+                      : "hover:bg-surface dark:hover:bg-background-dark"
+                  }`}
+                  onClick={() => setSelectedDocumentId(doc.id)}
                 >
                   <div className="flex items-start gap-3">
                     {/* 즐겨찾기 */}
@@ -371,6 +378,16 @@ export function DocumentListPanel({
                           <Icon name="open_in_new" size="xs" />
                         </button>
                       )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenDocument(doc);
+                        }}
+                        className="size-6 rounded flex items-center justify-center hover:bg-cyan-500/10 text-text-secondary hover:text-cyan-500 transition-colors"
+                        title="미리보기"
+                      >
+                        <Icon name="preview" size="xs" />
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
