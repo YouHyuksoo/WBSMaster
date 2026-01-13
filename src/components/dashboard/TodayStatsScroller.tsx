@@ -83,6 +83,9 @@ export function TodayStatsScroller() {
         className="text-primary animate-pulse flex-shrink-0"
       />
 
+      {/* 오늘등록 레이블 */}
+      <span className="text-xs font-semibold text-primary flex-shrink-0">오늘등록</span>
+
       {/* 스크롤 영역 */}
       <div className="flex-1 overflow-hidden">
         <div
