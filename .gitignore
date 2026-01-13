@@ -51,3 +51,7 @@ next-env.d.ts
 stitch_design/
 *.zip
 nul
+
+# Claude Code 임시 파일
+tmpclaude-*.cwd
+bash.exe.stackdump
