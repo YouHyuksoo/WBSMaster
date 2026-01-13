@@ -148,15 +148,6 @@ export function DocumentListPanel({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  // 클립보드에 복사
-  const handleCopyUrl = (url: string) => {
-    navigator.clipboard.writeText(url).then(() => {
-      toast.success("링크가 복사되었습니다.");
-    }).catch(() => {
-      toast.error("복사에 실패했습니다.");
-    });
-  };
-
   // 문서 데이터 복사해서 새 문서 생성
   const handleCopyDocument = async (doc: Document) => {
     if (!projectId) return;
@@ -338,28 +329,16 @@ export function DocumentListPanel({
                     {/* 액션 버튼 */}
                     <div className="flex items-center gap-1">
                       {doc.url && (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenInNewTab(doc.url!);
-                            }}
-                            className="size-6 rounded flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
-                            title="새 창에서 열기"
-                          >
-                            <Icon name="open_in_new" size="xs" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopyUrl(doc.url!);
-                            }}
-                            className="size-6 rounded flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
-                            title="링크 복사"
-                          >
-                            <Icon name="content_copy" size="xs" />
-                          </button>
-                        </>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenInNewTab(doc.url!);
+                          }}
+                          className="size-6 rounded flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
+                          title="새 창에서 열기"
+                        >
+                          <Icon name="open_in_new" size="xs" />
+                        </button>
                       )}
                       <button
                         onClick={(e) => {
