@@ -921,6 +921,12 @@ export const api = {
     delete: (id: string) => del<{ message: string }>(`/api/tasks/${id}`),
   },
 
+  /** 오늘 통계 API (헤더 스크롤러용) */
+  todayStats: {
+    list: (params?: { projectId?: string }) =>
+      get<{ tasks: number; requirements: number; customerRequirements: number; issues: number }>("/api/dashboard/today-stats", params),
+  },
+
   /** 요구사항 API */
   requirements: {
     list: (params?: { projectId?: string; status?: string; priority?: string }) =>

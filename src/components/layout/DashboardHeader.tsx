@@ -22,6 +22,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon, Button, Input, ImageCropper, useToast } from "@/components/ui";
 import { useProject } from "@/contexts/ProjectContext";
+import { TodayStatsScroller } from "@/components/dashboard/TodayStatsScroller";
 
 /** 로컬 사용자 타입 */
 interface LocalUser {
@@ -626,8 +627,13 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         </div>
       </div>
 
+      {/* 중앙: 오늘 등록 통계 스크롤러 (데스크톱만 표시) */}
+      <div className="hidden lg:block flex-1 max-w-xs mx-4">
+        <TodayStatsScroller />
+      </div>
+
       {/* 우측: 액션 버튼 및 사용자 정보 */}
-      <div className="flex flex-1 justify-end gap-4 items-center">
+      <div className="flex justify-end gap-4 items-center">
         {/* 버튼 그룹 */}
         <div className="flex gap-2">
           {/* 언어 전환 (추후 구현) */}
