@@ -129,9 +129,14 @@ interface BulkUpdatePosition {
 
 /** 설비 위치 일괄 업데이트 훅 (캔버스 저장용) */
 export function useBulkUpdateEquipment() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (updates: BulkUpdatePosition[]) => api.equipment.bulkUpdate(updates),
-    // 저장 성공 시 refetch 안 함 (캔버스에서 이미 로컬 상태를 관리하므로)
-    // → 화면 리프레시 방지 및 거대한 SQL 쿼리 방지
+    onSuccess: () => {
+      // ⭐ 저장 성공 후 캐시 무효화하여 다음 선택 시 최신 데이터 로드
+      // (카드 선택 후 취소 시 이전 위치로 돌아가는 버그 방지)
+      queryClient.invalidateQueries({ queryKey: ["equipment"] });
+    },
   });
 }
