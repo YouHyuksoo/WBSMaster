@@ -64,6 +64,7 @@ export function DocumentListPanel({
   const [filterSourceType, setFilterSourceType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<"latest" | "oldest" | "categoryLatest">("latest");
 
   // 삭제 확인 모달 상태
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -92,7 +93,7 @@ export function DocumentListPanel({
 
   // 필터링된 문서
   const filteredDocuments = useMemo(() => {
-    return documents.filter((doc) => {
+    let filtered = documents.filter((doc) => {
       const matchesCategory = filterCategory === "all" || doc.category === filterCategory;
       const matchesSourceType = filterSourceType === "all" || doc.sourceType === filterSourceType;
       const matchesFavorite = !showFavoritesOnly || doc.isFavorite;
@@ -103,7 +104,28 @@ export function DocumentListPanel({
         doc.tags?.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchesCategory && matchesSourceType && matchesFavorite && matchesSearch;
     });
-  }, [documents, filterCategory, filterSourceType, showFavoritesOnly, searchQuery]);
+
+    // 정렬 로직
+    if (sortBy === "latest") {
+      // 등록일 기준 (최신순)
+      return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (sortBy === "oldest") {
+      // 등록일 기준 (오래된순)
+      return filtered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    } else if (sortBy === "categoryLatest") {
+      // 종류별(등록일) - 카테고리 별로 그룹화 후 각 그룹 내에서 최신순 정렬
+      return filtered.sort((a, b) => {
+        // 1차: 카테고리 순서로 정렬
+        const categoryOrder = { SPECIFICATION: 0, MANUAL: 1, MEETING: 2, REPORT: 3, CONTRACT: 4, TEMPLATE: 5, REFERENCE: 6, OTHER: 7 };
+        const categoryDiff = (categoryOrder[a.category as keyof typeof categoryOrder] ?? 99) - (categoryOrder[b.category as keyof typeof categoryOrder] ?? 99);
+        if (categoryDiff !== 0) return categoryDiff;
+        // 2차: 같은 카테고리 내에서 등록일 최신순
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    }
+
+    return filtered;
+  }, [documents, filterCategory, filterSourceType, showFavoritesOnly, searchQuery, sortBy]);
 
   // 페이지네이션 계산
   const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage);
@@ -112,10 +134,10 @@ export function DocumentListPanel({
     return filteredDocuments.slice(start, start + itemsPerPage);
   }, [filteredDocuments, currentPage, itemsPerPage]);
 
-  // 필터 변경 시 페이지 리셋
+  // 필터/정렬 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterCategory, filterSourceType, showFavoritesOnly, searchQuery]);
+  }, [filterCategory, filterSourceType, showFavoritesOnly, searchQuery, sortBy]);
 
   // 삭제 핸들러 - 확인 모달 표시
   const handleDelete = (doc: Document) => {
@@ -250,6 +272,15 @@ export function DocumentListPanel({
         >
           <Icon name={showFavoritesOnly ? "star" : "star_border"} size="xs" />
         </button>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as "latest" | "oldest" | "categoryLatest")}
+          className="px-2 py-1 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white"
+        >
+          <option value="latest">등록일기준</option>
+          <option value="oldest">등록일기준 (오래된순)</option>
+          <option value="categoryLatest">종류별(등록일)</option>
+        </select>
       </div>
 
       {/* 문서 목록 */}
