@@ -134,3 +134,43 @@ export const VALUE_TYPE_CONFIG = {
   DATE: { label: "날짜", icon: "calendar_today" },
   BOOLEAN: { label: "참/거짓", icon: "toggle_on" },
 } as const;
+
+/** 소속사 설정 (아이콘, 색상 포함) */
+export const AFFILIATION_CONFIG = {
+  CLIENT: {
+    label: "고객사",
+    icon: "business",
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/10",
+  },
+  DEVELOPER: {
+    label: "개발사",
+    icon: "code",
+    color: "text-green-500",
+    bgColor: "bg-green-500/10",
+  },
+  CONSULTING: {
+    label: "컨설팅",
+    icon: "support_agent",
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10",
+  },
+  OUTSOURCING: {
+    label: "외주",
+    icon: "handshake",
+    color: "text-orange-500",
+    bgColor: "bg-orange-500/10",
+  },
+  HAENGSUNG: {
+    label: "행성사",
+    icon: "rocket_launch",
+    color: "text-cyan-500",
+    bgColor: "bg-cyan-500/10",
+  },
+  OTHER: {
+    label: "기타",
+    icon: "more_horiz",
+    color: "text-text-secondary",
+    bgColor: "bg-surface",
+  },
+} as const;

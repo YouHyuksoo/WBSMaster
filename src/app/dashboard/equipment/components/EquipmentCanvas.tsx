@@ -64,6 +64,10 @@ interface EquipmentCanvasProps {
   connections: EquipmentConnection[];
   selectedId: string | null;
   onSelectNode: (id: string) => void;
+  /** 포커스할 설비 ID (찾기 기능용) */
+  focusEquipmentId?: string | null;
+  /** 포커스 완료 후 호출되는 콜백 */
+  onFocusComplete?: () => void;
 }
 
 /**
@@ -74,6 +78,8 @@ function EquipmentCanvasInner({
   connections,
   selectedId,
   onSelectNode,
+  focusEquipmentId,
+  onFocusComplete,
 }: EquipmentCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -140,6 +146,34 @@ function EquipmentCanvasInner({
     }));
     setNodes(flowNodes);
   }, [equipments, selectedId]);
+
+  // 설비 찾기: focusEquipmentId가 변경되면 해당 노드로 이동
+  useEffect(() => {
+    if (!focusEquipmentId) return;
+
+    // 해당 노드 찾기
+    const targetNode = nodes.find((node) => node.id === focusEquipmentId);
+    if (!targetNode) {
+      console.warn(`[찾기] 캔버스에 없는 설비입니다: ${focusEquipmentId}`);
+      onFocusComplete?.();
+      return;
+    }
+
+    // 해당 노드로 화면 이동 (줌 레벨 1.2, 부드러운 애니메이션)
+    setTimeout(() => {
+      reactFlowInstance.setCenter(
+        targetNode.position.x + 150, // 노드 중앙으로 (노드 너비의 절반)
+        targetNode.position.y + 75,  // 노드 중앙으로 (노드 높이의 절반)
+        { zoom: 1.2, duration: 500 }
+      );
+
+      // 노드 선택
+      onSelectNode(focusEquipmentId);
+
+      // 포커스 완료 콜백
+      onFocusComplete?.();
+    }, 100);
+  }, [focusEquipmentId, nodes, reactFlowInstance, onSelectNode, onFocusComplete]);
 
   // DB 데이터 → React Flow 엣지 변환
   useEffect(() => {

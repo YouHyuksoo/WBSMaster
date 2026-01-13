@@ -84,6 +84,11 @@ const affiliationConfig: Record<string, { label: string; color: string; bgColor:
     color: "text-cyan-600 dark:text-cyan-400",
     bgColor: "bg-cyan-100 dark:bg-cyan-900/30",
   },
+  HAENGSUNG: {
+    label: "행성사",
+    color: "text-blue-600 dark:text-blue-400",
+    bgColor: "bg-blue-100 dark:bg-blue-900/30",
+  },
   OTHER: {
     label: "기타",
     color: "text-slate-600 dark:text-slate-400",

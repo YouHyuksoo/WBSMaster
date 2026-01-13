@@ -468,6 +468,98 @@ export const STATUS_CONFIG: Record<string, { label: string; icon: string; color:
 3. **인증**: 모든 API는 `getAuthenticatedUser()` 로 인증 확인
 4. **프로젝트 컨텍스트**: 대부분의 데이터는 `projectId`로 필터링
 
+## 🚨 타입 동기화 규칙 (2026-01-13 학습) - 매우 중요!
+
+### 근본 원인
+이 프로젝트는 **타입 정의가 여러 곳에 분산**되어 있어서, 한 곳만 수정하면 빌드 오류가 발생합니다.
+
+### 타입 정의 위치 (3단계 구조)
+```
+1. prisma/schema.prisma     ← DB 모델 (원본)
+2. src/lib/api.ts           ← API 클라이언트 타입 (중간)
+3. src/hooks/use*.ts        ← React Query 훅 타입 (최종)
+```
+
+### ⭐ 필수 동기화 체크리스트
+
+**Prisma 스키마에 필드 추가/수정 시:**
+
+1. ✅ `prisma/schema.prisma` 수정
+2. ✅ `npx prisma generate` 실행
+3. ✅ `src/lib/api.ts`의 해당 API 함수 타입 업데이트
+   - `create` 함수 파라미터에 새 필드 추가
+   - `update` 함수 파라미터에 새 필드 추가
+4. ✅ `src/hooks/use*.ts`의 훅 타입도 함께 업데이트
+   - `useCreate*` 훅의 `mutationFn` 타입
+   - `useUpdate*` 훅의 `mutationFn` 타입
+
+### 실제 발생했던 오류 예시
+
+```typescript
+// ❌ api.ts만 수정하고 훅은 수정 안 함
+// api.ts
+create: (data: { name: string; affiliation?: Affiliation }) => ...
+
+// hooks/useUsers.ts - 여기도 수정해야 함!
+mutationFn: (data: { name: string }) => api.users.create(data)
+//                   ↑ affiliation 누락!
+```
+
+### 자주 놓치는 패턴
+
+| 상황 | 수정해야 할 파일들 |
+|------|-------------------|
+| Equipment 필드 추가 | `api.ts` → `equipment.create/update` 타입 |
+| User 필드 추가 | `api.ts` → `users.create/update` + `hooks/useUsers.ts` |
+| Connection 필드 추가 | `api.ts` → `equipmentConnections.create` 타입 |
+
+### TypeScript 타입 관련 추가 규칙
+
+#### 1. filter(Boolean)은 타입을 좁히지 못함
+```typescript
+// ❌ 틀림 - TypeScript가 null/undefined 제거를 인식 못함
+const lines = items.map(x => x.lineCode).filter(Boolean);
+// 타입: (string | null | undefined)[]
+
+// ✅ 올바름 - 타입 가드 사용
+const lines = items.map(x => x.lineCode).filter((x): x is string => Boolean(x));
+// 타입: string[]
+```
+
+#### 2. React Flow enum 값은 import 필수
+```typescript
+// ❌ 틀림 - 문자열 리터럴 사용
+<ReactFlow selectionMode="partial" connectionMode="loose" />
+
+// ✅ 올바름 - enum import 후 사용
+import { SelectionMode, ConnectionMode } from "reactflow";
+<ReactFlow
+  selectionMode={SelectionMode.Partial}
+  connectionMode={ConnectionMode.Loose}
+/>
+```
+
+#### 3. select onChange에서 enum 타입 캐스팅
+```typescript
+// ❌ 틀림 - e.target.value는 string
+onChange={(e) => setAffiliation(e.target.value)}
+
+// ✅ 올바름 - 타입 캐스팅 필요
+onChange={(e) => setAffiliation(e.target.value as Affiliation)}
+```
+
+### ❌ 절대 하지 말 것
+- Prisma 스키마만 수정하고 api.ts 안 고침
+- api.ts만 수정하고 훅 파일 안 고침
+- 컴포넌트에서 새 필드 사용하면서 타입 확인 안 함
+- filter(Boolean)으로 null 제거하고 타입 가드 안 씀
+
+### ✅ 반드시 할 것
+- 필드 추가 시 **3단계 모두** 확인 (schema → api.ts → hooks)
+- 빌드 오류 발생 시 **타입 정의 분산** 여부 먼저 확인
+- nullable 필드 필터링 시 타입 가드 사용
+- 외부 라이브러리 enum은 import해서 사용
+
 ## Git 브랜치
 
 - **main**: 메인 브랜치

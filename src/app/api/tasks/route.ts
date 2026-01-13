@@ -275,6 +275,27 @@ export async function POST(request: NextRequest) {
       assignees: task.assignees.map((a) => a.user),
     };
 
+    // 주 담당자에게 알림 생성 (본인이 아닌 경우에만)
+    if (assigneeId && assigneeId !== creatorId) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: assigneeId,
+            type: "TASK_ASSIGNED",
+            title: `새 Task 할당: ${title}`,
+            message: `[${project.name}] "${title}" Task가 당신에게 할당되었습니다.`,
+            link: "/dashboard/kanban",
+            relatedId: task.id,
+            projectId: projectId,
+            projectName: project.name,
+          },
+        });
+      } catch (notifError) {
+        console.error("알림 생성 실패:", notifError);
+        // 알림 실패해도 Task 생성은 성공으로 처리
+      }
+    }
+
     return NextResponse.json(transformedTask, { status: 201 });
   } catch (error) {
     console.error("태스크 생성 실패:", error);

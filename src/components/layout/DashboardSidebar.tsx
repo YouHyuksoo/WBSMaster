@@ -145,7 +145,7 @@ export function DashboardSidebar({
         </button>
 
         {/* 메뉴 영역 */}
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
           {/* 메뉴 섹션 */}
           <p className={`px-3 text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 ${isCollapsed ? "lg:hidden" : ""}`}>
             Menu
@@ -157,7 +157,7 @@ export function DashboardSidebar({
               href={item.href}
               title={isCollapsed ? item.label : undefined}
               className={`
-                flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
+                flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
                 ${isCollapsed ? "lg:justify-center lg:px-0" : ""}
                 ${
                   isActive(item.href)
@@ -192,7 +192,7 @@ export function DashboardSidebar({
               href={item.href}
               title={isCollapsed ? item.label : undefined}
               className={`
-                flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
+                flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
                 ${isCollapsed ? "lg:justify-center lg:px-0" : ""}
                 ${
                   isActive(item.href)
@@ -214,7 +214,7 @@ export function DashboardSidebar({
         </div>
 
         {/* 하단 메뉴 */}
-        <div className={`p-4 pt-0 flex flex-col gap-2 shrink-0 ${isCollapsed ? "lg:p-2 lg:pt-0" : ""}`}>
+        <div className={`p-4 pt-0 flex flex-col gap-1 shrink-0 ${isCollapsed ? "lg:p-2 lg:pt-0" : ""}`}>
           <div className={`h-px bg-border dark:bg-border-dark my-2 ${isCollapsed ? "lg:mx-0" : ""}`} />
 
           {/* 도움말 */}

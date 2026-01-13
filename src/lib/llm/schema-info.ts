@@ -155,7 +155,7 @@ export const DATABASE_SCHEMA = {
   },
   wbs_items: {
     tableName: "wbs_items",
-    description: "WBS 항목 테이블 (계층형 구조)",
+    description: "WBS 항목 테이블 (계층형 구조). ⚠️ 중요: 담당자(assignee)는 이 테이블에 없음! wbs_assignees 테이블을 통해 다대다로 연결됨. assigneeId 컬럼 사용 금지!",
     columns: {
       id: { type: "uuid", description: "WBS 항목 고유 ID (Primary Key)" },
       code: { type: "string", description: "WBS 코드 (예: 1, 1.1, 1.1.1)" },
@@ -173,10 +173,14 @@ export const DATABASE_SCHEMA = {
         values: ["PENDING", "IN_PROGRESS", "HOLDING", "DELAYED", "COMPLETED", "CANCELLED"],
       },
       progress: { type: "int", description: "진행률 (0-100)" },
-      startDate: { type: "datetime?", description: "시작일" },
-      endDate: { type: "datetime?", description: "종료일" },
+      startDate: { type: "datetime?", description: "계획 시작일" },
+      endDate: { type: "datetime?", description: "계획 종료일" },
+      actualStartDate: { type: "datetime?", description: "실제 시작일" },
+      actualEndDate: { type: "datetime?", description: "실제 종료일" },
       weight: { type: "int", description: "가중치 (진행률 계산용)" },
-      parentId: { type: "uuid?", description: "부모 WBS ID (FK -> wbs_items.id, 자기 참조)" },
+      deliverableName: { type: "string?", description: "산출물명" },
+      deliverableLink: { type: "string?", description: "산출물 링크 (URL)" },
+      parentId: { type: "uuid?", description: "부모 WBS ID (FK -> wbs_items.id, 자기 참조). NULL이면 최상위(LEVEL1)" },
       projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
       createdAt: { type: "datetime", description: "생성일시" },
       updatedAt: { type: "datetime", description: "수정일시" },
@@ -184,11 +188,11 @@ export const DATABASE_SCHEMA = {
   },
   wbs_assignees: {
     tableName: "wbs_assignees",
-    description: "WBS 담당자 조인 테이블 (다대다)",
+    description: "WBS 담당자 조인 테이블 (다대다). WBS 담당자 조회 시 이 테이블을 JOIN해야 함! wbs_items에는 assigneeId 없음!",
     columns: {
       id: { type: "uuid", description: "고유 ID (Primary Key)" },
       wbsItemId: { type: "uuid", description: "WBS 항목 ID (FK -> wbs_items.id)" },
-      userId: { type: "uuid", description: "사용자 ID (FK -> users.id)" },
+      userId: { type: "uuid", description: "담당자 사용자 ID (FK -> users.id)" },
       assignedAt: { type: "datetime", description: "담당자 지정일" },
     },
   },
@@ -498,10 +502,11 @@ export const TABLE_RELATIONSHIPS = `
    - 1:N → weekly_report_items (주간보고 항목 연결)
 
 4. **wbs_items** (WBS 항목)
-   - 자기참조 (parentId로 계층 구조)
+   - 자기참조 (parentId로 계층 구조, NULL이면 최상위 LEVEL1)
    - N:1 → projects
-   - N:M → users (담당자)
+   - ⚠️ N:M → users (담당자) - **wbs_assignees 테이블을 통해 연결! wbs_items에는 assigneeId 컬럼 없음!**
    - 1:N → weekly_report_items (주간보고 항목 연결)
+   - WBS 마인드맵/트리 조회 시: id, code, name, level, parentId, status, progress 사용
 
 5. **process_verification_categories** (기능추적표 카테고리)
    - N:1 → projects

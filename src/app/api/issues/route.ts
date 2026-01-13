@@ -172,6 +172,38 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // 긴급(CRITICAL) 이슈인 경우 프로젝트 멤버들에게 알림 생성
+    if (priority === "CRITICAL") {
+      try {
+        // 프로젝트 멤버 조회
+        const teamMembers = await prisma.teamMember.findMany({
+          where: { projectId },
+          select: { userId: true },
+        });
+
+        // 각 멤버에게 알림 생성 (보고자 제외)
+        const notificationData = teamMembers
+          .filter((tm) => tm.userId !== reporterId)
+          .map((tm) => ({
+            userId: tm.userId,
+            type: "ISSUE_URGENT" as const,
+            title: `긴급 이슈 발생: ${title}`,
+            message: `[${project.name}] 긴급 이슈 "${code}: ${title}"가 등록되었습니다.`,
+            link: "/dashboard/issues",
+            relatedId: issue.id,
+            projectId: projectId,
+            projectName: project.name,
+          }));
+
+        if (notificationData.length > 0) {
+          await prisma.notification.createMany({ data: notificationData });
+        }
+      } catch (notifError) {
+        console.error("긴급 이슈 알림 생성 실패:", notifError);
+        // 알림 실패해도 이슈 생성은 성공으로 처리
+      }
+    }
+
     return NextResponse.json(issue, { status: 201 });
   } catch (error) {
     console.error("이슈 생성 실패:", error);

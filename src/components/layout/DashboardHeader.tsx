@@ -20,7 +20,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Icon, Button, Input, useToast } from "@/components/ui";
+import { Icon, Button, Input, ImageCropper, useToast } from "@/components/ui";
 import { useProject } from "@/contexts/ProjectContext";
 
 /** 로컬 사용자 타입 */
@@ -30,6 +30,18 @@ interface LocalUser {
   name?: string | null;
   avatar?: string | null;
   role?: string;
+}
+
+/** 알림 타입 */
+interface Notification {
+  id: string;
+  type: "TASK_ASSIGNED" | "MILESTONE_DUE_SOON" | "ISSUE_URGENT";
+  title: string;
+  message: string;
+  link?: string | null;
+  isRead: boolean;
+  projectName?: string | null;
+  createdAt: string;
 }
 
 interface DashboardHeaderProps {
@@ -52,8 +64,22 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  // 프로필 수정 모달 상태
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editAvatar, setEditAvatar] = useState("");
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  // 이미지 크롭 모달 상태
+  const [showImageCropper, setShowImageCropper] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  // 알림 상태
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotificationMenu, setShowNotificationMenu] = useState(false);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
+  const notificationMenuRef = useRef<HTMLDivElement>(null);
 
   // 프로젝트 Context 사용
   const { selectedProjectId, setSelectedProjectId, selectedProject, projects, isLoading: isProjectsLoading } = useProject();
@@ -125,6 +151,119 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showProjectMenu]);
+
+  // 알림 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationMenuRef.current && !notificationMenuRef.current.contains(event.target as Node)) {
+        setShowNotificationMenu(false);
+      }
+    };
+
+    if (showNotificationMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showNotificationMenu]);
+
+  // 알림 조회 (최초 1회, 마일스톤 임박 체크 포함)
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchNotifications = async () => {
+      setIsLoadingNotifications(true);
+      try {
+        const response = await fetch("/api/notifications?checkMilestones=true");
+        if (response.ok) {
+          const data = await response.json();
+          setNotifications(data.notifications || []);
+          setUnreadCount(data.unreadCount || 0);
+        }
+      } catch (error) {
+        console.error("알림 조회 실패:", error);
+      } finally {
+        setIsLoadingNotifications(false);
+      }
+    };
+
+    fetchNotifications();
+  }, [user]);
+
+  /**
+   * 알림 클릭 (읽음 처리 후 이동)
+   */
+  const handleNotificationClick = async (notification: Notification) => {
+    // 읽음 처리
+    if (!notification.isRead) {
+      try {
+        await fetch(`/api/notifications/${notification.id}`, { method: "PATCH" });
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (error) {
+        console.error("알림 읽음 처리 실패:", error);
+      }
+    }
+
+    // 페이지 이동
+    if (notification.link) {
+      setShowNotificationMenu(false);
+      router.push(notification.link);
+    }
+  };
+
+  /**
+   * 모든 알림 읽음 처리
+   */
+  const handleReadAllNotifications = async () => {
+    try {
+      await fetch("/api/notifications/read-all", { method: "PATCH" });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+      toast.success("모든 알림을 읽음 처리했습니다.");
+    } catch (error) {
+      console.error("모두 읽음 처리 실패:", error);
+      toast.error("알림 처리에 실패했습니다.");
+    }
+  };
+
+  /**
+   * 알림 타입별 아이콘
+   */
+  const getNotificationIcon = (type: Notification["type"]) => {
+    switch (type) {
+      case "TASK_ASSIGNED":
+        return { icon: "assignment_ind", color: "text-primary" };
+      case "MILESTONE_DUE_SOON":
+        return { icon: "flag_circle", color: "text-warning" };
+      case "ISSUE_URGENT":
+        return { icon: "error", color: "text-error" };
+      default:
+        return { icon: "notifications", color: "text-text-secondary" };
+    }
+  };
+
+  /**
+   * 상대 시간 포맷
+   */
+  const formatRelativeTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    if (diffMin < 1) return "방금 전";
+    if (diffMin < 60) return `${diffMin}분 전`;
+    if (diffHour < 24) return `${diffHour}시간 전`;
+    if (diffDay < 7) return `${diffDay}일 전`;
+    return date.toLocaleDateString("ko-KR");
+  };
 
   /**
    * 프로젝트 선택 핸들러
@@ -231,6 +370,103 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
       );
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  /**
+   * 프로필 수정 모달 열기
+   */
+  const handleOpenProfileModal = () => {
+    setShowProfileMenu(false);
+    setEditName(user?.name || "");
+    setEditAvatar(user?.avatar || "");
+    setShowProfileModal(true);
+  };
+
+  /**
+   * 이미지 크롭 완료 후 업로드 처리
+   */
+  const handleImageCropComplete = async (blob: Blob) => {
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", blob, "avatar.jpg");
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "업로드 실패");
+      }
+
+      const { url } = await response.json();
+      setEditAvatar(url);
+      setShowImageCropper(false);
+      toast.success("이미지가 업로드되었습니다.");
+    } catch (error) {
+      console.error("이미지 업로드 실패:", error);
+      toast.error(
+        error instanceof Error ? error.message : "이미지 업로드에 실패했습니다.",
+        "업로드 실패"
+      );
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  /**
+   * 프로필 정보 수정 처리
+   */
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user) {
+      toast.error("사용자 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    // 유효성 검사
+    if (!editName.trim()) {
+      toast.error("이름을 입력해주세요.");
+      return;
+    }
+
+    try {
+      setIsUpdatingProfile(true);
+
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName.trim(),
+          avatar: editAvatar.trim() || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "프로필 수정에 실패했습니다.");
+      }
+
+      const updatedUser = await response.json();
+
+      // localStorage 업데이트
+      const newUserData = { ...user, name: updatedUser.name, avatar: updatedUser.avatar };
+      localStorage.setItem("user", JSON.stringify(newUserData));
+      setUser(newUserData);
+
+      toast.success("프로필이 수정되었습니다.");
+      setShowProfileModal(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "프로필 수정에 실패했습니다.",
+        "프로필 수정 실패"
+      );
+    } finally {
+      setIsUpdatingProfile(false);
     }
   };
 
@@ -372,12 +608,103 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
             />
           </button>
 
-          {/* 알림 버튼 */}
-          <button className="flex size-9 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark hover:bg-surface-hover dark:hover:bg-[#2a3441] transition-colors relative">
-            <Icon name="notifications" size="sm" className="text-text dark:text-white" />
-            {/* 알림 표시 점 */}
-            <span className="absolute top-2 right-2 size-2 bg-error rounded-full border border-background-white dark:border-surface-dark" />
-          </button>
+          {/* 알림 버튼 및 드롭다운 */}
+          <div className="relative" ref={notificationMenuRef}>
+            <button
+              onClick={() => setShowNotificationMenu(!showNotificationMenu)}
+              className="flex size-9 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark hover:bg-surface-hover dark:hover:bg-[#2a3441] transition-colors relative"
+            >
+              <Icon name="notifications" size="sm" className="text-text dark:text-white" />
+              {/* 읽지 않은 알림 표시 */}
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-error rounded-full border-2 border-background-white dark:border-surface-dark text-[10px] font-bold text-white flex items-center justify-center">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* 알림 드롭다운 메뉴 */}
+            {showNotificationMenu && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl shadow-lg z-[60] animate-slide-in-down">
+                {/* 헤더 */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border dark:border-border-dark">
+                  <p className="text-sm font-bold text-text dark:text-white">알림</p>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleReadAllNotifications}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      모두 읽음
+                    </button>
+                  )}
+                </div>
+
+                {/* 알림 목록 */}
+                <div className="max-h-80 overflow-y-auto">
+                  {isLoadingNotifications ? (
+                    <div className="p-4 text-center">
+                      <Icon name="progress_activity" size="md" className="text-text-secondary animate-spin mx-auto" />
+                      <p className="text-xs text-text-secondary mt-2">알림을 불러오는 중...</p>
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <Icon name="notifications_off" size="xl" className="text-text-secondary mb-2" />
+                      <p className="text-sm text-text-secondary">새 알림이 없습니다</p>
+                    </div>
+                  ) : (
+                    notifications.slice(0, 10).map((notification) => {
+                      const iconConfig = getNotificationIcon(notification.type);
+                      return (
+                        <button
+                          key={notification.id}
+                          onClick={() => handleNotificationClick(notification)}
+                          className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-b border-border dark:border-border-dark last:border-b-0 ${
+                            notification.isRead
+                              ? "bg-transparent hover:bg-surface dark:hover:bg-background-dark"
+                              : "bg-primary/5 hover:bg-primary/10"
+                          }`}
+                        >
+                          {/* 아이콘 */}
+                          <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${
+                            notification.isRead ? "bg-surface dark:bg-background-dark" : "bg-primary/10"
+                          }`}>
+                            <Icon name={iconConfig.icon} size="xs" className={iconConfig.color} />
+                          </div>
+                          {/* 내용 */}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm truncate ${
+                              notification.isRead ? "text-text-secondary" : "text-text dark:text-white font-medium"
+                            }`}>
+                              {notification.title}
+                            </p>
+                            <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">
+                              {notification.message}
+                            </p>
+                            <p className="text-[10px] text-text-secondary mt-1">
+                              {formatRelativeTime(notification.createdAt)}
+                            </p>
+                          </div>
+                          {/* 읽지 않음 표시 */}
+                          {!notification.isRead && (
+                            <div className="size-2 rounded-full bg-primary shrink-0 mt-2" />
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* 푸터 */}
+                {notifications.length > 10 && (
+                  <div className="px-4 py-2 border-t border-border dark:border-border-dark text-center">
+                    <p className="text-xs text-text-secondary">
+                      최근 10개만 표시됩니다
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 구분선 */}
@@ -433,6 +760,13 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
               {/* 메뉴 항목 */}
               <div className="py-1">
+                <button
+                  onClick={handleOpenProfileModal}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-text dark:text-white hover:bg-surface dark:hover:bg-background-dark transition-colors w-full text-left"
+                >
+                  <Icon name="edit" size="sm" className="text-text-secondary" />
+                  정보 수정
+                </button>
                 <button
                   onClick={handleOpenPasswordModal}
                   className="flex items-center gap-3 px-4 py-2 text-sm text-text dark:text-white hover:bg-surface dark:hover:bg-background-dark transition-colors w-full text-left"
@@ -532,6 +866,124 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
             </form>
           </div>
         </div>
+      )}
+
+      {/* 프로필 수정 모달 */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-text dark:text-white">프로필 수정</h2>
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="text-text-secondary hover:text-text dark:hover:text-white"
+              >
+                <Icon name="close" size="md" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              {/* 아바타 영역 */}
+              <div className="flex flex-col items-center gap-3 pb-4 border-b border-border dark:border-border-dark">
+                <div className="relative group">
+                  <div className="size-24 rounded-full bg-primary/20 flex items-center justify-center border-4 border-surface dark:border-surface-dark overflow-hidden">
+                    {editAvatar ? (
+                      <img
+                        src={editAvatar}
+                        alt="아바타 미리보기"
+                        className="size-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <span className="text-3xl font-bold text-primary">
+                        {(editName || user?.email?.split("@")[0] || "U").charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  {/* 호버 시 카메라 아이콘 오버레이 */}
+                  <button
+                    type="button"
+                    onClick={() => setShowImageCropper(true)}
+                    disabled={isUploadingImage}
+                    className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  >
+                    <Icon name="add_a_photo" size="lg" className="text-white" />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowImageCropper(true)}
+                  disabled={isUploadingImage}
+                  className="text-sm text-primary hover:underline flex items-center gap-1"
+                >
+                  <Icon name="edit" size="xs" />
+                  {isUploadingImage ? "업로드 중..." : "사진 변경"}
+                </button>
+                {editAvatar && (
+                  <button
+                    type="button"
+                    onClick={() => setEditAvatar("")}
+                    className="text-xs text-error hover:underline"
+                  >
+                    사진 삭제
+                  </button>
+                )}
+              </div>
+
+              <Input
+                label="이름 *"
+                leftIcon="person"
+                type="text"
+                placeholder="표시될 이름 입력"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+
+              {/* 안내 메시지 */}
+              <div className="p-3 bg-info/10 rounded-lg border border-info/20">
+                <div className="flex items-start gap-2">
+                  <Icon name="info" size="sm" className="text-info mt-0.5" />
+                  <p className="text-xs text-text dark:text-white">
+                    이메일은 보안상의 이유로 변경할 수 없습니다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  onClick={() => setShowProfileModal(false)}
+                  type="button"
+                >
+                  취소
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  type="submit"
+                  disabled={isUpdatingProfile}
+                >
+                  {isUpdatingProfile ? "저장 중..." : "저장"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 이미지 크롭 모달 */}
+      {showImageCropper && (
+        <ImageCropper
+          onCropComplete={handleImageCropComplete}
+          onClose={() => setShowImageCropper(false)}
+          onError={(message) => toast.error(message, "이미지 오류")}
+          aspectRatio={1}
+          cropShape="round"
+        />
       )}
     </header>
   );

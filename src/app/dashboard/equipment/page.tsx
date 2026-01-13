@@ -19,7 +19,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useProject } from "@/contexts";
 import { useEquipment } from "./hooks/useEquipment";
 import { useEquipmentConnections } from "./hooks/useEquipmentConnections";
@@ -41,6 +41,13 @@ export default function EquipmentPage() {
   // 필터 상태 (초기값: 선택 안 됨)
   const [divisionFilter, setDivisionFilter] = useState<string>("ALL");
   const [lineFilter, setLineFilter] = useState<string>(""); // 빈 문자열: 선택 안 됨
+
+  // 찾기 기능 상태
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
+  const [focusEquipmentId, setFocusEquipmentId] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
 
   // 선택된 연결선 및 영역 선택 스타일 (CSS)
   const edgeStyles = `
@@ -126,6 +133,51 @@ export default function EquipmentPage() {
       });
 
   const selectedEquipment = equipments.find((eq) => eq.id === selectedEquipmentId);
+
+  // 캔버스에 표시된 설비만 필터링 (positionX/Y가 0이 아닌 것)
+  const canvasEquipments = useMemo(
+    () => filteredEquipments.filter((eq) => eq.positionX !== 0 || eq.positionY !== 0),
+    [filteredEquipments]
+  );
+
+  // 찾기 검색 결과 (캔버스에 표시된 설비 중에서 검색)
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase();
+    return canvasEquipments
+      .filter(
+        (eq) =>
+          eq.name.toLowerCase().includes(query) ||
+          eq.code.toLowerCase().includes(query)
+      )
+      .slice(0, 10); // 최대 10개만 표시
+  }, [searchQuery, canvasEquipments]);
+
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        searchDropdownRef.current &&
+        !searchDropdownRef.current.contains(e.target as Node) &&
+        searchInputRef.current &&
+        !searchInputRef.current.contains(e.target as Node)
+      ) {
+        setIsSearchDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  /**
+   * 설비 찾기 핸들러
+   * @param equipmentId 찾을 설비 ID
+   */
+  const handleFindEquipment = (equipmentId: string) => {
+    setFocusEquipmentId(equipmentId);
+    setIsSearchDropdownOpen(false);
+    setSearchQuery("");
+  };
 
   // 프로젝트 미선택
   if (!selectedProjectId) {
@@ -313,6 +365,86 @@ export default function EquipmentPage() {
               </button>
             )}
 
+            {/* 구분선 */}
+            <div className="h-6 w-px bg-border dark:bg-border-dark"></div>
+
+            {/* 설비 찾기 */}
+            <div className="relative">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-cyan-500" style={{ fontSize: 20 }}>
+                  search
+                </span>
+                <span className="text-sm font-medium text-text dark:text-white">찾기</span>
+              </div>
+            </div>
+            <div className="relative">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSearchDropdownOpen(true);
+                }}
+                onFocus={() => setIsSearchDropdownOpen(true)}
+                placeholder="설비명 또는 코드 입력..."
+                disabled={!lineFilter}
+                className="w-48 px-3 py-1.5 rounded-lg bg-background-white dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              {/* 검색 결과 드롭다운 */}
+              {isSearchDropdownOpen && searchResults.length > 0 && (
+                <div
+                  ref={searchDropdownRef}
+                  className="absolute left-0 top-full mt-1 z-50 w-72 max-h-64 overflow-y-auto bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-xl"
+                >
+                  <div className="p-2 border-b border-border dark:border-border-dark">
+                    <span className="text-xs text-text-secondary">
+                      캔버스 내 {searchResults.length}개 설비 발견
+                    </span>
+                  </div>
+                  {searchResults.map((eq) => (
+                    <button
+                      key={eq.id}
+                      onClick={() => handleFindEquipment(eq.id)}
+                      className="w-full px-3 py-2 text-left hover:bg-surface dark:hover:bg-background-dark transition-colors flex items-center gap-3 border-b border-border/50 dark:border-border-dark/50 last:border-b-0"
+                    >
+                      <span className="material-symbols-outlined text-cyan-500" style={{ fontSize: 18 }}>
+                        location_on
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text dark:text-white truncate">
+                          {eq.name}
+                        </p>
+                        <p className="text-xs text-text-secondary truncate">
+                          {eq.code} · {eq.lineCode || "라인 없음"}
+                        </p>
+                      </div>
+                      <span className="material-symbols-outlined text-text-secondary" style={{ fontSize: 16 }}>
+                        arrow_forward
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* 검색어 입력했지만 결과 없음 */}
+              {isSearchDropdownOpen && searchQuery.trim() && searchResults.length === 0 && (
+                <div
+                  ref={searchDropdownRef}
+                  className="absolute left-0 top-full mt-1 z-50 w-72 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-xl p-4 text-center"
+                >
+                  <span className="material-symbols-outlined text-text-secondary mb-2" style={{ fontSize: 32 }}>
+                    search_off
+                  </span>
+                  <p className="text-sm text-text-secondary">
+                    캔버스에서 "{searchQuery}" 설비를 찾을 수 없습니다.
+                  </p>
+                  <p className="text-xs text-text-secondary mt-1">
+                    좌측 목록에서 캔버스로 드래그해주세요.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* 필터링 결과 표시 */}
             <div className="ml-auto flex items-center gap-2 text-sm">
               <span className="text-text-secondary">표시:</span>
@@ -349,6 +481,8 @@ export default function EquipmentPage() {
               connections={connections}
               selectedId={selectedEquipmentId}
               onSelectNode={setSelectedEquipmentId}
+              focusEquipmentId={focusEquipmentId}
+              onFocusComplete={() => setFocusEquipmentId(null)}
             />
           )}
         </div>
