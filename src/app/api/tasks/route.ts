@@ -19,7 +19,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { TaskStatus, Prisma } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
-import { sendTaskCreatedNotification } from "@/lib/slack";
+import { createTask } from "@/lib/services/taskService";
 
 /**
  * 마감일 초과 여부 확인 헬퍼 함수
@@ -171,6 +171,8 @@ export async function GET(request: NextRequest) {
  * POST /api/tasks
  * (인증 필요)
  *
+ * 서비스 레이어(taskService)를 통해 중앙화된 Task 생성 로직 사용
+ *
  * @param assigneeId - 주 담당자 ID (단일)
  * @param assigneeIds - 부 담당자 ID 배열 (다중 담당자 지원)
  * @param requirementId - 연결할 요구사항 ID (선택)
@@ -192,124 +194,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 생성자 ID는 현재 로그인한 사용자
-    const creatorId = user!.id;
+    // 서비스 레이어를 통한 Task 생성
+    const result = await createTask({
+      title,
+      description,
+      projectId,
+      creatorId: user!.id,
+      creatorName: user!.name || user!.email || undefined,
+      assigneeId,
+      assigneeIds,
+      priority,
+      startDate,
+      dueDate,
+      requirementId,
+      isAiGenerated: body.isAiGenerated || false,
+    });
 
-    // 프로젝트 존재 확인
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
-    if (!project) {
+    if (!result.success) {
       return NextResponse.json(
-        { error: "프로젝트를 찾을 수 없습니다." },
-        { status: 404 }
+        { error: result.error },
+        { status: result.error === "프로젝트를 찾을 수 없습니다." ? 404 : 500 }
       );
     }
 
-    // 현재 태스크 수로 order 결정
-    const taskCount = await prisma.task.count({ where: { projectId } });
-
-    // 담당자 배열 준비 (다대다 관계 생성)
-    const assigneesData = Array.isArray(assigneeIds) && assigneeIds.length > 0
-      ? assigneeIds.map((userId: string) => ({ userId }))
-      : [];
-
-    const task = await prisma.task.create({
-      data: {
-        title,
-        description,
-        projectId,
-        creatorId,
-        assigneeId: assigneeId || null, // 주 담당자 (선택)
-        priority: priority || "MEDIUM",
-        startDate: startDate ? new Date(startDate) : null,  // 시작일
-        dueDate: dueDate ? new Date(dueDate) : null,        // 마감일
-        status: "PENDING",
-        order: taskCount,
-        requirementId: requirementId || null, // 요구사항 연결 (선택)
-        // 부 담당자 생성 (TaskAssignee 레코드)
-        assignees: {
-          create: assigneesData,
-        },
-      },
-      include: {
-        // 주 담당자 조회
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        // 부 담당자 조회
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true,
-              },
-            },
-          },
-        },
-        creator: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        requirement: {
-          select: {
-            id: true,
-            code: true,
-            title: true,
-            status: true,
-            priority: true,
-          },
-        },
-      },
-    });
-
-    // 응답 형식 변환 (assignees 배열 평탄화)
-    const transformedTask = {
-      ...task,
-      assignees: task.assignees.map((a) => a.user),
-    };
-
-    // 주 담당자에게 알림 생성 (본인이 아닌 경우에만)
-    if (assigneeId && assigneeId !== creatorId) {
-      try {
-        await prisma.notification.create({
-          data: {
-            userId: assigneeId,
-            type: "TASK_ASSIGNED",
-            title: `새 Task 할당: ${title}`,
-            message: `[${project.name}] "${title}" Task가 당신에게 할당되었습니다.`,
-            link: "/dashboard/kanban",
-            relatedId: task.id,
-            projectId: projectId,
-            projectName: project.name,
-          },
-        });
-      } catch (notifError) {
-        console.error("알림 생성 실패:", notifError);
-        // 알림 실패해도 Task 생성은 성공으로 처리
-      }
-    }
-
-    // Slack 알림 전송 (비동기, 실패해도 무시)
-    sendTaskCreatedNotification({
-      taskTitle: title,
-      projectName: project.name,
-      creatorName: user!.name || user!.email || undefined,
-      assigneeName: task.assignee?.name || undefined,
-      priority: task.priority,
-      isAiGenerated: body.isAiGenerated || false,
-    }).catch((err) => {
-      console.error("[Slack] Task 생성 알림 전송 실패:", err);
-    });
-
-    return NextResponse.json(transformedTask, { status: 201 });
+    return NextResponse.json(result.task, { status: 201 });
   } catch (error) {
     console.error("태스크 생성 실패:", error);
     return NextResponse.json(

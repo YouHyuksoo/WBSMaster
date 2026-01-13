@@ -24,7 +24,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { processChatMessage, LLMConfig, SystemPromptConfig } from "@/lib/llm";
 import { Prisma } from "@prisma/client";
-import { sendTaskCreatedNotification } from "@/lib/slack";
+import { createTask } from "@/lib/services/taskService";
 
 /**
  * 채팅 기록 조회
@@ -152,10 +152,50 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // SQL 실행 함수 (시간 측정 포함)
+    /**
+     * SQL 실행 함수 (시간 측정 포함)
+     * Task INSERT는 서비스 레이어를 통해 처리하여 알림/후처리 통합
+     */
     const executeQuery = async (sql: string): Promise<unknown[]> => {
       const execStart = Date.now();
-      // Prisma의 $queryRawUnsafe 사용
+      const upperSql = sql.toUpperCase();
+
+      // Task INSERT 감지 → 서비스 레이어로 우회
+      if (upperSql.includes('INSERT INTO "TASKS"') || upperSql.includes("INSERT INTO \"TASKS\"")) {
+        try {
+          // SQL에서 title 추출 (VALUES 절에서 두 번째 값)
+          const titleMatch = sql.match(/VALUES\s*\([^,]+,\s*'([^']+)'/i);
+          const title = titleMatch ? titleMatch[1] : message.slice(0, 50);
+
+          // 서비스 레이어를 통한 Task 생성
+          const result = await createTask({
+            title,
+            projectId: projectId || "",
+            creatorId: user!.id,
+            creatorName: user!.name || user!.email || undefined,
+            assigneeId: user!.id, // AI 생성 시 본인이 담당자
+            priority: "MEDIUM",
+            isAiGenerated: true,
+          });
+
+          sqlExecTime = Date.now() - execStart;
+
+          if (result.success) {
+            console.log(`[Chat] Task 생성 (서비스 레이어): ${title}`);
+            return [{ message: "Task가 생성되었습니다.", task: result.task }];
+          } else {
+            throw new Error(result.error || "Task 생성 실패");
+          }
+        } catch (taskError) {
+          console.error("[Chat] Task 서비스 레이어 호출 실패:", taskError);
+          // 실패 시 원래 SQL 실행 시도
+          const results = await prisma.$queryRawUnsafe(sql);
+          sqlExecTime = Date.now() - execStart;
+          return results as unknown[];
+        }
+      }
+
+      // 일반 SQL 실행
       const results = await prisma.$queryRawUnsafe(sql);
       sqlExecTime = Date.now() - execStart;
       return results as unknown[];
@@ -205,34 +245,8 @@ export async function POST(request: NextRequest) {
       sqlExecTime,
     });
 
-    // AI를 통한 Task INSERT 감지 및 Slack 알림
-    if (response.sql && response.sql.toUpperCase().includes('INSERT INTO "TASKS"')) {
-      try {
-        // 프로젝트 정보 조회
-        let projectName = "";
-        if (projectId) {
-          const project = await prisma.project.findUnique({
-            where: { id: projectId },
-            select: { name: true },
-          });
-          projectName = project?.name || "";
-        }
-
-        // Slack 알림 전송 (AI 생성 표시)
-        sendTaskCreatedNotification({
-          taskTitle: message.slice(0, 50), // 사용자 메시지에서 제목 추출
-          projectName,
-          creatorName: user!.name || user!.email || "AI 채팅",
-          assigneeName: user!.name || undefined,
-          priority: "MEDIUM",
-          isAiGenerated: true,
-        }).catch((err) => {
-          console.error("[Slack] AI Task 생성 알림 전송 실패:", err);
-        });
-      } catch (slackError) {
-        console.error("[Slack] AI Task 알림 처리 실패:", slackError);
-      }
-    }
+    // Task INSERT는 executeQuery에서 서비스 레이어를 통해 처리되므로
+    // 여기서 별도의 알림 처리가 필요 없음 (서비스 레이어에서 통합 처리)
 
     return NextResponse.json({
       id: assistantMessage.id, // 피드백 제출용 ID
