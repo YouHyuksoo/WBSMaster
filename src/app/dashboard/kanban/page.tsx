@@ -1368,14 +1368,6 @@ function KanbanColumn({
             {tasks.length}
           </span>
         </div>
-        {column.id === "PENDING" && (
-          <button
-            onClick={onAddTask}
-            className="text-text-secondary hover:text-text dark:hover:text-white transition-colors"
-          >
-            <Icon name="add" size="sm" />
-          </button>
-        )}
       </div>
 
       {/* 작업 카드 목록 */}
