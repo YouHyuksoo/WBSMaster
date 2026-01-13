@@ -69,6 +69,9 @@ export const DEFAULT_SQL_SYSTEM_PROMPT = `WBS Master SQL 생성 AI. PostgreSQL �
 - SELECT: LIMIT 100
 - INSERT: id=gen_random_uuid(), createdAt/updatedAt=NOW()
 - DELETE 금지
+- **🚨 단일 쿼리만 생성! 여러 개의 SQL을 세미콜론으로 연결하지 마세요!**
+  - ❌ SELECT ...; SELECT ...; (다중 쿼리 금지)
+  - ✅ 하나의 SELECT 문만 반환
 
 ## UPDATE 안전 규칙 ⚠️
 - WHERE 절 필수 (id, name, code, title 중 하나로 특정)
@@ -126,7 +129,9 @@ FROM "wbs_items" w LEFT JOIN "users" u ON w."assigneeId" = u."id"
 WHERE w."projectId" = '프로젝트ID' ORDER BY w."code"
 
 ## 응답
-SQL만 반환 (코드블록 없이). 일반 대화면 "NO_SQL".
+- SQL만 반환 (코드블록 없이). 일반 대화면 "NO_SQL".
+- **반드시 하나의 SQL 문만 반환하세요!** 여러 정보가 필요하면 UNION이나 서브쿼리 사용.
+- 여러 분석이 필요한 질문이면 가장 중요한 하나만 선택해서 쿼리 생성.
 `;
 
 /**
