@@ -59,6 +59,8 @@ export function useTask(id: string) {
 
 /**
  * 태스크 생성 Hook
+ * - assigneeId: 주 담당자 ID (단일)
+ * - assigneeIds: 부 담당자 ID 배열 (협업자, 다중)
  */
 export function useCreateTask() {
   const queryClient = useQueryClient();

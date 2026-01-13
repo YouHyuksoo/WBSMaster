@@ -913,7 +913,7 @@ export const api = {
       get<Task[]>("/api/tasks", params),
     get: (id: string) => get<Task>(`/api/tasks/${id}`),
     /** 태스크 생성 (다중 담당자, 요구사항 연결, 시작일/마감일 지원) */
-    create: (data: { title: string; description?: string; projectId: string; assigneeIds?: string[]; priority?: string; startDate?: string; dueDate?: string; requirementId?: string }) =>
+    create: (data: { title: string; description?: string; projectId: string; assigneeId?: string; assigneeIds?: string[]; priority?: string; startDate?: string; dueDate?: string; requirementId?: string }) =>
       post<Task>("/api/tasks", data),
     /** 태스크 수정 (담당자, 요구사항, 시작일/마감일 변경 지원) */
     update: (id: string, data: Partial<Task> & { assigneeIds?: string[]; requirementId?: string | null }) =>
