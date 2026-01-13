@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { TaskStatus, Prisma } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
+import { sendTaskCreatedNotification } from "@/lib/slack";
 
 /**
  * 마감일 초과 여부 확인 헬퍼 함수
@@ -295,6 +296,18 @@ export async function POST(request: NextRequest) {
         // 알림 실패해도 Task 생성은 성공으로 처리
       }
     }
+
+    // Slack 알림 전송 (비동기, 실패해도 무시)
+    sendTaskCreatedNotification({
+      taskTitle: title,
+      projectName: project.name,
+      creatorName: user!.name || user!.email || undefined,
+      assigneeName: task.assignee?.name || undefined,
+      priority: task.priority,
+      isAiGenerated: body.isAiGenerated || false,
+    }).catch((err) => {
+      console.error("[Slack] Task 생성 알림 전송 실패:", err);
+    });
 
     return NextResponse.json(transformedTask, { status: 201 });
   } catch (error) {

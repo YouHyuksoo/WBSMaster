@@ -24,6 +24,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { processChatMessage, LLMConfig, SystemPromptConfig } from "@/lib/llm";
 import { Prisma } from "@prisma/client";
+import { sendTaskCreatedNotification } from "@/lib/slack";
 
 /**
  * 채팅 기록 조회
@@ -203,6 +204,35 @@ export async function POST(request: NextRequest) {
       sqlGenTime,
       sqlExecTime,
     });
+
+    // AI를 통한 Task INSERT 감지 및 Slack 알림
+    if (response.sql && response.sql.toUpperCase().includes('INSERT INTO "TASKS"')) {
+      try {
+        // 프로젝트 정보 조회
+        let projectName = "";
+        if (projectId) {
+          const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            select: { name: true },
+          });
+          projectName = project?.name || "";
+        }
+
+        // Slack 알림 전송 (AI 생성 표시)
+        sendTaskCreatedNotification({
+          taskTitle: message.slice(0, 50), // 사용자 메시지에서 제목 추출
+          projectName,
+          creatorName: user!.name || user!.email || "AI 채팅",
+          assigneeName: user!.name || undefined,
+          priority: "MEDIUM",
+          isAiGenerated: true,
+        }).catch((err) => {
+          console.error("[Slack] AI Task 생성 알림 전송 실패:", err);
+        });
+      } catch (slackError) {
+        console.error("[Slack] AI Task 알림 처리 실패:", slackError);
+      }
+    }
 
     return NextResponse.json({
       id: assistantMessage.id, // 피드백 제출용 ID

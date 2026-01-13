@@ -80,6 +80,22 @@ interface TaskDelayedData {
   dueDate?: Date;
 }
 
+/** Task 생성 알림 데이터 */
+interface TaskCreatedData {
+  /** Task 제목 */
+  taskTitle: string;
+  /** 프로젝트 이름 */
+  projectName?: string;
+  /** 생성자 이름 */
+  creatorName?: string;
+  /** 담당자 이름 */
+  assigneeName?: string;
+  /** 우선순위 */
+  priority?: string;
+  /** AI 생성 여부 */
+  isAiGenerated?: boolean;
+}
+
 /**
  * DB에서 Slack 설정 조회
  * 캐싱 없이 항상 최신 설정 반환
@@ -388,6 +404,82 @@ export async function sendTaskDelayedNotification(
 
   // 폴백 텍스트
   const fallbackText = `[Task 지연] ${taskTitle} - ${assigneeName || "담당자 미지정"} (마감: ${dueDateStr})`;
+
+  return sendSlackBlockMessage(blocks, fallbackText, settings.webhookUrl);
+}
+
+/**
+ * Task 생성 알림 전송
+ * DB 설정의 notifyTaskCreated가 true일 때만 전송
+ * @param data - Task 생성 정보
+ * @returns 성공 여부
+ */
+export async function sendTaskCreatedNotification(
+  data: TaskCreatedData
+): Promise<boolean> {
+  const settings = await getSlackSettings();
+
+  // 설정 확인
+  if (!settings || !settings.isEnabled || !settings.notifyTaskCreated) {
+    console.log("[Slack] Task 생성 알림이 비활성화되어 있습니다.");
+    return false;
+  }
+
+  const { taskTitle, projectName, creatorName, assigneeName, priority, isAiGenerated } = data;
+
+  // 우선순위 표시
+  const priorityEmoji = priority === "CRITICAL" ? "🔴" :
+                        priority === "HIGH" ? "🟠" :
+                        priority === "MEDIUM" ? "🟡" : "🟢";
+
+  // AI 생성 표시
+  const aiTag = isAiGenerated ? " 🤖" : "";
+
+  // Block Kit 형식의 리치 메시지
+  const blocks = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: `📋 새 Task 등록${aiTag}`,
+        emoji: true,
+      },
+    },
+    {
+      type: "section",
+      fields: [
+        {
+          type: "mrkdwn",
+          text: `*Task:*\n${taskTitle}`,
+        },
+        {
+          type: "mrkdwn",
+          text: `*프로젝트:*\n${projectName || "-"}`,
+        },
+        {
+          type: "mrkdwn",
+          text: `*생성자:*\n${creatorName || "-"}`,
+        },
+        {
+          type: "mrkdwn",
+          text: `*담당자:*\n${assigneeName || "-"}`,
+        },
+      ],
+    },
+    {
+      type: "context",
+      elements: [{
+        type: "mrkdwn",
+        text: `우선순위: ${priorityEmoji} ${priority || "MEDIUM"}${isAiGenerated ? " | AI 생성" : ""}`,
+      }],
+    },
+    {
+      type: "divider",
+    },
+  ];
+
+  // 폴백 텍스트
+  const fallbackText = `[새 Task${aiTag}] ${taskTitle} - ${assigneeName || "담당자 미지정"} (${projectName || ""})`;
 
   return sendSlackBlockMessage(blocks, fallbackText, settings.webhookUrl);
 }
