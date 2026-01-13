@@ -27,7 +27,7 @@ import {
   useUpdateCustomerRequirement,
   useDeleteCustomerRequirement,
 } from "@/hooks";
-import { CustomerRequirementModal } from "./components";
+import { CustomerRequirementModal, CustomerRequirementTable, DocumentView } from "./components";
 import { ImportExcelModal } from "@/components/common";
 import {
   type CustomerRequirement,
@@ -53,10 +53,8 @@ export default function CustomerRequirementsPage() {
   const [sortBy, setSortBy] = useState<"createdAt" | "requestedDate">("createdAt");
   /** 현재 선택된 탭 (active: 활성 요구사항, inactive: 미적용/보류) */
   const [activeTab, setActiveTab] = useState<"active" | "inactive">("active");
-  /** 상태 드롭다운이 열린 요구사항 ID */
-  const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
-  /** 드롭다운이 위로 열려야 하는지 여부 */
-  const [dropdownOpenUpward, setDropdownOpenUpward] = useState(false);
+  /** 보기 모드 (grid: 테이블 보기, document: 산출물 형식 보기) */
+  const [viewMode, setViewMode] = useState<"grid" | "document">("grid");
 
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
@@ -276,7 +274,6 @@ export default function CustomerRequirementsPage() {
       id,
       data: { applyStatus: newStatus },
     });
-    setOpenStatusDropdown(null);
   };
 
   /**
@@ -328,13 +325,6 @@ export default function CustomerRequirementsPage() {
     const projectName = selectedProject?.name || "Project";
     const dateStr = new Date().toISOString().split("T")[0];
     writeFile(workbook, `${projectName}_고객요구사항_${dateStr}.xlsx`);
-  };
-
-  /** 날짜 포맷팅 */
-  const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return "-";
-    const date = new Date(dateStr);
-    return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 
   /** 로딩 상태 */
@@ -555,380 +545,118 @@ export default function CustomerRequirementsPage() {
             </button>
           </div>
 
-          {/* 필터 */}
-          <div className="flex flex-wrap gap-4">
-            <div className="w-64">
-              <Input
-                leftIcon="search"
-                placeholder="요구사항 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <select
-              value={filterBusinessUnit}
-              onChange={(e) => setFilterBusinessUnit(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-            >
-              <option value="all">전체 사업부</option>
-              {BUSINESS_UNITS.map((unit) => (
-                <option key={unit} value={unit}>{unit}</option>
-              ))}
-            </select>
-            {/* 업무구분 필터 */}
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-            >
-              <option value="all">전체 업무구분</option>
-              {categoryOptions.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            {/* 요청자 필터 */}
-            <select
-              value={filterRequester}
-              onChange={(e) => setFilterRequester(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-            >
-              <option value="all">전체 요청자</option>
-              {requesterOptions.map((requester) => (
-                <option key={requester} value={requester}>{requester}</option>
-              ))}
-            </select>
-            {/* 정렬 기준 */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as "createdAt" | "requestedDate")}
-              className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-            >
-              <option value="createdAt">등록일 기준</option>
-              <option value="requestedDate">요청일 기준</option>
-            </select>
-          </div>
-
-          {/* 요구사항 목록 테이블 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
-            {/* 테이블 헤더 */}
-            <div
-              className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1200px]"
-              style={{ gridTemplateColumns: "80px 100px 80px 80px 150px 1fr 80px 80px 200px 50px" }}
-            >
-              <div>상태</div>
-              <div>요구번호</div>
-              <div>사업부</div>
-              <div>업무구분</div>
-              <div>기능명</div>
-              <div>요구사항</div>
-              <div>요청일</div>
-              <div>요청자</div>
-              <div>적용방안</div>
-              <div>수정</div>
+          {/* 필터 및 보기 모드 전환 */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            {/* 좌측: 필터 */}
+            <div className="flex flex-wrap gap-4">
+              <div className="w-64">
+                <Input
+                  leftIcon="search"
+                  placeholder="요구사항 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <select
+                value={filterBusinessUnit}
+                onChange={(e) => setFilterBusinessUnit(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+              >
+                <option value="all">전체 사업부</option>
+                {BUSINESS_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>{unit}</option>
+                ))}
+              </select>
+              {/* 업무구분 필터 */}
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+              >
+                <option value="all">전체 업무구분</option>
+                {categoryOptions.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              {/* 요청자 필터 */}
+              <select
+                value={filterRequester}
+                onChange={(e) => setFilterRequester(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+              >
+                <option value="all">전체 요청자</option>
+                {requesterOptions.map((requester) => (
+                  <option key={requester} value={requester}>{requester}</option>
+                ))}
+              </select>
+              {/* 정렬 기준 */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as "createdAt" | "requestedDate")}
+                className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+              >
+                <option value="createdAt">등록일 기준</option>
+                <option value="requestedDate">요청일 기준</option>
+              </select>
             </div>
 
-            {/* 빈 목록 */}
-            {filteredRequirements.length === 0 && (
-              <div className="p-8 text-center">
-                <Icon name="inbox" size="xl" className="text-text-secondary mb-4" />
-                <p className="text-text-secondary">
-                  {requirements.length === 0
-                    ? "등록된 고객요구사항이 없습니다."
-                    : "검색 조건에 맞는 요구사항이 없습니다."}
-                </p>
-              </div>
-            )}
-
-            {/* 요구사항 목록 */}
-            {paginatedRequirements.map((req) => {
-              const statusConfig = APPLY_STATUS_CONFIG[req.applyStatus] || APPLY_STATUS_CONFIG.REVIEWING;
-
-              return (
-                <div
-                  key={req.id}
-                  className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1200px]"
-                  style={{ gridTemplateColumns: "80px 100px 80px 80px 150px 1fr 80px 80px 200px 50px" }}
-                >
-                  {/* 상태 배지 (클릭 시 드롭다운) */}
-                  <div className="relative">
-                    <button
-                      onClick={(e) => {
-                        if (openStatusDropdown === req.id) {
-                          setOpenStatusDropdown(null);
-                        } else {
-                          setOpenStatusDropdown(req.id);
-                          // 버튼의 위치를 계산하여 위로 열릴지 결정
-                          const buttonRect = e.currentTarget.getBoundingClientRect();
-                          const spaceBelow = window.innerHeight - buttonRect.bottom;
-                          const dropdownHeight = 200; // 드롭다운 예상 높이
-                          setDropdownOpenUpward(spaceBelow < dropdownHeight);
-                        }
-                      }}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${statusConfig.bgColor} ${statusConfig.color}`}
-                      title="클릭하여 상태 변경"
-                    >
-                      <Icon name={statusConfig.icon} size="xs" />
-                      <span className="hidden sm:inline">{statusConfig.label}</span>
-                    </button>
-
-                    {/* 상태 변경 드롭다운 */}
-                    {openStatusDropdown === req.id && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setOpenStatusDropdown(null)}
-                        />
-                        <div className={`absolute left-0 ${dropdownOpenUpward ? 'bottom-full mb-1' : 'top-full mt-1'} z-20 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[120px]`}>
-                          {Object.entries(APPLY_STATUS_CONFIG).map(([key, config]) => (
-                            <button
-                              key={key}
-                              onClick={() => handleStatusChange(req.id, key as ApplyStatus)}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface dark:hover:bg-background-dark transition-colors ${
-                                req.applyStatus === key ? "bg-primary/5" : ""
-                              }`}
-                            >
-                              <Icon name={config.icon} size="xs" className={config.color} />
-                              <span className={config.color}>{config.label}</span>
-                              {req.applyStatus === key && (
-                                <Icon name="check" size="xs" className="ml-auto text-primary" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* 요구번호 */}
-                  <div>
-                    <span className="text-xs text-text-secondary font-mono">
-                      {req.code || "-"}
-                    </span>
-                  </div>
-
-                  {/* 사업부 */}
-                  <div>
-                    <span className="text-xs font-medium px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-                      {req.businessUnit || "-"}
-                    </span>
-                  </div>
-
-                  {/* 업무구분 */}
-                  <div>
-                    <span className="text-xs text-text-secondary">
-                      {req.category || "-"}
-                    </span>
-                  </div>
-
-                  {/* 기능명 - 툴팁 */}
-                  <div className="relative group/fn">
-                    <p
-                      className={`text-sm font-medium truncate cursor-default ${
-                        req.applyStatus === "REJECTED" || req.applyStatus === "HOLD"
-                          ? "text-text-secondary line-through"
-                          : "text-text dark:text-white"
-                      }`}
-                    >
-                      {req.functionName || "-"}
-                    </p>
-                    {/* 기능명 툴팁 */}
-                    {req.functionName && (
-                      <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/fn:opacity-100 transition-opacity">
-                        <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[200px] max-w-[300px]">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs text-slate-400">기능명</span>
-                          </div>
-                          <p className="text-sm font-medium">{req.functionName}</p>
-                        </div>
-                        <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 요구사항 - 툴팁 */}
-                  <div className="relative group/content">
-                    <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
-                      {req.content || "-"}
-                    </p>
-                    {/* 요구사항 툴팁 */}
-                    {req.content && (
-                      <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/content:opacity-100 transition-opacity">
-                        <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs text-slate-400">요구사항</span>
-                          </div>
-                          <p className="text-sm whitespace-pre-wrap">{req.content}</p>
-                        </div>
-                        <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 요청일 */}
-                  <div>
-                    <span className="text-xs text-text-secondary">
-                      {formatDate(req.requestDate)}
-                    </span>
-                  </div>
-
-                  {/* 요청자 */}
-                  <div>
-                    <span className="text-xs text-text dark:text-white">
-                      {req.requester || "-"}
-                    </span>
-                  </div>
-
-                  {/* 적용방안 - 툴팁 */}
-                  <div className="relative group/solution">
-                    <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
-                      {req.solution || "-"}
-                    </p>
-                    {/* 적용방안 툴팁 */}
-                    {req.solution && (
-                      <div className="absolute bottom-full right-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/solution:opacity-100 transition-opacity">
-                        <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs text-slate-400">적용방안</span>
-                          </div>
-                          <p className="text-sm whitespace-pre-wrap">{req.solution}</p>
-                        </div>
-                        <div className="absolute right-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 수정/삭제 버튼 */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenEdit(req)}
-                      className="size-7 rounded-lg flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
-                      title="수정"
-                    >
-                      <Icon name="edit" size="xs" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(req)}
-                      className="size-7 rounded-lg flex items-center justify-center hover:bg-error/10 text-text-secondary hover:text-error transition-colors"
-                      title="삭제"
-                    >
-                      <Icon name="delete" size="xs" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* 페이지네이션 */}
-            {filteredRequirements.length > 0 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-border dark:border-border-dark">
-                {/* 좌측: 표시 정보 */}
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-text-secondary">
-                    총 {filteredRequirements.length}건 중{" "}
-                    {(currentPage - 1) * itemsPerPage + 1}-
-                    {Math.min(currentPage * itemsPerPage, filteredRequirements.length)}건 표시
-                  </span>
-                  <select
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className="px-2 py-1 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-                  >
-                    <option value={10}>10개씩</option>
-                    <option value={20}>20개씩</option>
-                    <option value={50}>50개씩</option>
-                    <option value={100}>100개씩</option>
-                  </select>
-                </div>
-
-                {/* 우측: 페이지 네비게이션 */}
-                <div className="flex items-center gap-1">
-                  {/* 처음으로 */}
-                  <button
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage === 1}
-                    className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-text dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="처음"
-                  >
-                    <Icon name="first_page" size="sm" />
-                  </button>
-                  {/* 이전 */}
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-text dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="이전"
-                  >
-                    <Icon name="chevron_left" size="sm" />
-                  </button>
-
-                  {/* 페이지 번호 */}
-                  {(() => {
-                    const pages: (number | string)[] = [];
-                    const maxVisible = 5;
-                    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-                    const end = Math.min(totalPages, start + maxVisible - 1);
-                    if (end - start + 1 < maxVisible) {
-                      start = Math.max(1, end - maxVisible + 1);
-                    }
-
-                    if (start > 1) {
-                      pages.push(1);
-                      if (start > 2) pages.push("...");
-                    }
-                    for (let i = start; i <= end; i++) {
-                      pages.push(i);
-                    }
-                    if (end < totalPages) {
-                      if (end < totalPages - 1) pages.push("...");
-                      pages.push(totalPages);
-                    }
-
-                    return pages.map((page, idx) =>
-                      typeof page === "string" ? (
-                        <span key={`ellipsis-${idx}`} className="px-2 text-text-secondary">
-                          {page}
-                        </span>
-                      ) : (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`size-8 rounded-lg flex items-center justify-center text-sm font-medium transition-colors ${
-                            currentPage === page
-                              ? "bg-primary text-white"
-                              : "hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-text dark:hover:text-white"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      )
-                    );
-                  })()}
-
-                  {/* 다음 */}
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-text dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="다음"
-                  >
-                    <Icon name="chevron_right" size="sm" />
-                  </button>
-                  {/* 마지막으로 */}
-                  <button
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage === totalPages}
-                    className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-text dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="마지막"
-                  >
-                    <Icon name="last_page" size="sm" />
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* 우측: 보기 모드 전환 */}
+            <div className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === "grid"
+                    ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                    : "text-text-secondary hover:text-text dark:hover:text-white"
+                }`}
+                title="그리드 보기"
+              >
+                <Icon name="grid_view" size="xs" />
+                <span className="hidden sm:inline">그리드</span>
+              </button>
+              <button
+                onClick={() => setViewMode("document")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === "document"
+                    ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                    : "text-text-secondary hover:text-text dark:hover:text-white"
+                }`}
+                title="산출물 형식 보기"
+              >
+                <Icon name="description" size="xs" />
+                <span className="hidden sm:inline">산출물</span>
+              </button>
+            </div>
           </div>
+
+          {/* 요구사항 목록 (보기 모드에 따라 다르게 렌더링) */}
+          {viewMode === "grid" ? (
+            <CustomerRequirementTable
+              requirements={paginatedRequirements}
+              totalCount={filteredRequirements.length}
+              onEdit={handleOpenEdit}
+              onDelete={handleDelete}
+              onStatusChange={handleStatusChange}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={(count) => {
+                setItemsPerPage(count);
+                setCurrentPage(1);
+              }}
+              emptyMessage={
+                requirements.length === 0
+                  ? "등록된 고객요구사항이 없습니다."
+                  : "검색 조건에 맞는 요구사항이 없습니다."
+              }
+            />
+          ) : (
+            <DocumentView
+              requirements={filteredRequirements}
+              onEdit={handleOpenEdit}
+              projectName={selectedProject?.name}
+            />
+          )}
         </>
       )}
 

@@ -289,6 +289,8 @@ export interface Issue {
   category: "BUG" | "IMPROVEMENT" | "QUESTION" | "FEATURE" | "DOCUMENTATION" | "OTHER";
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED" | "WONT_FIX";
   priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  type: "FUNCTIONAL" | "NON_FUNCTIONAL";  // 유형 (기능/비기능)
+  resolution?: string;  // 처리내용 (해결 방법이나 조치 사항)
   reportDate: string;
   dueDate?: string;
   resolvedDate?: string;
@@ -813,6 +815,9 @@ export type EquipmentType =
 /** 설비 상태 */
 export type EquipmentStatus = "ACTIVE" | "MAINTENANCE" | "INACTIVE" | "BROKEN" | "RESERVED";
 
+/** 시스템 종류 */
+export type SystemType = "WINDOWS_XP" | "WINDOWS_10" | "WINDOWS_11" | "LINUX" | "OTHER";
+
 /** 속성 값 타입 */
 export type PropertyValueType = "TEXT" | "NUMBER" | "DATE" | "BOOLEAN";
 
@@ -844,6 +849,8 @@ export interface Equipment {
   isLogTarget: boolean;
   isInterlockTarget: boolean;
   isBarcodeEnabled: boolean;
+  logCollectionPath?: string | null;
+  systemType?: SystemType | null;
   createdAt: string;
   updatedAt: string;
   properties?: EquipmentProperty[];
@@ -1059,7 +1066,7 @@ export const api = {
 
   /** 이슈 API */
   issues: {
-    list: (params?: { projectId?: string; status?: string; priority?: string; category?: string }) =>
+    list: (params?: { projectId?: string; status?: string; priority?: string; category?: string; type?: string }) =>
       get<Issue[]>("/api/issues", params),
     get: (id: string) => get<Issue>(`/api/issues/${id}`),
     create: (data: {
@@ -1068,6 +1075,8 @@ export const api = {
       projectId: string;
       priority?: string;
       category?: string;
+      type?: string;  // 유형 (기능/비기능)
+      resolution?: string;  // 처리내용
       dueDate?: string;
       reporterId?: string;
       assigneeId?: string;
@@ -1324,6 +1333,8 @@ export const api = {
       isLogTarget?: boolean;     // 로그수집대상 여부
       isInterlockTarget?: boolean; // 인터락대상 여부
       isBarcodeEnabled?: boolean;  // 바코드 식별가능 여부
+      logCollectionPath?: string;  // 로그수집위치 (예: C:\Logs, /var/log)
+      systemType?: SystemType;     // 시스템 종류 (Windows XP, 10, 11, Linux, 기타)
     }) => post<Equipment>("/api/equipment", data),
     /** 설비 수정 */
     update: (id: string, data: Partial<Equipment>) =>

@@ -424,6 +424,8 @@ model Issue {
   status      IssueStatus    @default(OPEN)
   priority    IssuePriority  @default(MEDIUM)
   category    IssueCategory  @default(BUG)
+  type        IssueType      @default(FUNCTIONAL)  // 유형 (기능/비기능)
+  resolution  String?        // 처리내용 (해결 방법이나 조치 사항)
   reportDate  DateTime       @default(now())  // 보고일
   dueDate     DateTime?      // 목표 해결일
   resolvedDate DateTime?     // 실제 해결일
@@ -464,6 +466,11 @@ enum IssueCategory {
   FEATURE       // 신규기능
   DOCUMENTATION // 문서
   OTHER         // 기타
+}
+
+enum IssueType {
+  FUNCTIONAL      // 기능
+  NON_FUNCTIONAL  // 비기능
 }
 
 // ============================================
@@ -1104,6 +1111,8 @@ model Equipment {
   isLogTarget Boolean  @default(false) // 로그수집대상 여부
   isInterlockTarget Boolean @default(false) // 인터락대상 여부
   isBarcodeEnabled Boolean @default(false) // 바코드 식별가능 여부
+  logCollectionPath String? // 로그수집위치 (예: C:\Logs, /var/log)
+  systemType  SystemType? // 시스템 종류 (Windows XP, Windows 10, Windows 11, Linux, 기타)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1207,6 +1216,18 @@ enum EquipmentStatus {
   INACTIVE    // 휴지
   BROKEN      // 고장
   RESERVED    // 예약됨
+}
+
+// ============================================
+// 시스템 종류 Enum
+// 설비에서 사용하는 운영체제/시스템 종류
+// ============================================
+enum SystemType {
+  WINDOWS_XP   // 윈도우 XP
+  WINDOWS_10   // 윈도우 10
+  WINDOWS_11   // 윈도우 11
+  LINUX        // 리눅스
+  OTHER        // 기타
 }
 
 // ============================================

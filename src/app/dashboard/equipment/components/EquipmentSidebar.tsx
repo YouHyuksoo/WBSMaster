@@ -19,7 +19,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Equipment } from "@/lib/api";
 import { useUpdateEquipment, useDeleteEquipment } from "../hooks/useEquipment";
-import { STATUS_CONFIG, TYPE_CONFIG } from "../types";
+import { STATUS_CONFIG, TYPE_CONFIG, SYSTEM_TYPE_CONFIG } from "../types";
+import { SystemType } from "@/lib/api";
 import { PropertyEditor } from "./PropertyEditor";
 import { BUSINESS_UNITS } from "@/constants/business-units";
 import { LOCATIONS } from "@/constants/locations";
@@ -86,6 +87,8 @@ export function EquipmentSidebar({ equipment, onClose }: EquipmentSidebarProps) 
         isLogTarget: editData.isLogTarget,
         isInterlockTarget: editData.isInterlockTarget,
         isBarcodeEnabled: editData.isBarcodeEnabled,
+        logCollectionPath: editData.logCollectionPath,
+        systemType: editData.systemType,
       },
     });
     onClose();
@@ -353,6 +356,35 @@ export function EquipmentSidebar({ equipment, onClose }: EquipmentSidebarProps) 
                 value={editData.portNumber || ""}
                 onChange={(e) => setEditData({ ...editData, portNumber: e.target.value ? parseInt(e.target.value) : null })}
                 placeholder="예: 8080"
+                className="flex-1 px-2 py-1 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            {/* 시스템 종류 */}
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] text-text-secondary w-16 shrink-0">시스템:</label>
+              <select
+                value={editData.systemType || ""}
+                onChange={(e) => setEditData({ ...editData, systemType: e.target.value as SystemType || null })}
+                className="flex-1 px-2 py-1 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">선택 안함</option>
+                {Object.entries(SYSTEM_TYPE_CONFIG).map(([key, config]) => (
+                  <option key={key} value={key}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 로그수집위치 */}
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] text-text-secondary w-16 shrink-0">로그위치:</label>
+              <input
+                type="text"
+                value={editData.logCollectionPath || ""}
+                onChange={(e) => setEditData({ ...editData, logCollectionPath: e.target.value })}
+                placeholder="예: C:\Logs, /var/log"
                 className="flex-1 px-2 py-1 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>

@@ -127,6 +127,15 @@ export const CONNECTION_TYPE_CONFIG = {
   OTHER: { label: "기타", color: "#6B7280" },
 } as const;
 
+/** 시스템 종류 설정 */
+export const SYSTEM_TYPE_CONFIG = {
+  WINDOWS_XP: { label: "Windows XP", icon: "computer" },
+  WINDOWS_10: { label: "Windows 10", icon: "computer" },
+  WINDOWS_11: { label: "Windows 11", icon: "computer" },
+  LINUX: { label: "Linux", icon: "terminal" },
+  OTHER: { label: "기타", icon: "devices_other" },
+} as const;
+
 /** 속성 값 타입 설정 */
 export const VALUE_TYPE_CONFIG = {
   TEXT: { label: "텍스트", icon: "text_fields" },

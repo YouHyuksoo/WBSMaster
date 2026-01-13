@@ -68,6 +68,8 @@ export function useCreateIssue() {
       projectId: string;
       priority?: string;
       category?: string;
+      type?: string;  // 유형 (기능/비기능)
+      resolution?: string;  // 처리내용
       dueDate?: string;
       reporterId?: string;
       assigneeId?: string;

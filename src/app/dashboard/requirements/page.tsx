@@ -30,6 +30,7 @@ import {
 } from "@/hooks";
 import { useProject } from "@/contexts";
 import type { Requirement } from "@/lib/api";
+import { RequirementTable } from "./components";
 
 /** 우선순위 설정 */
 const priorityConfig: Record<string, { label: string; color: string; bgColor: string }> = {
@@ -60,10 +61,6 @@ export default function RequirementsPage() {
   const [editingRequirement, setEditingRequirement] = useState<Requirement | null>(null);
   /** OneDrive 미리보기 모달 상태 */
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  /** 상태 드롭다운이 열린 요구사항 ID */
-  const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
-  /** 드롭다운이 위로 열려야 하는지 여부 */
-  const [dropdownOpenUpward, setDropdownOpenUpward] = useState(false);
   /** 현재 선택된 탭 (active: 활성 요구사항, implemented: 구현완료) */
   const [activeTab, setActiveTab] = useState<"active" | "implemented">("active");
 
@@ -154,12 +151,11 @@ export default function RequirementsPage() {
    * @param id 요구사항 ID
    * @param newStatus 변경할 상태
    */
-  const handleStatusChange = async (id: string, newStatus: Requirement["status"]) => {
+  const handleStatusChange = async (id: string, newStatus: string) => {
     await updateRequirement.mutateAsync({
       id,
-      data: { status: newStatus },
+      data: { status: newStatus as Requirement["status"] },
     });
-    setOpenStatusDropdown(null);
   };
 
   /**
@@ -556,292 +552,15 @@ export default function RequirementsPage() {
             </select>
           </div>
 
-          {/* 요구사항 목록 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
-            {/* 테이블 헤더 */}
-            <div
-              className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1350px]"
-              style={{ gridTemplateColumns: "80px 80px 1fr 70px 100px 80px 100px 100px 80px 90px 100px 80px" }}
-            >
-              <div>진행상태</div>
-              <div>코드</div>
-              <div>업무협조</div>
-              <div>우선순위</div>
-              <div>카테고리</div>
-              <div>문서</div>
-              <div>요청자</div>
-              <div>담당자</div>
-              <div>요청일</div>
-              <div>마감일</div>
-              <div>연결 태스크</div>
-              <div>관리</div>
-            </div>
-
-            {/* 빈 목록 */}
-            {filteredRequirements.length === 0 && (
-              <div className="p-8 text-center">
-                <Icon name="inbox" size="xl" className="text-text-secondary mb-4" />
-                <p className="text-text-secondary">
-                  {requirements.length === 0
-                    ? "등록된 업무협조가 없습니다."
-                    : "검색 조건에 맞는 업무협조가 없습니다."}
-                </p>
-              </div>
-            )}
-
-            {/* 업무협조 목록 */}
-            {filteredRequirements.map((req) => {
-              const priority = priorityConfig[req.priority] || priorityConfig.SHOULD;
-              const status = statusConfig[req.status] || statusConfig.DRAFT;
-
-              // 날짜 포맷팅
-              const formatDate = (dateStr?: string) => {
-                if (!dateStr) return "-";
-                const date = new Date(dateStr);
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-              };
-
-              return (
-                <div
-                  key={req.id}
-                  className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1350px]"
-                  style={{ gridTemplateColumns: "80px 80px 1fr 70px 100px 80px 100px 100px 80px 90px 100px 80px" }}
-                >
-                  {/* 상태 배지 (클릭 시 드롭다운) */}
-                  <div className="relative">
-                    <button
-                      onClick={(e) => {
-                        if (openStatusDropdown === req.id) {
-                          setOpenStatusDropdown(null);
-                        } else {
-                          setOpenStatusDropdown(req.id);
-                          // 버튼의 위치를 계산하여 위로 열릴지 결정
-                          const buttonRect = e.currentTarget.getBoundingClientRect();
-                          const spaceBelow = window.innerHeight - buttonRect.bottom;
-                          const dropdownHeight = 200; // 드롭다운 예상 높이
-                          setDropdownOpenUpward(spaceBelow < dropdownHeight);
-                        }
-                      }}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-                        req.status === "IMPLEMENTED"
-                          ? "bg-primary/10 text-primary"
-                          : req.status === "APPROVED"
-                          ? "bg-success/10 text-success"
-                          : req.status === "REJECTED"
-                          ? "bg-error/10 text-error"
-                          : "bg-slate-100 dark:bg-slate-800 text-text-secondary"
-                      }`}
-                      title="클릭하여 상태 변경"
-                    >
-                      <Icon name={status.icon} size="xs" />
-                      <span className="hidden sm:inline">{status.label}</span>
-                    </button>
-
-                    {/* 상태 변경 드롭다운 */}
-                    {openStatusDropdown === req.id && (
-                      <>
-                        {/* 드롭다운 외부 클릭 시 닫기 */}
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setOpenStatusDropdown(null)}
-                        />
-                        <div className={`absolute left-0 ${dropdownOpenUpward ? 'bottom-full mb-1' : 'top-full mt-1'} z-20 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[120px]`}>
-                          {Object.entries(statusConfig).map(([key, config]) => (
-                            <button
-                              key={key}
-                              onClick={() => handleStatusChange(req.id, key as Requirement["status"])}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface dark:hover:bg-background-dark transition-colors ${
-                                req.status === key ? "bg-primary/5" : ""
-                              }`}
-                            >
-                              <Icon name={config.icon} size="xs" className={config.color} />
-                              <span className={`${config.color}`}>{config.label}</span>
-                              {req.status === key && (
-                                <Icon name="check" size="xs" className="ml-auto text-primary" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* 코드 */}
-                  <div>
-                    <span className="text-xs text-text-secondary font-mono">
-                      {req.code || `REQ-${req.id.slice(0, 6)}`}
-                    </span>
-                  </div>
-
-                  {/* 제목 */}
-                  <div>
-                    <p
-                      className={`text-sm font-medium truncate ${
-                        req.status === "IMPLEMENTED"
-                          ? "text-text-secondary line-through"
-                          : "text-text dark:text-white"
-                      }`}
-                    >
-                      {req.title}
-                    </p>
-                    {req.description && (
-                      <p className="text-xs text-text-secondary mt-0.5 line-clamp-1">
-                        {req.description}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* 우선순위 */}
-                  <div>
-                    <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded ${priority.bgColor} ${priority.color}`}
-                    >
-                      {priority.label}
-                    </span>
-                  </div>
-
-                  {/* 카테고리 */}
-                  <div>
-                    <span className="text-xs text-text-secondary bg-surface dark:bg-background-dark px-2 py-1 rounded truncate block">
-                      {req.category || "-"}
-                    </span>
-                  </div>
-
-                  {/* OneDrive 문서 링크 */}
-                  <div>
-                    {req.oneDriveLink ? (
-                      <button
-                        onClick={() => setPreviewUrl(req.oneDriveLink!)}
-                        className="flex items-center gap-1 px-2 py-1 rounded bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
-                        title="문서 미리보기"
-                      >
-                        <Icon name="description" size="xs" />
-                        <span>보기</span>
-                      </button>
-                    ) : (
-                      <span className="text-xs text-text-secondary">-</span>
-                    )}
-                  </div>
-
-                  {/* 요청자 */}
-                  <div>
-                    <div className="flex items-center gap-1">
-                      {req.requester?.avatar ? (
-                        <img
-                          src={req.requester.avatar}
-                          alt={req.requester.name || ""}
-                          className="size-5 rounded-full flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="size-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                          <span className="text-[10px] text-primary font-medium">
-                            {req.requester?.name?.[0] || "?"}
-                          </span>
-                        </div>
-                      )}
-                      <span className="text-xs text-text dark:text-white truncate">
-                        {req.requester?.name || "-"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 담당자 */}
-                  <div>
-                    <div className="flex items-center gap-1">
-                      {req.assignee?.avatar ? (
-                        <img
-                          src={req.assignee.avatar}
-                          alt={req.assignee.name || ""}
-                          className="size-5 rounded-full flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="size-5 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
-                          <span className="text-[10px] text-success font-medium">
-                            {req.assignee?.name?.[0] || "?"}
-                          </span>
-                        </div>
-                      )}
-                      <span className="text-xs text-text dark:text-white truncate">
-                        {req.assignee?.name || "-"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 요청일 */}
-                  <div>
-                    <span className="text-xs text-text-secondary">
-                      {formatDate(req.requestDate)}
-                    </span>
-                  </div>
-
-                  {/* 마감일 */}
-                  <div>
-                    <span className={`text-xs ${req.isDelayed ? "text-error font-medium" : "text-text-secondary"}`}>
-                      {formatDate(req.dueDate)}
-                      {req.isDelayed && " (지연)"}
-                    </span>
-                  </div>
-
-                  {/* 연결된 태스크 */}
-                  <div>
-                    {req._count?.tasks && req._count.tasks > 0 ? (
-                      <div className="relative group">
-                        <div className="flex items-center gap-1 px-2 py-1 rounded bg-primary/10 text-primary text-xs font-medium cursor-pointer hover:bg-primary/20 transition-colors">
-                          <Icon name="task_alt" size="xs" />
-                          <span>{req._count.tasks}개</span>
-                        </div>
-                        {/* 호버 시 태스크 목록 표시 */}
-                        {req.tasks && req.tasks.length > 0 && (
-                          <div className="absolute z-20 left-0 top-full mt-1 w-64 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg p-2 hidden group-hover:block">
-                            <p className="text-xs font-semibold text-text dark:text-white mb-2">연결된 태스크</p>
-                            <div className="space-y-1 max-h-40 overflow-y-auto">
-                              {req.tasks.map((task) => (
-                                <div
-                                  key={task.id}
-                                  className="flex items-center gap-2 p-1.5 rounded bg-surface dark:bg-background-dark"
-                                >
-                                  <span className={`size-2 rounded-full ${
-                                    task.status === "COMPLETED" ? "bg-success" :
-                                    task.status === "IN_PROGRESS" ? "bg-primary" :
-                                    task.status === "HOLDING" ? "bg-amber-500" :
-                                    task.status === "CANCELLED" ? "bg-red-500" :
-                                    "bg-slate-400"
-                                  }`} />
-                                  <span className="text-xs text-text dark:text-white truncate flex-1">
-                                    {task.title}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-text-secondary">-</span>
-                    )}
-                  </div>
-
-                  {/* 수정/삭제 버튼 */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setEditingRequirement(req)}
-                      className="size-7 rounded-lg flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
-                      title="수정"
-                    >
-                      <Icon name="edit" size="xs" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteRequirement(req.id, req.title)}
-                      className="size-7 rounded-lg flex items-center justify-center hover:bg-error/10 text-text-secondary hover:text-error transition-colors"
-                      title="삭제"
-                    >
-                      <Icon name="delete" size="xs" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {/* 요구사항 목록 (컴포넌트로 분리) */}
+          <RequirementTable
+            requirements={filteredRequirements}
+            totalCount={requirements.length}
+            onEdit={setEditingRequirement}
+            onDelete={handleDeleteRequirement}
+            onStatusChange={handleStatusChange}
+            onPreviewDocument={setPreviewUrl}
+          />
         </>
       )}
 

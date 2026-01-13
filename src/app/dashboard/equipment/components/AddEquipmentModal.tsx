@@ -15,9 +15,9 @@
 "use client";
 
 import { useState } from "react";
-import { EquipmentType, EquipmentStatus } from "@/lib/api";
+import { EquipmentType, EquipmentStatus, SystemType } from "@/lib/api";
 import { useCreateEquipment } from "../hooks/useEquipment";
-import { STATUS_CONFIG, TYPE_CONFIG } from "../types";
+import { STATUS_CONFIG, TYPE_CONFIG, SYSTEM_TYPE_CONFIG } from "../types";
 
 /** Props 타입 */
 interface AddEquipmentModalProps {
@@ -46,6 +46,8 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
     isLogTarget: false,
     isInterlockTarget: false,
     isBarcodeEnabled: false,
+    systemType: null as SystemType | null,
+    logCollectionPath: "",
   });
 
   const createEquipment = useCreateEquipment();
@@ -76,6 +78,8 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
       isLogTarget: formData.isLogTarget,
       isInterlockTarget: formData.isInterlockTarget,
       isBarcodeEnabled: formData.isBarcodeEnabled,
+      systemType: formData.systemType || undefined,
+      logCollectionPath: formData.logCollectionPath || undefined,
     });
 
     onClose();
@@ -269,6 +273,42 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
                     value={formData.serialNumber}
                     onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
                     placeholder="예: SN123456789"
+                    className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 네트워크/시스템 정보 */}
+            <div className="border-t border-border dark:border-border-dark pt-4">
+              <h3 className="text-sm font-semibold text-text dark:text-white mb-3">네트워크/시스템 정보 (선택)</h3>
+
+              <div className="space-y-3">
+                {/* 시스템 종류 */}
+                <div>
+                  <label className="text-xs text-text-secondary mb-1 block">시스템 종류</label>
+                  <select
+                    value={formData.systemType || ""}
+                    onChange={(e) => setFormData({ ...formData, systemType: e.target.value as SystemType || null })}
+                    className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">선택 안함</option>
+                    {Object.entries(SYSTEM_TYPE_CONFIG).map(([key, config]) => (
+                      <option key={key} value={key}>
+                        {config.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 로그수집위치 */}
+                <div>
+                  <label className="text-xs text-text-secondary mb-1 block">로그수집위치</label>
+                  <input
+                    type="text"
+                    value={formData.logCollectionPath}
+                    onChange={(e) => setFormData({ ...formData, logCollectionPath: e.target.value })}
+                    placeholder="예: C:\Logs, /var/log"
                     className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
