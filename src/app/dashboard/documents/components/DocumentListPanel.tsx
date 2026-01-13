@@ -18,6 +18,7 @@ import {
   useDocuments,
   useToggleFavorite,
   useDeleteDocument,
+  useCreateDocument,
 } from "@/hooks";
 import {
   type Document,
@@ -85,6 +86,7 @@ export function DocumentListPanel({
   const { data: documents = [], isLoading } = useDocuments(filters);
 
   // Mutations
+  const createMutation = useCreateDocument();
   const deleteMutation = useDeleteDocument();
   const toggleFavoriteMutation = useToggleFavorite();
 
@@ -153,6 +155,28 @@ export function DocumentListPanel({
     }).catch(() => {
       toast.error("복사에 실패했습니다.");
     });
+  };
+
+  // 문서 데이터 복사해서 새 문서 생성
+  const handleCopyDocument = async (doc: Document) => {
+    if (!projectId) return;
+
+    try {
+      createMutation.mutate({
+        projectId,
+        name: `${doc.name} (복사본)`,
+        description: doc.description,
+        category: doc.category,
+        version: "1.0",
+        sourceType: doc.sourceType,
+        url: doc.url,
+        tags: doc.tags,
+        isPersonal,
+      });
+      toast.success(`"${doc.name}" 문서가 복사되었습니다.`);
+    } catch (error) {
+      toast.error("문서 복사에 실패했습니다.");
+    }
   };
 
   if (!projectId) {
@@ -337,6 +361,17 @@ export function DocumentListPanel({
                           </button>
                         </>
                       )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopyDocument(doc);
+                        }}
+                        className="size-6 rounded flex items-center justify-center hover:bg-success/10 text-text-secondary hover:text-success transition-colors"
+                        title="문서 복사"
+                        disabled={createMutation.isPending}
+                      >
+                        <Icon name="content_duplicate" size="xs" />
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
