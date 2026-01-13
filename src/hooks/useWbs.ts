@@ -67,6 +67,9 @@ export function useWbsItems(params?: UseWbsItemsParams) {
       }),
     enabled: !!params?.projectId,
     staleTime: 1000 * 60 * 5, // 5분간 fresh 상태 유지
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 
@@ -209,6 +212,9 @@ export function useWbsStats(params?: { projectId?: string }) {
   return useQuery({
     queryKey: wbsKeys.stats(params),
     queryFn: () => api.wbs.stats(params),
-    staleTime: 1000 * 60 * 2, // 2분간 fresh 상태 유지
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }

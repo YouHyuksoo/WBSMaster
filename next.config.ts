@@ -18,7 +18,13 @@ const nextConfig: NextConfig = {
   },
 
   // 개발 환경에서 허용할 Origin (WSL2/외부 IP 접근 시 경고 해결)
-  allowedDevOrigins: ["172.23.208.1"],
+  allowedDevOrigins: ["172.23.208.1", "10.7.119.148"],
+
+  // 외부 IP에서 접속 시 HMR WebSocket 설정
+  webpackDevMiddleware: (config) => {
+    // WebSocket이 올바른 호스트로 연결되도록 설정
+    return config;
+  },
 
   // 이미지 최적화 설정 (외부 이미지 사용 시)
   images: {

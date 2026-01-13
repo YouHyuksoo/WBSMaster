@@ -37,6 +37,10 @@ export function useTimelineRows(projectId: string) {
     queryKey: timelineRowKeys.list(projectId),
     queryFn: () => api.timelineRows.list({ projectId }),
     enabled: !!projectId,
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 

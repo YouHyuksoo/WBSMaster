@@ -1290,8 +1290,8 @@ export const api = {
 
   /** 설비 관리 API */
   equipment: {
-    /** 설비 목록 조회 */
-    list: (params?: { projectId?: string }) =>
+    /** 설비 목록 조회 (사업부/라인 필터 지원) */
+    list: (params?: { projectId?: string; divisionCode?: string; lineCode?: string }) =>
       get<Equipment[]>("/api/equipment", params),
     /** 설비 상세 조회 */
     get: (id: string) => get<Equipment>(`/api/equipment/${id}`),
@@ -1330,6 +1330,9 @@ export const api = {
         "/api/equipment/bulk-update",
         { updates }
       ),
+    /** 필터 목록 조회 (사업부/라인 코드) */
+    getFilters: (projectId: string, divisionCode?: string) =>
+      get<{ divisions: string[]; lines: string[] }>("/api/equipment/filters", { projectId, divisionCode }),
   },
 
   /** 설비 속성 API */

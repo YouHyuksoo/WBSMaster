@@ -31,11 +31,18 @@ export const projectKeys = {
 
 /**
  * 프로젝트 목록 조회 Hook
+ * staleTime: Infinity (프로젝트 생성/수정/삭제 시에만 invalidate)
+ * 페이지 이동 시에도 캐시된 데이터 사용 (새로 로딩하지 않음)
  */
 export function useProjects(filters?: { status?: string; ownerId?: string }) {
   return useQuery({
     queryKey: projectKeys.list(filters),
     queryFn: () => api.projects.list(filters),
+    staleTime: Infinity, // 무한 캐시 - invalidate 전까지 fresh 유지
+    gcTime: Infinity, // 가비지 컬렉션 비활성화 - 메모리에 계속 유지
+    refetchOnWindowFocus: false,
+    refetchOnMount: false, // 마운트 시 refetch 안 함 (페이지 이동 시 로딩 방지)
+    refetchOnReconnect: false,
   });
 }
 

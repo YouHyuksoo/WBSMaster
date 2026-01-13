@@ -14,7 +14,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Icon, Button } from "@/components/ui";
 import { useWeeklyReports, useCurrentUser, useMembers } from "@/hooks";
 import { useProject } from "@/contexts";
@@ -50,31 +50,47 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
   const [memberFilter, setMemberFilter] = useState<"mine" | "all">("mine"); // 기본값: 내꺼만 보기
 
   // 프로젝트 선택 시 금주로 필터 초기화
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentProjectWeek) {
       setWeekFilter(currentProjectWeek.week);
     }
   }, [selectedProjectId, currentProjectWeek?.week]);
 
+  // 주간보고 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const reportFilters = useMemo(
+    () => ({
+      projectId: selectedProjectId || undefined,
+      userId: memberFilter === "mine" ? currentUser?.id : undefined,
+      year: String(yearFilter),
+      weekNumber: weekFilter === "all" ? undefined : String(weekFilter),
+    }),
+    [selectedProjectId, memberFilter, currentUser?.id, yearFilter, weekFilter]
+  );
+
   // 주간보고 조회 (memberFilter에 따라 userId 필터 적용)
-  const { data: reports, isLoading } = useWeeklyReports({
-    projectId: selectedProjectId || undefined,
-    userId: memberFilter === "mine" ? currentUser?.id : undefined,
-    year: String(yearFilter),
-    weekNumber: weekFilter === "all" ? undefined : String(weekFilter),
-  });
+  const { data: reports, isLoading } = useWeeklyReports(reportFilters);
+
+  // 멤버 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const memberFilters = useMemo(
+    () => (selectedProjectId ? { projectId: selectedProjectId } : undefined),
+    [selectedProjectId]
+  );
 
   // 전체 멤버 조회 (금주 통계용)
-  const { data: members = [] } = useMembers(
-    selectedProjectId ? { projectId: selectedProjectId } : undefined
+  const { data: members = [] } = useMembers(memberFilters);
+
+  // 금주 주간보고 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const currentWeekFilters = useMemo(
+    () => ({
+      projectId: selectedProjectId || undefined,
+      year: currentProjectWeek ? String(currentProjectWeek.year) : undefined,
+      weekNumber: currentProjectWeek ? String(currentProjectWeek.week) : undefined,
+    }),
+    [selectedProjectId, currentProjectWeek?.year, currentProjectWeek?.week]
   );
 
   // 금주 주간보고 조회 (통계용 - 전체 멤버, 프로젝트 주차 기준)
-  const { data: currentWeekReports = [] } = useWeeklyReports({
-    projectId: selectedProjectId || undefined,
-    year: currentProjectWeek ? String(currentProjectWeek.year) : undefined,
-    weekNumber: currentProjectWeek ? String(currentProjectWeek.week) : undefined,
-  });
+  const { data: currentWeekReports = [] } = useWeeklyReports(currentWeekFilters);
 
   // 금주 통계 계산
   const weeklyStats = useMemo(() => {

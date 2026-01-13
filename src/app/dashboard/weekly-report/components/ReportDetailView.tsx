@@ -98,20 +98,32 @@ export function ReportDetailView({
   const [editingItem, setEditingItem] = useState<WeeklyReportItem | null>(null);
   const [savingAction, setSavingAction] = useState<"temp" | "submit" | "cancel" | null>(null);
 
+  // 현재 주차 보고서 필터 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const currentWeekReportFilters = useMemo(
+    () => ({
+      projectId: selectedProjectId || undefined,
+      userId: currentUser?.id,
+      year: String(currentWeekInfo.year),
+      weekNumber: String(currentWeekInfo.week),
+    }),
+    [selectedProjectId, currentUser?.id, currentWeekInfo.year, currentWeekInfo.week]
+  );
+
   // 현재 주차의 주간보고 조회
-  const { data: reports, isLoading: isReportsLoading } = useWeeklyReports({
-    projectId: selectedProjectId || undefined,
-    userId: currentUser?.id,
-    year: String(currentWeekInfo.year),
-    weekNumber: String(currentWeekInfo.week),
-  });
+  const { data: reports, isLoading: isReportsLoading } = useWeeklyReports(currentWeekReportFilters);
+
+  // 전체 주간보고 필터 메모이제이션 (주차별 상태 표시용)
+  const allReportsFilters = useMemo(
+    () => ({
+      projectId: selectedProjectId || undefined,
+      userId: currentUser?.id,
+      year: String(currentWeekInfo.year),
+    }),
+    [selectedProjectId, currentUser?.id, currentWeekInfo.year]
+  );
 
   // 해당 프로젝트의 전체 주간보고 조회 (주차별 상태 표시용)
-  const { data: allReports } = useWeeklyReports({
-    projectId: selectedProjectId || undefined,
-    userId: currentUser?.id,
-    year: String(currentWeekInfo.year),
-  });
+  const { data: allReports } = useWeeklyReports(allReportsFilters);
 
   // 주차별 제출 상태 계산
   const weekSubmitStatuses = useMemo(() => {
@@ -126,12 +138,18 @@ export function ReportDetailView({
   const currentReportId = reports && reports.length > 0 ? reports[0].id : null;
   const { data: currentReport, isLoading: isReportLoading } = useWeeklyReport(currentReportId);
 
+  // 자동 로드 데이터 필터 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const autoLoadFilters = useMemo(
+    () => ({
+      projectId: selectedProjectId,
+      year: String(currentWeekInfo.year),
+      weekNumber: String(currentWeekInfo.week),
+    }),
+    [selectedProjectId, currentWeekInfo.year, currentWeekInfo.week]
+  );
+
   // 자동 로드 데이터 (이전 주차의 차주계획)
-  const { data: autoLoadData } = useAutoLoadData({
-    projectId: selectedProjectId,
-    year: String(currentWeekInfo.year),
-    weekNumber: String(currentWeekInfo.week),
-  });
+  const { data: autoLoadData } = useAutoLoadData(autoLoadFilters);
 
   // Mutations
   const createReport = useCreateWeeklyReport();

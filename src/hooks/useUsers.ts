@@ -38,6 +38,10 @@ export function useUsers(filters?: { search?: string; email?: string; name?: str
   return useQuery({
     queryKey: userKeys.list(filters),
     queryFn: () => api.users.list(filters),
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 

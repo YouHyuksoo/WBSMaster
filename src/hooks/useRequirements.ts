@@ -37,6 +37,11 @@ export function useRequirements(filters?: { projectId?: string; status?: string;
   return useQuery({
     queryKey: requirementKeys.list(filters),
     queryFn: () => api.requirements.list(filters),
+    enabled: !!filters?.projectId,
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 
@@ -113,6 +118,9 @@ export function useRequirementStats(params?: { projectId?: string }) {
   return useQuery({
     queryKey: requirementKeys.stats(params),
     queryFn: () => api.requirements.stats(params),
-    staleTime: 1000 * 60 * 2, // 2분간 fresh 상태 유지
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }

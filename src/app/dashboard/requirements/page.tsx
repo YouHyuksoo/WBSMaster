@@ -73,7 +73,7 @@ export default function RequirementsPage() {
   const toast = useToast();
 
   /** 요구사항 목록 조회 (프로젝트 필터링) */
-  const { data: requirements = [], isLoading, error } = useRequirements(
+  const { data: requirements = [], isLoading, error, refetch: refetchRequirements } = useRequirements(
     selectedProjectId ? { projectId: selectedProjectId } : undefined
   );
 
@@ -229,6 +229,20 @@ export default function RequirementsPage() {
   };
 
   /**
+   * 데이터 새로고침 핸들러
+   * 캐시를 무시하고 최신 요구사항 데이터를 가져옵니다.
+   */
+  const handleRefresh = async () => {
+    try {
+      await refetchRequirements();
+      toast.success("데이터가 업데이트되었습니다.");
+    } catch (err) {
+      console.error("새로고침 실패:", err);
+      toast.error("데이터 업데이트에 실패했습니다.");
+    }
+  };
+
+  /**
    * 엑셀 다운로드 핸들러
    */
   const handleExportToExcel = () => {
@@ -326,6 +340,19 @@ export default function RequirementsPage() {
               <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
             </div>
           )}
+          {/* 새로고침 버튼 */}
+          <button
+            onClick={handleRefresh}
+            disabled={!selectedProjectId || isLoading}
+            className={`flex items-center justify-center p-2 rounded-lg transition-all ${
+              isLoading
+                ? "bg-primary/10 text-primary cursor-wait"
+                : "bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text-secondary hover:text-primary hover:border-primary/30"
+            }`}
+            title="데이터 새로고침"
+          >
+            <Icon name={isLoading ? "sync" : "refresh"} size="sm" className={isLoading ? "animate-spin" : ""} />
+          </button>
           <Button
             variant="outline"
             leftIcon="download"

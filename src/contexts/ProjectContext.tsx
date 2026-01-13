@@ -21,6 +21,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { useProjects } from "@/hooks";
 import type { Project } from "@/lib/api";
@@ -68,7 +69,20 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
 
   // 프로젝트 목록 조회
-  const { data: projects = [], isLoading } = useProjects();
+  const { data: rawProjects = [], isLoading } = useProjects();
+
+  // projects 참조 안정화: 내용이 같으면 같은 참조 유지
+  const projectsRef = useRef<Project[]>([]);
+  const projects = useMemo(() => {
+    // ID 목록이 같으면 이전 참조 유지
+    const prevIds = projectsRef.current.map((p) => p.id).join(",");
+    const newIds = rawProjects.map((p) => p.id).join(",");
+    if (prevIds === newIds && projectsRef.current.length === rawProjects.length) {
+      return projectsRef.current;
+    }
+    projectsRef.current = rawProjects;
+    return rawProjects;
+  }, [rawProjects]);
 
   // localStorage에서 초기값 로드
   useEffect(() => {
@@ -82,6 +96,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // 프로젝트 목록 로드 후 유효성 검증
+  // 주의: projects.length로 의존성 지정하여 배열 참조 변경으로 인한 무한 루프 방지
   useEffect(() => {
     if (!isLoading && isInitialized && projects.length > 0) {
       // 저장된 프로젝트 ID가 유효한지 확인
@@ -100,7 +115,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(STORAGE_KEY, firstProjectId);
       }
     }
-  }, [isLoading, isInitialized, projects, selectedProjectId]);
+  }, [isLoading, isInitialized, projects.length, selectedProjectId]);
 
   // 프로젝트 ID 설정 (localStorage에도 저장)
   const setSelectedProjectId = useCallback((id: string) => {

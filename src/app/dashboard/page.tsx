@@ -18,7 +18,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon, Button, Card, Input, useToast, ConfirmModal } from "@/components/ui";
@@ -126,10 +126,16 @@ export default function DashboardPage() {
   /** 현재 선택된 프로젝트 */
   const { selectedProjectId } = useProject();
 
+  // 일정 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const scheduleFilters = useMemo(
+    () => ({
+      projectId: selectedProjectId || undefined,
+    }),
+    [selectedProjectId]
+  );
+
   /** 오늘의 일정 조회 (전체 인원) */
-  const { data: todaySchedules = [], isLoading: schedulesLoading } = useTodaySchedules({
-    projectId: selectedProjectId || undefined,
-  });
+  const { data: todaySchedules = [], isLoading: schedulesLoading } = useTodaySchedules(scheduleFilters);
 
   /** 프로젝트 생성 */
   const createProject = useCreateProject();

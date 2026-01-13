@@ -36,6 +36,11 @@ export function useTasks(filters?: { projectId?: string; status?: string; assign
   return useQuery({
     queryKey: taskKeys.list(filters),
     queryFn: () => api.tasks.list(filters),
+    enabled: !!filters?.projectId,
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 

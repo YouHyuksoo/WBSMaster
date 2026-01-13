@@ -72,11 +72,17 @@ export function DocumentListPanel({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const filters = useMemo(
+    () => ({
+      projectId: projectId || undefined,
+      isPersonal,
+    }),
+    [projectId, isPersonal]
+  );
+
   // 데이터 조회
-  const { data: documents = [], isLoading } = useDocuments({
-    projectId: projectId || undefined,
-    isPersonal,
-  });
+  const { data: documents = [], isLoading } = useDocuments(filters);
 
   // Mutations
   const deleteMutation = useDeleteDocument();
@@ -138,6 +144,15 @@ export function DocumentListPanel({
   // 새 창에서 열기
   const handleOpenInNewTab = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  // 클립보드에 복사
+  const handleCopyUrl = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success("링크가 복사되었습니다.");
+    }).catch(() => {
+      toast.error("복사에 실패했습니다.");
+    });
   };
 
   if (!projectId) {
@@ -299,16 +314,28 @@ export function DocumentListPanel({
                     {/* 액션 버튼 */}
                     <div className="flex items-center gap-1">
                       {doc.url && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenInNewTab(doc.url!);
-                          }}
-                          className="size-6 rounded flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
-                          title="새 창에서 열기"
-                        >
-                          <Icon name="open_in_new" size="xs" />
-                        </button>
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenInNewTab(doc.url!);
+                            }}
+                            className="size-6 rounded flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
+                            title="새 창에서 열기"
+                          >
+                            <Icon name="open_in_new" size="xs" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyUrl(doc.url!);
+                            }}
+                            className="size-6 rounded flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
+                            title="링크 복사"
+                          >
+                            <Icon name="content_copy" size="xs" />
+                          </button>
+                        </>
                       )}
                       <button
                         onClick={(e) => {

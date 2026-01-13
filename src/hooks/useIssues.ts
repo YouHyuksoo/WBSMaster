@@ -37,6 +37,10 @@ export function useIssues(filters?: { projectId?: string; status?: string; prior
   return useQuery({
     queryKey: issueKeys.list(filters),
     queryFn: () => api.issues.list(filters),
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 
@@ -112,6 +116,9 @@ export function useIssueStats(params?: { projectId?: string }) {
   return useQuery({
     queryKey: issueKeys.stats(params),
     queryFn: () => api.issues.stats(params),
-    staleTime: 1000 * 60 * 2, // 2분간 fresh 상태 유지
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }

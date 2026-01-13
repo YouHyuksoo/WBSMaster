@@ -26,11 +26,15 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
+    const divisionCode = searchParams.get("divisionCode");
+    const lineCode = searchParams.get("lineCode");
 
     // 필터 조건 구성
     const where: Prisma.EquipmentWhereInput = {};
 
     if (projectId) where.projectId = projectId;
+    if (divisionCode && divisionCode !== "ALL") where.divisionCode = divisionCode;
+    if (lineCode && lineCode !== "ALL") where.lineCode = lineCode;
 
     const equipments = await prisma.equipment.findMany({
       where,

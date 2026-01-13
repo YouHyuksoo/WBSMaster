@@ -38,6 +38,10 @@ export function QueryProvider({ children }: QueryProviderProps) {
             retry: 3,
             // 윈도우 포커스 시 자동 리페치 비활성화
             refetchOnWindowFocus: false,
+            // 컴포넌트 마운트 시 자동 리페치 비활성화 (캐시된 데이터 우선)
+            refetchOnMount: false,
+            // 다른 탭에서 돌아왔을 때도 리페치 비활성화
+            refetchOnReconnect: false,
           },
         },
       })

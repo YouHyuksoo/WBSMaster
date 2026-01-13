@@ -141,7 +141,7 @@ export default function KanbanPage() {
   const { selectedProjectId, selectedProject } = useProject();
 
   // API 연동
-  const { data: tasks = [], isLoading, error } = useTasks(
+  const { data: tasks = [], isLoading, error, refetch: refetchTasks } = useTasks(
     selectedProjectId ? { projectId: selectedProjectId } : undefined
   );
   const createTask = useCreateTask();
@@ -462,6 +462,20 @@ export default function KanbanPage() {
   };
 
   /**
+   * 데이터 새로고침 핸들러
+   * 캐시를 무시하고 최신 작업 데이터를 가져옵니다.
+   */
+  const handleRefresh = async () => {
+    try {
+      await refetchTasks();
+      toast.success("데이터가 업데이트되었습니다.");
+    } catch (err) {
+      console.error("새로고침 실패:", err);
+      toast.error("데이터 업데이트에 실패했습니다.");
+    }
+  };
+
+  /**
    * 엑셀 다운로드 핸들러
    * 담당자별로 정렬하여 다운로드
    */
@@ -617,6 +631,19 @@ export default function KanbanPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            {/* 새로고침 버튼 */}
+            <button
+              onClick={handleRefresh}
+              disabled={!selectedProjectId || isLoading}
+              className={`flex items-center justify-center p-2 rounded-lg transition-all ${
+                isLoading
+                  ? "bg-primary/10 text-primary cursor-wait"
+                  : "bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text-secondary hover:text-primary hover:border-primary/30"
+              }`}
+              title="데이터 새로고침"
+            >
+              <Icon name={isLoading ? "sync" : "refresh"} size="sm" className={isLoading ? "animate-spin" : ""} />
+            </button>
             <Button
               variant="outline"
               leftIcon="download"
@@ -1643,6 +1670,31 @@ function TaskCard({
               {priority.label}
             </span>
           )}
+          {/* 재촉 버튼 - 우선순위 옆 */}
+          {canNudge && onNudge && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onNudge(task.id);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              disabled={isNudging}
+              className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full transition-all disabled:opacity-50 backdrop-blur-sm shadow-md text-[10px] ${
+                nudgeCount > 0
+                  ? "bg-gradient-to-br from-amber-400/30 to-amber-500/20 dark:from-amber-400/40 dark:to-amber-500/30 border border-amber-300/30 dark:border-amber-400/20 text-amber-700 dark:text-amber-300 hover:from-amber-400/40 hover:to-amber-500/30 dark:hover:from-amber-400/50 dark:hover:to-amber-500/40"
+                  : "bg-gradient-to-br from-amber-300/20 to-amber-400/10 dark:from-amber-400/25 dark:to-amber-500/15 border border-amber-200/30 dark:border-amber-400/20 text-amber-600 dark:text-amber-400 hover:from-amber-300/30 hover:to-amber-400/20 dark:hover:from-amber-400/35 dark:hover:to-amber-500/25"
+              }`}
+              title={nudgeCount > 0
+                ? `${nudgeCount}회 재촉됨\n${task.nudges?.map((n) => `${n.nudger.name || "알 수 없음"}님`).join(", ")}\n클릭하여 추가 재촉`
+                : "재촉하기"
+              }
+            >
+              <Icon name={nudgeCount > 0 ? "notifications_active" : "notifications"} size="xs" />
+              {nudgeCount > 0 && (
+                <span className="font-bold">{nudgeCount}</span>
+              )}
+            </button>
+          )}
         </div>
         {/* 상태 변경 드롭다운 & 수정/삭제 버튼 */}
         <div className="flex items-center gap-1">
@@ -1762,33 +1814,6 @@ function TaskCard({
         </div>
 
         <div className="flex items-center gap-2 text-text-secondary text-xs">
-          {/* 재촉 버튼 (재촉 카운트 표시 포함) - 글래스모피즘 */}
-          {canNudge && onNudge && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onNudge(task.id);
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              disabled={isNudging}
-              className={`flex items-center gap-1 px-2 py-1 rounded-full transition-all disabled:opacity-50 backdrop-blur-sm shadow-md ${
-                nudgeCount > 0
-                  ? "bg-gradient-to-br from-amber-400/30 to-amber-500/20 dark:from-amber-400/40 dark:to-amber-500/30 border border-amber-300/30 dark:border-amber-400/20 text-amber-700 dark:text-amber-300 hover:from-amber-400/40 hover:to-amber-500/30 dark:hover:from-amber-400/50 dark:hover:to-amber-500/40"
-                  : "bg-gradient-to-br from-amber-300/20 to-amber-400/10 dark:from-amber-400/25 dark:to-amber-500/15 border border-amber-200/30 dark:border-amber-400/20 text-amber-600 dark:text-amber-400 hover:from-amber-300/30 hover:to-amber-400/20 dark:hover:from-amber-400/35 dark:hover:to-amber-500/25"
-              }`}
-              title={nudgeCount > 0
-                ? `${nudgeCount}회 재촉됨\n${task.nudges?.map((n) => `${n.nudger.name || "알 수 없음"}님`).join(", ")}\n클릭하여 추가 재촉`
-                : "재촉하기"
-              }
-            >
-              <Icon name={nudgeCount > 0 ? "notifications_active" : "notifications"} size="xs" />
-              {nudgeCount > 0 ? (
-                <span className="text-[10px] font-bold">{nudgeCount}</span>
-              ) : (
-                <span className="text-[10px] font-medium">재촉</span>
-              )}
-            </button>
-          )}
           {/* 시작일 ~ 마감일 표시 */}
           {(task.startDate || task.dueDate) && (
             <div className="flex items-center gap-1">

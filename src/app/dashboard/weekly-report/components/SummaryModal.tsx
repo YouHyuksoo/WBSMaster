@@ -59,12 +59,18 @@ export function SummaryModal({
     `${weekInfo.year}년 ${weekInfo.week}주차 주간보고 취합`
   );
 
+  // 주간보고 필터 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const reportFilters = useMemo(
+    () => ({
+      projectId,
+      year: String(weekInfo.year),
+      weekNumber: String(weekInfo.week),
+    }),
+    [projectId, weekInfo.year, weekInfo.week]
+  );
+
   // API 훅
-  const { data: reports = [] } = useWeeklyReports({
-    projectId,
-    year: String(weekInfo.year),
-    weekNumber: String(weekInfo.week),
-  });
+  const { data: reports = [] } = useWeeklyReports(reportFilters);
   const createSummary = useCreateWeeklySummary();
   const analyzeSummary = useAnalyzeWeeklySummary();
 

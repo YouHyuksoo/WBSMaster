@@ -36,6 +36,11 @@ export function useMembers(filters?: { projectId?: string; role?: string }) {
   return useQuery({
     queryKey: memberKeys.list(filters),
     queryFn: () => api.members.list(filters),
+    enabled: !!filters?.projectId,
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 

@@ -157,6 +157,18 @@ export default function ProcessVerificationPage() {
     setFilter((prev) => ({ ...prev, ...newFilter }));
   };
 
+  // 데이터 새로고침 핸들러
+  const handleRefresh = async () => {
+    try {
+      await loadCategories();
+      await loadItems();
+      toast.success("데이터가 업데이트되었습니다.");
+    } catch (err) {
+      console.error("새로고침 실패:", err);
+      toast.error("데이터 업데이트에 실패했습니다.");
+    }
+  };
+
   // 항목 업데이트 핸들러
   const handleUpdateItem = async (
     id: string,
@@ -383,6 +395,19 @@ export default function ProcessVerificationPage() {
               <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
             </div>
           )}
+          {/* 새로고침 버튼 */}
+          <button
+            onClick={handleRefresh}
+            disabled={!selectedProjectId || isLoadingCategories || isLoadingItems}
+            className={`flex items-center justify-center p-2 rounded-lg transition-all ${
+              isLoadingCategories || isLoadingItems
+                ? "bg-primary/10 text-primary cursor-wait"
+                : "bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text-secondary hover:text-primary hover:border-primary/30"
+            }`}
+            title="데이터 새로고침"
+          >
+            <Icon name={isLoadingCategories || isLoadingItems ? "sync" : "refresh"} size="sm" className={isLoadingCategories || isLoadingItems ? "animate-spin" : ""} />
+          </button>
           <Button
             variant="primary"
             leftIcon="add"

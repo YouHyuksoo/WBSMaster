@@ -38,6 +38,7 @@ import ReactFlow, {
   ReactFlowProvider,
   SelectionMode,
   ConnectionMode,
+  NodeChange,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Equipment, EquipmentConnection } from "@/lib/api";
@@ -81,8 +82,26 @@ function EquipmentCanvasInner({
   focusEquipmentId,
   onFocusComplete,
 }: EquipmentCanvasProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [nodes, setNodes, defaultOnNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // 노드 변경 이벤트 처리 (영역 선택 드래그 시 위치 변경 감지)
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      // 기본 핸들러 호출 (노드 상태 업데이트)
+      defaultOnNodesChange(changes);
+
+      // 드래그 종료된 위치 변경이 있으면 변경사항 플래그 설정
+      // (dragging이 false인 position 변경 = 드래그 종료)
+      const hasPositionChangeEnd = changes.some(
+        (change) => change.type === "position" && change.dragging === false
+      );
+      if (hasPositionChangeEnd) {
+        setHasChanges(true);
+      }
+    },
+    [defaultOnNodesChange]
+  );
   const [dragPreviewNode, setDragPreviewNode] = useState<Node | null>(null);
   const [draggingEquipmentId, setDraggingEquipmentId] = useState<string | null>(null);
   const [edgeType, setEdgeType] = useState<"smoothstep" | "straight" | "step" | "bezier">("smoothstep");

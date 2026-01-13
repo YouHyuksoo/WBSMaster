@@ -44,5 +44,8 @@ export function useCurrentUser() {
     },
     staleTime: 5 * 60 * 1000, // 5분간 캐시
     retry: false, // 실패 시 재시도 안함
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }

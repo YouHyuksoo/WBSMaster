@@ -169,9 +169,30 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     };
   }, [showNotificationMenu]);
 
-  // 알림 조회 (최초 1회, 마일스톤 임박 체크 포함)
+  // 알림 조회 (앱 최초 시작 시 1회만)
   useEffect(() => {
     if (!user) return;
+
+    // 이미 조회했는지 확인 (localStorage)
+    const lastFetchTime = localStorage.getItem("notification_last_fetch");
+    const now = Date.now();
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+
+    // 24시간 이내에 조회했으면 스킵
+    if (lastFetchTime && now - parseInt(lastFetchTime) < ONE_DAY) {
+      // 로컬스토리지에서 캐시된 알림 복원
+      const cachedNotifications = localStorage.getItem("notifications_cache");
+      const cachedUnreadCount = localStorage.getItem("notifications_unread_count");
+      if (cachedNotifications) {
+        try {
+          setNotifications(JSON.parse(cachedNotifications));
+          setUnreadCount(parseInt(cachedUnreadCount || "0"));
+        } catch (e) {
+          console.error("캐시 복원 실패:", e);
+        }
+      }
+      return;
+    }
 
     const fetchNotifications = async () => {
       setIsLoadingNotifications(true);
@@ -179,8 +200,16 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         const response = await fetch("/api/notifications?checkMilestones=true");
         if (response.ok) {
           const data = await response.json();
-          setNotifications(data.notifications || []);
-          setUnreadCount(data.unreadCount || 0);
+          const notifs = data.notifications || [];
+          const unread = data.unreadCount || 0;
+
+          setNotifications(notifs);
+          setUnreadCount(unread);
+
+          // 로컬스토리지에 저장
+          localStorage.setItem("notification_last_fetch", now.toString());
+          localStorage.setItem("notifications_cache", JSON.stringify(notifs));
+          localStorage.setItem("notifications_unread_count", unread.toString());
         }
       } catch (error) {
         console.error("알림 조회 실패:", error);
@@ -200,10 +229,16 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     if (!notification.isRead) {
       try {
         await fetch(`/api/notifications/${notification.id}`, { method: "PATCH" });
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
+        const updatedNotifs = notifications.map((n) =>
+          n.id === notification.id ? { ...n, isRead: true } : n
         );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
+        setNotifications(updatedNotifs);
+        const newUnreadCount = Math.max(0, unreadCount - 1);
+        setUnreadCount(newUnreadCount);
+
+        // 로컬스토리지 캐시 업데이트
+        localStorage.setItem("notifications_cache", JSON.stringify(updatedNotifs));
+        localStorage.setItem("notifications_unread_count", newUnreadCount.toString());
       } catch (error) {
         console.error("알림 읽음 처리 실패:", error);
       }
@@ -222,8 +257,14 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const handleReadAllNotifications = async () => {
     try {
       await fetch("/api/notifications/read-all", { method: "PATCH" });
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      const updatedNotifs = notifications.map((n) => ({ ...n, isRead: true }));
+      setNotifications(updatedNotifs);
       setUnreadCount(0);
+
+      // 로컬스토리지 캐시 업데이트
+      localStorage.setItem("notifications_cache", JSON.stringify(updatedNotifs));
+      localStorage.setItem("notifications_unread_count", "0");
+
       toast.success("모든 알림을 읽음 처리했습니다.");
     } catch (error) {
       console.error("모두 읽음 처리 실패:", error);

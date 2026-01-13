@@ -12,7 +12,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Icon, Button, ConfirmModal, useToast } from "@/components/ui";
 import { WeeklySummary } from "@/lib/api";
@@ -37,7 +37,14 @@ export function SummaryPanel({
 }: SummaryPanelProps) {
   const router = useRouter();
   const toast = useToast();
-  const { data: summaries = [], isLoading } = useWeeklySummaries({ projectId });
+
+  // 취합 보고서 필터 메모이제이션 (불필요한 쿼리 재실행 방지)
+  const summaryFilters = useMemo(
+    () => ({ projectId }),
+    [projectId]
+  );
+
+  const { data: summaries = [], isLoading } = useWeeklySummaries(summaryFilters);
   const deleteSummary = useDeleteWeeklySummary();
 
   /** 취합 보고서 클릭 - 상세 페이지로 이동 */

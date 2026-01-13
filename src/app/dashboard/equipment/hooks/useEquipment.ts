@@ -19,12 +19,48 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, Equipment } from "@/lib/api";
 
-/** 설비 목록 조회 훅 */
-export function useEquipment(params?: { projectId?: string }) {
+/** 사업부 목록 조회 훅 (최초 1회만) */
+export function useEquipmentDivisions(projectId?: string) {
+  return useQuery({
+    queryKey: ["equipmentDivisions", projectId],
+    queryFn: () => api.equipment.getFilters(projectId!),
+    enabled: !!projectId,
+    staleTime: Infinity, // 무한 캐시 (수동 갱신 전까지 유지)
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+}
+
+/** 라인 목록 조회 훅 (사업부 선택 시 동적 조회) */
+export function useEquipmentLines(projectId?: string, divisionCode?: string) {
+  return useQuery({
+    queryKey: ["equipmentLines", projectId, divisionCode],
+    queryFn: () => api.equipment.getFilters(projectId!, divisionCode),
+    enabled: !!projectId && !!divisionCode, // 사업부 선택 시에만 조회
+    staleTime: 1000 * 60 * 5, // 5분 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+}
+
+/** @deprecated useEquipmentDivisions, useEquipmentLines 사용 권장 */
+export function useEquipmentFilters(projectId?: string) {
+  return useEquipmentDivisions(projectId);
+}
+
+/** 설비 목록 조회 훅 (사업부/라인 필터 지원) */
+export function useEquipment(params?: { projectId?: string; divisionCode?: string; lineCode?: string }) {
   return useQuery({
     queryKey: ["equipment", params],
     queryFn: () => api.equipment.list(params),
     enabled: !!params?.projectId,
+    // 불필요한 refetch 방지
+    staleTime: 1000 * 60 * 5, // 5분간 데이터를 fresh로 유지
+    refetchOnWindowFocus: false, // 윈도우 포커스 시 refetch 안 함
+    refetchOnMount: false, // 컴포넌트 마운트 시 refetch 안 함 (이미 캐시에 있으면)
+    refetchOnReconnect: false, // 네트워크 재연결 시 refetch 안 함
   });
 }
 
@@ -93,13 +129,9 @@ interface BulkUpdatePosition {
 
 /** 설비 위치 일괄 업데이트 훅 (캔버스 저장용) */
 export function useBulkUpdateEquipment() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (updates: BulkUpdatePosition[]) => api.equipment.bulkUpdate(updates),
-    onSuccess: () => {
-      // 저장 성공 시 쿼리 무효화하여 최신 데이터 반영
-      queryClient.invalidateQueries({ queryKey: ["equipment"] });
-    },
+    // 저장 성공 시 refetch 안 함 (캔버스에서 이미 로컬 상태를 관리하므로)
+    // → 화면 리프레시 방지 및 거대한 SQL 쿼리 방지
   });
 }

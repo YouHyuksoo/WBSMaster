@@ -36,6 +36,10 @@ export function useHolidays(filters?: { year?: string; month?: string }) {
   return useQuery({
     queryKey: holidayKeys.list(filters),
     queryFn: () => api.holidays.list(filters),
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 
@@ -115,5 +119,9 @@ export function useTodaySchedules(filters?: { projectId?: string; userId?: strin
   return useQuery({
     queryKey: [...holidayKeys.all, "today", filters] as const,
     queryFn: () => api.holidays.today(filters),
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }

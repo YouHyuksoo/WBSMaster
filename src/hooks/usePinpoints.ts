@@ -43,6 +43,10 @@ export function usePinpoints(params: { projectId?: string; rowId?: string }) {
         rowId: params.rowId,
       }),
     enabled: !!params.projectId,
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 

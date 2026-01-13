@@ -34,6 +34,7 @@ export const customerRequirementKeys = {
 /**
  * 고객요구사항 목록 조회 Hook
  * @param filters - 필터 옵션 (projectId, businessUnit, applyStatus, search)
+ * staleTime: 5분 (자주 변경되지 않으므로 캐싱)
  */
 export function useCustomerRequirements(filters?: {
   projectId?: string;
@@ -44,6 +45,11 @@ export function useCustomerRequirements(filters?: {
   return useQuery({
     queryKey: customerRequirementKeys.list(filters),
     queryFn: () => api.customerRequirements.list(filters),
+    enabled: !!filters?.projectId, // projectId가 있을 때만 조회
+    staleTime: 1000 * 60 * 5, // 5분간 fresh 상태 유지
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 
