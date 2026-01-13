@@ -924,7 +924,7 @@ export const api = {
   /** 오늘 통계 API (헤더 스크롤러용) */
   todayStats: {
     list: (params?: { projectId?: string }) =>
-      get<{ tasks: number; requirements: number; customerRequirements: number; issues: number }>("/api/dashboard/today-stats", params),
+      get<{ tasks: number; completedTasks: number; requirements: number; customerRequirements: number; issues: number }>("/api/dashboard/today-stats", params),
   },
 
   /** 요구사항 API */

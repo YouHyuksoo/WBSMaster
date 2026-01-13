@@ -20,6 +20,7 @@ import { api } from "@/lib/api";
 /** 오늘 통계 타입 */
 export interface TodayStats {
   tasks: number;
+  completedTasks: number;
   requirements: number;
   customerRequirements: number;
   issues: number;

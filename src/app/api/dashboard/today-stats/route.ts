@@ -22,6 +22,7 @@ import { requireAuth } from "@/lib/auth";
  * 응답:
  * {
  *   "tasks": 5,
+ *   "completedTasks": 2,
  *   "requirements": 3,
  *   "customerRequirements": 2,
  *   "issues": 4
@@ -41,13 +42,25 @@ export async function GET(request: NextRequest) {
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
-    // 병렬 집계 (4개 count 쿼리 동시 실행)
-    const [tasks, requirements, customerRequirements, issues] = await Promise.all([
+    // 병렬 집계 (5개 count 쿼리 동시 실행)
+    const [tasks, completedTasks, requirements, customerRequirements, issues] = await Promise.all([
       // 오늘 등록된 TASK
       prisma.task.count({
         where: {
           ...(projectId && { projectId }),
           createdAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+      }),
+
+      // 오늘 완료된 TASK
+      prisma.task.count({
+        where: {
+          ...(projectId && { projectId }),
+          status: "COMPLETED",
+          updatedAt: {
             gte: startOfDay,
             lte: endOfDay,
           },
@@ -90,6 +103,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       tasks,
+      completedTasks,
       requirements,
       customerRequirements,
       issues,

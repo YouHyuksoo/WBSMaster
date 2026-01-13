@@ -2,12 +2,12 @@
  * @file src/components/dashboard/TodayStatsScroller.tsx
  * @description
  * 헤더 중앙에 표시되는 오늘 등록 데이터 스크롤러 컴포넌트입니다.
- * 3초마다 항목이 순환하면서 표시됩니다.
+ * 5초마다 항목이 순환하면서 표시됩니다.
  *
  * 초보자 가이드:
- * 1. **아이템 배열**: TASK, 고객요구사항, 업무협조요청, 이슈 순서
+ * 1. **아이템 배열**: TASK(완료수 포함), 고객요구사항, 업무협조요청, 이슈 순서
  * 2. **상태 관리**: currentIndex로 현재 표시 항목 추적
- * 3. **자동 순환**: useEffect에서 3초마다 인덱스 증가
+ * 3. **자동 순환**: useEffect에서 5초마다 인덱스 증가
  * 4. **데이터 소스**: useTodayStats 훅으로 10분마다 갱신
  */
 
@@ -32,37 +32,37 @@ export function TodayStatsScroller() {
       id: "tasks",
       icon: "task_alt",
       label: "TASK",
-      count: stats?.tasks || 0,
+      displayText: `${stats?.tasks || 0}건 (완료 ${stats?.completedTasks || 0}건)`,
       color: "text-blue-500",
     },
     {
       id: "customerRequirements",
       icon: "description",
       label: "고객요구사항",
-      count: stats?.customerRequirements || 0,
+      displayText: `${stats?.customerRequirements || 0}건`,
       color: "text-green-500",
     },
     {
       id: "requirements",
       icon: "handshake",
       label: "업무협조요청",
-      count: stats?.requirements || 0,
+      displayText: `${stats?.requirements || 0}건`,
       color: "text-amber-500",
     },
     {
       id: "issues",
       icon: "warning",
       label: "이슈",
-      count: stats?.issues || 0,
+      displayText: `${stats?.issues || 0}건`,
       color: "text-rose-500",
     },
   ];
 
-  // 3초마다 자동 순환
+  // 5초마다 자동 순환 (부드러운 애니메이션)
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % items.length);
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [items.length]);
@@ -90,7 +90,10 @@ export function TodayStatsScroller() {
       <div className="flex-1 overflow-hidden">
         <div
           key={currentItem.id}
-          className="flex items-center gap-2 animate-slide-in-down"
+          className="flex items-center gap-2 transition-all duration-700 ease-in-out"
+          style={{
+            animation: "slideInUp 0.6s ease-out forwards",
+          }}
         >
           {/* 카테고리 아이콘 */}
           <Icon
@@ -106,10 +109,24 @@ export function TodayStatsScroller() {
 
           {/* 카운트 배지 */}
           <span className="text-xs font-bold text-primary">
-            {currentItem.count}건
+            {currentItem.displayText}
           </span>
         </div>
       </div>
+
+      {/* 부드러운 애니메이션 CSS */}
+      <style>{`
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
