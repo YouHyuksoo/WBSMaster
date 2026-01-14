@@ -24,6 +24,8 @@ import { AddEquipmentModal } from "./AddEquipmentModal";
 interface EquipmentToolbarProps {
   selectedProject: Project | null;
   equipmentCount: number;
+  onExportToExcel: () => void;
+  hasData: boolean;
 }
 
 /**
@@ -32,6 +34,8 @@ interface EquipmentToolbarProps {
 export function EquipmentToolbar({
   selectedProject,
   equipmentCount,
+  onExportToExcel,
+  hasData,
 }: EquipmentToolbarProps) {
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -79,6 +83,19 @@ export function EquipmentToolbar({
               {equipmentCount}개
             </span>
           </div>
+
+          {/* 엑셀 다운로드 버튼 */}
+          <button
+            onClick={onExportToExcel}
+            disabled={!hasData}
+            className="flex items-center gap-2 px-4 py-2 bg-background-white dark:bg-surface-dark hover:bg-surface dark:hover:bg-background-dark border border-border dark:border-border-dark rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="엑셀 다운로드"
+          >
+            <span className="material-symbols-outlined text-success" style={{ fontSize: 18 }}>
+              download
+            </span>
+            <span className="text-sm font-medium text-text dark:text-white">엑셀 다운로드</span>
+          </button>
 
           {/* 새 설비 추가 버튼 */}
           <button

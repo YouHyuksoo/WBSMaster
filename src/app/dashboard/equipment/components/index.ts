@@ -11,3 +11,5 @@ export { EquipmentSidebar } from "./EquipmentSidebar";
 export { EquipmentListPanel } from "./EquipmentListPanel";
 export { PropertyEditor } from "./PropertyEditor";
 export { AddEquipmentModal } from "./AddEquipmentModal";
+export { EquipmentModal } from "./EquipmentModal";
+export { EquipmentGridView } from "./EquipmentGridView";

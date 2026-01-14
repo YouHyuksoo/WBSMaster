@@ -1,12 +1,13 @@
 /**
- * @file src/app/dashboard/equipment/components/AddEquipmentModal.tsx
+ * @file src/app/dashboard/equipment/components/EquipmentModal.tsx
  * @description
- * 새 설비 추가 모달 컴포넌트
+ * 설비 추가/수정 모달 컴포넌트
+ * AddEquipmentModal을 확장하여 수정 기능도 지원합니다.
  *
  * 초보자 가이드:
- * 1. **기본 정보**: 이름, 타입, 상태 입력
- * 2. **선택 정보**: 위치, 설명, 제조사 정보
- * 3. **저장**: 새 설비 생성 후 모달 닫기
+ * 1. **mode="create"**: 새 설비 추가 모드
+ * 2. **mode="edit"**: 기존 설비 수정 모드
+ * 3. **equipment**: 수정 모드일 때 편집할 설비 데이터
  *
  * 수정 방법:
  * - 필드 추가: formData에 필드 추가 및 input 추가
@@ -14,21 +15,38 @@
 
 "use client";
 
-import { useState } from "react";
-import { EquipmentType, EquipmentStatus, SystemType } from "@/lib/api";
-import { useCreateEquipment } from "../hooks/useEquipment";
+import { useState, useEffect } from "react";
+import { Equipment, EquipmentType, EquipmentStatus, SystemType } from "@/lib/api";
+import { useCreateEquipment, useUpdateEquipment } from "../hooks/useEquipment";
 import { STATUS_CONFIG, TYPE_CONFIG, SYSTEM_TYPE_CONFIG } from "../types";
 
 /** Props 타입 */
-interface AddEquipmentModalProps {
+interface EquipmentModalProps {
+  /** 모달 열림 상태 */
+  isOpen: boolean;
+  /** 모드: 생성 또는 수정 */
+  mode: "create" | "edit";
+  /** 프로젝트 ID (생성 모드에서 필요) */
   projectId: string;
+  /** 수정할 설비 (수정 모드에서 필요) */
+  equipment?: Equipment | null;
+  /** 모달 닫기 핸들러 */
   onClose: () => void;
+  /** 성공 시 콜백 */
+  onSuccess?: () => void;
 }
 
 /**
- * 설비 추가 모달 컴포넌트
+ * 설비 추가/수정 모달 컴포넌트
  */
-export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps) {
+export function EquipmentModal({
+  isOpen,
+  mode,
+  projectId,
+  equipment,
+  onClose,
+  onSuccess,
+}: EquipmentModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     type: "MACHINE" as EquipmentType,
@@ -51,6 +69,57 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
   });
 
   const createEquipment = useCreateEquipment();
+  const updateEquipment = useUpdateEquipment();
+
+  /**
+   * 수정 모드일 때 기존 데이터로 폼 초기화
+   */
+  useEffect(() => {
+    if (mode === "edit" && equipment) {
+      setFormData({
+        name: equipment.name || "",
+        type: equipment.type || "MACHINE",
+        status: equipment.status || "ACTIVE",
+        location: equipment.location || "",
+        lineCode: equipment.lineCode || "",
+        divisionCode: equipment.divisionCode || "",
+        imageUrl: equipment.imageUrl || "",
+        description: equipment.description || "",
+        manufacturer: equipment.manufacturer || "",
+        modelNumber: equipment.modelNumber || "",
+        serialNumber: equipment.serialNumber || "",
+        ipAddress: equipment.ipAddress || "",
+        portNumber: equipment.portNumber || null,
+        isLogTarget: equipment.isLogTarget || false,
+        isInterlockTarget: equipment.isInterlockTarget || false,
+        isBarcodeEnabled: equipment.isBarcodeEnabled || false,
+        systemType: equipment.systemType || null,
+        logCollectionPath: equipment.logCollectionPath || "",
+      });
+    } else if (mode === "create") {
+      // 생성 모드일 때 폼 초기화
+      setFormData({
+        name: "",
+        type: "MACHINE",
+        status: "ACTIVE",
+        location: "",
+        lineCode: "",
+        divisionCode: "",
+        imageUrl: "",
+        description: "",
+        manufacturer: "",
+        modelNumber: "",
+        serialNumber: "",
+        ipAddress: "",
+        portNumber: null,
+        isLogTarget: false,
+        isInterlockTarget: false,
+        isBarcodeEnabled: false,
+        systemType: null,
+        logCollectionPath: "",
+      });
+    }
+  }, [mode, equipment, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,30 +129,69 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
       return;
     }
 
-    await createEquipment.mutateAsync({
-      projectId,
-      name: formData.name,
-      type: formData.type,
-      status: formData.status,
-      location: formData.location || undefined,
-      lineCode: formData.lineCode || undefined,
-      divisionCode: formData.divisionCode || undefined,
-      imageUrl: formData.imageUrl || undefined,
-      description: formData.description || undefined,
-      manufacturer: formData.manufacturer || undefined,
-      modelNumber: formData.modelNumber || undefined,
-      serialNumber: formData.serialNumber || undefined,
-      ipAddress: formData.ipAddress || undefined,
-      portNumber: formData.portNumber || undefined,
-      isLogTarget: formData.isLogTarget,
-      isInterlockTarget: formData.isInterlockTarget,
-      isBarcodeEnabled: formData.isBarcodeEnabled,
-      systemType: formData.systemType || undefined,
-      logCollectionPath: formData.logCollectionPath || undefined,
-    });
+    try {
+      if (mode === "create") {
+        await createEquipment.mutateAsync({
+          projectId,
+          name: formData.name,
+          type: formData.type,
+          status: formData.status,
+          location: formData.location || undefined,
+          lineCode: formData.lineCode || undefined,
+          divisionCode: formData.divisionCode || undefined,
+          imageUrl: formData.imageUrl || undefined,
+          description: formData.description || undefined,
+          manufacturer: formData.manufacturer || undefined,
+          modelNumber: formData.modelNumber || undefined,
+          serialNumber: formData.serialNumber || undefined,
+          ipAddress: formData.ipAddress || undefined,
+          portNumber: formData.portNumber || undefined,
+          isLogTarget: formData.isLogTarget,
+          isInterlockTarget: formData.isInterlockTarget,
+          isBarcodeEnabled: formData.isBarcodeEnabled,
+          systemType: formData.systemType || undefined,
+          logCollectionPath: formData.logCollectionPath || undefined,
+        });
+      } else if (mode === "edit" && equipment) {
+        await updateEquipment.mutateAsync({
+          id: equipment.id,
+          data: {
+            name: formData.name,
+            type: formData.type,
+            status: formData.status,
+            location: formData.location || undefined,
+            lineCode: formData.lineCode || undefined,
+            divisionCode: formData.divisionCode || undefined,
+            imageUrl: formData.imageUrl || undefined,
+            description: formData.description || undefined,
+            manufacturer: formData.manufacturer || undefined,
+            modelNumber: formData.modelNumber || undefined,
+            serialNumber: formData.serialNumber || undefined,
+            ipAddress: formData.ipAddress || undefined,
+            portNumber: formData.portNumber || undefined,
+            isLogTarget: formData.isLogTarget,
+            isInterlockTarget: formData.isInterlockTarget,
+            isBarcodeEnabled: formData.isBarcodeEnabled,
+            systemType: formData.systemType || undefined,
+            logCollectionPath: formData.logCollectionPath || undefined,
+          },
+        });
+      }
 
-    onClose();
+      onSuccess?.();
+      onClose();
+    } catch (error) {
+      console.error("설비 저장 오류:", error);
+      alert("설비 저장 중 오류가 발생했습니다.");
+    }
   };
+
+  if (!isOpen) return null;
+
+  const isPending = createEquipment.isPending || updateEquipment.isPending;
+  const title = mode === "create" ? "새 설비 추가" : "설비 수정";
+  const submitText = mode === "create" ? "설비 추가" : "수정 완료";
+  const pendingText = mode === "create" ? "추가 중..." : "수정 중...";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -91,7 +199,12 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
         {/* 헤더 */}
         <div className="p-6 border-b border-border dark:border-border-dark">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-text dark:text-white">새 설비 추가</h2>
+            <h2 className="text-xl font-bold text-text dark:text-white flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">
+                {mode === "create" ? "add_circle" : "edit"}
+              </span>
+              {title}
+            </h2>
             <button
               onClick={onClose}
               className="text-text-secondary hover:text-text dark:hover:text-white transition-colors"
@@ -100,7 +213,9 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
             </button>
           </div>
           <p className="text-sm text-text-secondary mt-1">
-            새 설비의 기본 정보를 입력하세요.
+            {mode === "create"
+              ? "새 설비의 기본 정보를 입력하세요."
+              : `${equipment?.name} 설비의 정보를 수정하세요.`}
           </p>
         </div>
 
@@ -159,6 +274,35 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
               </div>
             </div>
 
+            {/* 사업부 + 라인 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-text dark:text-white mb-1 block">
+                  사업부 코드
+                </label>
+                <input
+                  type="text"
+                  value={formData.divisionCode}
+                  onChange={(e) => setFormData({ ...formData, divisionCode: e.target.value })}
+                  placeholder="예: DIV-A, 사업부1"
+                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-text dark:text-white mb-1 block">
+                  라인코드
+                </label>
+                <input
+                  type="text"
+                  value={formData.lineCode}
+                  onChange={(e) => setFormData({ ...formData, lineCode: e.target.value })}
+                  placeholder="예: L1, L2, LINE-A"
+                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+
             {/* 위치 */}
             <div>
               <label className="text-sm font-medium text-text dark:text-white mb-1 block">
@@ -169,34 +313,6 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 placeholder="예: 1공장 2라인"
-                className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            {/* 라인코드 */}
-            <div>
-              <label className="text-sm font-medium text-text dark:text-white mb-1 block">
-                라인코드
-              </label>
-              <input
-                type="text"
-                value={formData.lineCode}
-                onChange={(e) => setFormData({ ...formData, lineCode: e.target.value })}
-                placeholder="예: L1, L2, LINE-A"
-                className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            {/* 사업부 코드 */}
-            <div>
-              <label className="text-sm font-medium text-text dark:text-white mb-1 block">
-                사업부 코드
-              </label>
-              <input
-                type="text"
-                value={formData.divisionCode}
-                onChange={(e) => setFormData({ ...formData, divisionCode: e.target.value })}
-                placeholder="예: DIV-A, 사업부1"
                 className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -243,7 +359,7 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
             <div className="border-t border-border dark:border-border-dark pt-4">
               <h3 className="text-sm font-semibold text-text dark:text-white mb-3">제조사 정보 (선택)</h3>
 
-              <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs text-text-secondary mb-1 block">제조사</label>
                   <input
@@ -385,10 +501,10 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
           </button>
           <button
             onClick={handleSubmit}
-            disabled={createEquipment.isPending}
+            disabled={isPending}
             className="flex-1 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors disabled:opacity-50"
           >
-            {createEquipment.isPending ? "추가 중..." : "설비 추가"}
+            {isPending ? pendingText : submitText}
           </button>
         </div>
       </div>

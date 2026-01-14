@@ -20,8 +20,9 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { utils, writeFile } from "xlsx";
 import { useProject } from "@/contexts";
-import { EquipmentStatus, EquipmentType } from "@/lib/api";
+import { Equipment, EquipmentStatus, EquipmentType } from "@/lib/api";
 import { useEquipment, useEquipmentDivisions, useEquipmentLines } from "./hooks/useEquipment";
 import { useEquipmentConnections } from "./hooks/useEquipmentConnections";
 import { STATUS_CONFIG, TYPE_CONFIG } from "./types";
@@ -30,6 +31,8 @@ import {
   EquipmentCanvas,
   EquipmentSidebar,
   EquipmentListPanel,
+  EquipmentGridView,
+  EquipmentModal,
 } from "./components";
 
 /**
@@ -39,6 +42,22 @@ export default function EquipmentPage() {
   const { selectedProjectId, selectedProject } = useProject();
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | null>(null);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
+
+  // 뷰 모드 상태 (grid: 그리드 보기, canvas: 캔버스 보기)
+  const [viewMode, setViewMode] = useState<"grid" | "canvas">("grid");
+
+  // 페이지네이션 상태 (그리드 뷰용)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  // 설비 수정 모달 상태
+  const [editModalState, setEditModalState] = useState<{
+    isOpen: boolean;
+    equipment: Equipment | null;
+  }>({
+    isOpen: false,
+    equipment: null,
+  });
 
   // 필터 상태 (초기값: 선택 안 됨)
   const [divisionFilter, setDivisionFilter] = useState<string>("ALL");
@@ -157,6 +176,11 @@ export default function EquipmentPage() {
     return Array.from(new Set(equipments.map((eq) => eq.location).filter((x): x is string => Boolean(x))));
   }, [equipments]);
 
+  // 필터 변경 시 페이지 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [divisionFilter, lineFilter, typeFilter, statusFilter, locationFilter]);
+
   // 필터링된 설비 목록 (API에서 사업부/라인 필터링됨, 추가로 타입/상태/위치 클라이언트 필터링)
   const filteredEquipments = useMemo(() => {
     let result = equipments;
@@ -226,6 +250,88 @@ export default function EquipmentPage() {
     setSearchQuery("");
   };
 
+  /**
+   * 엑셀 다운로드 핸들러
+   * 현재 필터링된 설비 목록을 엑셀로 다운로드
+   */
+  const handleExportToExcel = useCallback(() => {
+    if (filteredEquipments.length === 0) {
+      alert("다운로드할 설비가 없습니다.");
+      return;
+    }
+
+    // 엑셀 데이터 변환
+    const excelData = filteredEquipments.map((eq) => ({
+      "설비코드": eq.code,
+      "설비명": eq.name,
+      "타입": TYPE_CONFIG[eq.type]?.label || eq.type,
+      "상태": STATUS_CONFIG[eq.status]?.label || eq.status,
+      "사업부": eq.divisionCode || "",
+      "라인": eq.lineCode || "",
+      "위치": eq.location || "",
+      "설명": eq.description || "",
+      "제조사": eq.manufacturer || "",
+      "모델번호": eq.modelNumber || "",
+      "시리얼번호": eq.serialNumber || "",
+      "구매일": eq.purchaseDate ? new Date(eq.purchaseDate).toLocaleDateString() : "",
+      "보증종료일": eq.warrantyEndDate ? new Date(eq.warrantyEndDate).toLocaleDateString() : "",
+      "IP주소": eq.ipAddress || "",
+      "포트번호": eq.portNumber || "",
+      "로그수집대상": eq.isLogTarget ? "Y" : "N",
+      "로그수집경로": eq.logCollectionPath || "",
+      "인터록대상": eq.isInterlockTarget ? "Y" : "N",
+      "바코드사용": eq.isBarcodeEnabled ? "Y" : "N",
+      "시스템타입": eq.systemType || "",
+      "이미지URL": eq.imageUrl || "",
+      "캔버스X좌표": eq.positionX,
+      "캔버스Y좌표": eq.positionY,
+      "생성일": new Date(eq.createdAt).toLocaleDateString(),
+      "수정일": new Date(eq.updatedAt).toLocaleDateString(),
+    }));
+
+    // 워크시트 생성
+    const worksheet = utils.json_to_sheet(excelData);
+
+    // 컬럼 너비 설정
+    worksheet["!cols"] = [
+      { wch: 15 }, // 설비코드
+      { wch: 25 }, // 설비명
+      { wch: 12 }, // 타입
+      { wch: 12 }, // 상태
+      { wch: 15 }, // 사업부
+      { wch: 15 }, // 라인
+      { wch: 15 }, // 위치
+      { wch: 40 }, // 설명
+      { wch: 20 }, // 제조사
+      { wch: 20 }, // 모델번호
+      { wch: 20 }, // 시리얼번호
+      { wch: 12 }, // 구매일
+      { wch: 12 }, // 보증종료일
+      { wch: 15 }, // IP주소
+      { wch: 10 }, // 포트번호
+      { wch: 12 }, // 로그수집대상
+      { wch: 30 }, // 로그수집경로
+      { wch: 12 }, // 인터록대상
+      { wch: 12 }, // 바코드사용
+      { wch: 15 }, // 시스템타입
+      { wch: 40 }, // 이미지URL
+      { wch: 12 }, // 캔버스X좌표
+      { wch: 12 }, // 캔버스Y좌표
+      { wch: 12 }, // 생성일
+      { wch: 12 }, // 수정일
+    ];
+
+    // 워크북 생성 및 파일 저장
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, "설비목록");
+
+    // 파일명 생성 (프로젝트명_설비목록_날짜)
+    const projectName = selectedProject?.name || "Project";
+    const dateStr = new Date().toISOString().split("T")[0];
+    const fileName = `${projectName}_설비목록_${dateStr}.xlsx`;
+    writeFile(workbook, fileName);
+  }, [filteredEquipments, selectedProject]);
+
   // 프로젝트 미선택
   if (!selectedProjectId) {
     return (
@@ -292,46 +398,86 @@ export default function EquipmentPage() {
         <EquipmentToolbar
           selectedProject={selectedProject}
           equipmentCount={equipments.length}
+          onExportToExcel={handleExportToExcel}
+          hasData={filteredEquipments.length > 0}
         />
 
       {/* 메인 콘텐츠 (3단 구조) */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* 좌측: 설비 목록 (토글 가능) */}
-        <div
-          className={`transition-all duration-300 ease-in-out ${
-            isLeftPanelOpen ? "w-96" : "w-0"
-          }`}
-        >
-          {isLeftPanelOpen && (
-            <EquipmentListPanel
-              equipments={filteredEquipments}
-              selectedId={selectedEquipmentId}
-              onSelectEquipment={setSelectedEquipmentId}
-              onClose={() => setIsLeftPanelOpen(false)}
-            />
-          )}
-        </div>
+        {/* 좌측: 설비 목록 (캔버스 보기일 때만 표시) */}
+        {viewMode === "canvas" && (
+          <>
+            <div
+              className={`transition-all duration-300 ease-in-out ${
+                isLeftPanelOpen ? "w-96" : "w-0"
+              }`}
+            >
+              {isLeftPanelOpen && (
+                <EquipmentListPanel
+                  equipments={filteredEquipments}
+                  selectedId={selectedEquipmentId}
+                  onSelectEquipment={setSelectedEquipmentId}
+                  onClose={() => setIsLeftPanelOpen(false)}
+                />
+              )}
+            </div>
 
-        {/* 좌측 패널 토글 버튼 */}
-        {!isLeftPanelOpen && (
-          <button
-            onClick={() => setIsLeftPanelOpen(true)}
-            onMouseEnter={() => setIsLeftPanelOpen(true)}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-primary hover:bg-primary-hover text-white p-2 rounded-r-lg shadow-lg transition-all hover:scale-110"
-            title="설비 목록 열기"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-              chevron_right
-            </span>
-          </button>
+            {/* 좌측 패널 토글 버튼 */}
+            {!isLeftPanelOpen && (
+              <button
+                onClick={() => setIsLeftPanelOpen(true)}
+                onMouseEnter={() => setIsLeftPanelOpen(true)}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-primary hover:bg-primary-hover text-white p-2 rounded-r-lg shadow-lg transition-all hover:scale-110"
+                title="설비 목록 열기"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+                  chevron_right
+                </span>
+              </button>
+            )}
+          </>
         )}
 
-        {/* 중앙: 캔버스 영역 */}
-        <div className="flex-1 flex flex-col relative">
+        {/* 중앙: 캔버스/그리드 영역 - min-w-0으로 flex 오버플로우 방지 */}
+        <div className="flex-1 flex flex-col relative min-w-0">
+          {/* 뷰 모드 선택 바 */}
+          <div className="px-4 py-2 bg-surface dark:bg-surface-dark border-b border-border dark:border-border-dark flex items-center gap-4 shrink-0">
+            {/* 뷰 모드 선택 */}
+            <div className="flex items-center gap-1 p-1 bg-background-white dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === "grid"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-text-secondary hover:text-text dark:hover:text-white hover:bg-surface dark:hover:bg-surface-dark"
+                }`}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                  table_chart
+                </span>
+                <span>그리드 보기</span>
+              </button>
+              <button
+                onClick={() => setViewMode("canvas")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === "canvas"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-text-secondary hover:text-text dark:hover:text-white hover:bg-surface dark:hover:bg-surface-dark"
+                }`}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                  hub
+                </span>
+                <span>캔버스 보기</span>
+              </button>
+            </div>
+
+          </div>
+
           {/* 필터 바 */}
-          <div className="px-4 py-3 bg-surface dark:bg-surface-dark border-b border-border dark:border-border-dark flex items-center gap-3 shrink-0">
+          <div className="px-4 py-2 bg-background-white dark:bg-background-dark border-b border-border dark:border-border-dark flex flex-wrap items-center gap-3 shrink-0">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary" style={{ fontSize: 20 }}>
+              <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>
                 filter_alt
               </span>
               <span className="text-sm font-medium text-text dark:text-white">필터</span>
@@ -519,70 +665,150 @@ export default function EquipmentPage() {
               )}
             </div>
 
-            {/* 필터링 결과 표시 */}
-            <div className="ml-auto flex items-center gap-2 text-sm">
-              <span className="text-text-secondary">설비:</span>
-              <span className="font-semibold text-primary">
-                {filteredEquipments.length}
-              </span>
-              <span className="text-text-secondary">개</span>
-            </div>
           </div>
 
-          {/* 캔버스 */}
-          {divisionFilter === "ALL" ? (
-            // 사업부 미선택 시 안내 메시지
-            <div className="flex-1 flex items-center justify-center bg-surface dark:bg-background-dark">
-              <div className="text-center">
-                <span className="material-symbols-outlined text-primary mb-4" style={{ fontSize: 64 }}>
-                  business
-                </span>
-                <h2 className="text-xl font-bold text-text dark:text-white mb-2">
-                  사업부를 선택해주세요
-                </h2>
-                <p className="text-text-secondary mb-4">
-                  상단의 사업부 필터에서 보려는 사업부를 선택하세요.
-                </p>
-                <p className="text-sm text-text-secondary">
-                  사업부 선택 후 해당 사업부의 라인이 표시됩니다.
-                </p>
-              </div>
-            </div>
-          ) : !lineFilter ? (
-            // 라인 미선택 시 안내 메시지
-            <div className="flex-1 flex items-center justify-center bg-surface dark:bg-background-dark">
-              <div className="text-center">
-                <span className="material-symbols-outlined text-warning mb-4" style={{ fontSize: 64 }}>
-                  linear_scale
-                </span>
-                <h2 className="text-xl font-bold text-text dark:text-white mb-2">
-                  라인을 선택해주세요
-                </h2>
-                <p className="text-text-secondary mb-4">
-                  상단의 라인 필터에서 보려는 라인을 선택하세요.
-                </p>
-              </div>
+          {/* 뷰 모드별 콘텐츠 */}
+          {viewMode === "grid" ? (
+            // 그리드 보기
+            <div className="flex-1 overflow-auto p-4 min-w-0">
+              <EquipmentGridView
+                equipments={filteredEquipments.slice(
+                  (currentPage - 1) * itemsPerPage,
+                  currentPage * itemsPerPage
+                )}
+                totalCount={filteredEquipments.length}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                itemsPerPage={itemsPerPage}
+                onItemsPerPageChange={(count) => {
+                  setItemsPerPage(count);
+                  setCurrentPage(1);
+                }}
+                onEdit={(eq) => {
+                  // 수정 모달 열기
+                  setEditModalState({
+                    isOpen: true,
+                    equipment: eq,
+                  });
+                }}
+                onViewInCanvas={(eq) => {
+                  // 캔버스 뷰로 전환하고 해당 설비 선택
+                  setViewMode("canvas");
+                  setSelectedEquipmentId(eq.id);
+                  setFocusEquipmentId(eq.id);
+                  // 해당 설비의 사업부와 라인으로 필터 설정
+                  if (eq.divisionCode) {
+                    setDivisionFilter(eq.divisionCode);
+                  }
+                  if (eq.lineCode) {
+                    setLineFilter(eq.lineCode);
+                  }
+                }}
+                onDelete={async (eq) => {
+                  if (confirm(`설비 "${eq.name}"을 삭제하시겠습니까?`)) {
+                    try {
+                      const res = await fetch(`/api/equipment/${eq.id}`, {
+                        method: "DELETE",
+                      });
+                      if (res.ok) {
+                        // 데이터 다시 로드 (React Query 자동 처리)
+                        alert("설비가 삭제되었습니다.");
+                      } else {
+                        const error = await res.json();
+                        alert(`삭제 실패: ${error.message || "알 수 없는 오류"}`);
+                      }
+                    } catch (error) {
+                      console.error("설비 삭제 오류:", error);
+                      alert("설비 삭제 중 오류가 발생했습니다.");
+                    }
+                  }
+                }}
+                onStatusChange={async (id, newStatus) => {
+                  try {
+                    const res = await fetch(`/api/equipment/${id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ status: newStatus }),
+                    });
+                    if (!res.ok) {
+                      const error = await res.json();
+                      alert(`상태 변경 실패: ${error.message || "알 수 없는 오류"}`);
+                    }
+                  } catch (error) {
+                    console.error("상태 변경 오류:", error);
+                    alert("상태 변경 중 오류가 발생했습니다.");
+                  }
+                }}
+                isLoading={isLoadingEquipments}
+              />
             </div>
           ) : (
-            <EquipmentCanvas
-              equipments={filteredEquipments}
-              connections={connections}
-              selectedId={selectedEquipmentId}
-              onSelectNode={setSelectedEquipmentId}
-              focusEquipmentId={focusEquipmentId}
-              onFocusComplete={() => setFocusEquipmentId(null)}
-            />
+            // 캔버스 보기
+            <>
+              {divisionFilter === "ALL" ? (
+                // 사업부 미선택 시 안내 메시지
+                <div className="flex-1 flex items-center justify-center bg-surface dark:bg-background-dark">
+                  <div className="text-center">
+                    <span className="material-symbols-outlined text-primary mb-4" style={{ fontSize: 64 }}>
+                      business
+                    </span>
+                    <h2 className="text-xl font-bold text-text dark:text-white mb-2">
+                      사업부를 선택해주세요
+                    </h2>
+                    <p className="text-text-secondary mb-4">
+                      상단의 사업부 필터에서 보려는 사업부를 선택하세요.
+                    </p>
+                    <p className="text-sm text-text-secondary">
+                      사업부 선택 후 해당 사업부의 라인이 표시됩니다.
+                    </p>
+                  </div>
+                </div>
+              ) : !lineFilter ? (
+                // 라인 미선택 시 안내 메시지
+                <div className="flex-1 flex items-center justify-center bg-surface dark:bg-background-dark">
+                  <div className="text-center">
+                    <span className="material-symbols-outlined text-warning mb-4" style={{ fontSize: 64 }}>
+                      linear_scale
+                    </span>
+                    <h2 className="text-xl font-bold text-text dark:text-white mb-2">
+                      라인을 선택해주세요
+                    </h2>
+                    <p className="text-text-secondary mb-4">
+                      상단의 라인 필터에서 보려는 라인을 선택하세요.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <EquipmentCanvas
+                  equipments={filteredEquipments}
+                  connections={connections}
+                  selectedId={selectedEquipmentId}
+                  onSelectNode={setSelectedEquipmentId}
+                  focusEquipmentId={focusEquipmentId}
+                  onFocusComplete={() => setFocusEquipmentId(null)}
+                />
+              )}
+            </>
           )}
         </div>
 
-        {/* 우측: 설비 상세 사이드바 */}
-        {selectedEquipment && (
+        {/* 우측: 설비 상세 사이드바 (캔버스 보기일 때만 표시) */}
+        {viewMode === "canvas" && selectedEquipment && (
           <EquipmentSidebar
             equipment={selectedEquipment}
             onClose={() => setSelectedEquipmentId(null)}
           />
         )}
       </div>
+
+      {/* 설비 수정 모달 */}
+      <EquipmentModal
+        isOpen={editModalState.isOpen}
+        mode="edit"
+        projectId={selectedProjectId || ""}
+        equipment={editModalState.equipment}
+        onClose={() => setEditModalState({ isOpen: false, equipment: null })}
+      />
       </div>
     </>
   );
