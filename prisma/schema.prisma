@@ -901,7 +901,7 @@ model ProcessVerificationItem {
   detailItem          String           // (L2) 세부 관리 항목
   mesMapping          String?          // (L3) MES/IT 매핑 기능명
   verificationDetail  String?          // 세부 검증 내용 및 점검 기준
-  managementCode      String  @unique  // 관리코드 (M-1-01, P-1-01 등) - 유일키
+  managementCode      String           // 관리코드 (M-1-01, P-1-01 등)
   acceptanceStatus    String?          // 수용 여부
   existingMes         Boolean @default(false) // 기존MES유무(Y/N)
   customerRequest     String?          // 고객요청여부
@@ -910,6 +910,7 @@ model ProcessVerificationItem {
   order               Int     @default(0) // 정렬 순서
   remarks             String?          // 비고
   status              VerificationStatus @default(PENDING) // 검증 상태
+  businessUnit        String  @default("V_IVI") // 사업부 구분 코드
 
   // 관계
   categoryId          String
@@ -918,6 +919,7 @@ model ProcessVerificationItem {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  @@unique([businessUnit, managementCode]) // 사업부별로 관리코드가 유일
   @@index([categoryId])
   @@map("process_verification_items")
 }
@@ -994,6 +996,7 @@ model CustomerRequirement {
   applyStatus   ApplyStatus @default(REVIEWING) // 적용여부 상태
   remarks       String?  // 비고
   toBeCode      String?  // To-Be 관리번호 (연결용, 텍스트 입력)
+  completeDate  DateTime? // 요청처리완료 일자
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

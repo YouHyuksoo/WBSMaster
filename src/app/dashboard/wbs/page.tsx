@@ -1096,15 +1096,29 @@ export default function WBSPage() {
           <div className="p-4 border-b border-border dark:border-border-dark bg-surface dark:bg-surface-dark">
             <div className="flex items-center gap-6">
               {/* 진행률 바 */}
-              <div className="w-48 flex-shrink-0">
+              <div className="w-36 flex-shrink-0">
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-text-secondary">전체 진행률</span>
+                  <span className="text-text-secondary">진행률</span>
                   <span className="font-medium text-text dark:text-white">{stats.progress}%</span>
                 </div>
                 <div className="h-2 bg-background dark:bg-background-dark rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all"
                     style={{ width: `${stats.progress}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* 지연율 바 */}
+              <div className="w-36 flex-shrink-0">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-text-secondary">지연율</span>
+                  <span className="font-medium text-rose-600 dark:text-rose-400">{stats.delayedRate}%</span>
+                </div>
+                <div className="h-2 bg-background dark:bg-background-dark rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-rose-500 rounded-full transition-all"
+                    style={{ width: `${stats.delayedRate}%` }}
                   />
                 </div>
               </div>
@@ -1156,12 +1170,6 @@ export default function WBSPage() {
                   <div className="size-2 rounded-full bg-gray-400" />
                   <span className="text-xs text-text-secondary">대기</span>
                   <span className="text-sm font-bold text-text dark:text-white">{stats.pending}</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-500/10 dark:bg-rose-500/20 rounded-lg border border-rose-500/30">
-                  <div className="size-2 rounded-full bg-rose-500" />
-                  <span className="text-xs text-rose-600 dark:text-rose-400">지연</span>
-                  <span className="text-sm font-bold text-rose-600 dark:text-rose-400">{stats.delayed}</span>
-                  <span className="text-[10px] text-rose-500 dark:text-rose-400 font-medium">({stats.delayedRate}%)</span>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background-white dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
                   <span className="text-xs text-text-secondary">총 항목</span>

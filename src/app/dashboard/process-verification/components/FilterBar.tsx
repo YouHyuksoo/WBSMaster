@@ -8,10 +8,13 @@
 "use client";
 
 import { useState } from "react";
+import { Icon } from "@/components/ui";
+import { BUSINESS_UNITS } from "@/constants/business-units";
 import {
   FilterState,
   VerificationStatus,
   verificationStatusConfig,
+  ProcessVerificationCategory,
 } from "../types";
 
 interface FilterBarProps {
@@ -19,6 +22,9 @@ interface FilterBarProps {
   onFilterChange: (filter: Partial<FilterState>) => void;
   totalCount: number;
   appliedCount: number;
+  categories: ProcessVerificationCategory[];
+  viewMode: "grid" | "comparison";
+  onViewModeChange: (mode: "grid" | "comparison") => void;
 }
 
 /**
@@ -29,6 +35,9 @@ export default function FilterBar({
   onFilterChange,
   totalCount,
   appliedCount,
+  categories,
+  viewMode,
+  onViewModeChange,
 }: FilterBarProps) {
   const [searchInput, setSearchInput] = useState(filter.search);
 
@@ -48,11 +57,11 @@ export default function FilterBar({
     <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-4">
       <div className="flex flex-wrap items-center gap-4">
         {/* 검색 */}
-        <div className="flex-1 min-w-[200px] max-w-md">
+        <div className="flex-1 min-w-[150px] max-w-xs">
           <div className="relative">
             <input
               type="text"
-              placeholder="검색 (관리영역, 세부항목, 코드...)"
+              placeholder="검색..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -72,6 +81,27 @@ export default function FilterBar({
               />
             </svg>
           </div>
+        </div>
+
+        {/* 카테고리 필터 */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-600 dark:text-slate-400">카테고리:</span>
+          <select
+            value={filter.categoryId || ""}
+            onChange={(e) =>
+              onFilterChange({
+                categoryId: e.target.value || null,
+              })
+            }
+            className="text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">전체</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* 적용 필터 */}
@@ -134,6 +164,26 @@ export default function FilterBar({
           </select>
         </div>
 
+        {/* 사업부 필터 */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-600 dark:text-slate-400">사업부:</span>
+          <select
+            value={filter.businessUnit}
+            onChange={(e) =>
+              onFilterChange({
+                businessUnit: e.target.value,
+              })
+            }
+            className="text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {BUSINESS_UNITS.map((unit) => (
+              <option key={unit} value={unit}>
+                {unit}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* 통계 */}
         <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400 ml-auto">
           <span>
@@ -142,6 +192,32 @@ export default function FilterBar({
           <span>
             적용: <strong className="text-blue-600 dark:text-blue-400">{appliedCount}</strong>
           </span>
+        </div>
+
+        {/* 뷰 모드 선택 */}
+        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+          <button
+            onClick={() => onViewModeChange("grid")}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === "grid"
+                ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+            }`}
+          >
+            <Icon name="table_chart" size="xs" />
+            <span>상세 그리드</span>
+          </button>
+          <button
+            onClick={() => onViewModeChange("comparison")}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === "comparison"
+                ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+            }`}
+          >
+            <Icon name="compare_arrows" size="xs" />
+            <span>그룹 비교</span>
+          </button>
         </div>
       </div>
     </div>

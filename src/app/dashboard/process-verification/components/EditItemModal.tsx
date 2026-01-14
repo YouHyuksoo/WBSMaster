@@ -14,6 +14,7 @@ import {
   VerificationStatus,
   verificationStatusConfig,
 } from "../types";
+import { BUSINESS_UNITS } from "@/constants/business-units";
 
 interface EditItemModalProps {
   item: ProcessVerificationItem | null;
@@ -46,6 +47,7 @@ export default function EditItemModal({
     customerRequest: "",
     remarks: "",
     status: "PENDING" as VerificationStatus,
+    businessUnit: "V_IVI",
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -65,6 +67,7 @@ export default function EditItemModal({
         customerRequest: item.customerRequest || "",
         remarks: item.remarks || "",
         status: item.status || "PENDING",
+        businessUnit: item.businessUnit || "V_IVI",
       });
     }
   }, [item]);
@@ -150,6 +153,25 @@ export default function EditItemModal({
                 onChange={handleChange}
                 className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+
+            {/* 사업부 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                사업부
+              </label>
+              <select
+                name="businessUnit"
+                value={formData.businessUnit}
+                onChange={handleChange}
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {BUSINESS_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* 구분 */}

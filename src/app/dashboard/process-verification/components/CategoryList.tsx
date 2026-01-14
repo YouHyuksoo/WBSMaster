@@ -7,10 +7,11 @@
 
 "use client";
 
-import { ProcessVerificationCategory } from "../types";
+import { ProcessVerificationCategory, ProcessVerificationItem } from "../types";
 
 interface CategoryListProps {
   categories: ProcessVerificationCategory[];
+  items: ProcessVerificationItem[];
   selectedCategoryId: string | null;
   onSelectCategory: (categoryId: string | null) => void;
   isLoading?: boolean;
@@ -21,15 +22,18 @@ interface CategoryListProps {
  */
 export default function CategoryList({
   categories,
+  items,
   selectedCategoryId,
   onSelectCategory,
   isLoading,
 }: CategoryListProps) {
-  // 전체 항목 수 계산
-  const totalCount = categories.reduce(
-    (sum, cat) => sum + (cat._count?.items || 0),
-    0
-  );
+  // 전체 항목 수 계산 (필터링된 항목 기준)
+  const totalCount = items.length;
+
+  // 카테고리별 필터링된 항목 수 계산
+  const getCategoryCount = (categoryId: string) => {
+    return items.filter((item) => item.categoryId === categoryId).length;
+  };
 
   if (isLoading) {
     return (
@@ -81,7 +85,7 @@ export default function CategoryList({
           >
             <span className="truncate">{category.name}</span>
             <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">
-              {category._count?.items || 0}
+              {getCategoryCount(category.id)}
             </span>
           </button>
         ))}

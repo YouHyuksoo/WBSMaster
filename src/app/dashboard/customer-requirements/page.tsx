@@ -35,6 +35,7 @@ import {
   type ApplyStatus,
   APPLY_STATUS_CONFIG,
   BUSINESS_UNITS,
+  BUSINESS_CATEGORIES,
 } from "./types";
 
 /**
@@ -156,6 +157,23 @@ export default function CustomerRequirementsPage() {
     const rejected = requirements.filter((r) => r.applyStatus === "REJECTED").length;
     const reviewing = requirements.filter((r) => r.applyStatus === "REVIEWING").length;
     const hold = requirements.filter((r) => r.applyStatus === "HOLD").length;
+
+    // 전주 데이터 계산 (지난 7일~14일)
+    const now = new Date();
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const lastWeekCreated = requirements.filter((r) => {
+      const createdDate = new Date(r.createdAt);
+      return createdDate >= twoWeeksAgo && createdDate < oneWeekAgo;
+    }).length;
+
+    const lastWeekCompleted = requirements.filter((r) => {
+      if (!r.completeDate) return false;
+      const completedDate = new Date(r.completeDate);
+      return completedDate >= twoWeeksAgo && completedDate < oneWeekAgo;
+    }).length;
+
     return {
       total,
       applied,
@@ -163,6 +181,8 @@ export default function CustomerRequirementsPage() {
       reviewing,
       hold,
       appliedRate: total > 0 ? Math.round((applied / total) * 100) : 0,
+      lastWeekCreated,
+      lastWeekCompleted,
     };
   }, [requirements]);
 
@@ -429,82 +449,94 @@ export default function CustomerRequirementsPage() {
       {selectedProjectId && (
         <>
           {/* 통계 카드 */}
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-8 gap-2">
             {/* 적용률 카드 */}
-            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name="speed" size="xs" className="text-primary" />
-                <span className="text-xs font-semibold text-primary">적용률</span>
+            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-lg p-3 flex flex-col items-center justify-center text-center">
+              <div className="size-9 rounded-lg bg-primary/20 flex items-center justify-center mb-2">
+                <Icon name="speed" size="sm" className="text-primary" />
               </div>
-              <p className="text-2xl font-bold text-primary mb-1">
+              <p className="text-xs font-semibold text-primary mb-1">적용률</p>
+              <p className="text-2xl font-bold text-primary mb-2">
                 {stats.appliedRate}%
               </p>
-              <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
                   style={{ width: `${stats.appliedRate}%` }}
                 />
               </div>
             </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="list_alt" size="xs" className="text-primary" />
+
+            {/* 전주 통계 카드 */}
+            <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-lg p-3 flex flex-col items-center justify-center text-center">
+              <div className="size-9 rounded-lg bg-blue-500/20 flex items-center justify-center mb-2">
+                <Icon name="calendar_month" size="sm" className="text-blue-500" />
+              </div>
+              <p className="text-xs font-semibold text-blue-500 mb-1">전주</p>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xl font-bold text-text dark:text-white">{stats.lastWeekCreated}</p>
+                  <p className="text-xs text-text-secondary">등록</p>
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-[10px] text-text-secondary">전체</p>
+                  <p className="text-xl font-bold text-success">{stats.lastWeekCompleted}</p>
+                  <p className="text-xs text-text-secondary">완료</p>
                 </div>
               </div>
             </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                  <Icon name="check_circle" size="xs" className="text-success" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.applied}</p>
-                  <p className="text-[10px] text-text-secondary">적용</p>
-                </div>
+
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
+              <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
+                <Icon name="list_alt" size="sm" className="text-primary" />
               </div>
+              <p className="text-2xl font-bold text-text dark:text-white">{stats.total}</p>
+              <p className="text-xs text-text-secondary">전체</p>
             </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <Icon name="pending" size="xs" className="text-warning" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.reviewing}</p>
-                  <p className="text-[10px] text-text-secondary">검토중</p>
-                </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
+              <div className="size-9 rounded-lg bg-success/10 flex items-center justify-center mb-2">
+                <Icon name="check_circle" size="sm" className="text-success" />
               </div>
+              <p className="text-2xl font-bold text-text dark:text-white">{stats.applied}</p>
+              <p className="text-xs text-text-secondary">적용</p>
             </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-error/10 flex items-center justify-center">
-                  <Icon name="cancel" size="xs" className="text-error" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.rejected}</p>
-                  <p className="text-[10px] text-text-secondary">미적용</p>
-                </div>
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
+              <div className="size-9 rounded-lg bg-warning/10 flex items-center justify-center mb-2">
+                <Icon name="pending" size="sm" className="text-warning" />
               </div>
+              <p className="text-2xl font-bold text-text dark:text-white">{stats.reviewing}</p>
+              <p className="text-xs text-text-secondary">검토중</p>
             </div>
-            {/* 사업부 정보 카드 */}
-            <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
+              <div className="size-9 rounded-lg bg-error/10 flex items-center justify-center mb-2">
+                <Icon name="cancel" size="sm" className="text-error" />
+              </div>
+              <p className="text-2xl font-bold text-text dark:text-white">{stats.rejected}</p>
+              <p className="text-xs text-text-secondary">미적용</p>
+            </div>
+            {/* 사업부 막대 카드 */}
+            <div className="lg:col-span-2 bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-3">
                 <Icon name="business" size="xs" className="text-cyan-500" />
                 <span className="text-xs font-semibold text-cyan-500">사업부</span>
               </div>
-              <div className="flex items-center justify-between gap-1">
-                {BUSINESS_UNITS.map((unit) => (
-                  <div key={unit} className="text-center flex-1">
-                    <p className="text-sm font-bold text-text dark:text-white">
-                      {businessUnitStats[unit] || 0}
-                    </p>
-                    <p className="text-[8px] text-text-secondary truncate">{unit}</p>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {BUSINESS_UNITS.map((unit) => {
+                  const count = businessUnitStats[unit] || 0;
+                  const maxCount = Math.max(...BUSINESS_UNITS.map((u) => businessUnitStats[u] || 0), 1);
+                  const percentage = (count / maxCount) * 100;
+                  return (
+                    <div key={unit} className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold text-text-secondary w-12 truncate">{unit}</span>
+                      <div className="flex-1 h-1.5 bg-white/30 dark:bg-black/20 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-cyan-500 rounded-full transition-all"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-text dark:text-white w-6 text-right">{count}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -574,7 +606,7 @@ export default function CustomerRequirementsPage() {
                 className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
               >
                 <option value="all">전체 업무구분</option>
-                {categoryOptions.map((cat) => (
+                {BUSINESS_CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>

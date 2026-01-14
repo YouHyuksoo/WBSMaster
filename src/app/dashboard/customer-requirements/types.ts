@@ -58,6 +58,7 @@ export interface CustomerRequirementFormData {
   applyStatus: ApplyStatus;
   remarks?: string;
   toBeCode?: string;
+  completeDate?: string;
 }
 
 /** 기본 폼 값 */
@@ -72,7 +73,28 @@ export const DEFAULT_FORM_DATA: CustomerRequirementFormData = {
   applyStatus: "REVIEWING",
   remarks: "",
   toBeCode: "",
+  completeDate: "",
 };
 
 /** 사업부 목록 (공통 상수에서 import) */
 export { BUSINESS_UNITS } from "@/constants/business-units";
+
+/** 업무구분 목록 */
+export const BUSINESS_CATEGORIES = [
+  "생산",
+  "구매",
+  "자재",
+  "품질",
+  "설계",
+  "영업",
+  "기술",
+  "제조",
+  "지원",
+  "외주",
+  "통관",
+  "물류",
+  "인사",
+  "총무",
+  "회계",
+  "무역",
+];

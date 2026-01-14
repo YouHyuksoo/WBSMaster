@@ -59,10 +59,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 쿠키에 userId 저장 (7일간 유지)
+    const isSecure = request.url.startsWith("https://");
     const cookieStore = await cookies();
     cookieStore.set("userId", user.id, {
       httpOnly: true,
-      secure: false, // 내부망(HTTP) 접속 허용을 위해 false로 변경
+      secure: isSecure, // HTTPS 접속 시에만 Secure 적용
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 7, // 7일
       path: "/",

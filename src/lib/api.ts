@@ -651,6 +651,7 @@ export interface CustomerRequirement {
   applyStatus: ApplyStatus;    // 적용여부
   remarks?: string | null;     // 비고
   toBeCode?: string | null;    // To-Be 관리번호
+  completeDate?: string | null; // 요청처리완료 일자
   createdAt: string;
   updatedAt: string;
   projectId: string;
@@ -1222,6 +1223,7 @@ export const api = {
       applyStatus?: ApplyStatus;
       remarks?: string;
       toBeCode?: string;
+      completeDate?: string;
     }) => post<CustomerRequirement>("/api/customer-requirements", data),
     /** 수정 */
     update: (id: string, data: Partial<CustomerRequirement>) =>

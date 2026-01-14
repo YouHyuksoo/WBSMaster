@@ -88,8 +88,8 @@ export function CustomerRequirementTable({
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 테이블 헤더 (수정 버튼을 맨 앞에 배치) */}
       <div
-        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1450px]"
-        style={{ gridTemplateColumns: "50px 80px 100px 80px 80px 150px 1fr 80px 80px 180px 150px 100px" }}
+        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1550px]"
+        style={{ gridTemplateColumns: "50px 80px 100px 80px 80px 150px 1fr 80px 80px 100px 180px 150px 100px" }}
       >
         <div>수정</div>
         <div>상태</div>
@@ -99,6 +99,7 @@ export function CustomerRequirementTable({
         <div>기능명</div>
         <div>요구사항</div>
         <div>요청일</div>
+        <div>처리완료일</div>
         <div>요청자</div>
         <div>적용방안</div>
         <div>제약사항</div>
@@ -120,8 +121,8 @@ export function CustomerRequirementTable({
         return (
           <div
             key={req.id}
-            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1450px]"
-            style={{ gridTemplateColumns: "50px 80px 100px 80px 80px 150px 1fr 80px 80px 180px 150px 100px" }}
+            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1550px]"
+            style={{ gridTemplateColumns: "50px 80px 100px 80px 80px 150px 1fr 80px 80px 100px 180px 150px 100px" }}
           >
             {/* 수정/삭제 버튼 (맨 앞 배치) */}
             <div className="flex items-center gap-1">
@@ -260,6 +261,13 @@ export function CustomerRequirementTable({
             <div>
               <span className="text-xs text-text-secondary">
                 {formatDate(req.requestDate)}
+              </span>
+            </div>
+
+            {/* 처리완료일 */}
+            <div>
+              <span className="text-xs text-text-secondary">
+                {formatDate(req.completeDate)}
               </span>
             </div>
 

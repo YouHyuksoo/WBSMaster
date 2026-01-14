@@ -2,11 +2,13 @@
  * @file src/app/dashboard/process-verification/page.tsx
  * @description
  * 기능추적표(공정검증) 페이지입니다.
- * Excel에서 가져온 공정검증 항목을 카테고리별로 관리합니다.
+ * Excel에서 가져온 공정검증 항목을 카테고리별로 관리하며, 두 가지 뷰를 제공합니다:
+ * - 현재 그리드: 개별 항목 조회/편집
+ * - 그룹 비교: 사업부별 관리영역 현황 비교
  *
  * 초보자 가이드:
- * 1. 좌측 사이드바에서 카테고리 선택
- * 2. 우측 테이블에서 항목 조회/편집
+ * 1. **그리드 뷰**: 좌측 카테고리 선택 → 우측 테이블에서 항목 조회/편집
+ * 2. **비교 뷰**: 사업부 다중 선택 → 관리영역별 Y/N 현황 및 사용율 비교
  * 3. Excel 가져오기로 데이터 일괄 등록
  */
 
@@ -14,10 +16,11 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { utils, writeFile } from "xlsx";
-import { CategoryList, ItemTable, FilterBar, EditItemModal, AddItemModal } from "./components";
+import { CategoryList, ItemTable, FilterBar, EditItemModal, AddItemModal, ComparisonGrid } from "./components";
 import { useProject } from "@/contexts";
 import { Icon, Button, useToast, ConfirmModal } from "@/components/ui";
 import { ImportExcelModal, type ImportResult } from "@/components/common";
+import { BUSINESS_UNITS } from "@/constants/business-units";
 import {
   ProcessVerificationCategory,
   ProcessVerificationItem,
@@ -41,9 +44,14 @@ export default function ProcessVerificationPage() {
     isApplied: null,
     status: null,
     search: "",
+    businessUnit: "V_IVI", // 기존 데이터가 모두 V_IVI로 업데이트됨
   });
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+  // 뷰 선택 상태
+  const [viewMode, setViewMode] = useState<"grid" | "comparison">("grid");
+  // 그룹 비교 보기에서 선택한 사업부
+  const [comparisonBusinessUnits, setComparisonBusinessUnits] = useState<string[]>([]);
   // 수정 모달 상태
   const [editingItem, setEditingItem] = useState<ProcessVerificationItem | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -95,6 +103,10 @@ export default function ProcessVerificationPage() {
       if (filter.search) {
         params.set("search", filter.search);
       }
+      // 비교 보기 모드가 아닐 때만 사업부 필터 적용
+      if (viewMode === "grid" && filter.businessUnit) {
+        params.set("businessUnit", filter.businessUnit);
+      }
 
       const res = await fetch(`/api/process-verification/items?${params}`);
       if (res.ok) {
@@ -106,7 +118,7 @@ export default function ProcessVerificationPage() {
     } finally {
       setIsLoadingItems(false);
     }
-  }, [selectedProjectId, selectedCategoryId, filter.isApplied, filter.search]);
+  }, [selectedProjectId, selectedCategoryId, filter.isApplied, filter.search, filter.businessUnit, viewMode]);
 
   // 프로젝트 ID 변경 시 카테고리 로드
   useEffect(() => {
@@ -124,9 +136,20 @@ export default function ProcessVerificationPage() {
       if (filter.status && item.status !== filter.status) {
         return false;
       }
+      // 사업부는 항상 필터링됨 (선택 필수)
+      if (item.businessUnit !== filter.businessUnit) {
+        return false;
+      }
       return true;
     });
-  }, [items, filter.status]);
+  }, [items, filter.status, filter.businessUnit]);
+
+  // 필터링된 항목이 속한 카테고리만 선별
+  const filteredCategories = useMemo(() => {
+    if (filteredItems.length === 0) return [];
+    const categoryIds = new Set(filteredItems.map((item) => item.categoryId));
+    return categories.filter((cat) => categoryIds.has(cat.id));
+  }, [categories, filteredItems]);
 
   // 통계 계산
   const stats = useMemo(() => {
@@ -145,6 +168,13 @@ export default function ProcessVerificationPage() {
       filteredApplied: filteredItems.filter((item) => item.isApplied).length,
     };
   }, [items, filteredItems]);
+
+  // 필터링된 카테고리에 현재 선택된 카테고리가 없으면 선택 해제
+  useEffect(() => {
+    if (selectedCategoryId && !filteredCategories.some((cat) => cat.id === selectedCategoryId)) {
+      setSelectedCategoryId(null);
+    }
+  }, [filteredCategories, selectedCategoryId]);
 
   // 카테고리 선택 핸들러
   const handleSelectCategory = (categoryId: string | null) => {
@@ -521,29 +551,42 @@ export default function ProcessVerificationPage() {
             onFilterChange={handleFilterChange}
             totalCount={stats.filteredTotal}
             appliedCount={stats.filteredApplied}
+            categories={categories}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
 
           {/* 메인 컨텐츠 */}
-          <div className="flex flex-1 overflow-hidden rounded-xl border border-border dark:border-border-dark bg-background-white dark:bg-surface-dark">
-            {/* 카테고리 사이드바 */}
-            <CategoryList
-              categories={categories}
-              selectedCategoryId={selectedCategoryId}
-              onSelectCategory={handleSelectCategory}
-              isLoading={isLoadingCategories}
-            />
-
-            {/* 항목 테이블 */}
-            <div className="flex-1 overflow-auto">
-              <ItemTable
+          {viewMode === "grid" ? (
+            <div className="flex flex-1 overflow-hidden rounded-xl border border-border dark:border-border-dark bg-background-white dark:bg-surface-dark">
+              {/* 카테고리 사이드바 */}
+              <CategoryList
+                categories={filteredCategories}
                 items={filteredItems}
-                isLoading={isLoadingItems}
-                onUpdateItem={handleUpdateItem}
-                onEditItem={handleEditItem}
-                onDeleteItem={handleDeleteItem}
+                selectedCategoryId={selectedCategoryId}
+                onSelectCategory={handleSelectCategory}
+                isLoading={isLoadingCategories}
               />
+
+              {/* 항목 테이블 */}
+              <div className="flex-1 overflow-auto">
+                <ItemTable
+                  items={filteredItems}
+                  isLoading={isLoadingItems}
+                  onUpdateItem={handleUpdateItem}
+                  onEditItem={handleEditItem}
+                  onDeleteItem={handleDeleteItem}
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <ComparisonGrid
+              items={items}
+              selectedBusinessUnits={comparisonBusinessUnits}
+              onBusinessUnitsChange={setComparisonBusinessUnits}
+              isLoading={isLoadingItems}
+            />
+          )}
         </>
       )}
 
@@ -576,6 +619,9 @@ export default function ProcessVerificationPage() {
         onSuccess={handleImportSuccess}
         title="공정검증 데이터 가져오기"
         apiEndpoint="/api/process-verification/import"
+        businessUnit={filter.businessUnit}
+        businessUnitList={BUSINESS_UNITS}
+        onBusinessUnitChange={(businessUnit) => setFilter((prev) => ({ ...prev, businessUnit }))}
         templateConfig={{
           fileName: "공정검증_템플릿",
           sheetName: "공정검증",

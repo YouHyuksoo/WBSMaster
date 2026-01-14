@@ -21,7 +21,7 @@ import { useState, useRef, useEffect } from "react";
 import { Icon } from "@/components/ui";
 import type { WbsItem, WbsLevel } from "@/lib/api";
 import { levelNames, levelColors, statusColors, statusNames } from "../constants";
-import { calculateWorkDays, getDisplayStatus, getDelayDays } from "../utils/wbsHelpers";
+import { calculateWorkDays, getDisplayStatus, getDelayDays, isDelayed } from "../utils/wbsHelpers";
 import type { WbsTreeItemProps } from "../types";
 
 /**
@@ -48,6 +48,8 @@ export function WbsTreeItem({
   const [showMenu, setShowMenu] = useState(false);
   const [editingProgress, setEditingProgress] = useState(false);
   const [tempProgress, setTempProgress] = useState(item.progress);
+  const [isTooltipHovered, setIsTooltipHovered] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   const progressInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,6 +98,16 @@ export function WbsTreeItem({
   const handleProgressCancel = () => {
     setTempProgress(item.progress);
     setEditingProgress(false);
+  };
+
+  /** 툴팁 위치 계산 */
+  const handleTooltipMouseEnter = (e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setTooltipPos({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10,
+    });
+    setIsTooltipHovered(true);
   };
 
   /** 키보드 이벤트 핸들러 */
@@ -273,15 +285,86 @@ export function WbsTreeItem({
           {item.code}
         </span>
 
-        {/* 항목명 */}
-        <span
-          className={`flex-1 text-sm truncate font-medium ${
-            isSelected ? "text-primary" : "text-text dark:text-white"
-          }`}
-          title={item.name}
+        {/* 항목명 (호버 시 툴팁 표시) */}
+        <div
+          className={`flex-1 text-sm font-medium`}
+          onMouseEnter={handleTooltipMouseEnter}
+          onMouseLeave={() => setIsTooltipHovered(false)}
         >
-          {item.name}
-        </span>
+          <span
+            className={`truncate block ${
+              isSelected ? "text-primary" : "text-text dark:text-white"
+            }`}
+          >
+            {item.name}
+          </span>
+
+          {/* 마일스톤 스타일 툴팁 */}
+          {isTooltipHovered && (
+            <>
+              {/* 배경 오버레이 */}
+              <div className="fixed inset-0 z-40 pointer-events-none" />
+
+              {/* 툴팁 */}
+              <div className="fixed z-50 pointer-events-auto bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-2xl border border-slate-700 p-3 min-w-[240px] max-w-[320px]"
+                style={{
+                  top: `${tooltipPos.y}px`,
+                  left: `${tooltipPos.x}px`,
+                  transform: 'translate(-50%, -100%)',
+                }}>
+                {/* 헤더: 항목명 + 상태 */}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="font-semibold text-sm truncate">{item.name}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                    item.status === "COMPLETED" ? "bg-green-500/20 text-green-400" :
+                    item.status === "IN_PROGRESS" ? (isDelayed(item.endDate, item.status) ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400") :
+                    item.status === "CANCELLED" ? "bg-slate-500/20 text-slate-400" :
+                    isDelayed(item.endDate, item.status) ? "bg-red-500/20 text-red-400" :
+                    "bg-yellow-500/20 text-yellow-400"
+                  }`}>
+                    {statusNames[getDisplayStatus(item.status, item.endDate)]}
+                  </span>
+                </div>
+
+                {/* 시작일, 종료일 */}
+                <div className="flex items-center gap-2 text-xs text-slate-300 mb-2">
+                  <span>📅</span>
+                  <span>
+                    {item.startDate
+                      ? new Date(item.startDate).toLocaleDateString("ko-KR", {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "-"}
+                    ~
+                    {item.endDate
+                      ? new Date(item.endDate).toLocaleDateString("ko-KR", {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "-"}
+                  </span>
+                </div>
+
+                {/* 진행률, 담당자 */}
+                <div className="flex items-center gap-4 text-xs text-slate-400 border-t border-slate-700 pt-2">
+                  <div className="flex items-center gap-1.5">
+                    <span>📊</span>
+                    <span className="text-blue-400 font-medium">{item.progress}%</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>👤</span>
+                    <span>
+                      {item.assignees && item.assignees.length > 0
+                        ? item.assignees.map((a) => a.name).join(", ")
+                        : "미할당"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
 
         {/* 가중치 뱃지 (대분류만) */}
         {item.level === "LEVEL1" && item.weight && (

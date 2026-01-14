@@ -21,6 +21,7 @@ import {
   APPLY_STATUS_LABELS,
   DEFAULT_FORM_DATA,
   BUSINESS_UNITS,
+  BUSINESS_CATEGORIES,
 } from "../types";
 
 interface CustomerRequirementModalProps {
@@ -61,6 +62,9 @@ export function CustomerRequirementModal({
         applyStatus: requirement.applyStatus,
         remarks: requirement.remarks || "",
         toBeCode: requirement.toBeCode || "",
+        completeDate: requirement.completeDate
+          ? new Date(requirement.completeDate).toISOString().split("T")[0]
+          : "",
       });
     } else {
       setFormData(DEFAULT_FORM_DATA);
@@ -181,13 +185,18 @@ export function CustomerRequirementModal({
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 업무구분
               </label>
-              <input
-                type="text"
+              <select
                 value={formData.category}
                 onChange={(e) => handleChange("category", e.target.value)}
-                placeholder="예: 공통, 프로세스"
                 className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              >
+                <option value="">선택하세요</option>
+                {BUSINESS_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* 기능명 */}
@@ -241,6 +250,19 @@ export function CustomerRequirementModal({
                 type="date"
                 value={formData.requestDate}
                 onChange={(e) => handleChange("requestDate", e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* 요청처리완료 일자 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                요청처리완료 일자
+              </label>
+              <input
+                type="date"
+                value={formData.completeDate}
+                onChange={(e) => handleChange("completeDate", e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>

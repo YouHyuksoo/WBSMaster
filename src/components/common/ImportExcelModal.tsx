@@ -97,6 +97,12 @@ interface ImportExcelModalProps {
   hints?: string[];
   /** 기존 데이터 삭제 옵션 라벨 */
   clearExistingLabel?: string;
+  /** 사업부 선택 (businessUnit) */
+  businessUnit?: string;
+  /** 사업부 리스트 */
+  businessUnitList?: string[];
+  /** 사업부 변경 콜백 */
+  onBusinessUnitChange?: (businessUnit: string) => void;
 }
 
 /**
@@ -112,6 +118,9 @@ export function ImportExcelModal({
   templateConfig,
   hints = [],
   clearExistingLabel = "기존 데이터 삭제 후 가져오기",
+  businessUnit,
+  businessUnitList = [],
+  onBusinessUnitChange,
 }: ImportExcelModalProps) {
   // 상태
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -120,6 +129,7 @@ export function ImportExcelModal({
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [selectedBusinessUnit, setSelectedBusinessUnit] = useState(businessUnit || businessUnitList[0] || "");
 
   // 파일 input 참조
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -236,6 +246,9 @@ export function ImportExcelModal({
       formData.append("file", selectedFile);
       formData.append("projectId", projectId);
       formData.append("clearExisting", String(clearExisting));
+      if (selectedBusinessUnit) {
+        formData.append("businessUnit", selectedBusinessUnit);
+      }
 
       const res = await fetch(apiEndpoint, {
         method: "POST",
@@ -339,6 +352,29 @@ export function ImportExcelModal({
               </div>
             </div>
           </div>
+
+          {/* 사업부 선택 (businessUnitList가 있을 경우) */}
+          {businessUnitList.length > 0 && (
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-text dark:text-white min-w-fit">
+                사업부:
+              </label>
+              <select
+                value={selectedBusinessUnit}
+                onChange={(e) => {
+                  setSelectedBusinessUnit(e.target.value);
+                  onBusinessUnitChange?.(e.target.value);
+                }}
+                className="flex-1 px-3 py-2 text-sm border border-border dark:border-border-dark rounded-lg bg-background-white dark:bg-surface-dark text-text dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                {businessUnitList.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* 에러 메시지 */}
           {error && (

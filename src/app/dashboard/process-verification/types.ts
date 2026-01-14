@@ -12,11 +12,11 @@ export type VerificationStatus = "PENDING" | "IN_PROGRESS" | "VERIFIED" | "NOT_A
 /**
  * 검증 상태 설정 (다크 모드 지원)
  */
-export const verificationStatusConfig: Record<VerificationStatus, { label: string; color: string; bgColor: string }> = {
-  PENDING: { label: "대기", color: "text-slate-600 dark:text-slate-400", bgColor: "bg-slate-100 dark:bg-slate-700" },
-  IN_PROGRESS: { label: "진행중", color: "text-blue-600 dark:text-blue-400", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
-  VERIFIED: { label: "검증완료", color: "text-green-600 dark:text-green-400", bgColor: "bg-green-100 dark:bg-green-900/30" },
-  NOT_APPLICABLE: { label: "해당없음", color: "text-gray-500 dark:text-gray-400", bgColor: "bg-gray-100 dark:bg-gray-700" },
+export const verificationStatusConfig: Record<VerificationStatus, { label: string; color: string; bgColor: string; icon: string }> = {
+  PENDING: { label: "대기", color: "text-slate-600 dark:text-slate-400", bgColor: "bg-slate-100 dark:bg-slate-700", icon: "pending_actions" },
+  IN_PROGRESS: { label: "진행중", color: "text-blue-600 dark:text-blue-400", bgColor: "bg-blue-100 dark:bg-blue-900/30", icon: "schedule" },
+  VERIFIED: { label: "검증완료", color: "text-green-600 dark:text-green-400", bgColor: "bg-green-100 dark:bg-green-900/30", icon: "verified" },
+  NOT_APPLICABLE: { label: "해당없음", color: "text-gray-500 dark:text-gray-400", bgColor: "bg-gray-100 dark:bg-gray-700", icon: "do_not_disturb_on" },
 };
 
 /**
@@ -55,6 +55,7 @@ export interface ProcessVerificationItem {
   order: number;
   remarks: string | null;
   status: VerificationStatus;
+  businessUnit: string;
   categoryId: string;
   categoryRef?: {
     id: string;
@@ -83,4 +84,5 @@ export interface FilterState {
   isApplied: boolean | null;
   status: VerificationStatus | null;
   search: string;
+  businessUnit: string;
 }

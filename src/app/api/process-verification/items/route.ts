@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get("projectId");
     const isApplied = searchParams.get("isApplied");
     const search = searchParams.get("search");
+    const businessUnit = searchParams.get("businessUnit");
 
     // 필터 조건 구성
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,6 +44,10 @@ export async function GET(request: NextRequest) {
       where.isApplied = true;
     } else if (isApplied === "false") {
       where.isApplied = false;
+    }
+
+    if (businessUnit) {
+      where.businessUnit = businessUnit;
     }
 
     if (search) {
