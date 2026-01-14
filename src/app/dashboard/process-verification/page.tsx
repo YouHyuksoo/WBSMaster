@@ -620,7 +620,7 @@ export default function ProcessVerificationPage() {
         title="공정검증 데이터 가져오기"
         apiEndpoint="/api/process-verification/import"
         businessUnit={filter.businessUnit}
-        businessUnitList={BUSINESS_UNITS}
+        businessUnitList={[...BUSINESS_UNITS]}
         onBusinessUnitChange={(businessUnit) => setFilter((prev) => ({ ...prev, businessUnit }))}
         templateConfig={{
           fileName: "공정검증_템플릿",
