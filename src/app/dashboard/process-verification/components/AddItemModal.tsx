@@ -232,6 +232,7 @@ export default function AddItemModal({
         customerRequest: "",
         remarks: "",
         status: "PENDING",
+        businessUnit: "",
       });
       setErrors({});
     }
