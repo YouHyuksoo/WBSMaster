@@ -448,52 +448,10 @@ export default function IssuesPage() {
             </div>
           </div>
 
-          {/* 탭 */}
-          <div className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg w-fit">
-            <button
-              onClick={() => {
-                setActiveTab("active");
-                setFilterStatus("all");
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "active"
-                  ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
-                  : "text-text-secondary hover:text-text dark:hover:text-white"
-              }`}
-            >
-              <Icon name="pending_actions" size="xs" />
-              <span>활성 이슈</span>
-              <span className={`px-1.5 py-0.5 rounded text-xs ${
-                activeTab === "active" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
-              }`}>
-                {activeIssues.length}
-              </span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab("closed");
-                setFilterStatus("all");
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "closed"
-                  ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
-                  : "text-text-secondary hover:text-text dark:hover:text-white"
-              }`}
-            >
-              <Icon name="task_alt" size="xs" />
-              <span>종료됨</span>
-              <span className={`px-1.5 py-0.5 rounded text-xs ${
-                activeTab === "closed" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
-              }`}>
-                {closedIssues.length}
-              </span>
-            </button>
-          </div>
-
           {/* 필터 및 보기 모드 전환 */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             {/* 좌측: 필터 */}
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <div className="w-64">
                 <Input
                   leftIcon="search"
@@ -502,6 +460,49 @@ export default function IssuesPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+
+              {/* 탭 (활성/종료) */}
+              <div className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg">
+                <button
+                  onClick={() => {
+                    setActiveTab("active");
+                    setFilterStatus("all");
+                  }}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === "active"
+                      ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                      : "text-text-secondary hover:text-text dark:hover:text-white"
+                  }`}
+                >
+                  <Icon name="pending_actions" size="xs" />
+                  <span>활성</span>
+                  <span className={`px-1.5 py-0.5 rounded text-xs ${
+                    activeTab === "active" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
+                  }`}>
+                    {activeIssues.length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("closed");
+                    setFilterStatus("all");
+                  }}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === "closed"
+                      ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                      : "text-text-secondary hover:text-text dark:hover:text-white"
+                  }`}
+                >
+                  <Icon name="task_alt" size="xs" />
+                  <span>종료</span>
+                  <span className={`px-1.5 py-0.5 rounded text-xs ${
+                    activeTab === "closed" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
+                  }`}>
+                    {closedIssues.length}
+                  </span>
+                </button>
+              </div>
+
               <select
                 value={filterPriority}
                 onChange={(e) => setFilterPriority(e.target.value)}

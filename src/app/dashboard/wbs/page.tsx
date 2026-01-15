@@ -432,14 +432,14 @@ export default function WBSPage() {
   const dates = useMemo(() => generateDates(chartStartDate, chartDays), [chartStartDate, chartDays]);
   const todayIndex = dates.findIndex((d) => d.isToday);
 
-  /** 모든 항목을 평탄화하여 간트 차트용 배열 생성 */
+  /** 모든 항목을 평탄화하여 간트 차트용 배열 생성 (트리 펼침 상태와 동기화) */
   const flattenItems = (items: WbsItem[]): WbsItem[] => {
     const result: WbsItem[] = [];
     const traverse = (list: WbsItem[]) => {
       list.forEach((item) => {
-        if (expandedIds.has(item.id) || item.levelNumber === 1) {
-          result.push(item);
-        }
+        // 현재 항목 추가 (LEVEL1은 항상 보임, 나머지는 부모가 펼쳐져 있을 때 보임)
+        result.push(item);
+        // 항목이 펼쳐져 있으면 자식들도 재귀적으로 추가
         if (item.children && expandedIds.has(item.id)) {
           traverse(item.children);
         }
@@ -517,6 +517,17 @@ export default function WBSPage() {
 
   const handleCollapseAll = () => {
     setExpandedIds(new Set());
+  };
+
+  /** 2레벨까지 펼치기 (LEVEL1만 펼침 → LEVEL2가 보임) */
+  const handleExpandLevel2 = () => {
+    const level1Ids: string[] = [];
+    wbsTree.forEach((item) => {
+      if (item.level === "LEVEL1") {
+        level1Ids.push(item.id);
+      }
+    });
+    setExpandedIds(new Set(level1Ids));
   };
 
   /**
@@ -986,6 +997,12 @@ export default function WBSPage() {
                 className="px-2 py-1 text-xs rounded bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text-secondary hover:text-text dark:hover:text-white"
               >
                 전체 펼치기
+              </button>
+              <button
+                onClick={handleExpandLevel2}
+                className="px-2 py-1 text-xs rounded bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text-secondary hover:text-text dark:hover:text-white"
+              >
+                2레벨 펼치기
               </button>
               <button
                 onClick={handleCollapseAll}
@@ -1482,10 +1499,12 @@ export default function WBSPage() {
                         <div
                           data-gantt-bar
                           className={`
-                            absolute h-6 rounded transition-all group
+                            absolute h-7 rounded-md transition-all group
                             ${levelColors[item.level]}
-                            ${isSelected ? "ring-2 ring-white shadow-lg" : ""}
-                            ${isDragging ? "opacity-80 shadow-xl scale-y-110" : "hover:brightness-110"}
+                            ${isSelected
+                              ? "ring-[3px] ring-cyan-400 shadow-[0_0_12px_rgba(0,243,255,0.6)] scale-y-110 z-10"
+                              : "hover:brightness-110 hover:scale-y-105"}
+                            ${isDragging ? "opacity-80 shadow-xl scale-y-110" : ""}
                           `}
                           style={{
                             left: `${barLeft}px`,
@@ -1513,7 +1532,7 @@ export default function WBSPage() {
                               style={{ width: `${item.progress}%` }}
                             />
                             {/* 항목명 */}
-                            <span className="relative z-10 px-1 text-[10px] text-white font-medium truncate">
+                            <span className="relative z-10 px-1.5 text-xs text-white font-semibold truncate drop-shadow-sm">
                               {barWidth > cellWidth * 2.5 ? `${item.code} ${item.name}` : barWidth > cellWidth * 1.2 ? item.code : ""}
                             </span>
                           </div>

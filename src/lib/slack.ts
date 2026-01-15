@@ -218,14 +218,13 @@ export async function sendTaskCompletedNotification(
       })
     : new Date().toLocaleString("ko-KR");
 
-  // Block Kit 형식의 리치 메시지
+  // Block Kit 형식의 리치 메시지 (좌우 배치)
   const blocks = [
     {
-      type: "header",
+      type: "section",
       text: {
-        type: "plain_text",
-        text: "Task 완료",
-        emoji: true,
+        type: "mrkdwn",
+        text: `✅ *Task 완료*  |  ${taskTitle}`,
       },
     },
     {
@@ -233,19 +232,15 @@ export async function sendTaskCompletedNotification(
       fields: [
         {
           type: "mrkdwn",
-          text: `*Task:*\n${taskTitle}`,
+          text: `📁 *프로젝트:* ${projectName || "-"}`,
         },
         {
           type: "mrkdwn",
-          text: `*프로젝트:*\n${projectName || "-"}`,
+          text: `👤 *담당자:* ${assigneeName || "-"}`,
         },
         {
           type: "mrkdwn",
-          text: `*담당자:*\n${assigneeName || "-"}`,
-        },
-        {
-          type: "mrkdwn",
-          text: `*완료 시간:*\n${timeStr}`,
+          text: `🕐 *완료:* ${timeStr}`,
         },
       ],
     },
@@ -289,14 +284,13 @@ export async function sendIssueCreatedNotification(
     ? "<!channel> "
     : "";
 
-  // Block Kit 형식의 리치 메시지
+  // Block Kit 형식의 리치 메시지 (좌우 배치)
   const blocks = [
     {
-      type: "header",
+      type: "section",
       text: {
-        type: "plain_text",
-        text: `${priorityColor} 새 이슈 등록`,
-        emoji: true,
+        type: "mrkdwn",
+        text: `${priorityColor} *새 이슈*  |  ${issueCode ? `[${issueCode}] ` : ""}${issueTitle}`,
       },
     },
     {
@@ -304,29 +298,22 @@ export async function sendIssueCreatedNotification(
       fields: [
         {
           type: "mrkdwn",
-          text: `*이슈:*\n${issueCode ? `[${issueCode}] ` : ""}${issueTitle}`,
+          text: `📁 *프로젝트:* ${projectName || "-"}`,
         },
         {
           type: "mrkdwn",
-          text: `*프로젝트:*\n${projectName || "-"}`,
+          text: `🚨 *우선순위:* ${priority || "-"}`,
         },
         {
           type: "mrkdwn",
-          text: `*보고자:*\n${reporterName || "-"}`,
+          text: `👤 *보고자:* ${reporterName || "-"}`,
         },
-        {
+        ...(category ? [{
           type: "mrkdwn",
-          text: `*우선순위:*\n${priority || "-"}`,
-        },
+          text: `🏷️ *카테고리:* ${category}`,
+        }] : []),
       ],
     },
-    ...(category ? [{
-      type: "context",
-      elements: [{
-        type: "mrkdwn",
-        text: `카테고리: ${category}`,
-      }],
-    }] : []),
     {
       type: "divider",
     },
@@ -366,14 +353,13 @@ export async function sendTaskDelayedNotification(
       })
     : "-";
 
-  // Block Kit 형식의 리치 메시지
+  // Block Kit 형식의 리치 메시지 (좌우 배치)
   const blocks = [
     {
-      type: "header",
+      type: "section",
       text: {
-        type: "plain_text",
-        text: "⚠️ Task 지연",
-        emoji: true,
+        type: "mrkdwn",
+        text: `⚠️ *Task 지연*  |  ${taskTitle}`,
       },
     },
     {
@@ -381,19 +367,15 @@ export async function sendTaskDelayedNotification(
       fields: [
         {
           type: "mrkdwn",
-          text: `*Task:*\n${taskTitle}`,
+          text: `📁 *프로젝트:* ${projectName || "-"}`,
         },
         {
           type: "mrkdwn",
-          text: `*프로젝트:*\n${projectName || "-"}`,
+          text: `👤 *담당자:* ${assigneeName || "-"}`,
         },
         {
           type: "mrkdwn",
-          text: `*담당자:*\n${assigneeName || "-"}`,
-        },
-        {
-          type: "mrkdwn",
-          text: `*마감일:*\n${dueDateStr}`,
+          text: `📅 *마감일:* ${dueDateStr}`,
         },
       ],
     },
@@ -435,14 +417,13 @@ export async function sendTaskCreatedNotification(
   // AI 생성 표시
   const aiTag = isAiGenerated ? " 🤖" : "";
 
-  // Block Kit 형식의 리치 메시지
+  // Block Kit 형식의 리치 메시지 (좌우 배치)
   const blocks = [
     {
-      type: "header",
+      type: "section",
       text: {
-        type: "plain_text",
-        text: `📋 새 Task 등록${aiTag}`,
-        emoji: true,
+        type: "mrkdwn",
+        text: `📋 *새 Task*${aiTag}  |  ${taskTitle}`,
       },
     },
     {
@@ -450,28 +431,21 @@ export async function sendTaskCreatedNotification(
       fields: [
         {
           type: "mrkdwn",
-          text: `*Task:*\n${taskTitle}`,
+          text: `📁 *프로젝트:* ${projectName || "-"}`,
         },
         {
           type: "mrkdwn",
-          text: `*프로젝트:*\n${projectName || "-"}`,
+          text: `${priorityEmoji} *우선순위:* ${priority || "MEDIUM"}`,
         },
         {
           type: "mrkdwn",
-          text: `*생성자:*\n${creatorName || "-"}`,
+          text: `✏️ *생성자:* ${creatorName || "-"}`,
         },
         {
           type: "mrkdwn",
-          text: `*담당자:*\n${assigneeName || "-"}`,
+          text: `👤 *담당자:* ${assigneeName || "-"}`,
         },
       ],
-    },
-    {
-      type: "context",
-      elements: [{
-        type: "mrkdwn",
-        text: `우선순위: ${priorityEmoji} ${priority || "MEDIUM"}${isAiGenerated ? " | AI 생성" : ""}`,
-      }],
     },
     {
       type: "divider",

@@ -12,9 +12,9 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "@/components/ui";
-import { ProcessVerificationItem } from "../types";
+import { ProcessVerificationItem, verificationStatusConfig } from "../types";
 import { BUSINESS_UNITS } from "@/constants/business-units";
 
 interface ComparisonGridProps {
@@ -37,6 +37,8 @@ interface GroupData {
   groupId: string;
   managementArea: string;
   totalCount: number;
+  /** 해당 그룹에 속한 모든 원본 항목들 */
+  items: ProcessVerificationItem[];
   businessUnits: Record<
     string,
     {
@@ -77,6 +79,9 @@ export default function ComparisonGrid({
   onBusinessUnitsChange,
   isLoading,
 }: ComparisonGridProps) {
+  /** 상세보기 모달에 표시할 그룹 */
+  const [selectedGroupForDetail, setSelectedGroupForDetail] = useState<GroupData | null>(null);
+
   /**
    * 구분(category)과 관리코드 그룹(M-1, P-2 등)으로 그룹화하고 집계
    * 예: "재료관리_M-1" 그룹
@@ -115,9 +120,11 @@ export default function ComparisonGrid({
     groupMap.forEach((businessUnitMap, groupId) => {
       // 이 그룹에 속한 모든 항목
       const itemsInGroup = Array.from(businessUnitMap.values()).flat();
-      const totalCount = new Set(
-        itemsInGroup.map((item) => item.id)
-      ).size; // 중복 제거
+      // 고유한 관리코드+세부항목 조합 수 (상세보기 행 수와 일치)
+      const uniqueDetailItems = new Set(
+        itemsInGroup.map((item) => `${item.managementCode}_${item.detailItem}`)
+      );
+      const totalCount = uniqueDetailItems.size;
 
       const businessUnitData: Record<
         string,
@@ -145,6 +152,7 @@ export default function ComparisonGrid({
         groupId,
         managementArea: groupLabelMap.get(groupId) || groupId,
         totalCount,
+        items: itemsInGroup, // 상세보기용 원본 항목들
         businessUnits: businessUnitData,
       });
     });
@@ -224,11 +232,12 @@ export default function ComparisonGrid({
           <div
             className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase sticky top-0 min-w-fit"
             style={{
-              gridTemplateColumns: `280px 120px ${selectedBusinessUnits
+              gridTemplateColumns: `60px 280px 100px ${selectedBusinessUnits
                 .map(() => "220px")
                 .join(" ")}`,
             }}
           >
+            <div className="text-center">상세</div>
             <div>관리영역</div>
             <div className="text-center">그룹총건수</div>
             {selectedBusinessUnits.map((unit) => (
@@ -245,11 +254,22 @@ export default function ComparisonGrid({
                 key={`${group.groupId}-${idx}`}
                 className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-fit"
                 style={{
-                  gridTemplateColumns: `280px 120px ${selectedBusinessUnits
+                  gridTemplateColumns: `60px 280px 100px ${selectedBusinessUnits
                     .map(() => "220px")
                     .join(" ")}`,
                 }}
               >
+                {/* 상세보기 버튼 */}
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => setSelectedGroupForDetail(group)}
+                    className="p-1.5 rounded-md text-primary hover:bg-primary/10 transition-colors"
+                    title="상세보기"
+                  >
+                    <Icon name="visibility" size="sm" />
+                  </button>
+                </div>
+
                 {/* 관리영역 */}
                 <div className="text-sm font-medium text-text dark:text-white">
                   {group.managementArea}
@@ -334,6 +354,198 @@ export default function ComparisonGrid({
             비교할 사업부를 선택하면 그룹 비교 그리드가 표시됩니다.
           </p>
         </div>
+      )}
+
+      {/* 상세보기 모달 */}
+      {selectedGroupForDetail && (
+        <>
+          {/* 백드롭 */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setSelectedGroupForDetail(null)}
+          />
+          {/* 모달 */}
+          <div className="fixed inset-4 md:inset-10 lg:inset-20 bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-border-dark bg-surface dark:bg-background-dark">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Icon name="list_alt" size="sm" className="text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-text dark:text-white">
+                    그룹 상세보기
+                  </h2>
+                  <p className="text-sm text-text-secondary">
+                    {selectedGroupForDetail.managementArea}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedGroupForDetail(null)}
+                className="p-2 rounded-lg hover:bg-surface dark:hover:bg-surface-dark transition-colors"
+              >
+                <Icon name="close" size="sm" className="text-text-secondary" />
+              </button>
+            </div>
+
+            {/* 모달 통계 - 사업부별 요약 */}
+            <div className="px-6 py-3 bg-surface/50 dark:bg-background-dark/50 border-b border-border dark:border-border-dark">
+              <div className="flex flex-wrap gap-4">
+                {selectedBusinessUnits.map((unit) => {
+                  const unitItems = selectedGroupForDetail.items.filter((i) => i.businessUnit === unit);
+                  const yesCount = unitItems.filter((i) => i.isApplied).length;
+                  const noCount = unitItems.filter((i) => !i.isApplied).length;
+                  return (
+                    <div key={unit} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark">
+                      <span className="text-xs font-semibold text-text dark:text-white">{unit}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-success/10 text-success text-xs font-semibold">Y:{yesCount}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-warning/10 text-warning text-xs font-semibold">N:{noCount}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 모달 본문 - 사업부별 비교 테이블 */}
+            <div className="flex-1 overflow-auto p-4">
+              <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg overflow-hidden overflow-x-auto">
+                {/* 테이블 헤더 - 관리코드, 세부항목, 세부검증, 수용여부 + 사업부별 컬럼 */}
+                <div
+                  className="grid gap-2 px-3 py-2 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase sticky top-0 min-w-fit"
+                  style={{
+                    gridTemplateColumns: `100px 200px 320px 150px ${selectedBusinessUnits.map(() => "100px").join(" ")}`,
+                  }}
+                >
+                  <div>관리코드</div>
+                  <div>세부항목</div>
+                  <div>세부검증</div>
+                  <div className="text-center">수용여부</div>
+                  {selectedBusinessUnits.map((unit) => (
+                    <div key={unit} className="text-center">{unit}</div>
+                  ))}
+                </div>
+
+                {/* 테이블 본문 - 관리코드+세부항목 기준으로 그룹화 */}
+                {(() => {
+                  // 관리코드+세부항목으로 고유 행 생성
+                  const rowMap = new Map<string, {
+                    managementCode: string;
+                    detailItem: string;
+                    verificationDetail: string | null;
+                    acceptanceStatus: string | null;
+                    byUnit: Record<string, boolean | undefined>;
+                  }>();
+
+                  selectedGroupForDetail.items.forEach((item) => {
+                    const rowKey = `${item.managementCode}_${item.detailItem}`;
+                    if (!rowMap.has(rowKey)) {
+                      rowMap.set(rowKey, {
+                        managementCode: item.managementCode,
+                        detailItem: item.detailItem,
+                        verificationDetail: item.verificationDetail,
+                        acceptanceStatus: item.acceptanceStatus,
+                        byUnit: {},
+                      });
+                    }
+                    rowMap.get(rowKey)!.byUnit[item.businessUnit] = item.isApplied;
+                  });
+
+                  const rows = Array.from(rowMap.values()).sort((a, b) =>
+                    a.managementCode.localeCompare(b.managementCode) || a.detailItem.localeCompare(b.detailItem)
+                  );
+
+                  if (rows.length === 0) {
+                    return (
+                      <div className="p-8 text-center text-text-secondary">
+                        항목이 없습니다.
+                      </div>
+                    );
+                  }
+
+                  return rows.map((row, idx) => (
+                    <div
+                      key={`${row.managementCode}-${row.detailItem}-${idx}`}
+                      className="grid gap-2 px-3 py-2 border-b border-border dark:border-border-dark hover:bg-surface/50 dark:hover:bg-background-dark/50 transition-colors items-center text-sm min-w-fit"
+                      style={{
+                        gridTemplateColumns: `100px 200px 320px 150px ${selectedBusinessUnits.map(() => "100px").join(" ")}`,
+                      }}
+                    >
+                      {/* 관리코드 */}
+                      <div className="text-text dark:text-white font-medium truncate">
+                        {row.managementCode}
+                      </div>
+
+                      {/* 세부항목 */}
+                      <div className="text-text dark:text-white truncate" title={row.detailItem}>
+                        {row.detailItem}
+                      </div>
+
+                      {/* 세부검증 */}
+                      <div className="text-text-secondary truncate" title={row.verificationDetail || "-"}>
+                        {row.verificationDetail || "-"}
+                      </div>
+
+                      {/* 수용여부 */}
+                      <div className="flex justify-center">
+                        {row.acceptanceStatus ? (
+                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                            row.acceptanceStatus === "수용" || row.acceptanceStatus === "Y"
+                              ? "bg-success/10 text-success"
+                              : row.acceptanceStatus === "미수용" || row.acceptanceStatus === "N"
+                                ? "bg-error/10 text-error"
+                                : "bg-slate-100 dark:bg-slate-700 text-text-secondary"
+                          }`}>
+                            {row.acceptanceStatus}
+                          </span>
+                        ) : (
+                          <span className="text-text-secondary">-</span>
+                        )}
+                      </div>
+
+                      {/* 사업부별 적용여부 */}
+                      {selectedBusinessUnits.map((unit) => {
+                        const isApplied = row.byUnit[unit];
+                        if (isApplied === undefined) {
+                          return (
+                            <div key={unit} className="flex justify-center">
+                              <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-400 text-xs font-semibold">
+                                -
+                              </span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={unit} className="flex justify-center">
+                            <span
+                              className={`px-3 py-0.5 rounded text-xs font-semibold ${
+                                isApplied
+                                  ? "bg-success/10 text-success"
+                                  : "bg-warning/10 text-warning"
+                              }`}
+                            >
+                              {isApplied ? "Y" : "N"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="px-6 py-3 border-t border-border dark:border-border-dark bg-surface dark:bg-background-dark flex justify-end">
+              <button
+                onClick={() => setSelectedGroupForDetail(null)}
+                className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

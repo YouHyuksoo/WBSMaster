@@ -459,7 +459,9 @@ export function WbsTreeItem({
             <>
               <div className="h-1.5 bg-background dark:bg-background-dark rounded-full overflow-hidden mx-1">
                 <div
-                  className="h-full bg-primary rounded-full transition-all"
+                  className={`h-full rounded-full transition-all ${
+                    item.progress === 100 ? "bg-primary" : "bg-emerald-500"
+                  }`}
                   style={{ width: `${item.progress}%` }}
                 />
               </div>
