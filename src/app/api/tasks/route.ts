@@ -112,6 +112,15 @@ export async function GET(request: NextRequest) {
             priority: true,
           },
         },
+        // 연결된 WBS 항목 조회
+        wbsItem: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            level: true,
+          },
+        },
         // 재촉 목록 조회
         nudges: {
           include: {
@@ -184,7 +193,7 @@ export async function POST(request: NextRequest) {
     if (error) return error;
 
     const body = await request.json();
-    const { title, description, projectId, assigneeId, assigneeIds, priority, startDate, dueDate, requirementId } = body;
+    const { title, description, projectId, assigneeId, assigneeIds, priority, startDate, dueDate, requirementId, wbsItemId } = body;
 
     // 필수 필드 검증
     if (!title || !projectId) {
@@ -207,6 +216,7 @@ export async function POST(request: NextRequest) {
       startDate,
       dueDate,
       requirementId,
+      wbsItemId,
       isAiGenerated: body.isAiGenerated || false,
     });
 

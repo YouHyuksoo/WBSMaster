@@ -76,6 +76,7 @@ export function useCreateTask() {
       startDate?: string;
       dueDate?: string;
       requirementId?: string;
+      wbsItemId?: string;      // WBS 항목
     }) => api.tasks.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
@@ -91,7 +92,7 @@ export function useUpdateTask() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Task> & { assigneeIds?: string[]; requirementId?: string | null } }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<Task> & { assigneeIds?: string[]; requirementId?: string | null; wbsItemId?: string | null } }) =>
       api.tasks.update(id, data),
 
     // Optimistic Update: API 호출 전에 먼저 UI 업데이트

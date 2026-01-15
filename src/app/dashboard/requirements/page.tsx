@@ -63,6 +63,11 @@ export default function RequirementsPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   /** 현재 선택된 탭 (active: 활성 요구사항, implemented: 구현완료) */
   const [activeTab, setActiveTab] = useState<"active" | "implemented">("active");
+  /** 페이지네이션 상태 */
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  /** 삭제 확인 모달 상태 */
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string; title: string } | null>(null);
 
   /** 전역 프로젝트 선택 상태 (헤더에서 선택) */
   const { selectedProjectId, selectedProject } = useProject();
@@ -138,6 +143,12 @@ export default function RequirementsPage() {
     return matchesPriority && matchesStatus && matchesSearch && matchesRequester && matchesAssignee;
   });
 
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(filteredRequirements.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedRequirements = filteredRequirements.slice(startIndex, endIndex);
+
   // 통계 계산
   const stats = {
     total: requirements.length,
@@ -159,16 +170,24 @@ export default function RequirementsPage() {
   };
 
   /**
-   * 요구사항 삭제 핸들러
+   * 삭제 확인 모달 열기
    * @param id 요구사항 ID
    * @param title 요구사항 제목 (확인 메시지용)
    */
-  const handleDeleteRequirement = async (id: string, title: string) => {
-    if (!confirm(`"${title}" 요구사항을 삭제하시겠습니까?`)) return;
+  const handleDeleteRequirement = (id: string, title: string) => {
+    setDeleteModal({ isOpen: true, id, title });
+  };
+
+  /**
+   * 실제 삭제 처리 (모달에서 확인 버튼 클릭 시)
+   */
+  const confirmDelete = async () => {
+    if (!deleteModal) return;
 
     try {
-      await deleteRequirement.mutateAsync(id);
+      await deleteRequirement.mutateAsync(deleteModal.id);
       toast.success("요구사항이 삭제되었습니다.");
+      setDeleteModal(null);
     } catch (error) {
       toast.error("삭제에 실패했습니다.");
     }
@@ -204,24 +223,37 @@ export default function RequirementsPage() {
    */
   const handleCreateRequirement = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[DEBUG] handleCreateRequirement 호출됨");
+    console.log("[DEBUG] selectedProjectId:", selectedProjectId);
+    console.log("[DEBUG] newRequirement:", newRequirement);
+
     if (!selectedProjectId) {
       toast.error("프로젝트를 먼저 선택해주세요.");
       return;
     }
-    if (!newRequirement.title.trim()) return;
+    if (!newRequirement.title.trim()) {
+      toast.error("제목을 입력해주세요.");
+      return;
+    }
 
-    await createRequirement.mutateAsync({
-      title: newRequirement.title,
-      description: newRequirement.description,
-      priority: newRequirement.priority,
-      category: newRequirement.category || undefined,
-      oneDriveLink: newRequirement.oneDriveLink || undefined,
-      dueDate: newRequirement.dueDate || undefined,
-      projectId: selectedProjectId,
-    });
+    try {
+      await createRequirement.mutateAsync({
+        title: newRequirement.title,
+        description: newRequirement.description,
+        priority: newRequirement.priority,
+        category: newRequirement.category || undefined,
+        oneDriveLink: newRequirement.oneDriveLink || undefined,
+        dueDate: newRequirement.dueDate || undefined,
+        projectId: selectedProjectId,
+      });
 
-    setNewRequirement({ title: "", description: "", priority: "SHOULD", category: "", oneDriveLink: "", dueDate: "" });
-    setShowModal(false);
+      toast.success("업무협조가 등록되었습니다.");
+      setNewRequirement({ title: "", description: "", priority: "SHOULD", category: "", oneDriveLink: "", dueDate: "" });
+      setShowModal(false);
+    } catch (error) {
+      console.error("[DEBUG] 생성 오류:", error);
+      toast.error("업무협조 등록에 실패했습니다.");
+    }
   };
 
   /**
@@ -448,61 +480,68 @@ export default function RequirementsPage() {
             </div>
           </div>
 
-          {/* 탭 */}
-          <div className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg w-fit">
-            <button
-              onClick={() => {
-                setActiveTab("active");
-                setFilterStatus("all");
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "active"
-                  ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
-                  : "text-text-secondary hover:text-text dark:hover:text-white"
-              }`}
-            >
-              <Icon name="pending_actions" size="xs" />
-              <span>진행중</span>
-              <span className={`px-1.5 py-0.5 rounded text-xs ${
-                activeTab === "active" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
-              }`}>
-                {activeRequirements.length}
-              </span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab("implemented");
-                setFilterStatus("all");
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "implemented"
-                  ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
-                  : "text-text-secondary hover:text-text dark:hover:text-white"
-              }`}
-            >
-              <Icon name="task_alt" size="xs" />
-              <span>구현완료</span>
-              <span className={`px-1.5 py-0.5 rounded text-xs ${
-                activeTab === "implemented" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
-              }`}>
-                {implementedRequirements.length}
-              </span>
-            </button>
-          </div>
-
-          {/* 필터 */}
-          <div className="flex flex-wrap gap-4">
+          {/* 필터 - 검색창 + 탭 */}
+          <div className="flex flex-wrap items-center gap-4">
             <div className="w-64">
               <Input
                 leftIcon="search"
                 placeholder="업무협조 검색..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1); // 검색어 변경 시 첫 페이지로 이동
+                }}
               />
+            </div>
+            {/* 탭 (검색창 뒤 배치) */}
+            <div className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg">
+              <button
+                onClick={() => {
+                  setActiveTab("active");
+                  setFilterStatus("all");
+                  setCurrentPage(1); // 탭 변경 시 첫 페이지로 이동
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === "active"
+                    ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                    : "text-text-secondary hover:text-text dark:hover:text-white"
+                }`}
+              >
+                <Icon name="pending_actions" size="xs" />
+                <span>진행중</span>
+                <span className={`px-1.5 py-0.5 rounded text-xs ${
+                  activeTab === "active" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
+                }`}>
+                  {activeRequirements.length}
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("implemented");
+                  setFilterStatus("all");
+                  setCurrentPage(1); // 탭 변경 시 첫 페이지로 이동
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === "implemented"
+                    ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                    : "text-text-secondary hover:text-text dark:hover:text-white"
+                }`}
+              >
+                <Icon name="task_alt" size="xs" />
+                <span>구현완료</span>
+                <span className={`px-1.5 py-0.5 rounded text-xs ${
+                  activeTab === "implemented" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
+                }`}>
+                  {implementedRequirements.length}
+                </span>
+              </button>
             </div>
             <select
               value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
+              onChange={(e) => {
+                setFilterPriority(e.target.value);
+                setCurrentPage(1); // 필터 변경 시 첫 페이지로 이동
+              }}
               className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
             >
               <option value="all">전체 우선순위</option>
@@ -515,7 +554,10 @@ export default function RequirementsPage() {
             {activeTab === "active" && (
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentPage(1); // 필터 변경 시 첫 페이지로 이동
+                }}
                 className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
               >
                 <option value="all">전체 상태</option>
@@ -527,7 +569,10 @@ export default function RequirementsPage() {
             {/* 요청자 필터 */}
             <select
               value={filterRequester}
-              onChange={(e) => setFilterRequester(e.target.value)}
+              onChange={(e) => {
+                setFilterRequester(e.target.value);
+                setCurrentPage(1); // 필터 변경 시 첫 페이지로 이동
+              }}
               className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
             >
               <option value="all">전체 요청자</option>
@@ -540,7 +585,10 @@ export default function RequirementsPage() {
             {/* 담당자 필터 */}
             <select
               value={filterAssignee}
-              onChange={(e) => setFilterAssignee(e.target.value)}
+              onChange={(e) => {
+                setFilterAssignee(e.target.value);
+                setCurrentPage(1); // 필터 변경 시 첫 페이지로 이동
+              }}
               className="px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text"
             >
               <option value="all">전체 담당자</option>
@@ -554,13 +602,116 @@ export default function RequirementsPage() {
 
           {/* 요구사항 목록 (컴포넌트로 분리) */}
           <RequirementTable
-            requirements={filteredRequirements}
+            requirements={paginatedRequirements}
             totalCount={requirements.length}
             onEdit={setEditingRequirement}
             onDelete={handleDeleteRequirement}
             onStatusChange={handleStatusChange}
             onPreviewDocument={setPreviewUrl}
           />
+
+          {/* 페이지네이션 */}
+          {filteredRequirements.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl">
+              {/* 페이지 정보 및 페이지당 항목 수 선택 */}
+              <div className="flex items-center gap-4 text-sm text-text-secondary">
+                <span>
+                  총 {filteredRequirements.length}개 중 {startIndex + 1}-{Math.min(endIndex, filteredRequirements.length)}개 표시
+                </span>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="itemsPerPage" className="text-xs">페이지당:</label>
+                  <select
+                    id="itemsPerPage"
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1); // 페이지당 항목 수 변경 시 첫 페이지로 이동
+                    }}
+                    className="px-2 py-1 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
+                  >
+                    <option value={5}>5개</option>
+                    <option value={10}>10개</option>
+                    <option value={20}>20개</option>
+                    <option value={50}>50개</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 페이지 버튼들 */}
+              <div className="flex items-center gap-1">
+                {/* 첫 페이지 버튼 */}
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="첫 페이지"
+                >
+                  <Icon name="first_page" size="sm" />
+                </button>
+
+                {/* 이전 페이지 버튼 */}
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="이전 페이지"
+                >
+                  <Icon name="chevron_left" size="sm" />
+                </button>
+
+                {/* 페이지 번호들 */}
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const pages = [];
+                    const maxVisiblePages = 5;
+                    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+                    if (endPage - startPage + 1 < maxVisiblePages) {
+                      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                    }
+
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPage(i)}
+                          className={`size-8 rounded-lg flex items-center justify-center text-sm font-medium transition-colors ${
+                            currentPage === i
+                              ? "bg-primary text-white"
+                              : "hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-primary"
+                          }`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                    return pages;
+                  })()}
+                </div>
+
+                {/* 다음 페이지 버튼 */}
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="다음 페이지"
+                >
+                  <Icon name="chevron_right" size="sm" />
+                </button>
+
+                {/* 마지막 페이지 버튼 */}
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="마지막 페이지"
+                >
+                  <Icon name="last_page" size="sm" />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -929,6 +1080,50 @@ export default function RequirementsPage() {
                 allow="fullscreen"
                 sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 삭제 확인 모달 */}
+      {deleteModal?.isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl">
+            {/* 모달 헤더 */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="size-10 rounded-full bg-error/10 flex items-center justify-center">
+                <Icon name="warning" size="md" className="text-error" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-text dark:text-white">삭제 확인</h3>
+                <p className="text-xs text-text-secondary">이 작업은 되돌릴 수 없습니다</p>
+              </div>
+            </div>
+
+            {/* 삭제 대상 정보 */}
+            <div className="mb-6 p-3 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark">
+              <p className="text-sm text-text-secondary mb-1">삭제할 업무협조:</p>
+              <p className="text-sm font-medium text-text dark:text-white truncate">
+                &quot;{deleteModal.title}&quot;
+              </p>
+            </div>
+
+            {/* 버튼들 */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setDeleteModal(null)}
+              >
+                취소
+              </Button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteRequirement.isPending}
+                className="flex-1 px-4 py-2 rounded-lg bg-error text-white font-medium hover:bg-error/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleteRequirement.isPending ? "삭제 중..." : "삭제"}
+              </button>
             </div>
           </div>
         </div>

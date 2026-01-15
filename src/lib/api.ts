@@ -164,6 +164,15 @@ export interface Task {
     status: string;
     priority: string;
   } | null;
+  /** 연결된 WBS 항목 ID */
+  wbsItemId?: string | null;
+  /** 연결된 WBS 항목 정보 */
+  wbsItem?: {
+    id: string;
+    code?: string;
+    name: string;
+    level: string;
+  } | null;
   /** 재촉 목록 */
   nudges?: {
     id: string;
@@ -636,6 +645,49 @@ export interface MemberSummaryData {
 /** 고객요구사항 적용여부 상태 타입 */
 export type ApplyStatus = "REVIEWING" | "APPLIED" | "REJECTED" | "HOLD";
 
+/** 현업이슈 상태 타입 */
+export type FieldIssueStatus = "OPEN" | "PENDING" | "COMPLETED";
+
+/** 현업이슈 타입 */
+export interface FieldIssue {
+  id: string;
+  sequence: number;           // 순번
+  code: string;              // 이슈번호 (IS0001)
+  businessUnit: string;      // 사업부
+  category?: string | null;  // 업무구분
+  title: string;             // 이슈관리명
+  description?: string | null; // 이슈 설명
+  registeredDate?: string | null; // 등록일
+  issuer?: string | null;    // 이슈어 (보고자)
+  requirementCode?: string | null; // 요구사항 번호
+  assignee?: string | null;  // 담당자
+  status: FieldIssueStatus;  // 상태
+  targetDate?: string | null; // 타겟일
+  completedDate?: string | null; // 완료일
+  proposedSolution?: string | null; // 제안된 해결 방안
+  finalSolution?: string | null; // 최종 적용된 방안
+  remarks?: string | null;   // 참고/비고
+  createdAt: string;
+  updatedAt: string;
+  projectId: string;
+  project?: {
+    id: string;
+    name: string;
+  };
+}
+
+/** 현업이슈 임포트 결과 타입 */
+export interface FieldIssueImportResult {
+  success: boolean;
+  message: string;
+  stats: {
+    total: number;
+    created: number;
+    skipped: number;
+    errors: string[];
+  };
+}
+
 /** 고객요구사항 타입 */
 export interface CustomerRequirement {
   id: string;
@@ -921,11 +973,11 @@ export const api = {
     list: (params?: { projectId?: string; status?: string; assigneeId?: string }) =>
       get<Task[]>("/api/tasks", params),
     get: (id: string) => get<Task>(`/api/tasks/${id}`),
-    /** 태스크 생성 (다중 담당자, 요구사항 연결, 시작일/마감일 지원) */
-    create: (data: { title: string; description?: string; projectId: string; assigneeId?: string; assigneeIds?: string[]; priority?: string; startDate?: string; dueDate?: string; requirementId?: string }) =>
+    /** 태스크 생성 (다중 담당자, 요구사항 연결, WBS 항목 연결, 시작일/마감일 지원) */
+    create: (data: { title: string; description?: string; projectId: string; assigneeId?: string; assigneeIds?: string[]; priority?: string; startDate?: string; dueDate?: string; requirementId?: string; wbsItemId?: string }) =>
       post<Task>("/api/tasks", data),
-    /** 태스크 수정 (담당자, 요구사항, 시작일/마감일 변경 지원) */
-    update: (id: string, data: Partial<Task> & { assigneeIds?: string[]; requirementId?: string | null }) =>
+    /** 태스크 수정 (담당자, 요구사항, WBS 항목, 시작일/마감일 변경 지원) */
+    update: (id: string, data: Partial<Task> & { assigneeIds?: string[]; requirementId?: string | null; wbsItemId?: string | null }) =>
       patch<Task>(`/api/tasks/${id}`, data),
     delete: (id: string) => del<{ message: string }>(`/api/tasks/${id}`),
   },
@@ -1399,5 +1451,45 @@ export const api = {
     /** 연결 삭제 */
     delete: (id: string) =>
       del<{ message: string }>(`/api/equipment/connections/${id}`),
+  },
+
+  /** 현업이슈 API */
+  fieldIssues: {
+    /** 목록 조회 (필터링 지원) */
+    list: (params?: { projectId?: string; businessUnit?: string; status?: string; search?: string }) =>
+      get<FieldIssue[]>("/api/field-issues", params),
+    /** 단건 조회 */
+    get: (id: string) => get<FieldIssue>(`/api/field-issues/${id}`),
+    /** 생성 (이슈번호 자동 부여) */
+    create: (data: {
+      projectId: string;
+      businessUnit: string;
+      category?: string;
+      title: string;
+      description?: string;
+      registeredDate?: string;
+      issuer?: string;
+      requirementCode?: string;
+      assignee?: string;
+      status?: FieldIssueStatus;
+      targetDate?: string;
+      completedDate?: string;
+      proposedSolution?: string;
+      finalSolution?: string;
+      remarks?: string;
+    }) => post<FieldIssue>("/api/field-issues", data),
+    /** 수정 */
+    update: (id: string, data: Partial<FieldIssue>) =>
+      patch<FieldIssue>(`/api/field-issues/${id}`, data),
+    /** 삭제 */
+    delete: (id: string) => del<{ message: string }>(`/api/field-issues/${id}`),
+    /** 엑셀 임포트 (FormData 전송) */
+    import: async (formData: FormData): Promise<FieldIssueImportResult> => {
+      const response = await fetch("/api/field-issues/import", {
+        method: "POST",
+        body: formData,
+      });
+      return handleResponse<FieldIssueImportResult>(response);
+    },
   },
 };

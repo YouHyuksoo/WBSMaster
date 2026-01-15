@@ -51,6 +51,8 @@ export interface CreateTaskInput {
   dueDate?: string | Date;
   /** 연결할 요구사항 ID */
   requirementId?: string;
+  /** 연결할 WBS 항목 ID */
+  wbsItemId?: string;
   /** AI 생성 여부 */
   isAiGenerated?: boolean;
 }
@@ -84,6 +86,7 @@ export async function createTask(input: CreateTaskInput): Promise<CreateTaskResu
     startDate,
     dueDate,
     requirementId,
+    wbsItemId,
     isAiGenerated = false,
   } = input;
 
@@ -122,6 +125,7 @@ export async function createTask(input: CreateTaskInput): Promise<CreateTaskResu
         status: "PENDING",
         order: taskCount,
         requirementId: requirementId || null,
+        wbsItemId: wbsItemId || null,
         isAiGenerated,
         assignees: {
           create: assigneesData,
@@ -160,6 +164,14 @@ export async function createTask(input: CreateTaskInput): Promise<CreateTaskResu
             title: true,
             status: true,
             priority: true,
+          },
+        },
+        wbsItem: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            level: true,
           },
         },
       },

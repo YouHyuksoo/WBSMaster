@@ -131,6 +131,7 @@ model Project {
   customerRequirements CustomerRequirement[] // 고객요구사항
   documents Document[] // 문서함
   equipments Equipment[] // 설비 목록
+  fieldIssues FieldIssue[] // 현업이슈 목록
 
   @@map("projects")
 }
@@ -170,6 +171,8 @@ model Task {
   creator       User    @relation("TaskCreator", fields: [creatorId], references: [id])
   requirementId String?        // 연결된 요구사항 (선택)
   requirement   Requirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  wbsItemId     String?        // 연결된 WBS 항목 (선택)
+  wbsItem       WbsItem?     @relation(fields: [wbsItemId], references: [id], onDelete: SetNull)
   nudges        TaskNudge[]    // 재촉 목록
   completedAt   DateTime?      // 완료 일시 (주간보고 연동용)
   weeklyItems   WeeklyReportItem[] @relation("TaskWeeklyItems") // 주간보고 항목 연결
@@ -378,6 +381,7 @@ model WbsItem {
   // 담당자 (다대다)
   assignees   WbsAssignee[]
   weeklyItems WeeklyReportItem[] @relation("WbsWeeklyItems") // 주간보고 항목 연결
+  tasks       Task[]             // 연결된 태스크들
 
   @@unique([projectId, code]) // 프로젝트 내 WBS 코드 유일성
   @@map("wbs_items")
@@ -540,6 +544,7 @@ model SlackSettings {
   notifyIssueCreated        Boolean @default(true)  // 이슈 등록 시
   notifyIssueResolved       Boolean @default(false) // 이슈 해결 시
   notifyRequirementCreated  Boolean @default(false) // 고객요구사항 등록 시
+  notifyCooperationRequestCreated Boolean @default(false) // 업무협조요청 등록 시
   notifyProjectProgress     Boolean @default(false) // 프로젝트 진행률 변경 시
 
   // 추가 옵션
@@ -1347,4 +1352,50 @@ enum NotificationType {
   TASK_ASSIGNED      // Task 할당됨
   MILESTONE_DUE_SOON // 마일스톤 기한 임박 (D-3, D-1)
   ISSUE_URGENT       // 긴급 이슈 발생
+}
+
+// ============================================
+// 현업이슈 모델
+// 현장에서 발생하는 이슈 관리 (고객요구사항 연계)
+// ============================================
+model FieldIssue {
+  id              String   @id @default(uuid())
+  sequence        Int      // 순번 (자동 부여)
+  code            String   // 이슈번호 (IS0001 형식)
+  businessUnit    String   // 사업부 (V_IVI, V_DISP, V_PCBA 등)
+  category        String?  // 업무구분 (자재, 생산, 품질 등)
+  title           String   // 이슈관리명 (제목)
+  description     String?  // 이슈 설명 (상세 내용)
+  registeredDate  DateTime? // 등록일
+  issuer          String?  // 이슈어 (보고자 이름)
+  requirementCode String?  // 요구사항 번호 (연결용, 텍스트 입력)
+  assignee        String?  // 담당자 이름
+  status          FieldIssueStatus @default(OPEN) // 상태
+  targetDate      DateTime? // 타겟일 (목표일)
+  completedDate   DateTime? // 완료일
+  proposedSolution String? // 제안된 해결 방안
+  finalSolution   String?  // 최종 적용된 방안
+  remarks         String?  // 참고/비고
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // 프로젝트 관계
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, code])
+  @@index([projectId])
+  @@index([businessUnit])
+  @@index([status])
+  @@map("field_issues")
+}
+
+// ============================================
+// 현업이슈 상태 Enum
+// ============================================
+enum FieldIssueStatus {
+  OPEN       // 오픈 (진행중)
+  PENDING    // 대기 (Pending)
+  COMPLETED  // 완료
 }

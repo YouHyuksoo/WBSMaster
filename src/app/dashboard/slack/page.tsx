@@ -28,6 +28,7 @@ interface SlackSettings {
   notifyIssueCreated: boolean;
   notifyIssueResolved: boolean;
   notifyRequirementCreated: boolean;  // 고객요구사항 등록 시
+  notifyCooperationRequestCreated: boolean;  // 업무협조요청 등록 시
   notifyProjectProgress: boolean;
   mentionOnUrgent: boolean;
   dailyReportTime: string | null;
@@ -49,6 +50,7 @@ export default function SlackSettingsPage() {
     notifyIssueCreated: true,
     notifyIssueResolved: false,
     notifyRequirementCreated: false,  // 고객요구사항 등록 시
+    notifyCooperationRequestCreated: false,  // 업무협조요청 등록 시
     notifyProjectProgress: false,
     mentionOnUrgent: false,
     dailyReportTime: null,
@@ -365,6 +367,23 @@ export default function SlackSettingsPage() {
                   type="checkbox"
                   checked={settings.notifyRequirementCreated ?? false}
                   onChange={() => handleToggle("notifyRequirementCreated")}
+                  className="w-5 h-5 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                />
+              </label>
+
+              {/* 업무협조요청 등록 */}
+              <label className="flex items-center justify-between p-3 rounded-lg hover:bg-background-white dark:hover:bg-background-dark cursor-pointer transition-colors">
+                <div className="flex items-center gap-3">
+                  <Icon name="description" size="sm" className="text-purple-500" />
+                  <div>
+                    <p className="text-sm font-medium text-text dark:text-white">업무협조요청 등록</p>
+                    <p className="text-xs text-text-secondary">새로운 업무협조요청이 등록될 때</p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.notifyCooperationRequestCreated ?? false}
+                  onChange={() => handleToggle("notifyCooperationRequestCreated")}
                   className="w-5 h-5 rounded border-border text-primary focus:ring-primary cursor-pointer"
                 />
               </label>

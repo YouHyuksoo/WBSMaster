@@ -101,6 +101,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             priority: true,
           },
         },
+        // 연결된 WBS 항목 조회
+        wbsItem: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            level: true,
+          },
+        },
       },
     });
 
@@ -150,7 +159,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, description, status, priority, assigneeId, assigneeIds, startDate, dueDate, order, requirementId } = body;
+    const { title, description, status, priority, assigneeId, assigneeIds, startDate, dueDate, order, requirementId, wbsItemId } = body;
 
     // 태스크 존재 확인
     const existing = await prisma.task.findUnique({ where: { id } });
@@ -191,6 +200,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),          // 마감일
         ...(order !== undefined && { order }),
         ...(requirementId !== undefined && { requirementId: requirementId || null }),
+        ...(wbsItemId !== undefined && { wbsItemId: wbsItemId || null }),
       },
       include: {
         // 주 담당자 조회
@@ -227,6 +237,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             title: true,
             status: true,
             priority: true,
+          },
+        },
+        wbsItem: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            level: true,
           },
         },
       },

@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { RequirementStatus, Prisma } from "@prisma/client";
+import { sendRequirementCreatedNotification } from "@/lib/slack";
 
 /**
  * 요구사항 목록 조회
@@ -183,6 +184,20 @@ export async function POST(request: NextRequest) {
           },
         },
       },
+    });
+
+    // Slack 알림 전송 (비동기, 실패해도 응답에 영향 없음)
+    sendRequirementCreatedNotification({
+      requirementTitle: title,
+      requirementCode: code,
+      projectName: project.name,
+      requesterName: requirement.requester?.name || undefined,
+      assigneeName: requirement.assignee?.name || undefined,
+      priority: priority || "SHOULD",
+      category: category || undefined,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+    }).catch((err) => {
+      console.error("[Slack] 요구사항 등록 알림 전송 실패:", err);
     });
 
     return NextResponse.json(requirement, { status: 201 });

@@ -35,6 +35,8 @@ interface SlackSettings {
   notifyTaskDelayed: boolean;
   notifyIssueCreated: boolean;
   notifyIssueResolved: boolean;
+  notifyRequirementCreated: boolean;
+  notifyCooperationRequestCreated: boolean;
   notifyProjectProgress: boolean;
   mentionOnUrgent: boolean;
   dailyReportTime: string | null;
@@ -94,6 +96,26 @@ interface TaskCreatedData {
   priority?: string;
   /** AI 생성 여부 */
   isAiGenerated?: boolean;
+}
+
+/** 요구사항(업무협조요청) 등록 알림 데이터 */
+interface RequirementCreatedData {
+  /** 요구사항 제목 */
+  requirementTitle: string;
+  /** 요구사항 코드 */
+  requirementCode?: string;
+  /** 프로젝트 이름 */
+  projectName?: string;
+  /** 요청자 이름 */
+  requesterName?: string;
+  /** 담당자 이름 */
+  assigneeName?: string;
+  /** 우선순위 */
+  priority?: string;
+  /** 카테고리 */
+  category?: string;
+  /** 마감일 */
+  dueDate?: Date;
 }
 
 /**
@@ -454,6 +476,93 @@ export async function sendTaskCreatedNotification(
 
   // 폴백 텍스트
   const fallbackText = `[새 Task${aiTag}] ${taskTitle} - ${assigneeName || "담당자 미지정"} (${projectName || ""})`;
+
+  return sendSlackBlockMessage(blocks, fallbackText, settings.webhookUrl);
+}
+
+/**
+ * 업무협조요청 등록 알림 전송
+ * DB 설정의 notifyCooperationRequestCreated가 true일 때만 전송
+ * @param data - 업무협조요청 정보
+ * @returns 성공 여부
+ */
+export async function sendRequirementCreatedNotification(
+  data: RequirementCreatedData
+): Promise<boolean> {
+  const settings = await getSlackSettings();
+
+  // 설정 확인
+  if (!settings || !settings.isEnabled || !settings.notifyCooperationRequestCreated) {
+    console.log("[Slack] 업무협조요청 등록 알림이 비활성화되어 있습니다.");
+    return false;
+  }
+
+  const { requirementTitle, requirementCode, projectName, requesterName, assigneeName, priority, category, dueDate } = data;
+
+  // 우선순위 색상
+  const priorityEmoji = priority === "CRITICAL" ? "🔴" :
+                        priority === "HIGH" ? "🟠" :
+                        priority === "MEDIUM" ? "🟡" : "🟢";
+
+  // 마감일 포맷
+  const dueDateStr = dueDate
+    ? dueDate.toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+    : "-";
+
+  // 긴급 시 멘션 추가
+  const mention = settings.mentionOnUrgent && (priority === "CRITICAL" || priority === "HIGH")
+    ? "<!channel> "
+    : "";
+
+  // Block Kit 형식의 리치 메시지 (좌우 배치)
+  const blocks = [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `📝 *새 업무협조요청*  |  ${requirementCode ? `[${requirementCode}] ` : ""}${requirementTitle}`,
+      },
+    },
+    {
+      type: "section",
+      fields: [
+        {
+          type: "mrkdwn",
+          text: `📁 *프로젝트:* ${projectName || "-"}`,
+        },
+        {
+          type: "mrkdwn",
+          text: `${priorityEmoji} *우선순위:* ${priority || "MEDIUM"}`,
+        },
+        {
+          type: "mrkdwn",
+          text: `🙋 *요청자:* ${requesterName || "-"}`,
+        },
+        {
+          type: "mrkdwn",
+          text: `👤 *담당자:* ${assigneeName || "-"}`,
+        },
+        ...(category ? [{
+          type: "mrkdwn",
+          text: `🏷️ *카테고리:* ${category}`,
+        }] : []),
+        ...(dueDate ? [{
+          type: "mrkdwn",
+          text: `📅 *마감일:* ${dueDateStr}`,
+        }] : []),
+      ],
+    },
+    {
+      type: "divider",
+    },
+  ];
+
+  // 폴백 텍스트
+  const fallbackText = `${mention}[새 업무협조요청] ${requirementCode ? `[${requirementCode}] ` : ""}${requirementTitle} - ${assigneeName || "담당자 미지정"} (${projectName || ""})`;
 
   return sendSlackBlockMessage(blocks, fallbackText, settings.webhookUrl);
 }
