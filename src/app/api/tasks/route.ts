@@ -161,8 +161,8 @@ export async function GET(request: NextRequest) {
       // 마감일 초과된 태스크는 DELAYED 상태로 반환
       status: delayedTaskIds.includes(task.id) ? "DELAYED" : task.status,
       // 주 담당자는 그대로 유지 (assignee)
-      // 부 담당자 배열 평탄화 (assignees)
-      assignees: task.assignees.map((a) => a.user),
+      // 부 담당자 배열 평탄화 (assignees) - null 유저 필터링
+      assignees: task.assignees.map((a) => a.user).filter((u) => u !== null),
     }));
 
     return NextResponse.json(transformedTasks);

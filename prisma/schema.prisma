@@ -53,6 +53,7 @@ model User {
   taskNudges    TaskNudge[] @relation("TaskNudger") // 내가 보낸 재촉
   weeklyReports WeeklyReport[] @relation("UserWeeklyReports") // 주간보고
   weeklySummaries WeeklySummary[] @relation("SummaryCreator") // 내가 생성한 취합보고
+  workloadAnalyses WorkloadAnalysis[] @relation("WorkloadAnalysisCreator") // 내가 생성한 부하분석
   documents     Document[] @relation("DocumentCreator") // 내가 등록한 문서
   notifications Notification[] @relation("UserNotifications") // 내 알림
 
@@ -127,11 +128,13 @@ model Project {
   pinpoints    Pinpoint[]    // 핀포인트 목록
   weeklyReports WeeklyReport[] @relation("ProjectWeeklyReports") // 주간보고
   weeklySummaries WeeklySummary[] // 주간보고 취합
+  workloadAnalyses WorkloadAnalysis[] // 부하분석 결과
   processVerificationCategories ProcessVerificationCategory[] // 기능추적표 카테고리
   customerRequirements CustomerRequirement[] // 고객요구사항
   documents Document[] // 문서함
   equipments Equipment[] // 설비 목록
   fieldIssues FieldIssue[] // 현업이슈 목록
+  taskConnections TaskConnection[] // 태스크 연결 (플로우 차트용)
 
   @@map("projects")
 }
@@ -158,6 +161,8 @@ model Task {
   dueDate     DateTime?    // 마감일
   order       Int          @default(0) // 칸반 보드 내 순서
   isAiGenerated Boolean    @default(false) // AI가 생성한 태스크 여부
+  flowX       Float        @default(0) // 플로우 캔버스 X 좌표
+  flowY       Float        @default(0) // 플로우 캔버스 Y 좌표
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -176,8 +181,38 @@ model Task {
   nudges        TaskNudge[]    // 재촉 목록
   completedAt   DateTime?      // 완료 일시 (주간보고 연동용)
   weeklyItems   WeeklyReportItem[] @relation("TaskWeeklyItems") // 주간보고 항목 연결
+  fromConnections TaskConnection[] @relation("TaskConnectionFrom") // 이 태스크에서 나가는 연결
+  toConnections   TaskConnection[] @relation("TaskConnectionTo")   // 이 태스크로 들어오는 연결
 
   @@map("tasks")
+}
+
+// ============================================
+// 태스크 연결 모델 (플로우 차트용)
+// 태스크 간의 순서/의존 관계 표시
+// ============================================
+model TaskConnection {
+  id           String   @id @default(uuid())
+  label        String?  // 연결선 라벨 (선택)
+  type         String   @default("FLOW") // 연결 타입 (FLOW, DEPENDENCY 등)
+  color        String?  // 연결선 색상
+  animated     Boolean  @default(false) // 애니메이션 여부
+  sourceHandle String?  // 출발 핸들 (top, right, bottom, left)
+  targetHandle String?  // 도착 핸들
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // 관계
+  fromTaskId   String
+  fromTask     Task     @relation("TaskConnectionFrom", fields: [fromTaskId], references: [id], onDelete: Cascade)
+  toTaskId     String
+  toTask       Task     @relation("TaskConnectionTo", fields: [toTaskId], references: [id], onDelete: Cascade)
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([fromTaskId, toTaskId]) // 같은 연결은 한 번만
+  @@index([projectId])
+  @@map("task_connections")
 }
 
 // ============================================
@@ -981,6 +1016,41 @@ model WeeklySummary {
   @@index([year, weekNumber])
   @@index([createdById])
   @@map("weekly_summaries")
+}
+
+// ============================================
+// 부하분석 결과 모델
+// AI 부하분석 결과를 저장하여 재열람 가능
+// ============================================
+model WorkloadAnalysis {
+  id            String   @id @default(uuid())
+
+  // 분석 기간
+  dateStart     DateTime             // 분석 시작일
+  dateEnd       DateTime             // 분석 종료일
+
+  // 분석 결과
+  analysis      String               // AI 분석 결과 (마크다운)
+  memberCount   Int                  // 분석 대상 멤버 수
+
+  // 분석 시점의 스냅샷 데이터 (JSON)
+  // [{ memberId, memberName, pendingTasks, inProgressTasks, totalTasks }]
+  memberSnapshot Json?
+
+  // 메타데이터
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 관계
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById   String
+  createdBy     User     @relation("WorkloadAnalysisCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([createdById])
+  @@index([createdAt])
+  @@map("workload_analyses")
 }
 
 // ============================================

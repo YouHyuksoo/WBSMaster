@@ -6,3 +6,7 @@
 
 export { KanbanBoard } from "./KanbanBoard";
 export { WorkloadAnalysis } from "./WorkloadAnalysis";
+export { TaskNode } from "./TaskNode";
+export { TaskFlowCanvas } from "./TaskFlowCanvas";
+export { TaskListPanel } from "./TaskListPanel";
+export { TaskFlowSidebar } from "./TaskFlowSidebar";

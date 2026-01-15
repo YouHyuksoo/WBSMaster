@@ -1,28 +1,21 @@
 /**
- * @file src/app/dashboard/equipment/components/EquipmentCanvas.tsx
+ * @file src/app/dashboard/kanban/components/TaskFlowCanvas.tsx
  * @description
- * React Flow 캔버스 컴포넌트
- * 설비 노드와 연결선을 표시하고 드래그/연결 기능을 제공합니다.
+ * React Flow 캔버스 컴포넌트 (태스크용)
+ * 태스크 노드와 연결선을 표시하고 드래그/연결 기능을 제공합니다.
  *
  * 초보자 가이드:
  * 1. **ReactFlow**: 노드 기반 다이어그램 라이브러리
- * 2. **nodes**: 설비 목록을 노드로 변환 (positionX/Y가 0이 아닌 것만 표시)
+ * 2. **nodes**: 태스크 목록을 노드로 변환 (flowX/flowY가 0이 아닌 것만 표시)
  * 3. **edges**: 연결 정보를 엣지로 변환 (id, source, target)
  * 4. **저장/원복 모드**: 드래그/정렬 시 로컬 상태만 변경, 저장 버튼으로 일괄 DB 저장
  * 5. **onConnect**: 핸들 드래그로 연결 생성 시 DB 저장
  * 6. **onNodesDelete**: 노드 삭제 시 위치를 (0, 0)으로 초기화 (캔버스에서만 제거)
- * 7. **distributeHorizontal/Vertical**: 균등 분배 시 최소 간격 보장 (겹침 방지)
- *
- * 수정 방법:
- * - 캔버스 스타일: ReactFlow className 수정
- * - 연결선 색상: CONNECTION_TYPE_CONFIG 수정
- * - 캔버스 제거 기준: positionX === 0 && positionY === 0 필터 조건
- * - 균등 분배 간격: MIN_GAP 상수 수정 (가로 360px, 세로 200px)
  */
 
 "use client";
 
-import { useEffect, useCallback, useRef, useState } from "react";
+import { useEffect, useCallback, useRef, useState, useMemo } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -41,52 +34,56 @@ import ReactFlow, {
   NodeChange,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Equipment, EquipmentConnection } from "@/lib/api";
-import { EquipmentNode } from "./EquipmentNode";
-import { useUpdateEquipment, useBulkUpdateEquipment } from "../hooks/useEquipment";
-import { useCreateConnection, useDeleteConnection } from "../hooks/useEquipmentConnections";
-import { CONNECTION_TYPE_CONFIG } from "../types";
+import { Task, TaskConnection } from "@/lib/api";
+import { nodeTypes } from "./nodeTypes";
+import { useUpdateTask } from "@/hooks/useTasks";
+import { useCreateTaskConnection, useDeleteTaskConnection } from "../hooks/useTaskConnections";
+
+/** 연결 타입별 색상 설정 */
+const CONNECTION_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
+  FLOW: { label: "플로우", color: "#3B82F6" },
+  DEPENDENCY: { label: "의존성", color: "#F59E0B" },
+  RELATED: { label: "관련", color: "#6B7280" },
+};
 
 /** 원본 위치 타입 */
 interface OriginalPosition {
   id: string;
-  positionX: number;
-  positionY: number;
+  flowX: number;
+  flowY: number;
 }
 
-/** 노드 타입 정의 */
-const nodeTypes = {
-  equipment: EquipmentNode,
-} as const;
-
 /** Props 타입 */
-interface EquipmentCanvasProps {
-  equipments: Equipment[];
-  connections: EquipmentConnection[];
+interface TaskFlowCanvasProps {
+  tasks: Task[];
+  connections: TaskConnection[];
+  projectId: string;
   selectedId: string | null;
   onSelectNode: (id: string) => void;
-  /** 포커스할 설비 ID (찾기 기능용) */
-  focusEquipmentId?: string | null;
+  /** 사이드바 열기 콜백 (속성보기 버튼 클릭 시) */
+  onOpenSidebar?: (id: string) => void;
+  /** 포커스할 태스크 ID (찾기 기능용) */
+  focusTaskId?: string | null;
   /** 포커스 완료 후 호출되는 콜백 */
   onFocusComplete?: () => void;
+  /** 변경사항 상태 변경 시 호출되는 콜백 (탭 전환 시 확인용) */
+  onHasChangesChange?: (hasChanges: boolean) => void;
 }
 
 /**
  * 내부 캔버스 컴포넌트 (useReactFlow 사용)
  */
-function EquipmentCanvasInner({
-  equipments,
+function TaskFlowCanvasInner({
+  tasks,
   connections,
+  projectId,
   selectedId,
   onSelectNode,
-  focusEquipmentId,
+  onOpenSidebar,
+  focusTaskId,
   onFocusComplete,
-}: EquipmentCanvasProps) {
-  // 노드 타입 메모이제이션 (React Flow 경고 해결) -> 외부 상수로 변경함
-  // const nodeTypes = useMemo(() => ({
-  //   equipment: EquipmentNode,
-  // }), []);
-
+  onHasChangesChange,
+}: TaskFlowCanvasProps) {
   const [nodes, setNodes, defaultOnNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -97,7 +94,6 @@ function EquipmentCanvasInner({
       defaultOnNodesChange(changes);
 
       // 드래그 종료된 위치 변경이 있으면 변경사항 플래그 설정
-      // (dragging이 false인 position 변경 = 드래그 종료)
       const hasPositionChangeEnd = changes.some(
         (change) => change.type === "position" && change.dragging === false
       );
@@ -107,8 +103,7 @@ function EquipmentCanvasInner({
     },
     [defaultOnNodesChange]
   );
-  const [dragPreviewNode, setDragPreviewNode] = useState<Node | null>(null);
-  const [draggingEquipmentId, setDraggingEquipmentId] = useState<string | null>(null);
+
   const [edgeType, setEdgeType] = useState<"smoothstep" | "straight" | "step" | "bezier">("smoothstep");
   const reactFlowInstance = useReactFlow();
 
@@ -116,69 +111,125 @@ function EquipmentCanvasInner({
   const originalPositionsRef = useRef<OriginalPosition[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const updateEquipment = useUpdateEquipment();
-  const bulkUpdateEquipment = useBulkUpdateEquipment();
-  const createConnection = useCreateConnection();
-  const deleteConnection = useDeleteConnection();
+  // 토스트 메시지 상태
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
-  // 노드 삭제 핸들러 (useRef로 안정적으로 관리)
-  const updateEquipmentRef = useRef(updateEquipment);
-  updateEquipmentRef.current = updateEquipment;
+  // 토스트 표시 함수
+  const showToast = useCallback((message: string, type: "success" | "error" | "info" = "info") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  // hasChanges 변경 시 부모에게 알림
+  useEffect(() => {
+    onHasChangesChange?.(hasChanges);
+  }, [hasChanges, onHasChangesChange]);
+
+  // 브라우저 이탈 감지 (새로고침, 창 닫기)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = "저장하지 않은 변경사항이 있습니다. 페이지를 떠나시겠습니까?";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasChanges]);
+
+  const updateTask = useUpdateTask();
+  const createConnection = useCreateTaskConnection();
+  const deleteConnection = useDeleteTaskConnection();
+
+  // 핸들러를 useRef로 안정적으로 관리 (재렌더링 방지)
+  const updateTaskRef = useRef(updateTask);
+  updateTaskRef.current = updateTask;
+
+  const onOpenSidebarRef = useRef(onOpenSidebar);
+  onOpenSidebarRef.current = onOpenSidebar;
 
   // DB 데이터 → React Flow 노드 변환 (캔버스에 배치된 것만)
+  // 🔑 로컬에서 추가한 노드가 DB refetch로 사라지지 않도록 병합 처리
   useEffect(() => {
-    const canvasEquipments = equipments.filter((eq) => eq.positionX !== 0 || eq.positionY !== 0);
+    const canvasTasks = tasks.filter((task) => task.flowX !== 0 || task.flowY !== 0);
 
     // 원본 위치 저장 (최초 로드 시 또는 데이터 변경 시)
-    originalPositionsRef.current = canvasEquipments.map((eq) => ({
-      id: eq.id,
-      positionX: eq.positionX,
-      positionY: eq.positionY,
+    originalPositionsRef.current = canvasTasks.map((task) => ({
+      id: task.id,
+      flowX: task.flowX,
+      flowY: task.flowY,
     }));
     setHasChanges(false); // 데이터 로드 시 변경사항 초기화
 
-    const flowNodes: Node[] = canvasEquipments.map((eq) => ({
-      id: eq.id,
-      type: "equipment",
-      position: { x: eq.positionX, y: eq.positionY },
-      data: {
-        equipment: eq,
-        isSelected: selectedId === eq.id,
-        onRemove: (nodeId: string) => {
-          // 🚀 즉시 화면에서 제거 (낙관적 업데이트)
-          setNodes((prevNodes) => prevNodes.filter((node) => node.id !== nodeId));
+    setNodes((prevNodes) => {
+      // 1. DB에서 가져온 태스크들로 노드 생성
+      const flowNodes: Node[] = canvasTasks.map((task) => {
+        // 기존 노드가 있으면 위치 유지 (드래그 중인 경우 대비)
+        const existingNode = prevNodes.find((n) => n.id === task.id);
+        return {
+          id: task.id,
+          type: "task",
+          position: existingNode
+            ? existingNode.position
+            : { x: task.flowX, y: task.flowY },
+          selected: existingNode?.selected || false,
+          data: {
+            task: task,
+            isSelected: selectedId === task.id,
+            onRemove: (nodeId: string) => {
+              // 🚀 즉시 화면에서 제거 (낙관적 업데이트)
+              setNodes((prevNodes) => prevNodes.filter((node) => node.id !== nodeId));
 
-          // 백그라운드에서 DB 업데이트 (위치를 (0, 0)으로 초기화)
-          updateEquipmentRef.current.mutate(
-            {
-              id: nodeId,
-              data: {
-                positionX: 0,
-                positionY: 0,
-              },
+              // 백그라운드에서 DB 업데이트 (위치를 (0, 0)으로 초기화)
+              updateTaskRef.current.mutate(
+                {
+                  id: nodeId,
+                  data: {
+                    flowX: 0,
+                    flowY: 0,
+                  },
+                },
+                {
+                  onError: (error) => {
+                    console.error("캔버스에서 제거 실패:", error);
+                    alert("캔버스에서 제거하는데 실패했습니다. 페이지를 새로고침해주세요.");
+                  },
+                }
+              );
             },
-            {
-              onError: (error) => {
-                console.error("캔버스에서 제거 실패:", error);
-                // 실패 시 사용자에게 알림 (토스트 등)
-                alert("캔버스에서 제거하는데 실패했습니다. 페이지를 새로고침해주세요.");
-              },
-            }
-          );
-        },
-      },
-    }));
-    setNodes(flowNodes);
-  }, [equipments, selectedId]);
+            onOpenSidebar: (nodeId: string) => {
+              onOpenSidebarRef.current?.(nodeId);
+            },
+          },
+        };
+      });
 
-  // 설비 찾기: focusEquipmentId가 변경되면 해당 노드로 이동
+      // 2. 로컬에서만 추가된 노드들 유지 (아직 DB에 반영 안 된 것)
+      // tasks에 flowX/flowY가 0인 상태로 존재하는데, prevNodes에는 있는 경우
+      const localOnlyNodes = prevNodes.filter((node) => {
+        // DB에서 가져온 canvasTasks에 없는 노드
+        const isInCanvas = canvasTasks.find((task) => task.id === node.id);
+        if (isInCanvas) return false;
+
+        // tasks 전체에서 찾아서, flowX/flowY가 0이면 로컬 전용 노드
+        const taskData = tasks.find((task) => task.id === node.id);
+        return taskData && taskData.flowX === 0 && taskData.flowY === 0;
+      });
+
+      return [...flowNodes, ...localOnlyNodes];
+    });
+  }, [tasks, selectedId]);
+
+  // 태스크 찾기: focusTaskId가 변경되면 해당 노드로 이동
   useEffect(() => {
-    if (!focusEquipmentId) return;
+    if (!focusTaskId) return;
 
     // 해당 노드 찾기
-    const targetNode = nodes.find((node) => node.id === focusEquipmentId);
+    const targetNode = nodes.find((node) => node.id === focusTaskId);
     if (!targetNode) {
-      console.warn(`[찾기] 캔버스에 없는 설비입니다: ${focusEquipmentId}`);
+      console.warn(`[찾기] 캔버스에 없는 태스크입니다: ${focusTaskId}`);
       onFocusComplete?.();
       return;
     }
@@ -192,20 +243,20 @@ function EquipmentCanvasInner({
       );
 
       // 노드 선택
-      onSelectNode(focusEquipmentId);
+      onSelectNode(focusTaskId);
 
       // 포커스 완료 콜백
       onFocusComplete?.();
     }, 100);
-  }, [focusEquipmentId, nodes, reactFlowInstance, onSelectNode, onFocusComplete]);
+  }, [focusTaskId, nodes, reactFlowInstance, onSelectNode, onFocusComplete]);
 
   // DB 데이터 → React Flow 엣지 변환
   useEffect(() => {
     const flowEdges: Edge[] = connections.map((conn) => ({
       id: conn.id,
-      source: conn.fromEquipmentId,
+      source: conn.fromTaskId,
       sourceHandle: conn.sourceHandle || "right",
-      target: conn.toEquipmentId,
+      target: conn.toTaskId,
       targetHandle: conn.targetHandle || "left",
       label: conn.label || undefined,
       animated: conn.animated,
@@ -213,8 +264,7 @@ function EquipmentCanvasInner({
         stroke: conn.color || CONNECTION_TYPE_CONFIG[conn.type]?.color || "#94A3B8",
         strokeWidth: 3,
       },
-      type: edgeType, // 선택된 타입 적용
-      // 선택된 엣지 스타일
+      type: edgeType,
       className: "react-flow__edge-path",
     }));
     setEdges(flowEdges);
@@ -223,7 +273,6 @@ function EquipmentCanvasInner({
   // 노드 드래그 종료 → 로컬 상태만 변경 (저장 버튼 클릭 시 DB 저장)
   const handleNodeDragStop: NodeDragHandler = useCallback(
     (event, node) => {
-      // React Flow가 이미 화면을 업데이트함 - 변경사항 플래그만 설정
       setHasChanges(true);
     },
     []
@@ -235,7 +284,6 @@ function EquipmentCanvasInner({
     if (connection.source === connection.target) {
       return false;
     }
-    // 그 외에는 모두 허용
     return true;
   }, []);
 
@@ -244,17 +292,9 @@ function EquipmentCanvasInner({
     (connection: Connection) => {
       if (!connection.source || !connection.target) return;
 
-      // 디버그: 어떤 핸들에서 연결되었는지 확인
-      console.log("연결 정보:", {
-        source: connection.source,
-        sourceHandle: connection.sourceHandle,
-        target: connection.target,
-        targetHandle: connection.targetHandle,
-      });
-
-      // ✋ 같은 설비끼리 연결 방지
+      // ✋ 같은 태스크끼리 연결 방지
       if (connection.source === connection.target) {
-        alert("같은 설비끼리는 연결할 수 없습니다.");
+        showToast("같은 태스크끼리는 연결할 수 없습니다.", "error");
         return;
       }
 
@@ -271,15 +311,16 @@ function EquipmentCanvasInner({
           stroke: CONNECTION_TYPE_CONFIG.FLOW.color,
           strokeWidth: 3,
         },
-        type: edgeType, // 선택된 타입 적용
+        type: edgeType,
       };
       setEdges((prevEdges) => [...prevEdges, newEdge]);
 
       // 백그라운드에서 DB 저장
       createConnection.mutate(
         {
-          fromEquipmentId: connection.source,
-          toEquipmentId: connection.target,
+          fromTaskId: connection.source,
+          toTaskId: connection.target,
+          projectId: projectId,
           type: "FLOW",
           color: CONNECTION_TYPE_CONFIG.FLOW.color,
           animated: false,
@@ -292,6 +333,7 @@ function EquipmentCanvasInner({
             setEdges((prevEdges) =>
               prevEdges.map((edge) => (edge.id === tempId ? { ...edge, id: data.id } : edge))
             );
+            showToast("연결선이 저장되었습니다.", "success");
           },
           onError: (error) => {
             console.error("연결선 생성 실패:", error);
@@ -300,12 +342,12 @@ function EquipmentCanvasInner({
 
             // 에러 메시지 파싱
             const errorMessage = error instanceof Error ? error.message : "연결선 생성에 실패했습니다.";
-            alert(errorMessage);
+            showToast(errorMessage, "error");
           },
         }
       );
     },
-    [createConnection, edgeType]
+    [createConnection, edgeType, projectId, showToast]
   );
 
   // 노드 클릭 이벤트
@@ -316,79 +358,43 @@ function EquipmentCanvasInner({
     [onSelectNode]
   );
 
-  // 드래그 엔터 (드래그 시작 시 설비 ID 저장)
+  // 드래그 엔터 (드래그 타입 확인)
   const onDragEnter = useCallback((event: React.DragEvent) => {
-    const equipmentId = event.dataTransfer.getData("application/equipment");
-    if (equipmentId) {
-      setDraggingEquipmentId(equipmentId);
+    // HTML5 DnD 보안: dragenter에서 getData()는 빈 문자열 반환
+    // types 배열로 드래그 타입만 확인
+    if (event.dataTransfer.types.includes("application/task")) {
+      event.preventDefault();
     }
   }, []);
 
-  // 드래그 오버 (드롭 허용 + 프리뷰 표시)
+  // 드래그 오버 (드롭 허용)
+  // HTML5 DnD 보안: dragover에서 getData()는 빈 문자열 반환
+  // 프리뷰 없이 드롭만 허용
   const onDragOver = useCallback(
     (event: React.DragEvent) => {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-
-      if (!draggingEquipmentId) {
-        // 첫 호출 시 equipmentId 가져오기
-        const equipmentId = event.dataTransfer.getData("application/equipment");
-        if (equipmentId) {
-          setDraggingEquipmentId(equipmentId);
-        }
-        return;
+      // application/task 타입이 있을 때만 드롭 허용
+      if (event.dataTransfer.types.includes("application/task")) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
       }
-
-      // 마우스 위치를 캔버스 좌표로 변환
-      const position = reactFlowInstance.screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-
-      // 드래그 중인 설비 찾기
-      const draggedEquipment = equipments.find((eq) => eq.id === draggingEquipmentId);
-      if (!draggedEquipment) return;
-
-      // 프리뷰 노드 업데이트 (부드럽게 따라다님)
-      setDragPreviewNode({
-        id: "drag-preview",
-        type: "equipment",
-        position: { x: position.x, y: position.y },
-        data: {
-          equipment: draggedEquipment,
-          isSelected: false,
-          onRemove: undefined,
-        },
-        draggable: false,
-        selectable: false,
-        style: { opacity: 0.6, pointerEvents: "none" },
-      });
     },
-    [reactFlowInstance, equipments, draggingEquipmentId]
+    []
   );
 
-  // 드래그 리브 (프리뷰 제거)
-  const onDragLeave = useCallback((event: React.DragEvent) => {
-    // 캔버스 영역을 완전히 벗어났을 때만 프리뷰 제거
-    const target = event.currentTarget as HTMLElement;
-    const relatedTarget = event.relatedTarget as HTMLElement;
-    if (!relatedTarget || !target.contains(relatedTarget)) {
-      setDragPreviewNode(null);
-      setDraggingEquipmentId(null);
-    }
+  // 드래그 리브 (간소화)
+  const onDragLeave = useCallback(() => {
+    // 프리뷰 미사용으로 별도 처리 없음
   }, []);
 
-  // 드롭 (설비 위치 업데이트)
+  // 드롭 (태스크 위치 업데이트)
+  // HTML5 DnD: drop 이벤트에서만 getData() 작동
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
 
-      const equipmentId = event.dataTransfer.getData("application/equipment") || draggingEquipmentId;
-      if (!equipmentId) return;
-
-      // 프리뷰 노드 제거 및 상태 초기화
-      setDragPreviewNode(null);
-      setDraggingEquipmentId(null);
+      // drop 이벤트에서 getData() 호출 (여기서만 작동!)
+      const taskId = event.dataTransfer.getData("application/task");
+      if (!taskId) return;
 
       // 마우스 위치를 캔버스 좌표로 변환
       const position = reactFlowInstance.screenToFlowPosition({
@@ -396,22 +402,26 @@ function EquipmentCanvasInner({
         y: event.clientY,
       });
 
+      // 이미 캔버스에 있는 노드인지 확인
+      const existingNode = nodes.find((node) => node.id === taskId);
+      if (existingNode) return;
+
       // 🚀 즉시 화면에 노드 추가 (낙관적 업데이트)
-      const droppedEquipment = equipments.find((eq) => eq.id === equipmentId);
-      if (droppedEquipment) {
+      const droppedTask = tasks.find((task) => task.id === taskId);
+      if (droppedTask) {
         const newNode: Node = {
-          id: equipmentId,
-          type: "equipment",
+          id: taskId,
+          type: "task",
           position: { x: position.x, y: position.y },
           data: {
-            equipment: { ...droppedEquipment, positionX: position.x, positionY: position.y },
-            isSelected: selectedId === equipmentId,
+            task: { ...droppedTask, flowX: position.x, flowY: position.y },
+            isSelected: false,
             onRemove: (nodeId: string) => {
               setNodes((prevNodes) => prevNodes.filter((node) => node.id !== nodeId));
-              updateEquipmentRef.current.mutate(
+              updateTaskRef.current.mutate(
                 {
                   id: nodeId,
-                  data: { positionX: 0, positionY: 0 },
+                  data: { flowX: 0, flowY: 0 },
                 },
                 {
                   onError: (error) => {
@@ -421,18 +431,22 @@ function EquipmentCanvasInner({
                 }
               );
             },
+            onOpenSidebar: (nodeId: string) => {
+              onOpenSidebarRef.current?.(nodeId);
+            },
           },
         };
         setNodes((prevNodes) => [...prevNodes, newNode]);
+
+        // 🚀 드롭 즉시 DB에 위치 저장 (refetch 후에도 노드 유지)
+        updateTaskRef.current.mutate({
+          id: taskId,
+          data: { flowX: position.x, flowY: position.y },
+        });
+        // 드롭 시 자동으로 사이드바 열지 않음 (사용자가 속성보기 버튼 클릭 시에만 열림)
       }
-
-      // 변경사항 플래그 설정 (저장 버튼 클릭 시 DB 저장)
-      setHasChanges(true);
-
-      // 드롭한 설비 선택
-      onSelectNode(equipmentId);
     },
-    [reactFlowInstance, onSelectNode, equipments, selectedId, draggingEquipmentId]
+    [reactFlowInstance, tasks, nodes]
   );
 
   // 노드 삭제 (캔버스에서만 제거, DB 삭제 X)
@@ -440,39 +454,36 @@ function EquipmentCanvasInner({
     (deletedNodes: Node[]) => {
       deletedNodes.forEach((node) => {
         // 위치를 (0, 0)으로 초기화하여 캔버스에서 제거
-        // 실제 설비 데이터는 삭제하지 않음
-        updateEquipment.mutate({
+        updateTask.mutate({
           id: node.id,
           data: {
-            positionX: 0,
-            positionY: 0,
+            flowX: 0,
+            flowY: 0,
           },
-          skipInvalidation: true, // 위치 초기화 시 refetch 건너뛰기
         });
       });
     },
-    [updateEquipment]
+    [updateTask]
   );
 
   // 연결선 삭제 (Delete 키 누르면 호출됨)
   const handleEdgesDelete = useCallback(
     (deletedEdges: Edge[]) => {
       deletedEdges.forEach((edge) => {
-        // 백그라운드에서 DB 삭제
-        // (React Flow가 이미 화면에서 제거함)
         deleteConnection.mutate(edge.id, {
+          onSuccess: () => {
+            showToast("연결선이 삭제되었습니다.", "success");
+          },
           onError: (error) => {
             console.error("연결선 삭제 실패:", error);
-            alert("연결선 삭제에 실패했습니다. 페이지를 새로고침해주세요.");
+            showToast("연결선 삭제에 실패했습니다.", "error");
           },
         });
       });
     },
-    [deleteConnection]
+    [deleteConnection, showToast]
   );
 
-  // 프리뷰 노드를 포함한 전체 노드 목록
-  const displayNodes = dragPreviewNode ? [...nodes, dragPreviewNode] : nodes;
 
   // ========== 정렬 기능 ==========
 
@@ -488,7 +499,6 @@ function EquipmentCanvasInner({
 
     const minX = Math.min(...selectedNodes.map((node) => node.position.x));
 
-    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         if (selectedNodes.find((sn) => sn.id === n.id)) {
@@ -507,7 +517,6 @@ function EquipmentCanvasInner({
 
     const maxX = Math.max(...selectedNodes.map((node) => node.position.x));
 
-    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         if (selectedNodes.find((sn) => sn.id === n.id)) {
@@ -526,7 +535,6 @@ function EquipmentCanvasInner({
 
     const minY = Math.min(...selectedNodes.map((node) => node.position.y));
 
-    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         if (selectedNodes.find((sn) => sn.id === n.id)) {
@@ -545,7 +553,6 @@ function EquipmentCanvasInner({
 
     const maxY = Math.max(...selectedNodes.map((node) => node.position.y));
 
-    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         if (selectedNodes.find((sn) => sn.id === n.id)) {
@@ -560,12 +567,11 @@ function EquipmentCanvasInner({
   // 수평 균등 분배
   const distributeHorizontal = useCallback(() => {
     const selectedNodes = getSelectedNodes();
-    if (selectedNodes.length < 2) return; // 2개 이상부터 작동
+    if (selectedNodes.length < 2) return;
 
     const sortedNodes = [...selectedNodes].sort((a, b) => a.position.x - b.position.x);
-    const MIN_GAP = 360; // 노드 너비(320px) + 여유 공간(40px)
+    const MIN_GAP = 360;
 
-    // 2개만 선택한 경우: 최소 간격으로 배치
     if (sortedNodes.length === 2) {
       const newPositions = [
         { id: sortedNodes[0].id, x: sortedNodes[0].position.x, y: sortedNodes[0].position.y },
@@ -585,25 +591,21 @@ function EquipmentCanvasInner({
       return;
     }
 
-    // 3개 이상: 균등 분배
     const minX = sortedNodes[0].position.x;
     const maxX = sortedNodes[sortedNodes.length - 1].position.x;
     const currentRange = maxX - minX;
     const minRange = MIN_GAP * (sortedNodes.length - 1);
 
-    // 간격이 너무 작으면 최소 간격으로 재계산
     const gap = currentRange < minRange
       ? MIN_GAP
       : currentRange / (sortedNodes.length - 1);
 
-    // 새 위치 계산
     const newPositions = sortedNodes.map((node, index) => ({
       id: node.id,
       x: minX + gap * index,
       y: node.position.y,
     }));
 
-    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         const newPos = newPositions.find((np) => np.id === n.id);
@@ -619,12 +621,11 @@ function EquipmentCanvasInner({
   // 수직 균등 분배
   const distributeVertical = useCallback(() => {
     const selectedNodes = getSelectedNodes();
-    if (selectedNodes.length < 2) return; // 2개 이상부터 작동
+    if (selectedNodes.length < 2) return;
 
     const sortedNodes = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
-    const MIN_GAP = 200; // 노드 높이 + 여유 공간
+    const MIN_GAP = 200;
 
-    // 2개만 선택한 경우: 최소 간격으로 배치
     if (sortedNodes.length === 2) {
       const newPositions = [
         { id: sortedNodes[0].id, x: sortedNodes[0].position.x, y: sortedNodes[0].position.y },
@@ -644,25 +645,21 @@ function EquipmentCanvasInner({
       return;
     }
 
-    // 3개 이상: 균등 분배
     const minY = sortedNodes[0].position.y;
     const maxY = sortedNodes[sortedNodes.length - 1].position.y;
     const currentRange = maxY - minY;
     const minRange = MIN_GAP * (sortedNodes.length - 1);
 
-    // 간격이 너무 작으면 최소 간격으로 재계산
     const gap = currentRange < minRange
       ? MIN_GAP
       : currentRange / (sortedNodes.length - 1);
 
-    // 새 위치 계산
     const newPositions = sortedNodes.map((node, index) => ({
       id: node.id,
       x: node.position.x,
       y: minY + gap * index,
     }));
 
-    // 화면 업데이트 (저장 버튼 클릭 시 DB 저장)
     setNodes((nds) =>
       nds.map((n) => {
         const newPos = newPositions.find((np) => np.id === n.id);
@@ -684,15 +681,14 @@ function EquipmentCanvasInner({
       .filter((node) => {
         const original = originalPositionsRef.current.find((o) => o.id === node.id);
         if (!original) return true; // 새로 추가된 노드
-        return original.positionX !== node.position.x || original.positionY !== node.position.y;
+        return original.flowX !== node.position.x || original.flowY !== node.position.y;
       })
       .map((node) => ({
         id: node.id,
-        positionX: node.position.x,
-        positionY: node.position.y,
+        flowX: node.position.x,
+        flowY: node.position.y,
       }));
 
-    // 변경사항이 없으면 저장 안 함
     if (updates.length === 0) {
       setHasChanges(false);
       return;
@@ -700,23 +696,31 @@ function EquipmentCanvasInner({
 
     console.log(`${updates.length}개 노드 위치 저장 중...`);
 
-    bulkUpdateEquipment.mutate(updates, {
-      onSuccess: () => {
-        // 저장 성공 시 원본 위치 업데이트
-        originalPositionsRef.current = nodes.map((node) => ({
-          id: node.id,
-          positionX: node.position.x,
-          positionY: node.position.y,
-        }));
-        setHasChanges(false);
-        console.log(`${updates.length}개 노드 위치 저장 완료!`);
-      },
-      onError: (error) => {
-        console.error("위치 저장 실패:", error);
-        alert("위치 저장에 실패했습니다. 다시 시도해주세요.");
-      },
+    // 각 태스크 업데이트
+    Promise.all(
+      updates.map((update) =>
+        updateTask.mutateAsync({
+          id: update.id,
+          data: {
+            flowX: update.flowX,
+            flowY: update.flowY,
+          },
+        })
+      )
+    ).then(() => {
+      // 저장 성공 시 원본 위치 업데이트
+      originalPositionsRef.current = nodes.map((node) => ({
+        id: node.id,
+        flowX: node.position.x,
+        flowY: node.position.y,
+      }));
+      setHasChanges(false);
+      console.log(`${updates.length}개 노드 위치 저장 완료!`);
+    }).catch((error) => {
+      console.error("위치 저장 실패:", error);
+      alert("위치 저장에 실패했습니다. 다시 시도해주세요.");
     });
-  }, [nodes, bulkUpdateEquipment]);
+  }, [nodes, updateTask]);
 
   // 위치 원복 (원본 상태로 복원)
   const handleResetPositions = useCallback(() => {
@@ -724,7 +728,7 @@ function EquipmentCanvasInner({
       nds.map((node) => {
         const original = originalPositionsRef.current.find((o) => o.id === node.id);
         if (original) {
-          return { ...node, position: { x: original.positionX, y: original.positionY } };
+          return { ...node, position: { x: original.flowX, y: original.flowY } };
         }
         return node;
       })
@@ -735,9 +739,30 @@ function EquipmentCanvasInner({
   // 변경된 노드 개수 계산
   const changedNodeCount = nodes.filter((node) => {
     const original = originalPositionsRef.current.find((o) => o.id === node.id);
-    if (!original) return true; // 새로 추가된 노드
-    return original.positionX !== node.position.x || original.positionY !== node.position.y;
+    if (!original) return true;
+    return original.flowX !== node.position.x || original.flowY !== node.position.y;
   }).length;
+
+  // 기본 엣지 옵션 (메모이제이션)
+  const defaultEdgeOptions = useMemo(() => ({
+    type: edgeType,
+    animated: false,
+    style: { strokeWidth: 2 },
+  }), [edgeType]);
+
+  // MiniMap 노드 색상 함수 (메모이제이션)
+  const miniMapNodeColor = useCallback((node: Node) => {
+    const task = (node.data as { task: Task }).task;
+    const statusConfig: Record<string, string> = {
+      PENDING: "#6b7280",
+      IN_PROGRESS: "#3b82f6",
+      HOLDING: "#f59e0b",
+      DELAYED: "#f97316",
+      COMPLETED: "#10b981",
+      CANCELLED: "#ef4444",
+    };
+    return statusConfig[task.status] || "#6b7280";
+  }, []);
 
   return (
     <div
@@ -749,7 +774,7 @@ function EquipmentCanvasInner({
       onContextMenu={(e) => e.preventDefault()}
     >
       <ReactFlow
-        nodes={displayNodes}
+        nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -773,11 +798,7 @@ function EquipmentCanvasInner({
         multiSelectionKeyCode="Shift"
         connectionMode={ConnectionMode.Loose}
         connectionRadius={50}
-        defaultEdgeOptions={{
-          type: edgeType,
-          animated: false,
-          style: { strokeWidth: 2 },
-        }}
+        defaultEdgeOptions={defaultEdgeOptions}
         deleteKeyCode="Delete"
       >
         {/* 배경 그리드 */}
@@ -793,17 +814,7 @@ function EquipmentCanvasInner({
 
         {/* 미니맵 */}
         <MiniMap
-          nodeColor={(node) => {
-            const equipment = (node.data as { equipment: Equipment }).equipment;
-            const statusConfig = {
-              ACTIVE: "#10b981",
-              MAINTENANCE: "#f59e0b",
-              INACTIVE: "#6b7280",
-              BROKEN: "#ef4444",
-              RESERVED: "#3b82f6",
-            };
-            return statusConfig[equipment.status] || "#6b7280";
-          }}
+          nodeColor={miniMapNodeColor}
           className="bg-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg"
         />
 
@@ -965,12 +976,12 @@ function EquipmentCanvasInner({
                 </button>
                 <button
                   onClick={handleSavePositions}
-                  disabled={bulkUpdateEquipment.isPending}
+                  disabled={updateTask.isPending}
                   className="p-1.5 rounded bg-primary hover:bg-primary-hover text-white transition-colors disabled:opacity-50"
                   title="저장 (DB에 반영)"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                    {bulkUpdateEquipment.isPending ? "sync" : "save"}
+                    {updateTask.isPending ? "sync" : "save"}
                   </span>
                 </button>
               </>
@@ -982,17 +993,39 @@ function EquipmentCanvasInner({
           </div>
         </Panel>
       </ReactFlow>
+
+      {/* 토스트 메시지 */}
+      {toast && (
+        <div
+          className={`
+            fixed bottom-6 left-1/2 -translate-x-1/2 z-50
+            px-4 py-3 rounded-lg shadow-lg
+            flex items-center gap-2
+            animate-in fade-in slide-in-from-bottom-4 duration-300
+            ${toast.type === "success" ? "bg-success text-white" : ""}
+            ${toast.type === "error" ? "bg-error text-white" : ""}
+            ${toast.type === "info" ? "bg-primary text-white" : ""}
+          `}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+            {toast.type === "success" && "check_circle"}
+            {toast.type === "error" && "error"}
+            {toast.type === "info" && "info"}
+          </span>
+          <span className="text-sm font-medium">{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }
 
 /**
- * 설비 캔버스 컴포넌트 (ReactFlowProvider 래퍼)
+ * 태스크 플로우 캔버스 컴포넌트 (ReactFlowProvider 래퍼)
  */
-export function EquipmentCanvas(props: EquipmentCanvasProps) {
+export function TaskFlowCanvas(props: TaskFlowCanvasProps) {
   return (
     <ReactFlowProvider>
-      <EquipmentCanvasInner {...props} />
+      <TaskFlowCanvasInner {...props} />
     </ReactFlowProvider>
   );
 }

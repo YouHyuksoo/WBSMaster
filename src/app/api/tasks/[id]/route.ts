@@ -159,7 +159,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, description, status, priority, assigneeId, assigneeIds, startDate, dueDate, order, requirementId, wbsItemId } = body;
+    const { title, description, status, priority, assigneeId, assigneeIds, startDate, dueDate, order, requirementId, wbsItemId, flowX, flowY } = body;
 
     // 태스크 존재 확인
     const existing = await prisma.task.findUnique({ where: { id } });
@@ -201,6 +201,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(order !== undefined && { order }),
         ...(requirementId !== undefined && { requirementId: requirementId || null }),
         ...(wbsItemId !== undefined && { wbsItemId: wbsItemId || null }),
+        ...(flowX !== undefined && { flowX }),  // 플로우 캔버스 X 좌표
+        ...(flowY !== undefined && { flowY }),  // 플로우 캔버스 Y 좌표
       },
       include: {
         // 주 담당자 조회
@@ -250,10 +252,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       },
     });
 
-    // 응답 형식 변환 (assignees 배열 평탄화)
+    // 응답 형식 변환 (assignees 배열을 평탄화)
     const transformedTask = {
       ...task,
-      assignees: task.assignees.map((a) => a.user),
+      assignees: task.assignees.map((a) => a.user).filter((u) => u !== null),
     };
 
     // Task가 완료 상태로 변경되었을 때 Slack 알림 전송

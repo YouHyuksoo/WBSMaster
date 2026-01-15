@@ -8,16 +8,19 @@
  * 1. **상단 달력**: 날짜 범위를 선택하고 날짜별 헤더 표시
  * 2. **좌측 멤버**: 프로젝트에 등록된 멤버 리스트
  * 3. **셀**: 각 멤버의 날짜별 작업 건수 (대기중/진행중/완료)
+ * 4. **AI 분석**: 하단에서 LLM 기반 부하 분석 및 조언 제공
  *
  * 중요 로직:
  * - Task가 startDate ~ dueDate 기간 동안 배정되면 해당 기간의 각 날짜에 카운트
  * - 예: Task A가 1일~3일이면 1일, 2일, 3일 각각에 1건으로 카운트
+ * - AI 분석은 대기중/진행중 태스크만 분석 (완료 제외)
  */
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Icon, Button } from "@/components/ui";
+import ReactMarkdown from "react-markdown";
 import type { Task } from "@/lib/api";
 
 /** 멤버 타입 (TeamMember와 호환) */
@@ -32,18 +35,39 @@ interface Member {
   };
 }
 
+/** Task 정보 (툴팁용) */
+interface TaskInfo {
+  id: string;
+  title: string;
+  status: string;
+}
+
 /** 날짜별 작업 건수 */
 interface DailyCount {
   pending: number;
   inProgress: number;
   completed: number;
   total: number;
+  tasks: TaskInfo[];
+}
+
+/** 분석 메타데이터 타입 */
+interface AnalysisMetadata {
+  id: string;
+  memberCount: number;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  analyzedAt: string;
+  analyzedBy?: string;
 }
 
 /** Props */
 interface WorkloadAnalysisProps {
   tasks: Task[];
   members: Member[];
+  projectId?: string;
   projectName?: string;
 }
 
@@ -85,7 +109,7 @@ function formatDateDisplay(date: Date): { day: string; weekday: string; isWeeken
 /**
  * 부하분석 컴포넌트
  */
-export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalysisProps) {
+export function WorkloadAnalysis({ tasks, members, projectId, projectName }: WorkloadAnalysisProps) {
   // 날짜 범위 상태 (기본: 이번 주 월요일 ~ 다음주 일요일, 2주)
   const today = new Date();
   const defaultStartDate = new Date(today);
@@ -112,7 +136,7 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
       data[member.userId] = {};
       dateRange.forEach((date) => {
         const dateKey = formatDateKey(date);
-        data[member.userId][dateKey] = { pending: 0, inProgress: 0, completed: 0, total: 0 };
+        data[member.userId][dateKey] = { pending: 0, inProgress: 0, completed: 0, total: 0, tasks: [] };
       });
     });
 
@@ -120,7 +144,7 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
     data["unassigned"] = {};
     dateRange.forEach((date) => {
       const dateKey = formatDateKey(date);
-      data["unassigned"][dateKey] = { pending: 0, inProgress: 0, completed: 0, total: 0 };
+      data["unassigned"][dateKey] = { pending: 0, inProgress: 0, completed: 0, total: 0, tasks: [] };
     });
 
     // 각 Task에 대해 날짜별 카운트
@@ -160,15 +184,21 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
           const dateKey = formatDateKey(date);
           if (!data[userId][dateKey]) return;
 
-          // 상태별 카운트
+          // 상태별 카운트 (완료 제외)
+          if (task.status === "COMPLETED") return; // 완료된 작업은 제외
+
           if (task.status === "PENDING") {
             data[userId][dateKey].pending++;
           } else if (task.status === "IN_PROGRESS") {
             data[userId][dateKey].inProgress++;
-          } else if (task.status === "COMPLETED") {
-            data[userId][dateKey].completed++;
           }
           data[userId][dateKey].total++;
+          // Task 정보 추가 (툴팁용)
+          data[userId][dateKey].tasks.push({
+            id: task.id,
+            title: task.title,
+            status: task.status,
+          });
         });
       });
     });
@@ -181,7 +211,7 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
     const totals: Record<string, DailyCount> = {};
     dateRange.forEach((date) => {
       const dateKey = formatDateKey(date);
-      totals[dateKey] = { pending: 0, inProgress: 0, completed: 0, total: 0 };
+      totals[dateKey] = { pending: 0, inProgress: 0, completed: 0, total: 0, tasks: [] };
 
       Object.values(workloadData).forEach((memberData) => {
         if (memberData[dateKey]) {
@@ -189,6 +219,7 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
           totals[dateKey].inProgress += memberData[dateKey].inProgress;
           totals[dateKey].completed += memberData[dateKey].completed;
           totals[dateKey].total += memberData[dateKey].total;
+          totals[dateKey].tasks.push(...memberData[dateKey].tasks);
         }
       });
     });
@@ -224,6 +255,111 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
     setEndDate(newEnd);
   };
 
+  // AI 분석 상태
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isLoadingLast, setIsLoadingLast] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [analysisMetadata, setAnalysisMetadata] = useState<AnalysisMetadata | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  /**
+   * 마지막 분석 결과 불러오기
+   * - 컴포넌트 마운트 또는 projectId 변경 시 호출
+   */
+  useEffect(() => {
+    const fetchLastAnalysis = async () => {
+      if (!projectId) return;
+
+      setIsLoadingLast(true);
+      try {
+        const response = await fetch(`/api/workload-analysis?projectId=${projectId}`);
+        if (!response.ok) throw new Error("조회 실패");
+
+        const data = await response.json();
+        if (data.analysis) {
+          setAnalysisResult(data.analysis);
+          setAnalysisMetadata(data.metadata);
+        }
+      } catch (error) {
+        console.error("마지막 분석 결과 조회 오류:", error);
+        // 에러는 무시 (분석 결과가 없을 수도 있음)
+      } finally {
+        setIsLoadingLast(false);
+      }
+    };
+
+    fetchLastAnalysis();
+  }, [projectId]);
+
+  /**
+   * AI 부하분석 요청
+   * - 멤버별 대기중/진행중 태스크를 집계하여 API로 전송
+   * - 하루 8시간 근무 기준으로 부하 분석
+   */
+  const handleAnalysisRequest = useCallback(async () => {
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+
+    try {
+      // 멤버별 태스크 집계 (대기중 + 진행중만)
+      const memberWorkloads = members.map((member) => {
+        const memberTasks = tasks.filter((task) => {
+          // 담당자 확인
+          const isAssigned =
+            task.assigneeId === member.userId ||
+            task.assignees?.some((a) => a.id === member.userId);
+          // 상태 확인 (대기중 또는 진행중)
+          const isActiveStatus = task.status === "PENDING" || task.status === "IN_PROGRESS";
+          return isAssigned && isActiveStatus;
+        });
+
+        return {
+          memberId: member.userId,
+          memberName: member.user?.name || "알 수 없음",
+          pendingTasks: memberTasks.filter((t) => t.status === "PENDING").length,
+          inProgressTasks: memberTasks.filter((t) => t.status === "IN_PROGRESS").length,
+          totalTasks: memberTasks.length,
+          taskDetails: memberTasks.slice(0, 10).map((t) => ({
+            title: t.title,
+            status: t.status,
+            priority: t.priority,
+            startDate: t.startDate,
+            dueDate: t.dueDate,
+          })),
+        };
+      });
+
+      // API 호출 (projectId 포함)
+      const response = await fetch("/api/workload-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          members: memberWorkloads,
+          dateRange: {
+            start: formatDateKey(startDate),
+            end: formatDateKey(endDate),
+          },
+          projectName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "분석 요청에 실패했습니다.");
+      }
+
+      const data = await response.json();
+      setAnalysisResult(data.analysis);
+      setAnalysisMetadata(data.metadata);
+    } catch (error) {
+      console.error("AI 분석 오류:", error);
+      setAnalysisError(error instanceof Error ? error.message : "분석 중 오류가 발생했습니다.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [members, tasks, startDate, endDate, projectId, projectName]);
+
   // 셀 색상 결정
   const getCellColor = (count: DailyCount) => {
     if (count.total === 0) return "bg-transparent";
@@ -258,12 +394,8 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
             <span className="text-text-secondary">대기</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="size-3 rounded bg-sky-500" />
+            <div className="size-3 rounded bg-blue-500" />
             <span className="text-text-secondary">진행</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="size-3 rounded bg-emerald-500" />
-            <span className="text-text-secondary">완료</span>
           </div>
         </div>
       </div>
@@ -342,36 +474,58 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
                     {/* 날짜별 셀 */}
                     {dateRange.map((date) => {
                       const dateKey = formatDateKey(date);
-                      const count = memberData[dateKey] || { pending: 0, inProgress: 0, completed: 0, total: 0 };
+                      const count = memberData[dateKey] || { pending: 0, inProgress: 0, completed: 0, total: 0, tasks: [] };
                       const { isWeekend } = formatDateDisplay(date);
                       const isToday = dateKey === formatDateKey(today);
 
                       return (
                         <td
                           key={dateKey}
-                          className={`border-b border-border dark:border-border-dark p-1 text-center ${
+                          className={`relative border-b border-border dark:border-border-dark p-1 text-center ${
                             isWeekend ? "bg-slate-50 dark:bg-slate-800/30" : ""
                           } ${isToday ? "bg-primary/5" : ""} ${getCellColor(count)}`}
                         >
                           {count.total > 0 ? (
-                            <div className="flex flex-col items-center gap-0.5">
-                              <div className="flex items-center justify-center gap-0.5">
-                                {count.pending > 0 && (
-                                  <span className="text-[10px] font-bold text-slate-500 bg-slate-200 dark:bg-slate-600 px-1 rounded">
-                                    {count.pending}
-                                  </span>
-                                )}
-                                {count.inProgress > 0 && (
-                                  <span className="text-[10px] font-bold text-sky-600 bg-sky-200 dark:bg-sky-800 px-1 rounded">
-                                    {count.inProgress}
-                                  </span>
-                                )}
-                                {count.completed > 0 && (
-                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-200 dark:bg-emerald-800 px-1 rounded">
-                                    {count.completed}
-                                  </span>
-                                )}
+                            <div className="relative group/cell">
+                              <div className="flex flex-col items-center gap-0.5 cursor-pointer">
+                                <div className="flex items-center justify-center gap-0.5">
+                                  {count.pending > 0 && (
+                                    <span className="text-[10px] font-bold text-slate-500 bg-slate-200 dark:bg-slate-600 px-1 rounded">
+                                      {count.pending}
+                                    </span>
+                                  )}
+                                  {count.inProgress > 0 && (
+                                    <span className="text-[10px] font-bold text-blue-600 bg-blue-200 dark:bg-blue-800 px-1 rounded">
+                                      {count.inProgress}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
+                              {/* CSS 기반 툴팁 */}
+                              {count.tasks.length > 0 && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[200px] max-w-[300px]">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="text-xs text-slate-400">작업 목록 ({count.total}건)</span>
+                                    </div>
+                                    <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                                      {count.tasks.map((t, idx) => (
+                                        <div key={idx} className="flex items-start gap-2">
+                                          <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
+                                            t.status === "PENDING" ? "bg-slate-600 text-slate-200" :
+                                            t.status === "IN_PROGRESS" ? "bg-blue-600 text-blue-100" :
+                                            "bg-red-600 text-red-100"
+                                          }`}>
+                                            {t.status === "PENDING" ? "대기" : t.status === "IN_PROGRESS" ? "진행" : "완료"}
+                                          </span>
+                                          <span className="text-sm text-white/90 line-clamp-2">{t.title}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <span className="text-text-secondary/30">-</span>
@@ -386,9 +540,7 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
                         <div className="flex items-center gap-0.5 text-[9px]">
                           <span className="text-slate-500">{memberTotal.pending}</span>
                           <span className="text-text-secondary">/</span>
-                          <span className="text-sky-500">{memberTotal.inProgress}</span>
-                          <span className="text-text-secondary">/</span>
-                          <span className="text-emerald-500">{memberTotal.completed}</span>
+                          <span className="text-blue-500">{memberTotal.inProgress}</span>
                         </div>
                       </div>
                     </td>
@@ -458,9 +610,7 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
                         <div className="flex items-center gap-0.5 text-[9px]">
                           <span className="text-slate-500">{total.pending}</span>
                           <span className="text-text-secondary">/</span>
-                          <span className="text-sky-500">{total.inProgress}</span>
-                          <span className="text-text-secondary">/</span>
-                          <span className="text-emerald-500">{total.completed}</span>
+                          <span className="text-blue-500">{total.inProgress}</span>
                         </div>
                       </div>
                     </td>
@@ -476,6 +626,202 @@ export function WorkloadAnalysis({ tasks, members, projectName }: WorkloadAnalys
           </table>
         </div>
       </div>
+
+      {/* AI 부하분석 섹션 */}
+      {members.length > 0 && (
+        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden">
+          {/* 헤더 */}
+          <div className="flex items-center justify-between p-4 border-b border-border dark:border-border-dark bg-gradient-to-r from-purple-500/10 to-blue-500/10">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg">
+                <Icon name="psychology" size="sm" className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-text dark:text-white flex items-center gap-2">
+                  AI 부하분석
+                  <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                    Beta
+                  </span>
+                </h3>
+                <p className="text-xs text-text-secondary">
+                  하루 8시간 근무 기준으로 멤버별 업무 부하를 분석합니다
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleAnalysisRequest}
+              disabled={isAnalyzing}
+              className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+            >
+              {isAnalyzing ? (
+                <>
+                  <Icon name="progress_activity" size="sm" className="animate-spin" />
+                  <span>분석 중...</span>
+                </>
+              ) : (
+                <>
+                  <Icon name="auto_awesome" size="sm" />
+                  <span>분석요청</span>
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* 분석 결과 영역 */}
+          <div className="p-4">
+            {/* 로딩 상태 */}
+            {isAnalyzing && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="size-16 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center mb-4 animate-pulse">
+                  <Icon name="psychology" size="lg" className="text-purple-400" />
+                </div>
+                <p className="text-sm text-text-secondary animate-pulse">
+                  AI가 업무 부하를 분석하고 있습니다...
+                </p>
+                <p className="text-xs text-text-secondary/60 mt-1">
+                  멤버별 태스크 현황을 기반으로 조언을 생성합니다
+                </p>
+              </div>
+            )}
+
+            {/* 에러 상태 */}
+            {analysisError && !isAnalyzing && (
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-error/10 border border-error/20">
+                <Icon name="error" size="sm" className="text-error shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-error">분석 실패</p>
+                  <p className="text-xs text-error/80">{analysisError}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAnalysisRequest}
+                  className="ml-auto text-error border-error/30 hover:bg-error/10"
+                >
+                  다시 시도
+                </Button>
+              </div>
+            )}
+
+            {/* 마지막 분석 결과 로딩 중 */}
+            {isLoadingLast && !isAnalyzing && (
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="size-10 rounded-full bg-surface dark:bg-background-dark flex items-center justify-center mb-3 animate-pulse">
+                  <Icon name="history" size="sm" className="text-text-secondary" />
+                </div>
+                <p className="text-sm text-text-secondary animate-pulse">
+                  이전 분석 결과를 불러오는 중...
+                </p>
+              </div>
+            )}
+
+            {/* 분석 결과 */}
+            {analysisResult && !isAnalyzing && !isLoadingLast && (
+              <div className="space-y-4">
+                {/* 메타데이터 표시 */}
+                {analysisMetadata && (
+                  <div className="flex flex-wrap items-center gap-4 p-3 rounded-lg bg-surface/50 dark:bg-background-dark/50 border border-border/50 dark:border-border-dark/50">
+                    <div className="flex items-center gap-2 text-xs text-text-secondary">
+                      <Icon name="schedule" size="xs" className="text-primary" />
+                      <span>
+                        분석일시: {new Date(analysisMetadata.analyzedAt).toLocaleString("ko-KR")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-text-secondary">
+                      <Icon name="date_range" size="xs" className="text-blue-500" />
+                      <span>
+                        분석기간: {analysisMetadata.dateRange.start} ~ {analysisMetadata.dateRange.end}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-text-secondary">
+                      <Icon name="group" size="xs" className="text-success" />
+                      <span>분석대상: {analysisMetadata.memberCount}명</span>
+                    </div>
+                    {analysisMetadata.analyzedBy && (
+                      <div className="flex items-center gap-2 text-xs text-text-secondary">
+                        <Icon name="person" size="xs" className="text-warning" />
+                        <span>분석자: {analysisMetadata.analyzedBy}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 마크다운 결과 */}
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown
+                    components={{
+                      // 마크다운 스타일 커스터마이징
+                      h3: ({ children }) => (
+                        <h3 className="text-lg font-bold text-text dark:text-white mt-4 mb-2 flex items-center gap-2">
+                          {children}
+                        </h3>
+                      ),
+                      h4: ({ children }) => (
+                        <h4 className="text-base font-semibold text-text dark:text-white mt-3 mb-1">
+                          {children}
+                        </h4>
+                      ),
+                      p: ({ children }) => (
+                        <p className="text-sm text-text-secondary dark:text-slate-300 mb-2 leading-relaxed">
+                          {children}
+                        </p>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="list-disc list-inside space-y-1 text-sm text-text-secondary dark:text-slate-300 mb-3">
+                          {children}
+                        </ul>
+                      ),
+                      li: ({ children }) => (
+                        <li className="text-sm text-text-secondary dark:text-slate-300">
+                          {children}
+                        </li>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-semibold text-text dark:text-white">
+                          {children}
+                        </strong>
+                      ),
+                    }}
+                  >
+                    {analysisResult}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
+
+            {/* 초기 상태 (분석 전) */}
+            {!analysisResult && !analysisError && !isAnalyzing && !isLoadingLast && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="size-16 rounded-full bg-surface dark:bg-background-dark flex items-center justify-center mb-4">
+                  <Icon name="analytics" size="lg" className="text-text-secondary" />
+                </div>
+                <p className="text-sm text-text-secondary mb-1">
+                  아직 분석 결과가 없습니다
+                </p>
+                <p className="text-xs text-text-secondary/60">
+                  &ldquo;분석요청&rdquo; 버튼을 클릭하면 AI가 멤버별 업무 부하를 분석합니다
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-xs text-text-secondary/60">
+                  <div className="flex items-center gap-1">
+                    <Icon name="check_circle" size="xs" className="text-success" />
+                    <span>대기중/진행중 태스크 분석</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Icon name="check_circle" size="xs" className="text-success" />
+                    <span>하루 8시간 근무 기준</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Icon name="check_circle" size="xs" className="text-success" />
+                    <span>업무 재분배 제안</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 멤버가 없을 때 */}
       {members.length === 0 && (

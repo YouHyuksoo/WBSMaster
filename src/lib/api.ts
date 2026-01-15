@@ -131,6 +131,8 @@ export interface Task {
   startDate?: string;  // 시작일
   dueDate?: string;    // 마감일
   order: number;
+  flowX: number;       // 플로우 캔버스 X 좌표
+  flowY: number;       // 플로우 캔버스 Y 좌표
   createdAt: string;
   updatedAt: string;
   projectId: string;
@@ -951,6 +953,32 @@ export interface EquipmentConnection {
   };
 }
 
+/** 태스크 연결 타입 (플로우 차트용) */
+export interface TaskConnection {
+  id: string;
+  label?: string | null;
+  type: string; // "FLOW", "DEPENDENCY" 등
+  color?: string | null;
+  animated: boolean;
+  sourceHandle?: string | null; // top, right, bottom, left
+  targetHandle?: string | null;
+  fromTaskId: string;
+  toTaskId: string;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
+  fromTask?: {
+    id: string;
+    title: string;
+    status: string;
+  };
+  toTask?: {
+    id: string;
+    title: string;
+    status: string;
+  };
+}
+
 // ============================================
 // API 클라이언트
 // ============================================
@@ -980,6 +1008,24 @@ export const api = {
     update: (id: string, data: Partial<Task> & { assigneeIds?: string[]; requirementId?: string | null; wbsItemId?: string | null }) =>
       patch<Task>(`/api/tasks/${id}`, data),
     delete: (id: string) => del<{ message: string }>(`/api/tasks/${id}`),
+  },
+
+  /** 태스크 연결 API (플로우 차트용) */
+  taskConnections: {
+    list: (params?: { projectId?: string }) =>
+      get<TaskConnection[]>("/api/task-connections", params),
+    create: (data: {
+      fromTaskId: string;
+      toTaskId: string;
+      projectId: string;
+      type?: string;
+      label?: string;
+      color?: string;
+      animated?: boolean;
+      sourceHandle?: string;
+      targetHandle?: string;
+    }) => post<TaskConnection>("/api/task-connections", data),
+    delete: (id: string) => del<{ message: string }>(`/api/task-connections/${id}`),
   },
 
   /** 오늘 통계 API (헤더 스크롤러용) */

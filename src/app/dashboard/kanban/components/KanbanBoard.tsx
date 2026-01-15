@@ -227,14 +227,19 @@ export function KanbanBoard() {
    */
   const getFilteredTasks = (status: string) => {
     return tasks.filter((task) => {
-      if (task.status !== status) return false;
+      // 상태 필터 - 지연(DELAYED) 또는 홀딩(HOLDING) 상태는 진행중(IN_PROGRESS) 컬럼에 표시
+      if (status === "IN_PROGRESS") {
+        if (task.status !== "IN_PROGRESS" && task.status !== "DELAYED" && task.status !== "HOLDING") return false;
+      } else if (task.status !== status) {
+        return false;
+      }
 
       // "내 작업" 필터 - 현재 사용자가 담당자인 작업만
       if (filter === "my" && activeUserId) {
         const isMyTask =
           task.assigneeId === activeUserId ||
           task.assignee?.id === activeUserId ||
-          task.assignees?.some((a) => a.id === activeUserId || (a as { userId?: string }).userId === activeUserId);
+          task.assignees?.some((a) => a && (a.id === activeUserId || (a as any).userId === activeUserId));
         if (!isMyTask) return false;
       }
 
@@ -246,10 +251,11 @@ export function KanbanBoard() {
         if (!matchesSearch) return false;
       }
 
-      // 담당자 필터 (드롭다운)
+      // 담당자 필터 (드롭다운) - 주 담당자와 부 담당자 모두 확인
       if (filterAssignee !== "all") {
-        const hasAssignee = task.assignees?.some((a) => a.id === filterAssignee);
-        if (!hasAssignee) return false;
+        const isMainAssignee = task.assigneeId === filterAssignee;
+        const isSubAssignee = task.assignees?.some((a) => a.id === filterAssignee);
+        if (!isMainAssignee && !isSubAssignee) return false;
       }
 
       // 우선순위 필터
@@ -1512,7 +1518,7 @@ function TaskCard({
   const allAssignees = (() => {
     const assigneeMap = new Map<string, { id: string; name: string | null; avatar: string | null }>();
     // 주 담당자 추가
-    if (task.assignee) {
+    if (task.assignee && task.assignee.id) {
       assigneeMap.set(task.assignee.id, {
         id: task.assignee.id,
         name: task.assignee.name ?? null,
@@ -1520,9 +1526,9 @@ function TaskCard({
       });
     }
     // 부 담당자들 추가
-    if (task.assignees && task.assignees.length > 0) {
+    if (task.assignees && Array.isArray(task.assignees)) {
       task.assignees.forEach((a) => {
-        if (!assigneeMap.has(a.id)) {
+        if (a && a.id && !assigneeMap.has(a.id)) {
           assigneeMap.set(a.id, {
             id: a.id,
             name: a.name ?? null,
