@@ -17,8 +17,9 @@ jobs:
       - name: Configure Git safe directory
         run: git config --global --add safe.directory C:/Project/WBSMaster
 
-      - name: Stop PM2
-        run: pm2 stop wbs-master
+      - name: Stop all Node processes
+        run: taskkill /F /IM node.exe /T 2>nul || echo "No node process"
+        shell: cmd
         continue-on-error: true
 
       - name: Pull latest code
