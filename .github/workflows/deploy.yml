@@ -1,6 +1,5 @@
- name: Deploy to Windows Server                                                                                                                                                        
-                                                                                                                                                                                        
-  on:                                                                                                                                                                                   
+ name: Deploy to Windows Server 
+ on:                                                                                                                                                                                   
     push:                                                                                                                                                                               
       branches: [main]                                                                                                                                                                  
     workflow_dispatch:  # 수동 실행 버튼                                                                                                                                                
@@ -28,9 +27,7 @@
                                                                                                                                                                                         
         # 4. 프로덕션 빌드                                                                                                                                                              
         - name: Build                                                                                                                                                                   
-          run: npm run build                                                                                                                                                            
-          env:                                                                                                                                                                          
-            DATABASE_URL: ${{ secrets.DATABASE_URL }}                                                                                                                                   
+          run: npm run build                                                                                                                                                                                                                                                                                       
                                                                                                                                                                                         
         # 5. PM2로 재시작                                                                                                                                                               
         - name: Restart with PM2                                                                                                                                                        
