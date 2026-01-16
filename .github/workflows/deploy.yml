@@ -18,7 +18,9 @@ jobs:
         run: git config --global --add safe.directory C:/Project/WBSMaster
 
       - name: Pull latest code
-        run: git pull origin master
+        run: |
+          git fetch origin master
+          git reset --hard origin/master
 
       - name: Install dependencies
         run: npm ci
