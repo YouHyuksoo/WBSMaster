@@ -19,6 +19,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { DashboardHeader } from "./DashboardHeader";
+import { FloatingMenu } from "@/components/common/FloatingMenu";
 
 interface DashboardLayoutProps {
   /** 메인 콘텐츠 영역에 표시될 내용 */
@@ -68,10 +69,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         />
 
         {/* 메인 콘텐츠 */}
-        <main className="flex-1 overflow-auto bg-background dark:bg-background-dark">
+        <main id="main-content" className="flex-1 overflow-auto bg-background dark:bg-background-dark">
           {children}
         </main>
       </div>
+
+      {/* 플로팅 메뉴 (오른쪽 하단) */}
+      <FloatingMenu />
     </div>
   );
 }

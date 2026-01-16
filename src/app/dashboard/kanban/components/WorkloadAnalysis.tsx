@@ -7,12 +7,15 @@
  * 초보자 가이드:
  * 1. **상단 달력**: 날짜 범위를 선택하고 날짜별 헤더 표시
  * 2. **좌측 멤버**: 프로젝트에 등록된 멤버 리스트
- * 3. **셀**: 각 멤버의 날짜별 작업 건수 (대기중/진행중/완료)
+ * 3. **셀**: 각 멤버의 날짜별 작업 건수 (대기중/진행중)
  * 4. **AI 분석**: 하단에서 LLM 기반 부하 분석 및 조언 제공
  *
  * 중요 로직:
  * - Task가 startDate ~ dueDate 기간 동안 배정되면 해당 기간의 각 날짜에 카운트
  * - 예: Task A가 1일~3일이면 1일, 2일, 3일 각각에 1건으로 카운트
+ * - 🔥 마감일이 지난 진행중/대기/지연/보류 태스크는 오늘까지 연장하여 카운트
+ * - 진행중, 지연(DELAYED), 보류(HOLDING) 상태는 모두 "진행" 카운트에 포함
+ * - 완료(COMPLETED), 취소(CANCELLED) 상태는 부하 계산에서 제외
  * - AI 분석은 대기중/진행중 태스크만 분석 (완료 제외)
  */
 
@@ -40,12 +43,14 @@ interface TaskInfo {
   id: string;
   title: string;
   status: string;
+  isDelayed: boolean; // 🔥 해당 날짜 기준 지연 여부
 }
 
 /** 날짜별 작업 건수 */
 interface DailyCount {
   pending: number;
   inProgress: number;
+  delayed: number; // 🔥 마감일 지난 미완료 태스크
   completed: number;
   total: number;
   tasks: TaskInfo[];
@@ -136,7 +141,7 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
       data[member.userId] = {};
       dateRange.forEach((date) => {
         const dateKey = formatDateKey(date);
-        data[member.userId][dateKey] = { pending: 0, inProgress: 0, completed: 0, total: 0, tasks: [] };
+        data[member.userId][dateKey] = { pending: 0, inProgress: 0, delayed: 0, completed: 0, total: 0, tasks: [] };
       });
     });
 
@@ -144,18 +149,28 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
     data["unassigned"] = {};
     dateRange.forEach((date) => {
       const dateKey = formatDateKey(date);
-      data["unassigned"][dateKey] = { pending: 0, inProgress: 0, completed: 0, total: 0, tasks: [] };
+      data["unassigned"][dateKey] = { pending: 0, inProgress: 0, delayed: 0, completed: 0, total: 0, tasks: [] };
     });
 
     // 각 Task에 대해 날짜별 카운트
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+
     tasks.forEach((task) => {
       // startDate와 dueDate가 있어야 함
       if (!task.startDate && !task.dueDate) return;
 
       const taskStart = task.startDate ? new Date(task.startDate) : new Date(task.dueDate!);
-      const taskEnd = task.dueDate ? new Date(task.dueDate) : new Date(task.startDate!);
+      let taskEnd = task.dueDate ? new Date(task.dueDate) : new Date(task.startDate!);
       taskStart.setHours(0, 0, 0, 0);
       taskEnd.setHours(0, 0, 0, 0);
+
+      // 🔥 진행중/지연/대기 상태인데 마감일이 오늘 이전이면 → 오늘까지 연장
+      // 완료되지 않은 태스크는 마감일이 지나도 부하에 포함되어야 함
+      const isActiveTask = task.status === "PENDING" || task.status === "IN_PROGRESS" || task.status === "DELAYED" || task.status === "HOLDING";
+      if (isActiveTask && taskEnd < todayDate) {
+        taskEnd = todayDate;
+      }
 
       // Task 기간 내의 날짜들
       const taskDates = getDatesBetween(taskStart, taskEnd);
@@ -176,30 +191,51 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
         assigneeIds.push("unassigned");
       }
 
+      // 🔥 마감일이 오늘 이전이면 지연 태스크로 판단
+      const originalDueDate = task.dueDate ? new Date(task.dueDate) : null;
+      if (originalDueDate) originalDueDate.setHours(0, 0, 0, 0);
+      const isTaskDelayed = originalDueDate && originalDueDate < todayDate;
+
       // 각 담당자에 대해 날짜별 카운트
       assigneeIds.forEach((userId) => {
         if (!data[userId]) return;
 
-        taskDates.forEach((date) => {
-          const dateKey = formatDateKey(date);
-          if (!data[userId][dateKey]) return;
+        // 완료/취소 상태는 제외
+        if (task.status === "COMPLETED" || task.status === "CANCELLED") return;
 
-          // 상태별 카운트 (완료 제외)
-          if (task.status === "COMPLETED") return; // 완료된 작업은 제외
-
-          if (task.status === "PENDING") {
-            data[userId][dateKey].pending++;
-          } else if (task.status === "IN_PROGRESS") {
-            data[userId][dateKey].inProgress++;
+        if (isTaskDelayed) {
+          // 🔥 지연된 태스크는 마감일 날짜에만 카운트
+          const dueDateKey = formatDateKey(originalDueDate!);
+          if (data[userId][dueDateKey]) {
+            data[userId][dueDateKey].delayed++;
+            data[userId][dueDateKey].total++;
+            data[userId][dueDateKey].tasks.push({
+              id: task.id,
+              title: task.title,
+              status: task.status,
+              isDelayed: true,
+            });
           }
-          data[userId][dateKey].total++;
-          // Task 정보 추가 (툴팁용)
-          data[userId][dateKey].tasks.push({
-            id: task.id,
-            title: task.title,
-            status: task.status,
+        } else {
+          // 정상 태스크는 기간 내 모든 날짜에 카운트
+          taskDates.forEach((date) => {
+            const dateKey = formatDateKey(date);
+            if (!data[userId][dateKey]) return;
+
+            if (task.status === "PENDING") {
+              data[userId][dateKey].pending++;
+            } else if (task.status === "IN_PROGRESS" || task.status === "DELAYED" || task.status === "HOLDING") {
+              data[userId][dateKey].inProgress++;
+            }
+            data[userId][dateKey].total++;
+            data[userId][dateKey].tasks.push({
+              id: task.id,
+              title: task.title,
+              status: task.status,
+              isDelayed: false,
+            });
           });
-        });
+        }
       });
     });
 
@@ -211,12 +247,13 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
     const totals: Record<string, DailyCount> = {};
     dateRange.forEach((date) => {
       const dateKey = formatDateKey(date);
-      totals[dateKey] = { pending: 0, inProgress: 0, completed: 0, total: 0, tasks: [] };
+      totals[dateKey] = { pending: 0, inProgress: 0, delayed: 0, completed: 0, total: 0, tasks: [] };
 
       Object.values(workloadData).forEach((memberData) => {
         if (memberData[dateKey]) {
           totals[dateKey].pending += memberData[dateKey].pending;
           totals[dateKey].inProgress += memberData[dateKey].inProgress;
+          totals[dateKey].delayed += memberData[dateKey].delayed;
           totals[dateKey].completed += memberData[dateKey].completed;
           totals[dateKey].total += memberData[dateKey].total;
           totals[dateKey].tasks.push(...memberData[dateKey].tasks);
@@ -360,9 +397,11 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
     }
   }, [members, tasks, startDate, endDate, projectId, projectName]);
 
-  // 셀 색상 결정
+  // 셀 색상 결정 (지연 태스크가 있으면 더 강조)
   const getCellColor = (count: DailyCount) => {
     if (count.total === 0) return "bg-transparent";
+    // 지연 태스크가 있으면 붉은 배경
+    if (count.delayed > 0) return "bg-red-500/15";
     if (count.total >= 5) return "bg-error/20";
     if (count.total >= 3) return "bg-warning/20";
     return "bg-primary/10";
@@ -397,12 +436,16 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
             <div className="size-3 rounded bg-blue-500" />
             <span className="text-text-secondary">진행</span>
           </div>
+          <div className="flex items-center gap-1">
+            <div className="size-3 rounded bg-red-500" />
+            <span className="text-text-secondary">지연</span>
+          </div>
         </div>
       </div>
 
       {/* 부하분석 테이블 */}
-      <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl relative">
+        <div className="overflow-x-auto pt-2">
           <table className="w-full border-collapse min-w-[800px]">
             {/* 헤더: 날짜 */}
             <thead>
@@ -438,16 +481,19 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
             </thead>
             <tbody>
               {/* 멤버별 행 */}
-              {members.map((member) => {
+              {members.map((member, memberIndex) => {
                 const memberData = workloadData[member.userId] || {};
+                // 🔥 상단 2개 행은 툴팁을 아래로 표시 (overflow 잘림 방지)
+                const isTopRow = memberIndex < 2;
                 const memberTotal = Object.values(memberData).reduce(
                   (acc, d) => ({
                     pending: acc.pending + d.pending,
                     inProgress: acc.inProgress + d.inProgress,
+                    delayed: acc.delayed + d.delayed,
                     completed: acc.completed + d.completed,
                     total: acc.total + d.total,
                   }),
-                  { pending: 0, inProgress: 0, completed: 0, total: 0 }
+                  { pending: 0, inProgress: 0, delayed: 0, completed: 0, total: 0 }
                 );
 
                 return (
@@ -474,7 +520,7 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
                     {/* 날짜별 셀 */}
                     {dateRange.map((date) => {
                       const dateKey = formatDateKey(date);
-                      const count = memberData[dateKey] || { pending: 0, inProgress: 0, completed: 0, total: 0, tasks: [] };
+                      const count = memberData[dateKey] || { pending: 0, inProgress: 0, delayed: 0, completed: 0, total: 0, tasks: [] };
                       const { isWeekend } = formatDateDisplay(date);
                       const isToday = dateKey === formatDateKey(today);
 
@@ -488,7 +534,7 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
                           {count.total > 0 ? (
                             <div className="relative group/cell">
                               <div className="flex flex-col items-center gap-0.5 cursor-pointer">
-                                <div className="flex items-center justify-center gap-0.5">
+                                <div className="flex items-center justify-center gap-0.5 flex-wrap">
                                   {count.pending > 0 && (
                                     <span className="text-[10px] font-bold text-slate-500 bg-slate-200 dark:bg-slate-600 px-1 rounded">
                                       {count.pending}
@@ -499,31 +545,64 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
                                       {count.inProgress}
                                     </span>
                                   )}
+                                  {count.delayed > 0 && (
+                                    <span className="text-[10px] font-bold text-red-600 bg-red-200 dark:bg-red-900 px-1 rounded">
+                                      {count.delayed}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
-                              {/* CSS 기반 툴팁 */}
+                              {/* CSS 기반 툴팁 - 상단 행은 아래로, 나머지는 위로 표시 */}
                               {count.tasks.length > 0 && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                                <div className={`absolute left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 group-hover/cell:opacity-100 transition-opacity ${
+                                  isTopRow ? "top-full mt-2" : "bottom-full mb-2"
+                                }`}>
                                   <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[200px] max-w-[300px]">
                                     <div className="flex items-center gap-2 mb-2">
                                       <span className="text-xs text-slate-400">작업 목록 ({count.total}건)</span>
                                     </div>
                                     <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
-                                      {count.tasks.map((t, idx) => (
-                                        <div key={idx} className="flex items-start gap-2">
-                                          <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
-                                            t.status === "PENDING" ? "bg-slate-600 text-slate-200" :
-                                            t.status === "IN_PROGRESS" ? "bg-blue-600 text-blue-100" :
-                                            "bg-red-600 text-red-100"
-                                          }`}>
-                                            {t.status === "PENDING" ? "대기" : t.status === "IN_PROGRESS" ? "진행" : "완료"}
-                                          </span>
-                                          <span className="text-sm text-white/90 line-clamp-2">{t.title}</span>
-                                        </div>
-                                      ))}
+                                      {count.tasks.map((t, idx) => {
+                                        // 🔥 지연 여부에 따라 배지 스타일 결정
+                                        let badgeClass = "";
+                                        let badgeText = "";
+
+                                        if (t.isDelayed) {
+                                          // 마감일 지난 태스크는 지연으로 표시
+                                          badgeClass = "bg-red-600 text-red-100";
+                                          badgeText = "지연";
+                                        } else if (t.status === "PENDING") {
+                                          badgeClass = "bg-slate-600 text-slate-200";
+                                          badgeText = "대기";
+                                        } else if (t.status === "IN_PROGRESS") {
+                                          badgeClass = "bg-blue-600 text-blue-100";
+                                          badgeText = "진행";
+                                        } else if (t.status === "DELAYED") {
+                                          badgeClass = "bg-red-600 text-red-100";
+                                          badgeText = "지연";
+                                        } else if (t.status === "HOLDING") {
+                                          badgeClass = "bg-orange-600 text-orange-100";
+                                          badgeText = "보류";
+                                        } else {
+                                          badgeClass = "bg-green-600 text-green-100";
+                                          badgeText = "완료";
+                                        }
+
+                                        return (
+                                          <div key={idx} className="flex items-start gap-2">
+                                            <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${badgeClass}`}>
+                                              {badgeText}
+                                            </span>
+                                            <span className="text-sm text-white/90 line-clamp-2">{t.title}</span>
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                   </div>
-                                  <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
+                                  {/* 화살표: 상단행은 위쪽, 나머지는 아래쪽 */}
+                                  <div className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-slate-700 ${
+                                    isTopRow ? "-top-1 border-l border-t" : "-bottom-1 border-r border-b"
+                                  }`} />
                                 </div>
                               )}
                             </div>
@@ -541,6 +620,12 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
                           <span className="text-slate-500">{memberTotal.pending}</span>
                           <span className="text-text-secondary">/</span>
                           <span className="text-blue-500">{memberTotal.inProgress}</span>
+                          {memberTotal.delayed > 0 && (
+                            <>
+                              <span className="text-text-secondary">/</span>
+                              <span className="text-red-500">{memberTotal.delayed}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -594,7 +679,7 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
                 </td>
                 {dateRange.map((date) => {
                   const dateKey = formatDateKey(date);
-                  const total = dailyTotals[dateKey] || { pending: 0, inProgress: 0, completed: 0, total: 0 };
+                  const total = dailyTotals[dateKey] || { pending: 0, inProgress: 0, delayed: 0, completed: 0, total: 0 };
                   const { isWeekend } = formatDateDisplay(date);
                   const isToday = dateKey === formatDateKey(today);
 
@@ -611,6 +696,12 @@ export function WorkloadAnalysis({ tasks, members, projectId, projectName }: Wor
                           <span className="text-slate-500">{total.pending}</span>
                           <span className="text-text-secondary">/</span>
                           <span className="text-blue-500">{total.inProgress}</span>
+                          {total.delayed > 0 && (
+                            <>
+                              <span className="text-text-secondary">/</span>
+                              <span className="text-red-500">{total.delayed}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </td>
