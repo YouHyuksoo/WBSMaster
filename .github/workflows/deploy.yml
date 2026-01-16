@@ -47,6 +47,9 @@ jobs:
 
       - name: Restart with PM2
         run: |
+          set PM2_HOME=C:\Users\Administrator\.pm2
+          echo "=== PM2_HOME ==="
+          echo %PM2_HOME%
           echo "=== PM2 Path ==="
           where pm2
           echo "=== Starting PM2 ==="
