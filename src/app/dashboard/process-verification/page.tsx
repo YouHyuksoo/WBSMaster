@@ -39,6 +39,7 @@ export default function ProcessVerificationPage() {
   const [categories, setCategories] = useState<ProcessVerificationCategory[]>([]);
   const [items, setItems] = useState<ProcessVerificationItem[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedManagementArea, setSelectedManagementArea] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterState>({
     categoryId: null,
     isApplied: null,
@@ -143,11 +144,22 @@ export default function ProcessVerificationPage() {
     });
   }, [items, filter.status, filter.businessUnit]);
 
-  // 테이블에 표시할 항목 (카테고리 선택 시 추가 필터링)
+  // 테이블에 표시할 항목 (카테고리 및 관리영역 선택 시 추가 필터링)
   const displayItems = useMemo(() => {
-    if (!selectedCategoryId) return filteredItems;
-    return filteredItems.filter((item) => item.categoryId === selectedCategoryId);
-  }, [filteredItems, selectedCategoryId]);
+    let result = filteredItems;
+
+    // 카테고리 필터
+    if (selectedCategoryId) {
+      result = result.filter((item) => item.categoryId === selectedCategoryId);
+    }
+
+    // 관리영역 필터
+    if (selectedManagementArea) {
+      result = result.filter((item) => item.managementArea === selectedManagementArea);
+    }
+
+    return result;
+  }, [filteredItems, selectedCategoryId, selectedManagementArea]);
 
   // 카테고리별 항목 수 계산 (필터링된 항목 기준)
   const categoriesWithCount = useMemo(() => {
@@ -179,7 +191,13 @@ export default function ProcessVerificationPage() {
   // 카테고리 선택 핸들러
   const handleSelectCategory = (categoryId: string | null) => {
     setSelectedCategoryId(categoryId);
+    setSelectedManagementArea(null); // 관리영역 선택 해제
     setFilter((prev) => ({ ...prev, categoryId }));
+  };
+
+  // 관리영역 선택 핸들러
+  const handleSelectManagementArea = (managementArea: string | null) => {
+    setSelectedManagementArea(managementArea);
   };
 
   // 필터 변경 핸들러
@@ -605,7 +623,9 @@ export default function ProcessVerificationPage() {
                 categories={categories}
                 items={filteredItems}
                 selectedCategoryId={selectedCategoryId}
+                selectedManagementArea={selectedManagementArea}
                 onSelectCategory={handleSelectCategory}
+                onSelectManagementArea={handleSelectManagementArea}
                 isLoading={isLoadingCategories}
               />
 
