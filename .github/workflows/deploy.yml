@@ -1,7 +1,7 @@
  name: Deploy to Windows Server 
  on:                                                                                                                                                                                   
     push:                                                                                                                                                                               
-      branches: [main]                                                                                                                                                                  
+      branches: [master]                                                                                                                                                                  
     workflow_dispatch:  # 수동 실행 버튼                                                                                                                                                
                                                                                                                                                                                         
   jobs:                                                                                                                                                                                 
@@ -15,7 +15,7 @@
       steps:                                                                                                                                                                            
         # 1. 최신 코드 가져오기                                                                                                                                                         
         - name: Pull latest code                                                                                                                                                        
-          run: git pull origin main                                                                                                                                                     
+          run: git pull origin master                                                                                                                                                     
                                                                                                                                                                                         
         # 2. 의존성 설치                                                                                                                                                                
         - name: Install dependencies                                                                                                                                                    
