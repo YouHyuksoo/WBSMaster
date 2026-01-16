@@ -14,6 +14,15 @@ jobs:
         working-directory: C:\Project\WBSMaster
 
     steps:
+      - name: Check current user
+        run: |
+          echo "=== Current User ==="
+          whoami
+          echo "=== PM2 Home ==="
+          echo %PM2_HOME%
+          echo %USERPROFILE%
+        shell: cmd
+
       - name: Configure Git safe directory
         run: git config --global --add safe.directory C:/Project/WBSMaster
 
@@ -37,5 +46,12 @@ jobs:
         run: npm run build
 
       - name: Restart with PM2
-        run: pm2 start ecosystem.config.js --update-env
+        run: |
+          echo "=== PM2 Path ==="
+          where pm2
+          echo "=== Starting PM2 ==="
+          pm2 start ecosystem.config.js --update-env
+          echo "=== PM2 Status After Start ==="
+          pm2 list
+          pm2 save
         shell: cmd
