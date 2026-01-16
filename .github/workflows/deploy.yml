@@ -18,8 +18,8 @@ jobs:
         run: git config --global --add safe.directory C:/Project/WBSMaster
 
       - name: Stop PM2
-        run: pm2 stop wbs-master || echo "PM2 not running"
-        shell: powershell
+        run: pm2 stop wbs-master
+        continue-on-error: true
 
       - name: Pull latest code
         run: |
@@ -36,5 +36,5 @@ jobs:
         run: npm run build
 
       - name: Restart with PM2
-        run: pm2 restart wbs-master || pm2 start ecosystem.config.js
-        shell: powershell
+        run: pm2 start ecosystem.config.js --update-env
+        shell: cmd
