@@ -48,6 +48,8 @@ export default function EditItemModal({
     remarks: "",
     status: "PENDING" as VerificationStatus,
     businessUnit: "V_IVI",
+    asIsCode: "",      // AS-IS 관리번호
+    toBeCode: "",      // TO-BE 관리번호
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -68,6 +70,8 @@ export default function EditItemModal({
         remarks: item.remarks || "",
         status: item.status || "PENDING",
         businessUnit: item.businessUnit || "V_IVI",
+        asIsCode: item.asIsCode || "",
+        toBeCode: item.toBeCode || "",
       });
     }
   }, [item]);
@@ -172,6 +176,36 @@ export default function EditItemModal({
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* AS-IS 관리번호 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                AS-IS 관리번호
+              </label>
+              <input
+                type="text"
+                name="asIsCode"
+                value={formData.asIsCode}
+                onChange={handleChange}
+                placeholder="예: M-1-01"
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* TO-BE 관리번호 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                TO-BE 관리번호
+              </label>
+              <input
+                type="text"
+                name="toBeCode"
+                value={formData.toBeCode}
+                onChange={handleChange}
+                placeholder="예: T-1-01"
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
 
             {/* 구분 */}

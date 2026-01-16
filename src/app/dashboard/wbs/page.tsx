@@ -772,6 +772,7 @@ export default function WBSPage() {
         assigneeIds: item.assignees?.map(a => a.id) || [],
         dueDate: item.endDate?.split("T")[0],
         priority: "MEDIUM",
+        wbsItemId: item.id, // WBS 항목과 TASK 연결
       });
       toast.success(`"${item.name}" 항목이 Task로 등록되었습니다.`, "Task 등록 완료");
     } catch (error: any) {
@@ -828,6 +829,7 @@ export default function WBSPage() {
           assigneeIds,
           dueDate: item.endDate?.split("T")[0],
           priority: "MEDIUM",
+          wbsItemId: item.id, // WBS 항목과 TASK 연결
           // status는 API에서 기본값 PENDING으로 생성됨
         });
       });

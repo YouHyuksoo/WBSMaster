@@ -20,8 +20,8 @@ import {
   verificationStatusConfig,
 } from "../types";
 
-/** 페이지당 표시할 항목 수 */
-const ITEMS_PER_PAGE = 20;
+/** 페이지당 표시 갯수 옵션 */
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 interface ItemTableProps {
   items: ProcessVerificationItem[];
@@ -45,6 +45,7 @@ export default function ItemTable({
   const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
   const [dropdownOpenUpward, setDropdownOpenUpward] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20); // 페이지당 표시 갯수
 
   // items가 변경되면 첫 페이지로 리셋 (필터 변경 시)
   useEffect(() => {
@@ -52,21 +53,27 @@ export default function ItemTable({
   }, [items.length]);
 
   // 전체 페이지 수 계산
-  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(items.length / itemsPerPage);
 
   // 현재 페이지에 표시할 항목들
   const paginatedItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
     return items.slice(startIndex, endIndex);
-  }, [items, currentPage]);
+  }, [items, currentPage, itemsPerPage]);
 
   // 페이지 범위 정보 (예: "1-20 / 150")
   const pageRangeInfo = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
-    const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, items.length);
+    const startIndex = (currentPage - 1) * itemsPerPage + 1;
+    const endIndex = Math.min(currentPage * itemsPerPage, items.length);
     return `${startIndex}-${endIndex} / ${items.length}`;
-  }, [items.length, currentPage]);
+  }, [items.length, currentPage, itemsPerPage]);
+
+  // 페이지당 표시 갯수 변경 시 첫 페이지로 이동
+  const handleItemsPerPageChange = (newSize: number) => {
+    setItemsPerPage(newSize);
+    setCurrentPage(1);
+  };
 
   // 페이지 변경 핸들러
   const handlePageChange = (page: number) => {
@@ -142,8 +149,8 @@ export default function ItemTable({
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 테이블 헤더 (그리드 레이아웃) */}
       <div
-        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1650px]"
-        style={{ gridTemplateColumns: "80px 60px 50px 60px 80px 80px 120px 120px 150px 150px 150px 60px" }}
+        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1850px]"
+        style={{ gridTemplateColumns: "80px 60px 50px 60px 80px 80px 120px 120px 150px 150px 150px 60px 80px 80px" }}
       >
         <div>상태</div>
         <div>작업</div>
@@ -157,6 +164,8 @@ export default function ItemTable({
         <div>수용여부</div>
         <div>MES/IT</div>
         <div>기존MES</div>
+        <div>AS-IS</div>
+        <div>TO-BE</div>
       </div>
 
       {/* 빈 목록 */}
@@ -187,8 +196,8 @@ export default function ItemTable({
           <Fragment key={item.id}>
             {/* 항목 행 (그리드 레이아웃) */}
             <div
-              className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1650px]"
-              style={{ gridTemplateColumns: "80px 60px 50px 60px 80px 80px 120px 120px 150px 150px 150px 60px" }}
+              className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1850px]"
+              style={{ gridTemplateColumns: "80px 60px 50px 60px 80px 80px 120px 120px 150px 150px 150px 60px 80px 80px" }}
             >
               {/* 상태 (드롭다운) */}
               <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -338,6 +347,16 @@ export default function ItemTable({
                   </span>
                 )}
               </div>
+
+              {/* AS-IS 관리번호 */}
+              <div className="text-xs font-mono text-slate-600 dark:text-slate-400 truncate" title={item.asIsCode || ""}>
+                {item.asIsCode || "-"}
+              </div>
+
+              {/* TO-BE 관리번호 */}
+              <div className="text-xs font-mono text-slate-600 dark:text-slate-400 truncate" title={item.toBeCode || ""}>
+                {item.toBeCode || "-"}
+              </div>
             </div>
           </Fragment>
         );
@@ -346,12 +365,27 @@ export default function ItemTable({
       {/* 페이지네이션 컨트롤 */}
       {items.length > 0 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-border dark:border-border-dark">
-          {/* 좌측: 표시 정보 */}
+          {/* 좌측: 표시 갯수 선택 및 정보 */}
           <div className="flex items-center gap-4">
+            {/* 페이지당 표시 갯수 드롭다운 */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-text-secondary">표시</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className="px-2 py-1 text-sm border border-border dark:border-border-dark rounded-lg bg-background-white dark:bg-surface-dark text-text dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}개
+                  </option>
+                ))}
+              </select>
+            </div>
             <span className="text-sm text-text-secondary">
               총 {items.length}건 중{" "}
-              {(currentPage - 1) * ITEMS_PER_PAGE + 1}-
-              {Math.min(currentPage * ITEMS_PER_PAGE, items.length)}건 표시
+              {(currentPage - 1) * itemsPerPage + 1}-
+              {Math.min(currentPage * itemsPerPage, items.length)}건 표시
             </span>
           </div>
 

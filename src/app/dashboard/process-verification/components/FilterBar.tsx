@@ -15,7 +15,6 @@ import {
   FilterState,
   VerificationStatus,
   verificationStatusConfig,
-  ProcessVerificationCategory,
 } from "../types";
 
 interface FilterBarProps {
@@ -23,18 +22,17 @@ interface FilterBarProps {
   onFilterChange: (filter: Partial<FilterState>) => void;
   totalCount: number;
   appliedCount: number;
-  categories: ProcessVerificationCategory[];
   viewMode: "grid" | "comparison";
   onViewModeChange: (mode: "grid" | "comparison") => void;
 }
 
 /**
  * 필터 바 컴포넌트
+ * 카테고리 필터는 좌측 사이드바에서 선택하므로 제외
  */
 export default function FilterBar({
   filter,
   onFilterChange,
-  categories,
   viewMode,
   onViewModeChange,
 }: FilterBarProps) {
@@ -80,24 +78,6 @@ export default function FilterBar({
           {BUSINESS_UNITS.map((unit) => (
             <option key={unit} value={unit}>
               {unit}
-            </option>
-          ))}
-        </select>
-
-        {/* 카테고리 필터 */}
-        <select
-          value={filter.categoryId || ""}
-          onChange={(e) =>
-            onFilterChange({
-              categoryId: e.target.value || null,
-            })
-          }
-          className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-        >
-          <option value="">전체 카테고리</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
             </option>
           ))}
         </select>

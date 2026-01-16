@@ -56,6 +56,8 @@ export interface ProcessVerificationItem {
   remarks: string | null;
   status: VerificationStatus;
   businessUnit: string;
+  asIsCode: string | null;     // AS-IS 관리번호
+  toBeCode: string | null;     // TO-BE 관리번호
   categoryId: string;
   categoryRef?: {
     id: string;

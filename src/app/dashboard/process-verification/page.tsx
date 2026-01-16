@@ -62,6 +62,8 @@ export default function ProcessVerificationPage() {
   // 삭제 확인 모달 상태
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingItem, setDeletingItem] = useState<ProcessVerificationItem | null>(null);
+  // 통계 카드 접기/펼치기 상태
+  const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
 
   const toast = useToast();
 
@@ -85,7 +87,7 @@ export default function ProcessVerificationPage() {
     }
   }, [selectedProjectId]);
 
-  // 항목 로드
+  // 항목 로드 (카테고리 필터링은 클라이언트에서 처리)
   const loadItems = useCallback(async () => {
     if (!selectedProjectId) return;
 
@@ -94,9 +96,6 @@ export default function ProcessVerificationPage() {
       const params = new URLSearchParams();
       params.set("projectId", selectedProjectId);
 
-      if (selectedCategoryId) {
-        params.set("categoryId", selectedCategoryId);
-      }
       if (filter.isApplied !== null) {
         params.set("isApplied", String(filter.isApplied));
       }
@@ -118,7 +117,7 @@ export default function ProcessVerificationPage() {
     } finally {
       setIsLoadingItems(false);
     }
-  }, [selectedProjectId, selectedCategoryId, filter.isApplied, filter.search, filter.businessUnit, viewMode]);
+  }, [selectedProjectId, filter.isApplied, filter.search, filter.businessUnit, viewMode]);
 
   // 프로젝트 ID 변경 시 카테고리 로드
   useEffect(() => {
@@ -144,11 +143,18 @@ export default function ProcessVerificationPage() {
     });
   }, [items, filter.status, filter.businessUnit]);
 
-  // 필터링된 항목이 속한 카테고리만 선별
-  const filteredCategories = useMemo(() => {
-    if (filteredItems.length === 0) return [];
-    const categoryIds = new Set(filteredItems.map((item) => item.categoryId));
-    return categories.filter((cat) => categoryIds.has(cat.id));
+  // 테이블에 표시할 항목 (카테고리 선택 시 추가 필터링)
+  const displayItems = useMemo(() => {
+    if (!selectedCategoryId) return filteredItems;
+    return filteredItems.filter((item) => item.categoryId === selectedCategoryId);
+  }, [filteredItems, selectedCategoryId]);
+
+  // 카테고리별 항목 수 계산 (필터링된 항목 기준)
+  const categoriesWithCount = useMemo(() => {
+    return categories.map((cat) => ({
+      ...cat,
+      itemCount: filteredItems.filter((item) => item.categoryId === cat.id).length,
+    }));
   }, [categories, filteredItems]);
 
   // 통계 계산
@@ -169,12 +175,6 @@ export default function ProcessVerificationPage() {
     };
   }, [items, filteredItems]);
 
-  // 필터링된 카테고리에 현재 선택된 카테고리가 없으면 선택 해제
-  useEffect(() => {
-    if (selectedCategoryId && !filteredCategories.some((cat) => cat.id === selectedCategoryId)) {
-      setSelectedCategoryId(null);
-    }
-  }, [filteredCategories, selectedCategoryId]);
 
   // 카테고리 선택 핸들러
   const handleSelectCategory = (categoryId: string | null) => {
@@ -340,6 +340,8 @@ export default function ProcessVerificationPage() {
     // 엑셀 데이터 변환
     const excelData = filteredItems.map((item) => ({
       "관리코드": item.managementCode,
+      "AS-IS 관리번호": item.asIsCode || "",
+      "TO-BE 관리번호": item.toBeCode || "",
       "구분": item.category,
       "관리 영역": item.managementArea,
       "세부 관리 항목": item.detailItem,
@@ -359,6 +361,8 @@ export default function ProcessVerificationPage() {
     // 컬럼 너비 설정
     worksheet["!cols"] = [
       { wch: 12 }, // 관리코드
+      { wch: 15 }, // AS-IS 관리번호
+      { wch: 15 }, // TO-BE 관리번호
       { wch: 15 }, // 구분
       { wch: 25 }, // 관리 영역
       { wch: 40 }, // 세부 관리 항목
@@ -481,66 +485,104 @@ export default function ProcessVerificationPage() {
 
       {selectedProjectId && (
         <>
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* 적용률 카드 */}
-            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name="speed" size="xs" className="text-primary" />
-                <span className="text-xs font-semibold text-primary">적용률</span>
+          {/* 통계 카드 - 슬라이딩 컨테이너 */}
+          <div className="relative">
+            {/* 통계 카드 영역 */}
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
+              }`}
+            >
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 pb-2">
+                {/* 적용률 카드 */}
+                <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon name="speed" size="xs" className="text-primary" />
+                    <span className="text-xs font-semibold text-primary">적용률</span>
+                  </div>
+                  <p className="text-2xl font-bold text-primary mb-1">
+                    {stats.total > 0 ? Math.round((stats.applied / stats.total) * 100) : 0}%
+                  </p>
+                  <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
+                      style={{ width: stats.total > 0 ? `${(stats.applied / stats.total) * 100}%` : "0%" }}
+                    />
+                  </div>
+                </div>
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Icon name="checklist" size="xs" className="text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
+                      <p className="text-[10px] text-text-secondary">전체</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
+                      <Icon name="check_circle" size="xs" className="text-success" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.applied}</p>
+                      <p className="text-[10px] text-text-secondary">적용</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <Icon name="pending" size="xs" className="text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.notApplied}</p>
+                      <p className="text-[10px] text-text-secondary">미적용</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                      <Icon name="category" size="xs" className="text-cyan-500" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{categories.length}</p>
+                      <p className="text-[10px] text-text-secondary">카테고리</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <p className="text-2xl font-bold text-primary mb-1">
-                {stats.total > 0 ? Math.round((stats.applied / stats.total) * 100) : 0}%
-              </p>
-              <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                  style={{ width: stats.total > 0 ? `${(stats.applied / stats.total) * 100}%` : "0%" }}
+            </div>
+
+            {/* 슬라이드 핸들 */}
+            <div
+              className="group flex items-center justify-center cursor-pointer"
+              onClick={() => setIsStatsCollapsed(!isStatsCollapsed)}
+              onMouseEnter={() => isStatsCollapsed && setIsStatsCollapsed(false)}
+            >
+              <div className={`
+                flex items-center gap-2 px-4 py-1 rounded-full transition-all duration-200
+                ${isStatsCollapsed
+                  ? "bg-primary/10 border border-primary/30 hover:bg-primary/20"
+                  : "bg-surface dark:bg-background-dark border border-border dark:border-border-dark hover:border-primary/30"
+                }
+              `}>
+                <Icon
+                  name={isStatsCollapsed ? "expand_more" : "expand_less"}
+                  size="xs"
+                  className={`transition-transform duration-200 ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}
                 />
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="checklist" size="xs" className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-[10px] text-text-secondary">전체</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                  <Icon name="check_circle" size="xs" className="text-success" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.applied}</p>
-                  <p className="text-[10px] text-text-secondary">적용</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <Icon name="pending" size="xs" className="text-warning" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.notApplied}</p>
-                  <p className="text-[10px] text-text-secondary">미적용</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                  <Icon name="category" size="xs" className="text-cyan-500" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{categories.length}</p>
-                  <p className="text-[10px] text-text-secondary">카테고리</p>
-                </div>
+                <span className={`text-xs font-medium ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}>
+                  {isStatsCollapsed ? "통계 보기" : "통계 접기"}
+                </span>
+                <Icon
+                  name={isStatsCollapsed ? "expand_more" : "expand_less"}
+                  size="xs"
+                  className={`transition-transform duration-200 ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}
+                />
               </div>
             </div>
           </div>
@@ -551,7 +593,6 @@ export default function ProcessVerificationPage() {
             onFilterChange={handleFilterChange}
             totalCount={stats.filteredTotal}
             appliedCount={stats.filteredApplied}
-            categories={categories}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
           />
@@ -559,19 +600,19 @@ export default function ProcessVerificationPage() {
           {/* 메인 컨텐츠 */}
           {viewMode === "grid" ? (
             <div className="flex flex-1 overflow-hidden rounded-xl border border-border dark:border-border-dark bg-background-white dark:bg-surface-dark">
-              {/* 카테고리 사이드바 */}
+              {/* 카테고리 사이드바 - 전체 카테고리 표시 */}
               <CategoryList
-                categories={filteredCategories}
+                categories={categories}
                 items={filteredItems}
                 selectedCategoryId={selectedCategoryId}
                 onSelectCategory={handleSelectCategory}
                 isLoading={isLoadingCategories}
               />
 
-              {/* 항목 테이블 */}
+              {/* 항목 테이블 - 선택된 카테고리로 필터링 */}
               <div className="flex-1 overflow-auto">
                 <ItemTable
-                  items={filteredItems}
+                  items={displayItems}
                   isLoading={isLoadingItems}
                   onUpdateItem={handleUpdateItem}
                   onEditItem={handleEditItem}

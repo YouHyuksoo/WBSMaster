@@ -109,6 +109,8 @@ export async function POST(request: NextRequest) {
       order,
       remarks,
       status,
+      asIsCode,   // AS-IS 관리번호
+      toBeCode,   // TO-BE 관리번호
     } = body;
 
     // 필수 필드 검증
@@ -147,6 +149,8 @@ export async function POST(request: NextRequest) {
         order: order ?? 0,
         remarks,
         status: status ?? "PENDING",
+        asIsCode,
+        toBeCode,
       },
       include: {
         categoryRef: {

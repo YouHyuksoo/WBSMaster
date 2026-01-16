@@ -31,7 +31,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Icon, Button, Input, useToast, ConfirmModal } from "@/components/ui";
-import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useMembers, useRequirements, useNudgeTask, useCurrentUser } from "@/hooks";
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useMembers, useRequirements, useWbsItems, useNudgeTask, useCurrentUser } from "@/hooks";
 import { useProject } from "@/contexts";
 import type { Task } from "@/lib/api";
 import { utils, writeFile } from "xlsx";
@@ -124,6 +124,7 @@ export function KanbanBoard() {
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState("");  // 주 담당자
   const [newTaskAssigneeIds, setNewTaskAssigneeIds] = useState<string[]>([]);  // 부 담당자들
   const [newTaskRequirementId, setNewTaskRequirementId] = useState("");
+  const [newTaskWbsItemId, setNewTaskWbsItemId] = useState("");  // WBS 항목
 
   // 사이드바 상태 (카드 선택 시 우측에 상세 정보 표시)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -156,6 +157,11 @@ export function KanbanBoard() {
   // 프로젝트 요구사항 목록 조회
   const { data: requirements = [] } = useRequirements(
     selectedProjectId ? { projectId: selectedProjectId } : undefined
+  );
+
+  // 프로젝트 WBS 항목 목록 조회 (평탄화하여 선택 가능하게)
+  const { data: wbsItems = [] } = useWbsItems(
+    selectedProjectId ? { projectId: selectedProjectId, flat: true } : undefined
   );
 
   // localStorage에서 사용자 정보 가져오기
@@ -295,6 +301,7 @@ export function KanbanBoard() {
         assigneeId: newTaskAssigneeId || undefined,  // 주 담당자
         assigneeIds: newTaskAssigneeIds.length > 0 ? newTaskAssigneeIds : undefined,  // 부 담당자들
         requirementId: newTaskRequirementId || undefined, // 요구사항 연결
+        wbsItemId: newTaskWbsItemId || undefined, // WBS 항목 연결
       });
 
       // 폼 초기화 및 모달 닫기
@@ -306,6 +313,7 @@ export function KanbanBoard() {
       setNewTaskAssigneeId("");  // 주 담당자 초기화
       setNewTaskAssigneeIds([]);  // 부 담당자들 초기화
       setNewTaskRequirementId(""); // 요구사항 ID 초기화
+      setNewTaskWbsItemId(""); // WBS 항목 ID 초기화
       setShowNewTaskModal(false);
     } catch (err) {
       console.error("작업 생성 실패:", err);
@@ -403,6 +411,7 @@ export function KanbanBoard() {
           startDate: selectedTask.startDate,  // 시작일
           dueDate: selectedTask.dueDate,      // 마감일
           requirementId: selectedTask.requirementId,
+          wbsItemId: selectedTask.wbsItemId,  // WBS 항목
           assigneeId: editTaskAssigneeId || null,  // 주 담당자
           assigneeIds: editTaskAssigneeIds,  // 부 담당자들
         },
@@ -925,6 +934,25 @@ export function KanbanBoard() {
                   </select>
                 </div>
 
+                {/* 연결된 WBS 항목 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    연결된 WBS 항목
+                  </label>
+                  <select
+                    value={selectedTask.wbsItemId || ""}
+                    onChange={(e) => setSelectedTask({ ...selectedTask, wbsItemId: e.target.value || null })}
+                    className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  >
+                    <option value="">WBS 항목 없음</option>
+                    {wbsItems.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.code ? `[${item.code}] ` : ""}{item.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* 주 담당자 */}
                 <div>
                   <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
@@ -1125,6 +1153,28 @@ export function KanbanBoard() {
                     </select>
                     <p className="text-xs text-text-secondary mt-1">
                       이 작업이 특정 업무협조요청과 관련된 경우 연결하세요
+                    </p>
+                  </div>
+
+                  {/* WBS 항목 연결 (선택) */}
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                      연결된 WBS 항목
+                    </label>
+                    <select
+                      value={newTaskWbsItemId}
+                      onChange={(e) => setNewTaskWbsItemId(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    >
+                      <option value="">WBS 항목 없음</option>
+                      {wbsItems.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.code ? `[${item.code}] ` : ""}{item.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-text-secondary mt-1">
+                      이 작업이 특정 WBS 항목과 관련된 경우 연결하세요
                     </p>
                   </div>
 
@@ -1733,6 +1783,23 @@ function TaskCard({
             )}
             <span className="text-[11px] font-medium text-purple-700 dark:text-purple-300 truncate">
               {task.requirement.title}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 연결된 WBS 항목 - 글래스모피즘 */}
+      {task.wbsItem && (
+        <div className="mb-3 px-2 py-1.5 rounded-lg backdrop-blur-sm bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 dark:from-cyan-400/25 dark:to-cyan-500/15 border border-cyan-200/30 dark:border-cyan-400/20 shadow-md">
+          <div className="flex items-center gap-1.5">
+            <Icon name="account_tree" size="xs" className="text-cyan-600 dark:text-cyan-400 flex-shrink-0" />
+            {task.wbsItem.code && (
+              <span className="text-[10px] font-bold text-white bg-cyan-600/90 dark:bg-cyan-500/90 backdrop-blur-sm px-1.5 py-0.5 rounded flex-shrink-0 shadow-sm">
+                {task.wbsItem.code}
+              </span>
+            )}
+            <span className="text-[11px] font-medium text-cyan-700 dark:text-cyan-300 truncate">
+              {task.wbsItem.name}
             </span>
           </div>
         </div>

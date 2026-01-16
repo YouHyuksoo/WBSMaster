@@ -951,6 +951,8 @@ model ProcessVerificationItem {
   remarks             String?          // 비고
   status              VerificationStatus @default(PENDING) // 검증 상태
   businessUnit        String  @default("V_IVI") // 사업부 구분 코드
+  asIsCode            String?          // AS-IS 관리번호
+  toBeCode            String?          // TO-BE 관리번호
 
   // 관계
   categoryId          String

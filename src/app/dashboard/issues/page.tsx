@@ -72,6 +72,8 @@ export default function IssuesPage() {
   const [activeTab, setActiveTab] = useState<"active" | "closed">("active");
   /** 보기 모드 (grid: 테이블 보기, document: 산출물 형식 보기) */
   const [viewMode, setViewMode] = useState<"grid" | "document">("grid");
+  /** 통계 카드 접기/펼치기 상태 */
+  const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
 
   /** 전역 프로젝트 선택 상태 (헤더에서 선택) */
   const { selectedProjectId, selectedProject } = useProject();
@@ -361,89 +363,127 @@ export default function IssuesPage() {
 
       {selectedProjectId && (
         <>
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-            {/* 해결률 카드 */}
-            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name="speed" size="xs" className="text-primary" />
-                <span className="text-xs font-semibold text-primary">해결률</span>
-              </div>
-              <p className="text-2xl font-bold text-primary mb-1">
-                {stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}%
-              </p>
-              <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                  style={{ width: stats.total > 0 ? `${(stats.resolved / stats.total) * 100}%` : "0%" }}
-                />
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="bug_report" size="xs" className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-[10px] text-text-secondary">전체</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-error/10 flex items-center justify-center">
-                  <Icon name="radio_button_unchecked" size="xs" className="text-error" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.open}</p>
-                  <p className="text-[10px] text-text-secondary">열림</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <Icon name="pending" size="xs" className="text-warning" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.inProgress}</p>
-                  <p className="text-[10px] text-text-secondary">진행중</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                  <Icon name="check_circle" size="xs" className="text-success" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.resolved}</p>
-                  <p className="text-[10px] text-text-secondary">해결됨</p>
-                </div>
-              </div>
-            </div>
-            {/* 긴급 이슈 정보 카드 */}
-            <div className="bg-error/5 border border-error/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name="warning" size="xs" className="text-error" />
-                <span className="text-xs font-semibold text-error">긴급</span>
-              </div>
-              <div className="flex items-center justify-between gap-1">
-                <div className="text-center flex-1">
-                  <p className="text-lg font-bold text-error">{criticalStats.total}</p>
-                  <p className="text-[10px] text-text-secondary">건수</p>
-                </div>
-                <div className="text-center flex-1">
-                  <p className="text-lg font-bold text-success">{criticalStats.resolved}</p>
-                  <p className="text-[10px] text-text-secondary">해결</p>
-                </div>
-                <div className="text-center flex-1">
-                  <p className={`text-lg font-bold ${criticalStats.unresolvedRate > 50 ? "text-error" : criticalStats.unresolvedRate > 0 ? "text-warning" : "text-success"}`}>
-                    {criticalStats.unresolvedRate}%
+          {/* 통계 카드 - 슬라이딩 컨테이너 */}
+          <div className="relative">
+            {/* 통계 카드 영역 */}
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
+              }`}
+            >
+              <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 pb-2">
+                {/* 해결률 카드 */}
+                <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon name="speed" size="xs" className="text-primary" />
+                    <span className="text-xs font-semibold text-primary">해결률</span>
+                  </div>
+                  <p className="text-2xl font-bold text-primary mb-1">
+                    {stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}%
                   </p>
-                  <p className="text-[10px] text-text-secondary">미결</p>
+                  <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
+                      style={{ width: stats.total > 0 ? `${(stats.resolved / stats.total) * 100}%` : "0%" }}
+                    />
+                  </div>
                 </div>
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Icon name="bug_report" size="xs" className="text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
+                      <p className="text-[10px] text-text-secondary">전체</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-error/10 flex items-center justify-center">
+                      <Icon name="radio_button_unchecked" size="xs" className="text-error" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.open}</p>
+                      <p className="text-[10px] text-text-secondary">열림</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <Icon name="pending" size="xs" className="text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.inProgress}</p>
+                      <p className="text-[10px] text-text-secondary">진행중</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
+                      <Icon name="check_circle" size="xs" className="text-success" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.resolved}</p>
+                      <p className="text-[10px] text-text-secondary">해결됨</p>
+                    </div>
+                  </div>
+                </div>
+                {/* 긴급 이슈 정보 카드 */}
+                <div className="bg-error/5 border border-error/20 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon name="warning" size="xs" className="text-error" />
+                    <span className="text-xs font-semibold text-error">긴급</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="text-center flex-1">
+                      <p className="text-lg font-bold text-error">{criticalStats.total}</p>
+                      <p className="text-[10px] text-text-secondary">건수</p>
+                    </div>
+                    <div className="text-center flex-1">
+                      <p className="text-lg font-bold text-success">{criticalStats.resolved}</p>
+                      <p className="text-[10px] text-text-secondary">해결</p>
+                    </div>
+                    <div className="text-center flex-1">
+                      <p className={`text-lg font-bold ${criticalStats.unresolvedRate > 50 ? "text-error" : criticalStats.unresolvedRate > 0 ? "text-warning" : "text-success"}`}>
+                        {criticalStats.unresolvedRate}%
+                      </p>
+                      <p className="text-[10px] text-text-secondary">미결</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 슬라이드 핸들 */}
+            <div
+              className="group flex items-center justify-center cursor-pointer"
+              onClick={() => setIsStatsCollapsed(!isStatsCollapsed)}
+              onMouseEnter={() => isStatsCollapsed && setIsStatsCollapsed(false)}
+            >
+              <div className={`
+                flex items-center gap-2 px-4 py-1 rounded-full transition-all duration-200
+                ${isStatsCollapsed
+                  ? "bg-primary/10 border border-primary/30 hover:bg-primary/20"
+                  : "bg-surface dark:bg-background-dark border border-border dark:border-border-dark hover:border-primary/30"
+                }
+              `}>
+                <Icon
+                  name={isStatsCollapsed ? "expand_more" : "expand_less"}
+                  size="xs"
+                  className={`transition-transform duration-200 ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}
+                />
+                <span className={`text-xs font-medium ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}>
+                  {isStatsCollapsed ? "통계 보기" : "통계 접기"}
+                </span>
+                <Icon
+                  name={isStatsCollapsed ? "expand_more" : "expand_less"}
+                  size="xs"
+                  className={`transition-transform duration-200 ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}
+                />
               </div>
             </div>
           </div>

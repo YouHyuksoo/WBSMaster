@@ -73,6 +73,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       order,
       remarks,
       status,
+      asIsCode,   // AS-IS 관리번호
+      toBeCode,   // TO-BE 관리번호
     } = body;
 
     // 항목 존재 확인
@@ -103,6 +105,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(order !== undefined && { order }),
         ...(remarks !== undefined && { remarks }),
         ...(status !== undefined && { status }),
+        ...(asIsCode !== undefined && { asIsCode }),
+        ...(toBeCode !== undefined && { toBeCode }),
       },
       include: {
         categoryRef: {
