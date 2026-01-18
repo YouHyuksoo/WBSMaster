@@ -101,6 +101,12 @@ export default function WBSPage() {
     originalStartDate: string;
     originalEndDate: string;
   } | null>(null);
+
+  /**
+   * 드래그로 변경된 날짜를 임시 저장 (저장 버튼 클릭 전까지 로컬에서만 유지)
+   * key: itemId, value: { startDate, endDate }
+   */
+  const [pendingDates, setPendingDates] = useState<Map<string, { startDate: string; endDate: string }>>(new Map());
   const isResizing = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const treeListRef = useRef<HTMLDivElement>(null);
@@ -324,9 +330,9 @@ export default function WBSPage() {
     setDragDelta(daysDelta);
   }, [dragState, cellWidth]);
 
-  /** 간트 바 드래그 종료 */
-  const handleGanttDragEnd = useCallback(async () => {
-    if (!dragState || dragDelta === 0) {
+  /** 간트 바 드래그 종료 - 로컬 pendingDates에만 저장 (API 호출 X) */
+  const handleGanttDragEnd = useCallback((e: MouseEvent) => {
+    if (!dragState) {
       setDragState(null);
       setDragDelta(0);
       document.body.style.cursor = "";
@@ -334,8 +340,19 @@ export default function WBSPage() {
       return;
     }
 
+    // 마우스 이벤트에서 직접 최종 델타 계산 (상태 의존 X)
+    const finalDeltaX = e.clientX - dragState.startX;
+    const finalDaysDelta = Math.round(finalDeltaX / cellWidth);
+
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
+
+    // 델타가 0이면 변경 없음
+    if (finalDaysDelta === 0) {
+      setDragState(null);
+      setDragDelta(0);
+      return;
+    }
 
     // 새로운 날짜 계산
     const originalStart = new Date(dragState.originalStartDate);
@@ -345,12 +362,12 @@ export default function WBSPage() {
 
     if (dragState.type === "move") {
       newStartDate = new Date(originalStart);
-      newStartDate.setDate(newStartDate.getDate() + dragDelta);
+      newStartDate.setDate(newStartDate.getDate() + finalDaysDelta);
       newEndDate = new Date(originalEnd);
-      newEndDate.setDate(newEndDate.getDate() + dragDelta);
+      newEndDate.setDate(newEndDate.getDate() + finalDaysDelta);
     } else if (dragState.type === "resize-left") {
       newStartDate = new Date(originalStart);
-      newStartDate.setDate(newStartDate.getDate() + dragDelta);
+      newStartDate.setDate(newStartDate.getDate() + finalDaysDelta);
       newEndDate = originalEnd;
       if (newStartDate >= newEndDate) {
         newStartDate = new Date(newEndDate);
@@ -359,28 +376,58 @@ export default function WBSPage() {
     } else {
       newStartDate = originalStart;
       newEndDate = new Date(originalEnd);
-      newEndDate.setDate(newEndDate.getDate() + dragDelta);
+      newEndDate.setDate(newEndDate.getDate() + finalDaysDelta);
       if (newEndDate <= newStartDate) {
         newEndDate = new Date(newStartDate);
         newEndDate.setDate(newEndDate.getDate() + 1);
       }
     }
 
-    // API 호출하여 날짜 업데이트
-    try {
-      await updateWbs.mutateAsync({
-        id: dragState.itemId,
+    // 로컬 pendingDates에 저장 (API 호출 없이 즉시 반영)
+    setPendingDates((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(dragState.itemId, {
         startDate: newStartDate.toISOString().split("T")[0],
         endDate: newEndDate.toISOString().split("T")[0],
       });
-      toast.success("일정이 변경되었습니다.");
-    } catch (error) {
-      toast.error("일정 변경에 실패했습니다.");
-    }
+      return newMap;
+    });
 
     setDragState(null);
     setDragDelta(0);
-  }, [dragState, dragDelta, updateWbs, toast]);
+  }, [dragState, cellWidth]);
+
+  /** pendingDates에 저장된 모든 변경사항을 서버에 저장 */
+  const [isSavingDates, setIsSavingDates] = useState(false);
+  const handleSavePendingDates = useCallback(async () => {
+    if (pendingDates.size === 0) return;
+
+    setIsSavingDates(true);
+    try {
+      // 모든 변경사항을 병렬로 저장
+      const promises = Array.from(pendingDates.entries()).map(([itemId, dates]) =>
+        updateWbs.mutateAsync({
+          id: itemId,
+          startDate: dates.startDate,
+          endDate: dates.endDate,
+        })
+      );
+      await Promise.all(promises);
+
+      toast.success(`${pendingDates.size}개 항목의 일정이 저장되었습니다.`);
+      setPendingDates(new Map()); // 저장 완료 후 초기화
+    } catch (error) {
+      toast.error("일정 저장에 실패했습니다.");
+    } finally {
+      setIsSavingDates(false);
+    }
+  }, [pendingDates, updateWbs, toast]);
+
+  /** pendingDates 변경사항 취소 */
+  const handleCancelPendingDates = useCallback(() => {
+    setPendingDates(new Map());
+    toast.info("변경사항이 취소되었습니다.");
+  }, [toast]);
 
   /** 마우스 이벤트 리스너 등록 */
   useEffect(() => {
@@ -453,24 +500,30 @@ export default function WBSPage() {
 
   /** 통계 계산 */
   const stats = useMemo(() => {
-    const allItems: WbsItem[] = [];
-    const collectAll = (items: WbsItem[]) => {
+    // 말단 항목만 수집 (자식이 없는 항목)
+    const leafItems: WbsItem[] = [];
+    const collectLeafItems = (items: WbsItem[]) => {
       items.forEach((item) => {
-        allItems.push(item);
-        if (item.children) collectAll(item.children);
+        if (!item.children || item.children.length === 0) {
+          // 자식이 없으면 말단 항목
+          leafItems.push(item);
+        } else {
+          // 자식이 있으면 재귀적으로 계속 탐색
+          collectLeafItems(item.children);
+        }
       });
     };
-    collectAll(wbsTree);
+    collectLeafItems(wbsTree);
 
-    const total = allItems.length;
-    const completed = allItems.filter((i) => i.status === "COMPLETED").length;
-    const inProgress = allItems.filter((i) => i.status === "IN_PROGRESS").length;
-    const pending = allItems.filter((i) => i.status === "PENDING").length;
+    const total = leafItems.length;
+    const completed = leafItems.filter((i) => i.status === "COMPLETED").length;
+    const inProgress = leafItems.filter((i) => i.status === "IN_PROGRESS").length;
+    const pending = leafItems.filter((i) => i.status === "PENDING").length;
 
     // 지연 항목 (종료일이 지났는데 완료/취소 아닌 항목)
-    const delayed = allItems.filter((i) => isDelayed(i.endDate, i.status)).length;
+    const delayed = leafItems.filter((i) => isDelayed(i.endDate, i.status)).length;
     // 지연 비율 (완료/취소 제외한 항목 중 지연 비율)
-    const activeItems = allItems.filter((i) => i.status !== "COMPLETED" && i.status !== "CANCELLED").length;
+    const activeItems = leafItems.filter((i) => i.status !== "COMPLETED" && i.status !== "CANCELLED").length;
     const delayedRate = activeItems > 0 ? Math.round((delayed / activeItems) * 100) : 0;
 
     // 최상위 레벨의 평균 진행률
@@ -1191,6 +1244,11 @@ export default function WBSPage() {
                   <span className="text-sm font-bold text-text dark:text-white">{stats.pending}</span>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background-white dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
+                  <div className="size-2 rounded-full bg-rose-500" />
+                  <span className="text-xs text-text-secondary">지연</span>
+                  <span className="text-sm font-bold text-rose-600 dark:text-rose-400">{stats.delayed}</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background-white dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
                   <span className="text-xs text-text-secondary">총 항목</span>
                   <span className="text-sm font-bold text-text dark:text-white">{stats.total}</span>
                 </div>
@@ -1343,7 +1401,7 @@ export default function WBSPage() {
 
               {/* 우측: 간트 차트 */}
               <div className="flex-1 flex flex-col overflow-hidden bg-background-white dark:bg-[#161b22]">
-                {/* 줌 컨트롤 */}
+                {/* 줌 컨트롤 + 변경사항 저장/취소 버튼 */}
                 <div className="h-8 px-2 flex items-center gap-2 border-b border-border dark:border-border-dark bg-surface/50 dark:bg-surface-dark/50 shrink-0">
                   <span className="text-[10px] text-text-secondary">줌</span>
                   <button
@@ -1369,6 +1427,39 @@ export default function WBSPage() {
                     <Icon name="add" size="xs" />
                   </button>
                   <span className="text-[10px] text-text-secondary ml-1">{cellWidth}px</span>
+
+                  {/* 변경사항 저장/취소 버튼 (pendingDates가 있을 때만 표시) */}
+                  {pendingDates.size > 0 && (
+                    <div className="ml-auto flex items-center gap-2 bg-yellow-500/10 border border-yellow-400/50 px-2.5 py-1 rounded-md">
+                      <span className="text-xs text-yellow-400 font-medium">
+                        {pendingDates.size}개 변경됨
+                      </span>
+                      <button
+                        onClick={handleCancelPendingDates}
+                        className="px-2 py-0.5 text-xs font-medium text-text-secondary hover:text-white hover:bg-white/10 rounded transition-colors"
+                        disabled={isSavingDates}
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={handleSavePendingDates}
+                        disabled={isSavingDates}
+                        className="px-2.5 py-0.5 text-xs font-medium bg-yellow-500 hover:bg-yellow-400 text-black rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {isSavingDates ? (
+                          <>
+                            <Icon name="sync" size="xs" className="animate-spin" />
+                            저장 중...
+                          </>
+                        ) : (
+                          <>
+                            <Icon name="save" size="xs" />
+                            저장
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* 스크롤 영역 */}
@@ -1433,6 +1524,9 @@ export default function WBSPage() {
                   {visibleItems.map((item, rowIndex) => {
                     const isSelected = selectedItemId === item.id;
                     const isDragging = dragState?.itemId === item.id;
+                    // pendingDates에 저장된 임시 날짜가 있으면 우선 사용 (저장 전 로컬 변경사항)
+                    const pendingDate = pendingDates.get(item.id);
+                    const hasPendingChange = !!pendingDate;
 
                     // 날짜로부터 위치 계산
                     const getDateIndex = (dateStr: string | null | undefined) => {
@@ -1446,8 +1540,12 @@ export default function WBSPage() {
                       );
                     };
 
-                    let startIndex = getDateIndex(item.startDate);
-                    let endIndex = getDateIndex(item.endDate);
+                    // pendingDate가 있으면 그걸 사용, 없으면 서버 데이터 사용
+                    const effectiveStartDate = pendingDate?.startDate || item.startDate;
+                    const effectiveEndDate = pendingDate?.endDate || item.endDate;
+
+                    let startIndex = getDateIndex(effectiveStartDate);
+                    let endIndex = getDateIndex(effectiveEndDate);
 
                     // 날짜가 없으면 기본 위치
                     if (startIndex < 0) startIndex = todayIndex >= 0 ? todayIndex : 7;
@@ -1507,24 +1605,25 @@ export default function WBSPage() {
                               ? "ring-[3px] ring-cyan-400 shadow-[0_0_12px_rgba(0,243,255,0.6)] scale-y-110 z-10"
                               : "hover:brightness-110 hover:scale-y-105"}
                             ${isDragging ? "opacity-80 shadow-xl scale-y-110" : ""}
+                            ${hasPendingChange && !isDragging ? "ring-2 ring-yellow-400 ring-offset-1 ring-offset-transparent" : ""}
                           `}
                           style={{
                             left: `${barLeft}px`,
                             width: `${barWidth}px`,
                           }}
                         >
-                          {/* 왼쪽 리사이즈 핸들 */}
+                          {/* 왼쪽 리사이즈 핸들 - effectiveStartDate/EndDate 사용 (연속 드래그 지원) */}
                           <div
-                            onMouseDown={(e) => handleGanttDragStart(e, item.id, "resize-left", item.startDate, item.endDate)}
+                            onMouseDown={(e) => handleGanttDragStart(e, item.id, "resize-left", effectiveStartDate, effectiveEndDate)}
                             className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 rounded-l flex items-center justify-center"
                             title="시작일 조정"
                           >
                             <div className="w-0.5 h-3 bg-white/50 rounded opacity-0 group-hover:opacity-100" />
                           </div>
 
-                          {/* 가운데 드래그 영역 */}
+                          {/* 가운데 드래그 영역 - effectiveStartDate/EndDate 사용 */}
                           <div
-                            onMouseDown={(e) => handleGanttDragStart(e, item.id, "move", item.startDate, item.endDate)}
+                            onMouseDown={(e) => handleGanttDragStart(e, item.id, "move", effectiveStartDate, effectiveEndDate)}
                             onClick={() => setSelectedItemId(item.id)}
                             className="absolute left-2 right-2 top-0 bottom-0 cursor-grab active:cursor-grabbing flex items-center"
                           >
@@ -1539,9 +1638,9 @@ export default function WBSPage() {
                             </span>
                           </div>
 
-                          {/* 오른쪽 리사이즈 핸들 */}
+                          {/* 오른쪽 리사이즈 핸들 - effectiveStartDate/EndDate 사용 */}
                           <div
-                            onMouseDown={(e) => handleGanttDragStart(e, item.id, "resize-right", item.startDate, item.endDate)}
+                            onMouseDown={(e) => handleGanttDragStart(e, item.id, "resize-right", effectiveStartDate, effectiveEndDate)}
                             className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-white/30 rounded-r flex items-center justify-center"
                             title="종료일 조정"
                           >
