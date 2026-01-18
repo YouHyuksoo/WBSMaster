@@ -10,17 +10,16 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui";
 import {
-  ProcessVerificationItem,
-  VerificationStatus,
-  verificationStatusConfig,
+  ProcessVerificationMaster,
+  PRODUCT_TYPES,
+  ProductType,
 } from "../types";
-import { BUSINESS_UNITS } from "@/constants/business-units";
 
 interface EditItemModalProps {
-  item: ProcessVerificationItem | null;
+  item: ProcessVerificationMaster | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (id: string, data: Partial<ProcessVerificationItem>) => Promise<void>;
+  onSave: (id: string, data: Partial<ProcessVerificationMaster>) => Promise<void>;
 }
 
 /**
@@ -36,7 +35,7 @@ export default function EditItemModal({
 
   const [formData, setFormData] = useState({
     category: "",
-    isApplied: false,
+    productType: "SMD" as ProductType,
     managementArea: "",
     detailItem: "",
     mesMapping: "",
@@ -46,19 +45,17 @@ export default function EditItemModal({
     existingMes: false,
     customerRequest: "",
     remarks: "",
-    status: "PENDING" as VerificationStatus,
-    businessUnit: "V_IVI",
     asIsCode: "",      // AS-IS 관리번호
     toBeCode: "",      // TO-BE 관리번호
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  // 항목이 변경되면 폼 데이터 초기화
+  // 마스터가 변경되면 폼 데이터 초기화
   useEffect(() => {
     if (item) {
       setFormData({
         category: item.category || "",
-        isApplied: item.isApplied || false,
+        productType: (item.productType as ProductType) || "SMD",
         managementArea: item.managementArea || "",
         detailItem: item.detailItem || "",
         mesMapping: item.mesMapping || "",
@@ -68,8 +65,6 @@ export default function EditItemModal({
         existingMes: item.existingMes || false,
         customerRequest: item.customerRequest || "",
         remarks: item.remarks || "",
-        status: item.status || "PENDING",
-        businessUnit: item.businessUnit || "V_IVI",
         asIsCode: item.asIsCode || "",
         toBeCode: item.toBeCode || "",
       });
@@ -159,20 +154,20 @@ export default function EditItemModal({
               />
             </div>
 
-            {/* 사업부 */}
+            {/* 제품유형 */}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                사업부
+                제품유형
               </label>
               <select
-                name="businessUnit"
-                value={formData.businessUnit}
+                name="productType"
+                value={formData.productType}
                 onChange={handleChange}
                 className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                {BUSINESS_UNITS.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
+                {PRODUCT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
                   </option>
                 ))}
               </select>
@@ -279,7 +274,7 @@ export default function EditItemModal({
             </div>
 
             {/* 수용 여부 */}
-            <div>
+            <div className="col-span-2">
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 수용 여부
               </label>
@@ -290,25 +285,6 @@ export default function EditItemModal({
                 onChange={handleChange}
                 className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-            </div>
-
-            {/* 상태 */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                상태
-              </label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {Object.entries(verificationStatusConfig).map(([key, config]) => (
-                  <option key={key} value={key}>
-                    {config.label}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* 고객 요청 */}
@@ -344,17 +320,6 @@ export default function EditItemModal({
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  name="isApplied"
-                  checked={formData.isApplied}
-                  onChange={handleChange}
-                  className="w-4 h-4 text-blue-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm text-slate-700 dark:text-slate-300">적용</span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
                   name="existingMes"
                   checked={formData.existingMes}
                   onChange={handleChange}
@@ -362,6 +327,13 @@ export default function EditItemModal({
                 />
                 <span className="text-sm text-slate-700 dark:text-slate-300">기존 MES</span>
               </label>
+            </div>
+
+            {/* 안내 문구 */}
+            <div className="col-span-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                <strong>참고:</strong> 사업부별 적용 여부와 검증 상태는 테이블에서 직접 변경할 수 있습니다.
+              </p>
             </div>
           </div>
         </div>

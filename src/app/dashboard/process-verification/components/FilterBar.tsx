@@ -10,11 +10,12 @@
 
 import { useState } from "react";
 import { Icon, Input } from "@/components/ui";
-import { BUSINESS_UNITS } from "@/constants/business-units";
 import {
   FilterState,
   VerificationStatus,
   verificationStatusConfig,
+  PRODUCT_TYPES,
+  ProductType,
 } from "../types";
 
 interface FilterBarProps {
@@ -65,37 +66,22 @@ export default function FilterBar({
           />
         </div>
 
-        {/* 사업부 필터 */}
+        {/* 제품유형 필터 */}
         <select
-          value={filter.businessUnit}
+          value={filter.productType || ""}
           onChange={(e) =>
             onFilterChange({
-              businessUnit: e.target.value,
+              productType: e.target.value ? (e.target.value as ProductType) : null,
             })
           }
           className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
         >
-          {BUSINESS_UNITS.map((unit) => (
-            <option key={unit} value={unit}>
-              {unit}
+          <option value="">전체 제품유형</option>
+          {PRODUCT_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {type}
             </option>
           ))}
-        </select>
-
-        {/* 적용 필터 */}
-        <select
-          value={filter.isApplied === null ? "all" : filter.isApplied ? "Y" : "N"}
-          onChange={(e) => {
-            const val = e.target.value;
-            onFilterChange({
-              isApplied: val === "all" ? null : val === "Y",
-            });
-          }}
-          className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-        >
-          <option value="all">전체 적용</option>
-          <option value="Y">적용 (Y)</option>
-          <option value="N">미적용 (N)</option>
         </select>
 
         {/* 상태 필터 */}

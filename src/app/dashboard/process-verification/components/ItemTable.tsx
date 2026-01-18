@@ -15,20 +15,22 @@
 import { useState, Fragment, useMemo, useEffect } from "react";
 import { Icon } from "@/components/ui";
 import {
-  ProcessVerificationItem,
+  ProcessVerificationMaster,
   VerificationStatus,
   verificationStatusConfig,
+  PRODUCT_TYPE_BUSINESS_UNITS,
+  ProductType,
 } from "../types";
 
 /** 페이지당 표시 갯수 옵션 */
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 interface ItemTableProps {
-  items: ProcessVerificationItem[];
+  items: ProcessVerificationMaster[];
   isLoading?: boolean;
-  onUpdateItem: (id: string, data: Partial<ProcessVerificationItem>) => Promise<void>;
-  onEditItem?: (item: ProcessVerificationItem) => void;
-  onDeleteItem?: (item: ProcessVerificationItem) => void;
+  onUpdateItem: (id: string, data: Partial<ProcessVerificationMaster>) => Promise<void>;
+  onEditItem?: (item: ProcessVerificationMaster) => void;
+  onDeleteItem?: (item: ProcessVerificationMaster) => void;
 }
 
 /**
@@ -99,17 +101,53 @@ export default function ItemTable({
     return pages;
   };
 
-  // 적용 여부 토글
-  const handleToggleApplied = async (item: ProcessVerificationItem) => {
-    await onUpdateItem(item.id, { isApplied: !item.isApplied });
+  /**
+   * 사업부별 적용 여부 토글
+   * @param masterId 마스터 ID
+   * @param businessUnit 사업부
+   * @param currentApplied 현재 적용 상태
+   */
+  const handleToggleApply = async (masterId: string, businessUnit: string, currentApplied: boolean) => {
+    try {
+      const res = await fetch(`/api/process-verification/masters/${masterId}/apply`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessUnit, isApplied: !currentApplied }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        // 부모 컴포넌트에서 상태 업데이트
+        await onUpdateItem(masterId, updated);
+      }
+    } catch (error) {
+      console.error("적용 토글 실패:", error);
+    }
   };
 
-  // 상태 변경
+  /**
+   * 사업부별 상태 변경
+   * @param masterId 마스터 ID
+   * @param businessUnit 사업부
+   * @param status 새 상태
+   */
   const handleStatusChange = async (
-    itemId: string,
+    masterId: string,
+    businessUnit: string,
     status: VerificationStatus
   ) => {
-    await onUpdateItem(itemId, { status });
+    try {
+      const res = await fetch(`/api/process-verification/masters/${masterId}/apply`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessUnit, status }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        await onUpdateItem(masterId, updated);
+      }
+    } catch (error) {
+      console.error("상태 변경 실패:", error);
+    }
     setOpenStatusDropdown(null);
   };
 
@@ -149,18 +187,17 @@ export default function ItemTable({
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 테이블 헤더 (그리드 레이아웃) */}
       <div
-        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1850px]"
-        style={{ gridTemplateColumns: "80px 60px 50px 60px 80px 80px 120px 120px 150px 150px 150px 60px 80px 80px" }}
+        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1600px]"
+        style={{ gridTemplateColumns: "60px 60px 80px 80px 120px 120px 150px 180px 150px 120px 60px 80px 80px" }}
       >
-        <div>상태</div>
         <div>작업</div>
-        <div>적용</div>
-        <div>사업부</div>
+        <div>제품유형</div>
         <div>관리코드</div>
         <div>구분</div>
         <div>관리영역</div>
         <div>세부항목</div>
         <div>세부검증</div>
+        <div className="text-center">사업부별 적용</div>
         <div>수용여부</div>
         <div>MES/IT</div>
         <div>기존MES</div>
@@ -190,65 +227,16 @@ export default function ItemTable({
 
       {/* 항목 목록 */}
       {paginatedItems.map((item) => {
-        const statusConfig = verificationStatusConfig[item.status];
+        // 제품유형에 따른 사업부 목록
+        const businessUnits = PRODUCT_TYPE_BUSINESS_UNITS[item.productType as ProductType] || [];
 
         return (
           <Fragment key={item.id}>
             {/* 항목 행 (그리드 레이아웃) */}
             <div
-              className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1850px]"
-              style={{ gridTemplateColumns: "80px 60px 50px 60px 80px 80px 120px 120px 150px 150px 150px 60px 80px 80px" }}
+              className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1600px]"
+              style={{ gridTemplateColumns: "60px 60px 80px 80px 120px 120px 150px 180px 150px 120px 60px 80px 80px" }}
             >
-              {/* 상태 (드롭다운) */}
-              <div className="relative" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={(e) => {
-                    if (openStatusDropdown === item.id) {
-                      setOpenStatusDropdown(null);
-                    } else {
-                      setOpenStatusDropdown(item.id);
-                      // 버튼의 위치를 계산하여 위로 열릴지 결정
-                      const buttonRect = e.currentTarget.getBoundingClientRect();
-                      const spaceBelow = window.innerHeight - buttonRect.bottom;
-                      const dropdownHeight = 180;
-                      setDropdownOpenUpward(spaceBelow < dropdownHeight);
-                    }
-                  }}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${statusConfig.bgColor} ${statusConfig.color}`}
-                  title="클릭하여 상태 변경"
-                >
-                  <Icon name={statusConfig.icon} size="xs" />
-                  <span>{statusConfig.label}</span>
-                </button>
-
-                {/* 상태 변경 드롭다운 */}
-                {openStatusDropdown === item.id && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setOpenStatusDropdown(null)}
-                    />
-                    <div className={`absolute left-0 ${dropdownOpenUpward ? 'bottom-full mb-1' : 'top-full mt-1'} z-20 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[120px]`}>
-                      {Object.entries(verificationStatusConfig).map(([key, config]) => (
-                        <button
-                          key={key}
-                          onClick={() => handleStatusChange(item.id, key as VerificationStatus)}
-                          className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface dark:hover:bg-background-dark transition-colors ${
-                            item.status === key ? "bg-primary/5" : ""
-                          }`}
-                        >
-                          <Icon name={config.icon} size="xs" className={config.color} />
-                          <span className={config.color}>{config.label}</span>
-                          {item.status === key && (
-                            <Icon name="check" size="xs" className="ml-auto text-primary" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-
               {/* 작업 버튼 (수정/삭제) */}
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                 <button
@@ -267,19 +255,15 @@ export default function ItemTable({
                 </button>
               </div>
 
-              {/* 적용 체크박스 */}
-              <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
-                <input
-                  type="checkbox"
-                  checked={item.isApplied}
-                  onChange={() => handleToggleApplied(item)}
-                  className="w-4 h-4 text-blue-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500"
-                />
-              </div>
-
-              {/* 사업부 */}
+              {/* 제품유형 */}
               <div className="text-xs font-mono text-slate-600 dark:text-slate-400 truncate">
-                {item.businessUnit}
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                  item.productType === "SMD"
+                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                    : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
+                }`}>
+                  {item.productType}
+                </span>
               </div>
 
               {/* 관리코드 */}
@@ -315,6 +299,27 @@ export default function ItemTable({
                     <div className="absolute top-full left-2 -mt-1 border-4 border-transparent border-t-slate-900 dark:border-t-slate-700" />
                   </div>
                 )}
+              </div>
+
+              {/* 사업부별 적용 체크박스 */}
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                {businessUnits.map((bu) => {
+                  const apply = item.businessUnitApplies?.find((a) => a.businessUnit === bu);
+                  const isApplied = apply?.isApplied ?? false;
+                  return (
+                    <label key={bu} className="flex items-center gap-1 cursor-pointer" title={bu}>
+                      <input
+                        type="checkbox"
+                        checked={isApplied}
+                        onChange={() => handleToggleApply(item.id, bu, isApplied)}
+                        className="w-3.5 h-3.5 text-blue-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500"
+                      />
+                      <span className={`text-[10px] ${isApplied ? "text-success font-medium" : "text-slate-400"}`}>
+                        {bu.replace("V_", "")}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
 
               {/* 수용여부 (툴팁) */}

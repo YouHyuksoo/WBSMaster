@@ -56,6 +56,8 @@ model User {
   workloadAnalyses WorkloadAnalysis[] @relation("WorkloadAnalysisCreator") // 내가 생성한 부하분석
   documents     Document[] @relation("DocumentCreator") // 내가 등록한 문서
   notifications Notification[] @relation("UserNotifications") // 내 알림
+  reportedDiscussions DiscussionItem[] @relation("DiscussionReporter") // 내가 보고한 협의요청
+  assignedDiscussions DiscussionItem[] @relation("DiscussionAssignee") // 나에게 할당된 협의요청
 
   @@map("users")
 }
@@ -135,6 +137,9 @@ model Project {
   equipments Equipment[] // 설비 목록
   fieldIssues FieldIssue[] // 현업이슈 목록
   taskConnections TaskConnection[] // 태스크 연결 (플로우 차트용)
+  asIsOverviews AsIsOverview[] // AS-IS 현행 분석 (사업부별 1:N)
+  discussionItems DiscussionItem[] // 협의요청 목록
+  interviews Interview[] // 인터뷰 관리 목록
 
   @@map("projects")
 }
@@ -157,8 +162,11 @@ model Task {
   description String?
   status      TaskStatus   @default(PENDING)
   priority    TaskPriority @default(MEDIUM)
-  startDate   DateTime?    // 시작일
-  dueDate     DateTime?    // 마감일
+  progress    Int          @default(0) // 진행률 0-100
+  startDate   DateTime?    // 계획 시작일
+  dueDate     DateTime?    // 계획 마감일
+  actualStartDate DateTime? // 실제 시작일
+  actualEndDate   DateTime? // 실제 마감일
   order       Int          @default(0) // 칸반 보드 내 순서
   isAiGenerated Boolean    @default(false) // AI가 생성한 태스크 여부
   flowX       Float        @default(0) // 플로우 캔버스 X 좌표
@@ -917,7 +925,8 @@ model ProcessVerificationCategory {
   // 관계
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  items       ProcessVerificationItem[]
+  items       ProcessVerificationItem[] // 기존 관계 (백업용 유지)
+  masters     ProcessVerificationMaster[] // 새 마스터 관계
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -928,8 +937,74 @@ model ProcessVerificationCategory {
 }
 
 // ============================================
-// 공정검증 항목 모델
-// 기능추적표의 개별 검증 항목
+// 공정검증 마스터 모델 (신규)
+// 관리코드 기준 단일 마스터 데이터
+// 사업부별로 중복되던 데이터를 하나로 통합
+// ============================================
+model ProcessVerificationMaster {
+  id                  String   @id @default(uuid())
+
+  // 마스터 정보 (관리코드당 1개)
+  managementCode      String   // 관리코드 (M-1-01, P-1-01 등) - 유일키
+  productType         String   @default("SMD") // 제품유형 (SMD, HANES 등)
+  category            String   // 구분 (재료관리, SMD공정관리 등)
+  managementArea      String   // (L1) 관리 영역
+  detailItem          String   // (L2) 세부 관리 항목
+  mesMapping          String?  // (L3) MES/IT 매핑 기능명
+  verificationDetail  String?  // 세부 검증 내용 및 점검 기준
+  acceptanceStatus    String?  // 수용 여부
+  existingMes         Boolean  @default(false) // 기존MES유무(Y/N)
+  customerRequest     String?  // 고객요청여부
+  asIsCode            String?  // AS-IS 관리번호
+  toBeCode            String?  // TO-BE 관리번호
+  order               Int      @default(0) // 정렬 순서
+  remarks             String?  // 비고
+
+  // 관계
+  categoryId          String
+  categoryRef         ProcessVerificationCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  // 사업부별 적용 현황 (1:N)
+  businessUnitApplies ProcessVerificationBusinessUnit[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([productType, managementCode]) // 제품유형 + 관리코드 복합 유일키
+  @@index([categoryId])
+  @@index([productType])
+  @@map("process_verification_masters")
+}
+
+// ============================================
+// 공정검증 사업부별 적용 모델 (신규)
+// 마스터 + 사업부 조합으로 적용 여부 및 검증 상태 관리
+// ============================================
+model ProcessVerificationBusinessUnit {
+  id                  String   @id @default(uuid())
+
+  // 적용 정보
+  businessUnit        String   // 사업부 코드 (SMD: V_IVI, V_DISP, V_PCBA / HANES: V_HMS)
+  isApplied           Boolean  @default(false) // 적용여부 (Y/N)
+  status              VerificationStatus @default(PENDING) // 검증 상태 (사업부별 독립 관리)
+
+  // 관계
+  masterId            String
+  master              ProcessVerificationMaster @relation(fields: [masterId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([masterId, businessUnit]) // 마스터+사업부 조합은 유일
+  @@index([businessUnit])
+  @@index([masterId])
+  @@map("process_verification_business_units")
+}
+
+// ============================================
+// 공정검증 항목 모델 (기존 - 백업용)
+// 마이그레이션 완료 후 백업 테이블로 유지
+// @deprecated ProcessVerificationMaster + ProcessVerificationBusinessUnit으로 대체
 // ============================================
 model ProcessVerificationItem {
   id                  String   @id @default(uuid())
@@ -1092,10 +1167,12 @@ model CustomerRequirement {
 // 고객요구사항 적용 상태 Enum
 // ============================================
 enum ApplyStatus {
-  REVIEWING  // 검토중
-  APPLIED    // 적용
-  REJECTED   // 미적용
-  HOLD       // 보류
+  REVIEWING       // 검토중 (초기 상태)
+  APPROVED        // 승인 (PM 검토 후 승인)
+  REJECTED        // 거절/미적용
+  IN_DEVELOPMENT  // 개발중
+  APPLIED         // 적용 완료
+  HOLD            // 보류
 }
 
 // ============================================
@@ -1427,6 +1504,67 @@ enum NotificationType {
 }
 
 // ============================================
+// 인터뷰 관리 모델
+// 현업 인터뷰 내용을 5가지 카테고리로 분해하여 관리
+// 이후 고객요구사항/이슈/협의요청으로 이관 가능
+// ============================================
+model Interview {
+  id                  String   @id @default(uuid())
+  sequence            Int      // 순번 (자동 부여)
+  code                String   // 인터뷰 코드 (IV0001 형식)
+  title               String   // 인터뷰 제목
+  interviewDate       DateTime @default(now()) // 인터뷰 일자
+  interviewer         String?  // 인터뷰 진행자 (이름)
+  interviewee         String?  // 인터뷰 대상자 (현업 담당자)
+  businessUnit        String   // 사업부 (V_IVI, V_DISP, V_PCBA 등)
+  category            String?  // 업무영역 (생산, 구매, 자재, 품질 등)
+
+  // 5가지 카테고리 (가이드 기준)
+  currentProcess      String?  // 1. 현재 운영 방식 (AS-IS)
+  painPoints          String?  // 2. 문제점 (Pain Points)
+  desiredResults      String?  // 3. 원하는 결과 (TO-BE)
+  technicalConstraints String? // 4. 기술적 제약 (Technical Limits)
+  questions           String?  // 5. 궁금한 점 (Questions)
+
+  // 이관 정보
+  transferStatus      InterviewTransferStatus @default(NOT_TRANSFERRED) // 이관 상태
+  transferredTo       String?  // 이관된 항목 코드 (REQ-XXX, IS-XXX, DIS-XXX)
+  transferredType     InterviewTransferType?  // 이관 유형
+  transferredAt       DateTime? // 이관 일시
+
+  remarks             String?  // 참고/비고
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // 프로젝트 관계
+  projectId           String
+  project             Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, code])
+  @@index([projectId])
+  @@index([businessUnit])
+  @@index([transferStatus])
+  @@map("interviews")
+}
+
+// ============================================
+// 인터뷰 이관 상태 Enum
+// ============================================
+enum InterviewTransferStatus {
+  NOT_TRANSFERRED  // 미이관
+  TRANSFERRED      // 이관 완료
+}
+
+// ============================================
+// 인터뷰 이관 유형 Enum
+// ============================================
+enum InterviewTransferType {
+  CUSTOMER_REQUIREMENT  // 고객요구사항
+  FIELD_ISSUE           // 현업이슈
+  DISCUSSION_ITEM       // 협의요청
+}
+
+// ============================================
 // 현업이슈 모델
 // 현장에서 발생하는 이슈 관리 (고객요구사항 연계)
 // ============================================
@@ -1464,10 +1602,538 @@ model FieldIssue {
 }
 
 // ============================================
-// 현업이슈 상태 Enum
+// 현업이슈 상태 Enum (필독 가이드 기준)
+// 상태 흐름: OPEN → IN_PROGRESS → RESOLVED/WONT_FIX → CLOSED
 // ============================================
 enum FieldIssueStatus {
-  OPEN       // 오픈 (진행중)
-  PENDING    // 대기 (Pending)
-  COMPLETED  // 완료
+  OPEN         // 발견 (초기 상태)
+  IN_PROGRESS  // 수정 중
+  RESOLVED     // 해결
+  WONT_FIX     // 수정 안함
+  CLOSED       // 완료
+  // 레거시 (기존 데이터 호환용 - 새로운 데이터에는 사용하지 않음)
+  PENDING      // [레거시] 대기 → IN_PROGRESS 사용 권장
+  COMPLETED    // [레거시] 완료 → CLOSED 사용 권장
+}
+
+// ============================================
+// 협의요청 모델
+// 버그도 아니고 새 기능도 아닌데, 어떻게 할지 결정이 필요한 사항
+// ============================================
+model DiscussionItem {
+  id            String   @id @default(uuid())
+  code          String   // 협의요청 코드 (DIS-001 등)
+  businessUnit  String   // 사업부구분 (IT, 생산, 품질 등)
+  title         String   // 협의 주제
+  description   String?  // 상세 내용
+  status        DiscussionStatus @default(DISCUSSING) // 상태
+  stage         DiscussionStage // 발생 단계 (분석/설계/구현/테스트/운영)
+  priority      DiscussionPriority @default(MEDIUM) // 우선순위
+
+  // 협의 선택지 및 결정
+  options       Json?    // 선택지 배열 [{label, description, cost, duration}]
+  decision      String?  // 최종 결정 내용
+
+  // 변환 정보
+  convertedToType DiscussionConvertType? // 변환 유형
+  convertedToCode String?  // 변환된 항목 코드 (REQ-XXX, COOP-XXX 등)
+  referenceNote   String?  // 참고사항 (변환 시 원래 협의요청 번호 기록)
+
+  // 일정
+  reportDate    DateTime @default(now())  // 보고일
+  dueDate       DateTime? // 협의 기한 (기본 3~7일)
+  resolvedDate  DateTime? // 결정 완료일
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 요청자 정보 (텍스트 - 이관 시 원본 이슈어 등)
+  requesterName String?
+
+  // 관계
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporterId    String?  // 보고자 (발견자)
+  reporter      User?    @relation("DiscussionReporter", fields: [reporterId], references: [id])
+  assigneeId    String?  // 담당자 (PM)
+  assignee      User?    @relation("DiscussionAssignee", fields: [assigneeId], references: [id])
+
+  @@unique([projectId, code])
+  @@index([projectId])
+  @@index([businessUnit])
+  @@index([status])
+  @@index([stage])
+  @@map("discussion_items")
+}
+
+// 협의요청 상태 Enum
+enum DiscussionStatus {
+  DISCUSSING                 // 협의 중
+  CONVERTED_TO_REQUEST       // 고객요청으로 변환
+  CONVERTED_TO_COOPERATION   // 업무협조로 변환
+  BLOCKED                    // 보류/지연
+  COMPLETED                  // 종료 (결정완료)
+}
+
+// 발생 단계 Enum
+enum DiscussionStage {
+  ANALYSIS        // 분석
+  DESIGN          // 설계
+  IMPLEMENTATION  // 구현
+  TESTING         // 테스트
+  OPERATION       // 운영
+}
+
+// 우선순위 Enum
+enum DiscussionPriority {
+  HIGH    // 높음 (긴급)
+  MEDIUM  // 보통
+  LOW     // 낮음
+}
+
+// 변환 타입 Enum
+enum DiscussionConvertType {
+  CUSTOMER_REQUEST  // 고객요청 (REQ-XXXX)
+  COOPERATION       // 업무협조 (COOP-XXXX)
+  BLOCKED           // 보류
+  COMPLETED         // 종료
+}
+
+// ============================================
+// AS-IS 분석 관련 모델
+// MES 프로젝트의 현행(AS-IS) 분석 시스템
+// ============================================
+
+/**
+ * AS-IS 대분류 Enum
+ * 업무 분류 체계의 대분류 항목
+ */
+enum AsIsMajorCategory {
+  MATERIAL    // 자재관리
+  PRODUCTION  // 생산관리
+  QUALITY     // 품질관리
+  EQUIPMENT   // 설비관리
+  INVENTORY   // 재고관리
+  SHIPMENT    // 출하관리
+  OTHER       // 기타
+}
+
+/**
+ * 현행 방식 Enum
+ * 현재 업무 처리 방식
+ */
+enum AsIsCurrentMethod {
+  MANUAL    // 수기
+  EXCEL     // 엑셀
+  SYSTEM    // 시스템
+  MIXED     // 혼합
+}
+
+// ============================================
+// AS-IS 총괄 모델
+// 프로젝트별 현행 분석 총괄 정보
+// ============================================
+model AsIsOverview {
+  id            String   @id @default(uuid())
+  businessUnit  String   @default("V_IVI") // 사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HMS)
+  customerName  String?  // 고객사명
+  author        String?  // 작성자
+  createdDate   DateTime @default(now()) // 작성일
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 관계
+  projectId     String   // 프로젝트 ID
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items         AsIsOverviewItem[] // 업무 항목 목록
+
+  @@unique([projectId, businessUnit]) // 프로젝트+사업부 조합은 유일
+  @@index([projectId])
+  @@index([businessUnit])
+  @@map("as_is_overviews")
+}
+
+// ============================================
+// AS-IS 총괄 항목 모델
+// 업무 분류 체계 (대분류 > 중분류 > 업무명)
+// ============================================
+model AsIsOverviewItem {
+  id               String              @id @default(uuid())
+  majorCategory    AsIsMajorCategory   // 대분류 (자재/생산/품질/설비/재고/출하/기타)
+  middleCategory   String              // 중분류 (텍스트 입력)
+  taskName         String              // 업무명 (단위업무)
+  currentMethod    AsIsCurrentMethod   @default(MANUAL) // 현행방식
+  issueSummary     String?             // 이슈 요약
+  details          String?             // 세부내용
+  remarks          String?             // 비고
+  order            Int                 @default(0) // 정렬 순서
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // 관계
+  overviewId       String
+  overview         AsIsOverview @relation(fields: [overviewId], references: [id], onDelete: Cascade)
+  unitAnalysis     AsIsUnitAnalysis? // 단위업무 상세 분석 (1:1)
+
+  @@index([overviewId])
+  @@index([majorCategory])
+  @@map("as_is_overview_items")
+}
+
+// ============================================
+// AS-IS 단위업무 분석 모델
+// 중분류 단위 상세 분석 (Flow Chart, Swimlane 포함)
+// ============================================
+model AsIsUnitAnalysis {
+  id               String   @id @default(uuid())
+
+  // 다이어그램 데이터 (JSON으로 저장)
+  flowChartData    Json?    // React Flow 노드/엣지 데이터
+  swimlaneData     Json?    // Swimlane 노드/엣지 데이터
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // 관계 (1:1)
+  overviewItemId   String   @unique
+  overviewItem     AsIsOverviewItem @relation(fields: [overviewItemId], references: [id], onDelete: Cascade)
+
+  // 하위 테이블들 (1:N)
+  processDefinitions  AsIsProcessDefinition[]   // 업무 프로세스 정의서
+  flowChartDetails    AsIsFlowChartDetail[]     // Flow Chart 상세
+  responsibilities    AsIsResponsibility[]       // R&R 정의
+  interviews          AsIsInterview[]            // 현업 인터뷰 결과
+  issues              AsIsIssue[]                // 이슈/Pain Point
+
+  // 조건부 섹션 (A: 수기/엑셀용)
+  documents           AsIsDocument[]             // 문서 목록
+  documentAnalyses    AsIsDocumentAnalysis[]     // 문서 구조 분석
+
+  // 조건부 섹션 (B: 시스템용)
+  functions           AsIsFunction[]             // 기능 목록
+  screens             AsIsScreen[]               // 화면 목록
+  interfaces          AsIsInterface[]            // 인터페이스 목록
+  dataModels          AsIsDataModel[]            // 데이터 모델
+  codeDefinitions     AsIsCodeDefinition[]       // 코드 정의서
+
+  @@index([overviewItemId])
+  @@map("as_is_unit_analyses")
+}
+
+// ============================================
+// 업무 프로세스 정의서
+// ============================================
+model AsIsProcessDefinition {
+  id            String   @id @default(uuid())
+  stepNumber    Int      @default(1)    // 순서
+  processName   String                  // 프로세스명
+  description   String?                 // 설명
+  input         String?                 // 입력
+  output        String?                 // 출력
+  relatedSystem String?                 // 관련 시스템
+  remarks       String?                 // 비고
+  order         Int      @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@map("as_is_process_definitions")
+}
+
+// ============================================
+// Flow Chart 상세 테이블
+// 다이어그램과 연동되는 상세 정보
+// ============================================
+model AsIsFlowChartDetail {
+  id            String   @id @default(uuid())
+  nodeId        String?  // React Flow 노드 ID (연동용)
+  stepNumber    Int      @default(1)    // 순서
+  processName   String                  // 프로세스명
+  description   String?                 // 설명
+  responsible   String?                 // 담당자/부서
+  systemUsed    String?                 // 사용 시스템
+  inputData     String?                 // 입력 데이터
+  outputData    String?                 // 출력 데이터
+  remarks       String?                 // 비고
+  order         Int      @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@index([nodeId])
+  @@map("as_is_flow_chart_details")
+}
+
+// ============================================
+// R&R 정의 (역할과 책임)
+// ============================================
+model AsIsResponsibility {
+  id            String   @id @default(uuid())
+  role          String                  // 역할/담당자
+  department    String?                 // 부서
+  responsibility String                 // 책임/업무
+  authority     String?                 // 권한
+  remarks       String?                 // 비고
+  order         Int      @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@map("as_is_responsibilities")
+}
+
+// ============================================
+// 현업 인터뷰 결과
+// ============================================
+model AsIsInterview {
+  id             String   @id @default(uuid())
+  interviewee    String                  // 인터뷰 대상자
+  department     String?                 // 부서
+  position       String?                 // 직책
+  interviewDate  DateTime?               // 인터뷰 일자
+  topic          String?                 // 인터뷰 주제
+  content        String                  // 인터뷰 내용
+  keyFindings    String?                 // 주요 발견사항
+  suggestions    String?                 // 개선 제안
+  remarks        String?                 // 비고
+  order          Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@map("as_is_interviews")
+}
+
+// ============================================
+// 이슈/Pain Point
+// ============================================
+model AsIsIssue {
+  id             String   @id @default(uuid())
+  issueType      String   @default("PAIN_POINT") // PAIN_POINT, BOTTLENECK, GAP, OTHER
+  title          String                  // 이슈 제목
+  description    String?                 // 상세 설명
+  impact         String?                 // 영향도
+  frequency      String?                 // 발생 빈도
+  priority       String?                 // 우선순위 (HIGH, MEDIUM, LOW)
+  suggestedFix   String?                 // 개선 제안
+  remarks        String?                 // 비고
+  order          Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@map("as_is_issues")
+}
+
+// ============================================
+// 문서 목록 (조건부 A: 수기/엑셀)
+// ============================================
+model AsIsDocument {
+  id             String   @id @default(uuid())
+  documentName   String                  // 문서명
+  documentType   String?                 // 문서 유형 (양식, 보고서, 대장 등)
+  purpose        String?                 // 용도
+  creator        String?                 // 작성 주체
+  frequency      String?                 // 작성 빈도
+  storageLocation String?                // 보관 위치
+  retentionPeriod String?                // 보관 기간
+  remarks        String?                 // 비고
+  order          Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@map("as_is_documents")
+}
+
+// ============================================
+// 문서 구조 분석 (조건부 A: 수기/엑셀)
+// ============================================
+model AsIsDocumentAnalysis {
+  id             String   @id @default(uuid())
+  documentName   String                  // 분석 대상 문서명
+  fieldName      String                  // 필드/항목명
+  dataType       String?                 // 데이터 타입
+  sampleData     String?                 // 샘플 데이터
+  isMandatory    Boolean  @default(false) // 필수 여부
+  validationRule String?                 // 검증 규칙
+  remarks        String?                 // 비고
+  order          Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@map("as_is_document_analyses")
+}
+
+// ============================================
+// 기능 목록 (조건부 B: 시스템)
+// ============================================
+model AsIsFunction {
+  id             String   @id @default(uuid())
+  functionId     String?                 // 기능 ID
+  functionName   String                  // 기능명
+  description    String?                 // 기능 설명
+  module         String?                 // 모듈명
+  usageFrequency String?                 // 사용 빈도
+  userCount      String?                 // 사용자 수
+  importance     String?                 // 중요도 (HIGH, MEDIUM, LOW)
+  remarks        String?                 // 비고
+  order          Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@map("as_is_functions")
+}
+
+// ============================================
+// 화면 목록 (조건부 B: 시스템)
+// ============================================
+model AsIsScreen {
+  id             String   @id @default(uuid())
+  screenId       String?                 // 화면 ID
+  screenName     String                  // 화면명
+  description    String?                 // 화면 설명
+  menuPath       String?                 // 메뉴 경로
+  screenType     String?                 // 화면 유형 (조회, 등록, 수정, 리포트 등)
+  relatedFunction String?                // 연관 기능
+  remarks        String?                 // 비고
+  order          Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@map("as_is_screens")
+}
+
+// ============================================
+// 인터페이스 목록 (조건부 B: 시스템)
+// ============================================
+model AsIsInterface {
+  id             String   @id @default(uuid())
+  interfaceId    String?                 // 인터페이스 ID
+  interfaceName  String                  // 인터페이스명
+  description    String?                 // 설명
+  sourceSystem   String?                 // 송신 시스템
+  targetSystem   String?                 // 수신 시스템
+  interfaceType  String?                 // 유형 (실시간, 배치, 파일 등)
+  protocol       String?                 // 프로토콜 (REST, SOAP, FILE 등)
+  frequency      String?                 // 연동 빈도
+  dataVolume     String?                 // 데이터 건수
+  remarks        String?                 // 비고
+  order          Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@map("as_is_interfaces")
+}
+
+// ============================================
+// 데이터 모델 (조건부 B: 시스템)
+// ============================================
+model AsIsDataModel {
+  id             String   @id @default(uuid())
+  tableName      String                  // 테이블명
+  tableNameKr    String?                 // 테이블 한글명
+  description    String?                 // 설명
+  columnName     String?                 // 컬럼명
+  columnNameKr   String?                 // 컬럼 한글명
+  dataType       String?                 // 데이터 타입
+  length         String?                 // 길이
+  isPrimaryKey   Boolean  @default(false) // PK 여부
+  isForeignKey   Boolean  @default(false) // FK 여부
+  isNullable     Boolean  @default(true)  // NULL 허용
+  defaultValue   String?                 // 기본값
+  remarks        String?                 // 비고
+  order          Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@map("as_is_data_models")
+}
+
+// ============================================
+// 코드 정의서 (조건부 B: 시스템)
+// ============================================
+model AsIsCodeDefinition {
+  id             String   @id @default(uuid())
+  codeGroup      String                  // 코드 그룹
+  codeGroupName  String?                 // 코드 그룹명
+  codeValue      String                  // 코드 값
+  codeName       String                  // 코드명
+  description    String?                 // 설명
+  isActive       Boolean  @default(true) // 사용 여부
+  remarks        String?                 // 비고
+  order          Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 관계
+  unitAnalysisId String
+  unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([unitAnalysisId])
+  @@index([codeGroup])
+  @@map("as_is_code_definitions")
 }

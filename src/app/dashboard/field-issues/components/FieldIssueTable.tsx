@@ -31,6 +31,8 @@ interface FieldIssueTableProps {
   onDelete: (issue: FieldIssue) => void;
   /** 상태 변경 핸들러 */
   onStatusChange: (id: string, newStatus: FieldIssueStatus) => void;
+  /** 협의요청 이관 핸들러 */
+  onTransferToDiscussion?: (issue: FieldIssue) => void;
   /** 현재 페이지 */
   currentPage: number;
   /** 페이지 변경 핸들러 */
@@ -61,6 +63,7 @@ export function FieldIssueTable({
   onEdit,
   onDelete,
   onStatusChange,
+  onTransferToDiscussion,
   currentPage,
   onPageChange,
   itemsPerPage,
@@ -87,8 +90,8 @@ export function FieldIssueTable({
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 테이블 헤더 */}
       <div
-        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1800px]"
-        style={{ gridTemplateColumns: "50px 80px 90px 80px 60px 150px 1fr 80px 80px 80px 80px 80px 200px 200px" }}
+        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1830px]"
+        style={{ gridTemplateColumns: "80px 80px 90px 80px 60px 150px 1fr 80px 80px 80px 80px 80px 200px 200px" }}
       >
         <div>수정</div>
         <div>상태</div>
@@ -121,25 +124,34 @@ export function FieldIssueTable({
         return (
           <div
             key={issue.id}
-            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1800px]"
-            style={{ gridTemplateColumns: "50px 80px 90px 80px 60px 150px 1fr 80px 80px 80px 80px 80px 200px 200px" }}
+            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1830px]"
+            style={{ gridTemplateColumns: "80px 80px 90px 80px 60px 150px 1fr 80px 80px 80px 80px 80px 200px 200px" }}
           >
-            {/* 수정/삭제 버튼 */}
-            <div className="flex items-center gap-1">
+            {/* 수정/삭제/이관 버튼 */}
+            <div className="flex items-center gap-0.5">
               <button
                 onClick={() => onEdit(issue)}
-                className="size-7 rounded-lg flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
+                className="size-6 rounded flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
                 title="수정"
               >
                 <Icon name="edit" size="xs" />
               </button>
               <button
                 onClick={() => onDelete(issue)}
-                className="size-7 rounded-lg flex items-center justify-center hover:bg-error/10 text-text-secondary hover:text-error transition-colors"
+                className="size-6 rounded flex items-center justify-center hover:bg-error/10 text-text-secondary hover:text-error transition-colors"
                 title="삭제"
               >
                 <Icon name="delete" size="xs" />
               </button>
+              {onTransferToDiscussion && (
+                <button
+                  onClick={() => onTransferToDiscussion(issue)}
+                  className="size-6 rounded flex items-center justify-center hover:bg-yellow-500/10 text-text-secondary hover:text-yellow-500 transition-colors"
+                  title="협의요청으로 이관"
+                >
+                  <Icon name="forum" size="xs" />
+                </button>
+              )}
             </div>
 
             {/* 상태 배지 (클릭 시 드롭다운) */}

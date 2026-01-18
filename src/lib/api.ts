@@ -128,8 +128,11 @@ export interface Task {
   description?: string;
   status: "PENDING" | "IN_PROGRESS" | "HOLDING" | "DELAYED" | "COMPLETED" | "CANCELLED";
   priority: "LOW" | "MEDIUM" | "HIGH";
-  startDate?: string;  // 시작일
-  dueDate?: string;    // 마감일
+  progress: number;    // 진행률 0-100
+  startDate?: string;  // 계획 시작일
+  dueDate?: string;    // 계획 마감일
+  actualStartDate?: string;  // 실제 시작일
+  actualEndDate?: string;    // 실제 마감일
   order: number;
   flowX: number;       // 플로우 캔버스 X 좌표
   flowY: number;       // 플로우 캔버스 Y 좌표
@@ -644,11 +647,11 @@ export interface MemberSummaryData {
   }[];
 }
 
-/** 고객요구사항 적용여부 상태 타입 */
-export type ApplyStatus = "REVIEWING" | "APPLIED" | "REJECTED" | "HOLD";
+/** 고객요구사항 적용여부 상태 타입 (필독 가이드 기준) */
+export type ApplyStatus = "REVIEWING" | "APPROVED" | "REJECTED" | "IN_DEVELOPMENT" | "APPLIED" | "HOLD";
 
-/** 현업이슈 상태 타입 */
-export type FieldIssueStatus = "OPEN" | "PENDING" | "COMPLETED";
+/** 현업이슈 상태 타입 (필독 가이드 기준) */
+export type FieldIssueStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "WONT_FIX" | "CLOSED" | "PENDING" | "COMPLETED";
 
 /** 현업이슈 타입 */
 export interface FieldIssue {
@@ -687,6 +690,42 @@ export interface FieldIssueImportResult {
     created: number;
     skipped: number;
     errors: string[];
+  };
+}
+
+/** 인터뷰 이관 상태 타입 */
+export type InterviewTransferStatus = "NOT_TRANSFERRED" | "TRANSFERRED";
+
+/** 인터뷰 이관 유형 타입 */
+export type InterviewTransferType = "CUSTOMER_REQUIREMENT" | "FIELD_ISSUE" | "DISCUSSION_ITEM";
+
+/** 인터뷰 타입 */
+export interface Interview {
+  id: string;
+  sequence: number;                 // 순번
+  code: string;                    // 인터뷰 코드 (IV0001)
+  title: string;                   // 인터뷰 제목
+  interviewDate: string;           // 인터뷰 일자
+  interviewer?: string | null;     // 인터뷰 진행자
+  interviewee?: string | null;     // 인터뷰 대상자
+  businessUnit: string;            // 사업부
+  category?: string | null;        // 업무영역 (생산, 구매, 자재 등)
+  currentProcess?: string | null;  // 1. 현재 운영 방식 (AS-IS)
+  painPoints?: string | null;      // 2. 문제점
+  desiredResults?: string | null;  // 3. 원하는 결과 (TO-BE)
+  technicalConstraints?: string | null; // 4. 기술적 제약
+  questions?: string | null;       // 5. 궁금한 점
+  transferStatus: InterviewTransferStatus; // 이관 상태
+  transferredTo?: string | null;   // 이관된 항목 코드
+  transferredType?: InterviewTransferType | null; // 이관 유형
+  transferredAt?: string | null;   // 이관 일시
+  remarks?: string | null;         // 참고/비고
+  createdAt: string;
+  updatedAt: string;
+  projectId: string;
+  project?: {
+    id: string;
+    name: string;
   };
 }
 
@@ -1537,5 +1576,36 @@ export const api = {
       });
       return handleResponse<FieldIssueImportResult>(response);
     },
+  },
+
+  // ============================================
+  // 인터뷰 관리 API
+  // ============================================
+  interviews: {
+    /** 목록 조회 (필터링 지원) */
+    list: (params?: { projectId?: string; businessUnit?: string; transferStatus?: string; search?: string }) =>
+      get<Interview[]>("/api/interviews", params),
+    /** 단건 조회 */
+    get: (id: string) => get<Interview>(`/api/interviews/${id}`),
+    /** 생성 (인터뷰 코드 자동 부여) */
+    create: (data: {
+      projectId: string;
+      title: string;
+      interviewDate?: string;
+      interviewer?: string;
+      interviewee?: string;
+      businessUnit: string;
+      currentProcess?: string;
+      painPoints?: string;
+      desiredResults?: string;
+      technicalConstraints?: string;
+      questions?: string;
+      remarks?: string;
+    }) => post<Interview>("/api/interviews", data),
+    /** 수정 */
+    update: (id: string, data: Partial<Interview>) =>
+      patch<Interview>(`/api/interviews/${id}`, data),
+    /** 삭제 */
+    delete: (id: string) => del<{ message: string }>(`/api/interviews/${id}`),
   },
 };

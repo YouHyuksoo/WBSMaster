@@ -131,6 +131,10 @@ export function KanbanBoard() {
   const [editTaskAssigneeId, setEditTaskAssigneeId] = useState("");  // 주 담당자
   const [editTaskAssigneeIds, setEditTaskAssigneeIds] = useState<string[]>([]);  // 부 담당자들
 
+  // 컬럼 최대화 모달 상태
+  const [maximizedColumn, setMaximizedColumn] = useState<string | null>(null);
+  const [maximizedColumnTasks, setMaximizedColumnTasks] = useState<Task[]>([]);
+
   // 완료된 task 확장 상태 (클릭하면 확장)
   const [expandedCompletedTaskIds, setExpandedCompletedTaskIds] = useState<Set<string>>(new Set());
 
@@ -335,6 +339,49 @@ export function KanbanBoard() {
   };
 
   /**
+   * 진행률 변경 핸들러
+   */
+  const handleProgressChange = async (taskId: string, newProgress: number) => {
+    try {
+      await updateTask.mutateAsync({
+        id: taskId,
+        data: { progress: newProgress },
+      });
+    } catch (err) {
+      console.error("진행률 변경 실패:", err);
+    }
+  };
+
+  /**
+   * 컬럼 최대화 핸들러
+   */
+  const handleMaximizeColumn = (columnId: string, tasks: Task[]) => {
+    setMaximizedColumn(columnId);
+    setMaximizedColumnTasks(tasks);
+  };
+
+  /**
+   * 최대화 모달 닫기
+   */
+  const closeMaximizedModal = () => {
+    setMaximizedColumn(null);
+    setMaximizedColumnTasks([]);
+  };
+
+  /**
+   * ESC 키로 최대화 모달 닫기
+   */
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && maximizedColumn) {
+        closeMaximizedModal();
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [maximizedColumn]);
+
+  /**
    * 사이드바 열기 (카드 선택)
    */
   const openSidebar = (task: Task) => {
@@ -408,8 +455,11 @@ export function KanbanBoard() {
           description: selectedTask.description,
           status: selectedTask.status,
           priority: selectedTask.priority,
-          startDate: selectedTask.startDate,  // 시작일
-          dueDate: selectedTask.dueDate,      // 마감일
+          progress: selectedTask.progress,  // 진행률
+          startDate: selectedTask.startDate,  // 계획 시작일
+          dueDate: selectedTask.dueDate,      // 계획 마감일
+          actualStartDate: selectedTask.actualStartDate,  // 실제 시작일
+          actualEndDate: selectedTask.actualEndDate,      // 실제 마감일
           requirementId: selectedTask.requirementId,
           wbsItemId: selectedTask.wbsItemId,  // WBS 항목
           assigneeId: editTaskAssigneeId || null,  // 주 담당자
@@ -783,6 +833,7 @@ export function KanbanBoard() {
                       column={column}
                       tasks={columnTasks}
                       onStatusChange={handleStatusChange}
+                      onProgressChange={handleProgressChange}
                       onAddTask={() => setShowNewTaskModal(true)}
                       onSelectTask={openSidebar}
                       onDeleteTask={handleDeleteTask}
@@ -792,6 +843,7 @@ export function KanbanBoard() {
                       currentUserId={currentUser?.id}
                       onNudge={(taskId) => nudgeTask.mutate({ taskId })}
                       isNudging={nudgeTask.isPending}
+                      onMaximize={() => handleMaximizeColumn(column.id, columnTasks)}
                     />
                   );
                 })}
@@ -804,6 +856,7 @@ export function KanbanBoard() {
                 <TaskCard
                   task={activeTask}
                   onStatusChange={() => {}}
+                  onProgressChange={() => {}}
                   isDragging
                 />
               )}
@@ -1016,29 +1069,79 @@ export function KanbanBoard() {
                   </div>
                 </div>
 
-                {/* 일정 */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
-                      시작일
-                    </label>
+                {/* 진행률 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    진행률 ({selectedTask.progress || 0}%)
+                  </label>
+                  <div className="relative">
                     <input
-                      type="date"
-                      value={selectedTask.startDate ? selectedTask.startDate.split("T")[0] : ""}
-                      onChange={(e) => setSelectedTask({ ...selectedTask, startDate: e.target.value || undefined })}
-                      className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={selectedTask.progress || 0}
+                      onChange={(e) => setSelectedTask({ ...selectedTask, progress: parseInt(e.target.value) })}
+                      className="w-full h-2 bg-surface dark:bg-background-dark rounded-lg appearance-none cursor-pointer accent-primary"
                     />
+                    <div className="flex justify-between text-[10px] text-text-secondary mt-1">
+                      <span>0%</span>
+                      <span>50%</span>
+                      <span>100%</span>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
-                      마감일
-                    </label>
-                    <input
-                      type="date"
-                      value={selectedTask.dueDate ? selectedTask.dueDate.split("T")[0] : ""}
-                      onChange={(e) => setSelectedTask({ ...selectedTask, dueDate: e.target.value || undefined })}
-                      className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                    />
+                </div>
+
+                {/* 계획 일정 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    📅 계획 일정
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] text-text-secondary mb-1">시작일</label>
+                      <input
+                        type="date"
+                        value={selectedTask.startDate ? selectedTask.startDate.split("T")[0] : ""}
+                        onChange={(e) => setSelectedTask({ ...selectedTask, startDate: e.target.value || undefined })}
+                        className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-text-secondary mb-1">마감일</label>
+                      <input
+                        type="date"
+                        value={selectedTask.dueDate ? selectedTask.dueDate.split("T")[0] : ""}
+                        onChange={(e) => setSelectedTask({ ...selectedTask, dueDate: e.target.value || undefined })}
+                        className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 실제 일정 */}
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    ✅ 실제 일정
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] text-text-secondary mb-1">실제 시작일</label>
+                      <input
+                        type="date"
+                        value={selectedTask.actualStartDate ? selectedTask.actualStartDate.split("T")[0] : ""}
+                        onChange={(e) => setSelectedTask({ ...selectedTask, actualStartDate: e.target.value || undefined })}
+                        className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-text-secondary mb-1">실제 마감일</label>
+                      <input
+                        type="date"
+                        value={selectedTask.actualEndDate ? selectedTask.actualEndDate.split("T")[0] : ""}
+                        onChange={(e) => setSelectedTask({ ...selectedTask, actualEndDate: e.target.value || undefined })}
+                        className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1343,6 +1446,70 @@ export function KanbanBoard() {
         variant="danger"
         isLoading={deleteTask.isPending}
       />
+
+      {/* 컬럼 최대화 모달 (전체화면 그리드 뷰) */}
+      {maximizedColumn && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+          onClick={closeMaximizedModal}
+        >
+          {/* 모달 컨텐츠 (배경 클릭해도 안 닫힘) */}
+          <div
+            className="flex flex-col w-full h-full bg-background dark:bg-background-dark rounded-xl shadow-2xl overflow-hidden relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-border-dark bg-surface dark:bg-surface-dark shrink-0">
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold text-text dark:text-white">
+                  {columns.find((c) => c.id === maximizedColumn)?.titleKo} ({columns.find((c) => c.id === maximizedColumn)?.title})
+                </h2>
+                <span className={`${columns.find((c) => c.id === maximizedColumn)?.bgColor} text-sm px-3 py-1.5 rounded-full font-bold`}>
+                  {maximizedColumnTasks.length}개
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-text-secondary">ESC 키로 닫기</span>
+                <button
+                  onClick={closeMaximizedModal}
+                  className="p-2 hover:bg-background dark:hover:bg-background-dark rounded-lg transition-colors"
+                  title="닫기 (ESC)"
+                >
+                  <Icon name="close" size="lg" className="text-text-secondary hover:text-error" />
+                </button>
+              </div>
+            </div>
+
+            {/* 그리드 뷰 */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-4 gap-4 auto-rows-min">
+                {maximizedColumnTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onStatusChange={handleStatusChange}
+                    onProgressChange={handleProgressChange}
+                    onSelectTask={openSidebar}
+                    onDeleteTask={handleDeleteTask}
+                    isExpanded={expandedCompletedTaskIds.has(task.id)}
+                    onToggleCompleted={toggleCompletedTaskExpand}
+                    isSelected={selectedTask?.id === task.id}
+                    currentUserId={currentUser?.id}
+                    onNudge={(taskId) => nudgeTask.mutate({ taskId })}
+                    isNudging={nudgeTask.isPending}
+                  />
+                ))}
+                {maximizedColumnTasks.length === 0 && (
+                  <div className="col-span-4 text-center py-20 text-text-secondary">
+                    <Icon name="inbox" size="xl" className="mb-4" />
+                    <p>작업이 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1354,6 +1521,7 @@ function KanbanColumn({
   column,
   tasks,
   onStatusChange,
+  onProgressChange,
   onAddTask,
   onSelectTask,
   onDeleteTask,
@@ -1363,10 +1531,12 @@ function KanbanColumn({
   currentUserId,
   onNudge,
   isNudging,
+  onMaximize,
 }: {
   column: ColumnConfig;
   tasks: Task[];
   onStatusChange: (taskId: string, newStatus: string) => void;
+  onProgressChange: (taskId: string, newProgress: number) => void;
   onAddTask: () => void;
   onSelectTask: (task: Task) => void;
   onDeleteTask: (taskId: string, taskTitle: string) => void;
@@ -1376,6 +1546,7 @@ function KanbanColumn({
   currentUserId?: string;
   onNudge: (taskId: string) => void;
   isNudging: boolean;
+  onMaximize: () => void;
 }) {
   const { setNodeRef } = useSortable({
     id: column.id,
@@ -1400,6 +1571,14 @@ function KanbanColumn({
             {tasks.length}
           </span>
         </div>
+        {/* 최대화 버튼 */}
+        <button
+          onClick={onMaximize}
+          className="p-2 hover:bg-surface dark:hover:bg-background-dark rounded-lg transition-colors"
+          title="그리드 보기 (전체화면)"
+        >
+          <Icon name="grid_view" size="sm" className="text-text-secondary hover:text-primary" />
+        </button>
       </div>
 
       {/* 작업 카드 목록 */}
@@ -1413,6 +1592,7 @@ function KanbanColumn({
               key={task.id}
               task={task}
               onStatusChange={onStatusChange}
+              onProgressChange={onProgressChange}
               onSelectTask={onSelectTask}
               onDeleteTask={onDeleteTask}
               isExpanded={expandedCompletedTaskIds.has(task.id)}
@@ -1453,6 +1633,7 @@ function KanbanColumn({
 function SortableTaskCard({
   task,
   onStatusChange,
+  onProgressChange,
   onSelectTask,
   onDeleteTask,
   isExpanded,
@@ -1464,6 +1645,7 @@ function SortableTaskCard({
 }: {
   task: Task;
   onStatusChange: (taskId: string, newStatus: string) => void;
+  onProgressChange: (taskId: string, newProgress: number) => void;
   onSelectTask: (task: Task) => void;
   onDeleteTask: (taskId: string, taskTitle: string) => void;
   isExpanded: boolean;
@@ -1498,6 +1680,7 @@ function SortableTaskCard({
       <TaskCard
         task={task}
         onStatusChange={onStatusChange}
+        onProgressChange={onProgressChange}
         onSelectTask={onSelectTask}
         onDeleteTask={onDeleteTask}
         isDragging={isDragging}
@@ -1522,6 +1705,7 @@ function SortableTaskCard({
 function TaskCard({
   task,
   onStatusChange,
+  onProgressChange,
   onSelectTask,
   onDeleteTask,
   isDragging = false,
@@ -1534,6 +1718,7 @@ function TaskCard({
 }: {
   task: Task;
   onStatusChange: (taskId: string, newStatus: string) => void;
+  onProgressChange: (taskId: string, newProgress: number) => void;
   onSelectTask?: (task: Task) => void;
   onDeleteTask?: (taskId: string, taskTitle: string) => void;
   isDragging?: boolean;
@@ -1546,7 +1731,14 @@ function TaskCard({
 }) {
   const priority = priorityConfig[task.priority] || priorityConfig.MEDIUM;
   const isCompleted = task.status === "COMPLETED";
-  const isDelayed = task.status === "DELAYED";
+
+  // 지연 여부: DELAYED 상태이거나, 완료되지 않았으면서 마감일이 지난 경우
+  const isDelayed = task.status === "DELAYED" || (
+    task.status !== "COMPLETED" &&
+    task.dueDate &&
+    new Date(task.dueDate) < new Date()
+  );
+
   const isPending = task.status === "PENDING";
 
   // 내 태스크인지 확인 (주 담당자이거나 부 담당자에 포함)
@@ -1764,6 +1956,71 @@ function TaskCard({
         {task.title}
       </h4>
 
+      {/* 진행률 바 */}
+      {!isCompleted && (
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-medium text-text-secondary">진행률</span>
+            <span className="text-xs font-bold text-primary">{task.progress || 0}%</span>
+          </div>
+          <div className="relative h-2 bg-surface dark:bg-background-dark rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-300 rounded-full"
+              style={{ width: `${task.progress || 0}%` }}
+            />
+            {/* 진행률 슬라이더 (클릭 시 수정 가능) */}
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={task.progress || 0}
+              onChange={(e) => {
+                e.stopPropagation();
+                onProgressChange(task.id, parseInt(e.target.value));
+              }}
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              title={`진행률: ${task.progress || 0}%`}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 날짜 정보 (계획 / 실제) */}
+      {(task.startDate || task.dueDate || task.actualStartDate || task.actualEndDate) && (
+        <div className="mb-3 space-y-1.5">
+          {/* 계획 일정 */}
+          {(task.startDate || task.dueDate) && (
+            <div className="px-2 py-1.5 rounded-lg backdrop-blur-sm bg-gradient-to-br from-blue-500/20 to-blue-600/10 dark:from-blue-400/25 dark:to-blue-500/15 border border-blue-200/30 dark:border-blue-400/20">
+              <div className="flex items-center gap-1.5">
+                <Icon name="event" size="xs" className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-300">계획</span>
+                <span className="text-[10px] text-blue-600 dark:text-blue-400">
+                  {task.startDate && new Date(task.startDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+                  {task.startDate && task.dueDate && " ~ "}
+                  {task.dueDate && new Date(task.dueDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+                </span>
+              </div>
+            </div>
+          )}
+          {/* 실제 일정 */}
+          {(task.actualStartDate || task.actualEndDate) && (
+            <div className="px-2 py-1.5 rounded-lg backdrop-blur-sm bg-gradient-to-br from-green-500/20 to-green-600/10 dark:from-green-400/25 dark:to-green-500/15 border border-green-200/30 dark:border-green-400/20">
+              <div className="flex items-center gap-1.5">
+                <Icon name="check_circle" size="xs" className="text-green-600 dark:text-green-400 flex-shrink-0" />
+                <span className="text-[10px] font-semibold text-green-700 dark:text-green-300">실제</span>
+                <span className="text-[10px] text-green-600 dark:text-green-400">
+                  {task.actualStartDate && new Date(task.actualStartDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+                  {task.actualStartDate && task.actualEndDate && " ~ "}
+                  {task.actualEndDate && new Date(task.actualEndDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 설명 */}
       {task.description && (
         <p className="text-xs text-text-secondary line-clamp-2 mb-3">
@@ -1855,17 +2112,17 @@ function TaskCard({
         </div>
 
         <div className="flex items-center gap-2 text-text-secondary text-xs">
-          {/* 시작일 ~ 마감일 표시 */}
-          {(task.startDate || task.dueDate) && (
+          {/* 실제 시작일 ~ 실제 마감일 표시 */}
+          {(task.actualStartDate || task.actualEndDate) && (
             <div className="flex items-center gap-1">
-              <Icon name="schedule" size="xs" />
-              <span>
-                {task.startDate
-                  ? new Date(task.startDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })
+              <Icon name="event_available" size="xs" className="text-green-500" />
+              <span className="text-green-600 dark:text-green-400 text-[10px] font-medium">
+                {task.actualStartDate
+                  ? new Date(task.actualStartDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })
                   : ""}
-                {task.startDate && task.dueDate && " ~ "}
-                {task.dueDate
-                  ? new Date(task.dueDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })
+                {task.actualStartDate && task.actualEndDate && " ~ "}
+                {task.actualEndDate
+                  ? new Date(task.actualEndDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })
                   : ""}
               </span>
             </div>

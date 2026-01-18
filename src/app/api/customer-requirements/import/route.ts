@@ -16,18 +16,34 @@ import { ApplyStatus } from "@prisma/client";
 import * as XLSX from "xlsx";
 
 /**
- * 적용여부 문자열을 ApplyStatus로 변환
+ * 적용여부 문자열을 ApplyStatus로 변환 (필독 가이드 기준)
+ * 상태 흐름: 검토 → 승인/거절 → 개발 → 적용/보류
  */
 function parseApplyStatus(value: string | undefined | null): ApplyStatus {
   if (!value) return ApplyStatus.REVIEWING;
   const normalized = String(value).toUpperCase().trim();
 
+  // 검토
+  if (normalized === "검토" || normalized === "검토중" || normalized === "REVIEWING") {
+    return ApplyStatus.REVIEWING;
+  }
+  // 승인
+  if (normalized === "승인" || normalized === "APPROVED") {
+    return ApplyStatus.APPROVED;
+  }
+  // 거절
+  if (normalized === "N" || normalized === "NO" || normalized === "미적용" || normalized === "거절" || normalized === "REJECTED") {
+    return ApplyStatus.REJECTED;
+  }
+  // 개발
+  if (normalized === "개발" || normalized === "개발중" || normalized === "IN_DEVELOPMENT") {
+    return ApplyStatus.IN_DEVELOPMENT;
+  }
+  // 적용
   if (normalized === "Y" || normalized === "YES" || normalized === "적용" || normalized === "APPLIED") {
     return ApplyStatus.APPLIED;
   }
-  if (normalized === "N" || normalized === "NO" || normalized === "미적용" || normalized === "REJECTED") {
-    return ApplyStatus.REJECTED;
-  }
+  // 보류
   if (normalized === "보류" || normalized === "HOLD") {
     return ApplyStatus.HOLD;
   }

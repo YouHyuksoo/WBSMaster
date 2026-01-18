@@ -656,6 +656,18 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
       <div className="flex justify-end gap-4 items-center">
         {/* 버튼 그룹 */}
         <div className="flex gap-2">
+          {/* 필독가이드 버튼 */}
+          <Link
+            href="/dashboard/guide"
+            className="hidden md:flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary/10 to-purple-500/10 border border-primary/30 hover:from-primary/20 hover:to-purple-500/20 transition-all px-3"
+            title="필독가이드"
+          >
+            <Icon name="menu_book" size="sm" className="text-primary" />
+            <span className="text-xs font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-500">
+              필독가이드
+            </span>
+          </Link>
+
           {/* 언어 전환 (추후 구현) */}
           <button className="hidden sm:flex h-9 items-center justify-center gap-1 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark hover:bg-surface-hover dark:hover:bg-[#2a3441] transition-colors px-3">
             <Icon name="language" size="sm" className="text-text dark:text-white" />

@@ -20,13 +20,15 @@ import { CategoryList, ItemTable, FilterBar, EditItemModal, AddItemModal, Compar
 import { useProject } from "@/contexts";
 import { Icon, Button, useToast, ConfirmModal } from "@/components/ui";
 import { ImportExcelModal, type ImportResult } from "@/components/common";
-import { BUSINESS_UNITS } from "@/constants/business-units";
 import {
   ProcessVerificationCategory,
-  ProcessVerificationItem,
+  ProcessVerificationMaster,
   FilterState,
   verificationStatusConfig,
+  PRODUCT_TYPES,
+  ProductType,
 } from "./types";
+import { PRODUCT_TYPE_BUSINESS_UNITS } from "@/constants/business-units";
 
 /**
  * 기능추적표 페이지 컴포넌트
@@ -37,7 +39,7 @@ export default function ProcessVerificationPage() {
 
   // 상태
   const [categories, setCategories] = useState<ProcessVerificationCategory[]>([]);
-  const [items, setItems] = useState<ProcessVerificationItem[]>([]);
+  const [masters, setMasters] = useState<ProcessVerificationMaster[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedManagementArea, setSelectedManagementArea] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterState>({
@@ -45,16 +47,16 @@ export default function ProcessVerificationPage() {
     isApplied: null,
     status: null,
     search: "",
-    businessUnit: "V_IVI", // 기존 데이터가 모두 V_IVI로 업데이트됨
+    productType: null, // 제품유형 필터
   });
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [isLoadingMasters, setIsLoadingMasters] = useState(false);
   // 뷰 선택 상태
   const [viewMode, setViewMode] = useState<"grid" | "comparison">("grid");
   // 그룹 비교 보기에서 선택한 사업부
   const [comparisonBusinessUnits, setComparisonBusinessUnits] = useState<string[]>([]);
   // 수정 모달 상태
-  const [editingItem, setEditingItem] = useState<ProcessVerificationItem | null>(null);
+  const [editingMaster, setEditingMaster] = useState<ProcessVerificationMaster | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   // 추가 모달 상태
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -62,7 +64,7 @@ export default function ProcessVerificationPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   // 삭제 확인 모달 상태
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deletingItem, setDeletingItem] = useState<ProcessVerificationItem | null>(null);
+  const [deletingMaster, setDeletingMaster] = useState<ProcessVerificationMaster | null>(null);
   // 통계 카드 접기/펼치기 상태
   const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
 
@@ -88,105 +90,140 @@ export default function ProcessVerificationPage() {
     }
   }, [selectedProjectId]);
 
-  // 항목 로드 (카테고리 필터링은 클라이언트에서 처리)
-  const loadItems = useCallback(async () => {
+  // 마스터 로드 (카테고리 필터링은 클라이언트에서 처리)
+  const loadMasters = useCallback(async () => {
     if (!selectedProjectId) return;
 
-    setIsLoadingItems(true);
+    setIsLoadingMasters(true);
     try {
       const params = new URLSearchParams();
       params.set("projectId", selectedProjectId);
 
-      if (filter.isApplied !== null) {
-        params.set("isApplied", String(filter.isApplied));
+      if (filter.productType) {
+        params.set("productType", filter.productType);
       }
       if (filter.search) {
         params.set("search", filter.search);
       }
-      // 비교 보기 모드가 아닐 때만 사업부 필터 적용
-      if (viewMode === "grid" && filter.businessUnit) {
-        params.set("businessUnit", filter.businessUnit);
-      }
 
-      const res = await fetch(`/api/process-verification/items?${params}`);
+      const res = await fetch(`/api/process-verification/masters?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setItems(data);
+        setMasters(data);
       }
     } catch (error) {
-      console.error("항목 로드 실패:", error);
+      console.error("마스터 로드 실패:", error);
     } finally {
-      setIsLoadingItems(false);
+      setIsLoadingMasters(false);
     }
-  }, [selectedProjectId, filter.isApplied, filter.search, filter.businessUnit, viewMode]);
+  }, [selectedProjectId, filter.productType, filter.search]);
 
   // 프로젝트 ID 변경 시 카테고리 로드
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
 
-  // 카테고리 또는 필터 변경 시 항목 로드
+  // 필터 변경 시 마스터 로드
   useEffect(() => {
-    loadItems();
-  }, [loadItems]);
+    loadMasters();
+  }, [loadMasters]);
 
-  // 필터링된 항목
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      if (filter.status && item.status !== filter.status) {
-        return false;
-      }
-      // 사업부는 항상 필터링됨 (선택 필수)
-      if (item.businessUnit !== filter.businessUnit) {
+  // 필터링된 마스터
+  const filteredMasters = useMemo(() => {
+    return masters.filter((master) => {
+      // 제품유형 필터
+      if (filter.productType && master.productType !== filter.productType) {
         return false;
       }
       return true;
     });
-  }, [items, filter.status, filter.businessUnit]);
+  }, [masters, filter.productType]);
 
-  // 테이블에 표시할 항목 (카테고리 및 관리영역 선택 시 추가 필터링)
-  const displayItems = useMemo(() => {
-    let result = filteredItems;
+  // 테이블에 표시할 마스터 (카테고리 및 관리영역 선택 시 추가 필터링)
+  const displayMasters = useMemo(() => {
+    let result = filteredMasters;
 
     // 카테고리 필터
     if (selectedCategoryId) {
-      result = result.filter((item) => item.categoryId === selectedCategoryId);
+      result = result.filter((master) => master.categoryId === selectedCategoryId);
     }
 
     // 관리영역 필터
     if (selectedManagementArea) {
-      result = result.filter((item) => item.managementArea === selectedManagementArea);
+      result = result.filter((master) => master.managementArea === selectedManagementArea);
     }
 
     return result;
-  }, [filteredItems, selectedCategoryId, selectedManagementArea]);
+  }, [filteredMasters, selectedCategoryId, selectedManagementArea]);
 
-  // 카테고리별 항목 수 계산 (필터링된 항목 기준)
+  // 카테고리별 마스터 수 계산 (필터링된 마스터 기준)
   const categoriesWithCount = useMemo(() => {
     return categories.map((cat) => ({
       ...cat,
-      itemCount: filteredItems.filter((item) => item.categoryId === cat.id).length,
+      itemCount: filteredMasters.filter((master) => master.categoryId === cat.id).length,
     }));
-  }, [categories, filteredItems]);
+  }, [categories, filteredMasters]);
 
-  // 통계 계산
+  // 통계 계산 (마스터 기준)
   const stats = useMemo(() => {
-    const total = items.length;
-    const applied = items.filter((item) => item.isApplied).length;
+    const total = masters.length;
+    // 적용된 마스터: 하나 이상의 사업부에서 적용된 경우
+    const applied = masters.filter((master) =>
+      master.businessUnitApplies?.some((bu) => bu.isApplied)
+    ).length;
     const notApplied = total - applied;
-    const verified = items.filter((item) => item.status === "VERIFIED").length;
-    const inProgress = items.filter((item) => item.status === "IN_PROGRESS").length;
+    // 검증 완료: 모든 적용된 사업부가 VERIFIED인 경우
+    const verified = masters.filter((master) =>
+      master.businessUnitApplies?.filter((bu) => bu.isApplied).every((bu) => bu.status === "VERIFIED")
+      && master.businessUnitApplies?.some((bu) => bu.isApplied)
+    ).length;
+    const inProgress = masters.filter((master) =>
+      master.businessUnitApplies?.some((bu) => bu.isApplied && bu.status === "IN_PROGRESS")
+    ).length;
     return {
       total,
       applied,
       notApplied,
       verified,
       inProgress,
-      filteredTotal: filteredItems.length,
-      filteredApplied: filteredItems.filter((item) => item.isApplied).length,
+      filteredTotal: filteredMasters.length,
+      filteredApplied: filteredMasters.filter((master) =>
+        master.businessUnitApplies?.some((bu) => bu.isApplied)
+      ).length,
     };
-  }, [items, filteredItems]);
+  }, [masters, filteredMasters]);
 
+  // 사업부별 통계 계산 (그룹비교 모드용)
+  const businessUnitStats = useMemo(() => {
+    const allBusinessUnits = [...PRODUCT_TYPE_BUSINESS_UNITS.SMD, ...PRODUCT_TYPE_BUSINESS_UNITS.HANES];
+    const stats: Record<string, { applied: number; notApplied: number; total: number; rate: number }> = {};
+
+    allBusinessUnits.forEach((unit) => {
+      let applied = 0;
+      let notApplied = 0;
+
+      masters.forEach((master) => {
+        const apply = master.businessUnitApplies?.find((a) => a.businessUnit === unit);
+        if (apply) {
+          if (apply.isApplied) {
+            applied++;
+          } else {
+            notApplied++;
+          }
+        }
+      });
+
+      const total = applied + notApplied;
+      stats[unit] = {
+        applied,
+        notApplied,
+        total,
+        rate: total > 0 ? Math.round((applied / total) * 100) : 0,
+      };
+    });
+
+    return stats;
+  }, [masters]);
 
   // 카테고리 선택 핸들러
   const handleSelectCategory = (categoryId: string | null) => {
@@ -209,7 +246,7 @@ export default function ProcessVerificationPage() {
   const handleRefresh = async () => {
     try {
       await loadCategories();
-      await loadItems();
+      await loadMasters();
       toast.success("데이터가 업데이트되었습니다.");
     } catch (err) {
       console.error("새로고침 실패:", err);
@@ -217,73 +254,72 @@ export default function ProcessVerificationPage() {
     }
   };
 
-  // 항목 업데이트 핸들러
-  const handleUpdateItem = async (
+  // 마스터 업데이트 핸들러
+  const handleUpdateMaster = async (
     id: string,
-    data: Partial<ProcessVerificationItem>
+    data: Partial<ProcessVerificationMaster>
   ) => {
     try {
-      const res = await fetch(`/api/process-verification/items/${id}`, {
+      const res = await fetch(`/api/process-verification/masters/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
       if (res.ok) {
-        const updatedItem = await res.json();
-        setItems((prev) =>
-          prev.map((item) => (item.id === id ? updatedItem : item))
+        const updatedMaster = await res.json();
+        setMasters((prev) =>
+          prev.map((master) => (master.id === id ? updatedMaster : master))
         );
       }
     } catch (error) {
-      console.error("항목 업데이트 실패:", error);
+      console.error("마스터 업데이트 실패:", error);
     }
   };
 
-  // 항목 수정 모달 열기
-  const handleEditItem = (item: ProcessVerificationItem) => {
-    setEditingItem(item);
+  // 마스터 수정 모달 열기
+  const handleEditMaster = (master: ProcessVerificationMaster) => {
+    setEditingMaster(master);
     setIsEditModalOpen(true);
   };
 
-  // 항목 삭제 핸들러
-  const handleDeleteItem = async (item: ProcessVerificationItem) => {
-    setDeletingItem(item);
+  // 마스터 삭제 핸들러
+  const handleDeleteMaster = async (master: ProcessVerificationMaster) => {
+    setDeletingMaster(master);
     setShowDeleteConfirm(true);
   };
 
-  // 항목 삭제 확인
+  // 마스터 삭제 확인
   const handleConfirmDelete = async () => {
-    if (!deletingItem) return;
+    if (!deletingMaster) return;
 
     try {
-      const res = await fetch(`/api/process-verification/items/${deletingItem.id}`, {
+      const res = await fetch(`/api/process-verification/masters/${deletingMaster.id}`, {
         method: "DELETE",
       });
 
       if (res.ok) {
         // 목록에서 제거
-        setItems((prev) => prev.filter((i) => i.id !== deletingItem.id));
+        setMasters((prev) => prev.filter((m) => m.id !== deletingMaster.id));
         // 카테고리 카운트 업데이트를 위해 카테고리 다시 로드
         loadCategories();
-        toast.success("항목이 삭제되었습니다.");
+        toast.success("마스터가 삭제되었습니다.");
         setShowDeleteConfirm(false);
-        setDeletingItem(null);
+        setDeletingMaster(null);
       } else {
         const result = await res.json();
         toast.error(`삭제 실패: ${result.error}`);
       }
     } catch (error) {
-      console.error("항목 삭제 실패:", error);
-      toast.error("항목 삭제 중 오류가 발생했습니다.");
+      console.error("마스터 삭제 실패:", error);
+      toast.error("마스터 삭제 중 오류가 발생했습니다.");
     }
   };
 
-  // 항목 추가 핸들러
-  const handleAddItem = async (data: {
+  // 마스터 추가 핸들러
+  const handleAddMaster = async (data: {
     categoryId: string;
     category: string;
-    isApplied: boolean;
     managementArea: string;
     detailItem: string;
     mesMapping: string;
@@ -293,18 +329,18 @@ export default function ProcessVerificationPage() {
     existingMes: boolean;
     customerRequest: string;
     remarks: string;
-    status: string;
+    productType?: string;
   }) => {
     try {
-      const res = await fetch("/api/process-verification/items", {
+      const res = await fetch("/api/process-verification/masters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
       if (res.ok) {
-        const newItem = await res.json();
-        setItems((prev) => [...prev, newItem]);
+        const newMaster = await res.json();
+        setMasters((prev) => [...prev, newMaster]);
         // 카테고리 카운트 업데이트
         loadCategories();
       } else {
@@ -312,7 +348,7 @@ export default function ProcessVerificationPage() {
         throw new Error(result.error || "추가 실패");
       }
     } catch (error) {
-      console.error("항목 추가 실패:", error);
+      console.error("마스터 추가 실패:", error);
       throw error;
     }
   };
@@ -350,27 +386,30 @@ export default function ProcessVerificationPage() {
    * 엑셀 다운로드 핸들러
    */
   const handleExportToExcel = () => {
-    if (filteredItems.length === 0) {
+    if (filteredMasters.length === 0) {
       toast.error("다운로드할 데이터가 없습니다.");
       return;
     }
 
-    // 엑셀 데이터 변환
-    const excelData = filteredItems.map((item) => ({
-      "관리코드": item.managementCode,
-      "AS-IS 관리번호": item.asIsCode || "",
-      "TO-BE 관리번호": item.toBeCode || "",
-      "구분": item.category,
-      "관리 영역": item.managementArea,
-      "세부 관리 항목": item.detailItem,
-      "세부 검증 내용": item.verificationDetail || "",
-      "MES/IT 매핑": item.mesMapping || "",
-      "기존MES": item.existingMes ? "Y" : "N",
-      "적용": item.isApplied ? "Y" : "N",
-      "상태": verificationStatusConfig[item.status]?.label || item.status,
-      "수용 여부": item.acceptanceStatus || "",
-      "고객 요청": item.customerRequest || "",
-      "비고": item.remarks || "",
+    // 엑셀 데이터 변환 (마스터 기준)
+    const excelData = filteredMasters.map((master) => ({
+      "제품유형": master.productType,
+      "관리코드": master.managementCode,
+      "AS-IS 관리번호": master.asIsCode || "",
+      "TO-BE 관리번호": master.toBeCode || "",
+      "구분": master.category,
+      "관리 영역": master.managementArea,
+      "세부 관리 항목": master.detailItem,
+      "세부 검증 내용": master.verificationDetail || "",
+      "MES/IT 매핑": master.mesMapping || "",
+      "기존MES": master.existingMes ? "Y" : "N",
+      "V_IVI": master.businessUnitApplies?.find((bu) => bu.businessUnit === "V_IVI")?.isApplied ? "Y" : "N",
+      "V_DISP": master.businessUnitApplies?.find((bu) => bu.businessUnit === "V_DISP")?.isApplied ? "Y" : "N",
+      "V_PCBA": master.businessUnitApplies?.find((bu) => bu.businessUnit === "V_PCBA")?.isApplied ? "Y" : "N",
+      "V_HMS": master.businessUnitApplies?.find((bu) => bu.businessUnit === "V_HMS")?.isApplied ? "Y" : "N",
+      "수용 여부": master.acceptanceStatus || "",
+      "고객 요청": master.customerRequest || "",
+      "비고": master.remarks || "",
     }));
 
     // 워크시트 생성
@@ -378,6 +417,7 @@ export default function ProcessVerificationPage() {
 
     // 컬럼 너비 설정
     worksheet["!cols"] = [
+      { wch: 10 }, // 제품유형
       { wch: 12 }, // 관리코드
       { wch: 15 }, // AS-IS 관리번호
       { wch: 15 }, // TO-BE 관리번호
@@ -387,8 +427,10 @@ export default function ProcessVerificationPage() {
       { wch: 50 }, // 세부 검증 내용
       { wch: 20 }, // MES/IT 매핑
       { wch: 8 },  // 기존MES
-      { wch: 8 },  // 적용
-      { wch: 12 }, // 상태
+      { wch: 8 },  // V_IVI
+      { wch: 8 },  // V_DISP
+      { wch: 8 },  // V_PCBA
+      { wch: 8 },  // V_HMS
       { wch: 15 }, // 수용 여부
       { wch: 30 }, // 고객 요청
       { wch: 30 }, // 비고
@@ -417,7 +459,7 @@ export default function ProcessVerificationPage() {
       );
     }
     loadCategories();
-    loadItems();
+    loadMasters();
     setIsImportModalOpen(false);
   };
 
@@ -450,15 +492,15 @@ export default function ProcessVerificationPage() {
           {/* 새로고침 버튼 */}
           <button
             onClick={handleRefresh}
-            disabled={!selectedProjectId || isLoadingCategories || isLoadingItems}
+            disabled={!selectedProjectId || isLoadingCategories || isLoadingMasters}
             className={`flex items-center justify-center p-2 rounded-lg transition-all ${
-              isLoadingCategories || isLoadingItems
+              isLoadingCategories || isLoadingMasters
                 ? "bg-primary/10 text-primary cursor-wait"
                 : "bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text-secondary hover:text-primary hover:border-primary/30"
             }`}
             title="데이터 새로고침"
           >
-            <Icon name={isLoadingCategories || isLoadingItems ? "sync" : "refresh"} size="sm" className={isLoadingCategories || isLoadingItems ? "animate-spin" : ""} />
+            <Icon name={isLoadingCategories || isLoadingMasters ? "sync" : "refresh"} size="sm" className={isLoadingCategories || isLoadingMasters ? "animate-spin" : ""} />
           </button>
           <Button
             variant="primary"
@@ -472,7 +514,7 @@ export default function ProcessVerificationPage() {
             variant="outline"
             leftIcon="download"
             onClick={handleExportToExcel}
-            disabled={!selectedProjectId || filteredItems.length === 0}
+            disabled={!selectedProjectId || filteredMasters.length === 0}
             className="hidden sm:flex"
           >
             엑셀 다운로드
@@ -511,68 +553,112 @@ export default function ProcessVerificationPage() {
                 isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
               }`}
             >
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 pb-2">
-                {/* 적용률 카드 */}
-                <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon name="speed" size="xs" className="text-primary" />
-                    <span className="text-xs font-semibold text-primary">적용률</span>
+              {viewMode === "grid" ? (
+                /* 상세 그리드 모드: 기존 통계 카드 */
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 pb-2">
+                  {/* 적용률 카드 */}
+                  <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icon name="speed" size="xs" className="text-primary" />
+                      <span className="text-xs font-semibold text-primary">적용률</span>
+                    </div>
+                    <p className="text-2xl font-bold text-primary mb-1">
+                      {stats.total > 0 ? Math.round((stats.applied / stats.total) * 100) : 0}%
+                    </p>
+                    <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
+                        style={{ width: stats.total > 0 ? `${(stats.applied / stats.total) * 100}%` : "0%" }}
+                      />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-primary mb-1">
-                    {stats.total > 0 ? Math.round((stats.applied / stats.total) * 100) : 0}%
-                  </p>
-                  <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                      style={{ width: stats.total > 0 ? `${(stats.applied / stats.total) * 100}%` : "0%" }}
-                    />
+                  <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Icon name="checklist" size="xs" className="text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
+                        <p className="text-[10px] text-text-secondary">전체</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
+                        <Icon name="check_circle" size="xs" className="text-success" />
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-text dark:text-white">{stats.applied}</p>
+                        <p className="text-[10px] text-text-secondary">적용</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
+                        <Icon name="pending" size="xs" className="text-warning" />
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-text dark:text-white">{stats.notApplied}</p>
+                        <p className="text-[10px] text-text-secondary">미적용</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="size-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                        <Icon name="category" size="xs" className="text-cyan-500" />
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-text dark:text-white">{categories.length}</p>
+                        <p className="text-[10px] text-text-secondary">카테고리</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Icon name="checklist" size="xs" className="text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                      <p className="text-[10px] text-text-secondary">전체</p>
-                    </div>
+              ) : (
+                /* 그룹 비교 모드: 사업부별 통계 카드 (한 장) */
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 pb-2 mb-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Icon name="compare_arrows" size="sm" className="text-primary" />
+                    <h3 className="text-sm font-semibold text-text dark:text-white">사업부별 적용 현황</h3>
+                    <span className="text-xs text-text-secondary ml-auto">전체 마스터 {masters.length}건 기준</span>
+                  </div>
+                  <div className="space-y-3">
+                    {[...PRODUCT_TYPE_BUSINESS_UNITS.SMD, ...PRODUCT_TYPE_BUSINESS_UNITS.HANES].map((unit) => {
+                      const stat = businessUnitStats[unit];
+                      if (!stat || stat.total === 0) return null;
+                      return (
+                        <div key={unit} className="flex items-center gap-3">
+                          <span className="text-xs font-semibold text-text dark:text-white w-16">{unit}</span>
+                          <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all rounded-full ${
+                                stat.rate >= 75 ? "bg-success" :
+                                stat.rate >= 50 ? "bg-primary" :
+                                stat.rate >= 25 ? "bg-warning" : "bg-error"
+                              }`}
+                              style={{ width: `${stat.rate}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 text-xs min-w-[120px] justify-end">
+                            <span className="text-success font-semibold">Y:{stat.applied}</span>
+                            <span className="text-text-secondary">N:{stat.notApplied}</span>
+                            <span className={`font-bold min-w-[35px] text-right ${
+                              stat.rate >= 75 ? "text-success" :
+                              stat.rate >= 50 ? "text-primary" :
+                              stat.rate >= 25 ? "text-warning" : "text-error"
+                            }`}>
+                              {stat.rate}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                      <Icon name="check_circle" size="xs" className="text-success" />
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{stats.applied}</p>
-                      <p className="text-[10px] text-text-secondary">적용</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                      <Icon name="pending" size="xs" className="text-warning" />
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{stats.notApplied}</p>
-                      <p className="text-[10px] text-text-secondary">미적용</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                      <Icon name="category" size="xs" className="text-cyan-500" />
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{categories.length}</p>
-                      <p className="text-[10px] text-text-secondary">카테고리</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* 슬라이드 핸들 */}
@@ -621,7 +707,7 @@ export default function ProcessVerificationPage() {
               {/* 카테고리 사이드바 - 전체 카테고리 표시 */}
               <CategoryList
                 categories={categories}
-                items={filteredItems}
+                items={filteredMasters}
                 selectedCategoryId={selectedCategoryId}
                 selectedManagementArea={selectedManagementArea}
                 onSelectCategory={handleSelectCategory}
@@ -629,23 +715,23 @@ export default function ProcessVerificationPage() {
                 isLoading={isLoadingCategories}
               />
 
-              {/* 항목 테이블 - 선택된 카테고리로 필터링 */}
+              {/* 마스터 테이블 - 선택된 카테고리로 필터링 */}
               <div className="flex-1 overflow-auto">
                 <ItemTable
-                  items={displayItems}
-                  isLoading={isLoadingItems}
-                  onUpdateItem={handleUpdateItem}
-                  onEditItem={handleEditItem}
-                  onDeleteItem={handleDeleteItem}
+                  items={displayMasters}
+                  isLoading={isLoadingMasters}
+                  onUpdateItem={handleUpdateMaster}
+                  onEditItem={handleEditMaster}
+                  onDeleteItem={handleDeleteMaster}
                 />
               </div>
             </div>
           ) : (
             <ComparisonGrid
-              items={items}
+              items={masters}
               selectedBusinessUnits={comparisonBusinessUnits}
               onBusinessUnitsChange={setComparisonBusinessUnits}
-              isLoading={isLoadingItems}
+              isLoading={isLoadingMasters}
             />
           )}
         </>
@@ -653,20 +739,20 @@ export default function ProcessVerificationPage() {
 
       {/* 수정 모달 */}
       <EditItemModal
-        item={editingItem}
+        item={editingMaster}
         isOpen={isEditModalOpen}
         onClose={() => {
           setIsEditModalOpen(false);
-          setEditingItem(null);
+          setEditingMaster(null);
         }}
-        onSave={handleUpdateItem}
+        onSave={handleUpdateMaster}
       />
 
       {/* 추가 모달 */}
       <AddItemModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSave={handleAddItem}
+        onSave={handleAddMaster}
         onCreateCategory={handleCreateCategory}
         categories={categories}
         defaultCategoryId={selectedCategoryId}
@@ -680,15 +766,12 @@ export default function ProcessVerificationPage() {
         onSuccess={handleImportSuccess}
         title="공정검증 데이터 가져오기"
         apiEndpoint="/api/process-verification/import"
-        businessUnit={filter.businessUnit}
-        businessUnitList={[...BUSINESS_UNITS]}
-        onBusinessUnitChange={(businessUnit) => setFilter((prev) => ({ ...prev, businessUnit }))}
         templateConfig={{
           fileName: "공정검증_템플릿",
           sheetName: "공정검증",
           columns: [
+            { header: "제품유형", key: "productType", width: 10, example: "SMD" },
             { header: "구분", key: "category", width: 15, example: "재료관리" },
-            { header: "적용여부(Y/N)", key: "isApplied", width: 12, example: "Y" },
             { header: "관리 영역", key: "managementArea", width: 25, example: "자재 입고" },
             { header: "세부 관리 항목", key: "detailItem", width: 40, example: "자재 입고 검수" },
             { header: "MES/IT 매핑", key: "mesMapping", width: 15, example: "MES-001" },
@@ -701,9 +784,9 @@ export default function ProcessVerificationPage() {
         }}
         hints={[
           "첫 번째 행은 헤더로 인식됩니다",
+          "제품유형: SMD 또는 HANES",
           "구분: 카테고리명 (재료관리, SMD공정관리 등)",
           "관리코드가 없는 행은 건너뜁니다",
-          "적용여부, 기존MES: Y 또는 N",
         ]}
         clearExistingLabel="기존 공정검증 데이터 삭제 후 가져오기"
       />
@@ -711,19 +794,20 @@ export default function ProcessVerificationPage() {
       {/* 삭제 확인 모달 */}
       <ConfirmModal
         isOpen={showDeleteConfirm}
-        title="항목 삭제"
+        title="마스터 삭제"
         message={
-          deletingItem
-            ? `"${deletingItem.managementCode}" 항목을 삭제하시겠습니까?\n\n` +
-              `관리 영역: ${deletingItem.managementArea}\n` +
-              `세부 항목: ${deletingItem.detailItem}\n\n` +
+          deletingMaster
+            ? `"${deletingMaster.managementCode}" 마스터를 삭제하시겠습니까?\n\n` +
+              `제품유형: ${deletingMaster.productType}\n` +
+              `관리 영역: ${deletingMaster.managementArea}\n` +
+              `세부 항목: ${deletingMaster.detailItem}\n\n` +
               "이 작업은 되돌릴 수 없습니다."
             : ""
         }
         onConfirm={handleConfirmDelete}
         onCancel={() => {
           setShowDeleteConfirm(false);
-          setDeletingItem(null);
+          setDeletingMaster(null);
         }}
         confirmText="삭제"
         cancelText="취소"

@@ -5,7 +5,7 @@
  * 고객요구사항 목록을 테이블 형태로 표시하고 수정/삭제/상태변경 기능을 제공합니다.
  *
  * 초보자 가이드:
- * 1. **컬럼 구성**: 수정, 상태, 요구번호, 사업부, 업무구분, 기능명, 요구사항, 요청일, 요청자, 적용방안, 제약사항, To-Be
+ * 1. **컬럼 구성**: 수정, 상태, 요구번호, 사업부, 업무구분, 기능명, 요구사항, 적용방안, 요청일, 처리완료일, 요청자, 제약사항, To-Be
  * 2. **상태 배지**: 클릭 시 드롭다운으로 상태 변경 가능
  * 3. **툴팁**: 기능명, 요구사항, 적용방안, 제약사항에 마우스 오버 시 전체 내용 표시
  * 4. **페이지네이션**: 하단에 페이지 네비게이션 제공
@@ -32,6 +32,8 @@ interface CustomerRequirementTableProps {
   onDelete: (requirement: CustomerRequirement) => void;
   /** 상태 변경 핸들러 */
   onStatusChange: (id: string, newStatus: ApplyStatus) => void;
+  /** 협의요청 이관 핸들러 */
+  onTransferToDiscussion?: (requirement: CustomerRequirement) => void;
   /** 현재 페이지 */
   currentPage: number;
   /** 페이지 변경 핸들러 */
@@ -62,6 +64,7 @@ export function CustomerRequirementTable({
   onEdit,
   onDelete,
   onStatusChange,
+  onTransferToDiscussion,
   currentPage,
   onPageChange,
   itemsPerPage,
@@ -88,20 +91,20 @@ export function CustomerRequirementTable({
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 테이블 헤더 (수정 버튼을 맨 앞에 배치) */}
       <div
-        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1550px]"
-        style={{ gridTemplateColumns: "50px 80px 100px 80px 80px 150px 1fr 80px 80px 100px 180px 150px 100px" }}
+        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1580px]"
+        style={{ gridTemplateColumns: "80px 80px 100px 80px 80px 150px 1fr 180px 80px 80px 100px 150px 100px" }}
       >
-        <div>수정</div>
+        <div>액션</div>
         <div>상태</div>
         <div>요구번호</div>
         <div>사업부</div>
         <div>업무구분</div>
         <div>기능명</div>
         <div>요구사항</div>
+        <div>적용방안</div>
         <div>요청일</div>
         <div>처리완료일</div>
         <div>요청자</div>
-        <div>적용방안</div>
         <div>제약사항</div>
         <div>To-Be</div>
       </div>
@@ -121,25 +124,34 @@ export function CustomerRequirementTable({
         return (
           <div
             key={req.id}
-            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1550px]"
-            style={{ gridTemplateColumns: "50px 80px 100px 80px 80px 150px 1fr 80px 80px 100px 180px 150px 100px" }}
+            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1580px]"
+            style={{ gridTemplateColumns: "80px 80px 100px 80px 80px 150px 1fr 180px 80px 80px 100px 150px 100px" }}
           >
-            {/* 수정/삭제 버튼 (맨 앞 배치) */}
-            <div className="flex items-center gap-1">
+            {/* 수정/삭제/이관 버튼 (맨 앞 배치) */}
+            <div className="flex items-center gap-0.5">
               <button
                 onClick={() => onEdit(req)}
-                className="size-7 rounded-lg flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
+                className="size-6 rounded flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
                 title="수정"
               >
                 <Icon name="edit" size="xs" />
               </button>
               <button
                 onClick={() => onDelete(req)}
-                className="size-7 rounded-lg flex items-center justify-center hover:bg-error/10 text-text-secondary hover:text-error transition-colors"
+                className="size-6 rounded flex items-center justify-center hover:bg-error/10 text-text-secondary hover:text-error transition-colors"
                 title="삭제"
               >
                 <Icon name="delete" size="xs" />
               </button>
+              {onTransferToDiscussion && (
+                <button
+                  onClick={() => onTransferToDiscussion(req)}
+                  className="size-6 rounded flex items-center justify-center hover:bg-yellow-500/10 text-text-secondary hover:text-yellow-500 transition-colors"
+                  title="협의요청으로 이관"
+                >
+                  <Icon name="forum" size="xs" />
+                </button>
+              )}
             </div>
 
             {/* 상태 배지 (클릭 시 드롭다운) */}
@@ -257,6 +269,25 @@ export function CustomerRequirementTable({
               )}
             </div>
 
+            {/* 적용방안 - 툴팁 */}
+            <div className="relative group/solution">
+              <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
+                {req.solution || "-"}
+              </p>
+              {/* 적용방안 툴팁 */}
+              {req.solution && (
+                <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/solution:opacity-100 transition-opacity">
+                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs text-slate-400">적용방안</span>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap">{req.solution}</p>
+                  </div>
+                  <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
+                </div>
+              )}
+            </div>
+
             {/* 요청일 */}
             <div>
               <span className="text-xs text-text-secondary">
@@ -276,25 +307,6 @@ export function CustomerRequirementTable({
               <span className="text-xs text-text dark:text-white">
                 {req.requester || "-"}
               </span>
-            </div>
-
-            {/* 적용방안 - 툴팁 */}
-            <div className="relative group/solution">
-              <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
-                {req.solution || "-"}
-              </p>
-              {/* 적용방안 툴팁 */}
-              {req.solution && (
-                <div className="absolute bottom-full right-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/solution:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">적용방안</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{req.solution}</p>
-                  </div>
-                  <div className="absolute right-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
             </div>
 
             {/* 제약사항 및 전제조건 - 툴팁 */}

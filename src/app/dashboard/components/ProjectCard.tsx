@@ -177,9 +177,44 @@ const ProjectCard = memo(function ProjectCard({
 
       {/* 메타 정보 */}
       <div className="flex items-center gap-4 text-sm text-text-secondary">
-        <div className="flex items-center gap-1 hover:text-primary transition-colors">
-          <Icon name="group" size="xs" />
-          <span>{membersCount}명</span>
+        {/* 멤버 아이콘 + 툴팁 */}
+        <div className="relative group/members">
+          <div className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer">
+            <Icon name="group" size="xs" />
+            <span>{membersCount}명</span>
+          </div>
+          {/* 멤버 툴팁 */}
+          {project.teamMembers && project.teamMembers.length > 0 && (
+            <div className="absolute left-0 bottom-full mb-2 hidden group-hover/members:block z-20 animate-fadeIn">
+              <div className="bg-slate-900 dark:bg-slate-800 text-white text-xs rounded-lg shadow-xl py-2 px-3 min-w-[140px] max-w-[200px]">
+                <div className="font-semibold text-slate-300 mb-1.5 pb-1 border-b border-slate-700">
+                  팀 멤버
+                </div>
+                <ul className="space-y-1">
+                  {project.teamMembers.map((member) => (
+                    <li key={member.id} className="flex items-center gap-2">
+                      {member.user?.avatar ? (
+                        <img
+                          src={member.user.avatar}
+                          alt={member.user?.name || "멤버"}
+                          className="w-4 h-4 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full bg-primary/30 flex items-center justify-center text-[8px] font-bold text-primary">
+                          {(member.user?.name || member.user?.email || "?")[0].toUpperCase()}
+                        </div>
+                      )}
+                      <span className="truncate">
+                        {member.user?.name || member.user?.email?.split("@")[0] || "알 수 없음"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {/* 화살표 */}
+                <div className="absolute left-4 bottom-0 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-900 dark:border-t-slate-800" />
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 hover:text-primary transition-colors">
           <Icon name="checklist" size="xs" />

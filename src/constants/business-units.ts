@@ -22,23 +22,35 @@
  * - 한글명 추가: BUSINESS_UNIT_LABELS 객체 수정
  */
 
-/** 사업부 코드 목록 */
+/**
+ * 전체 사업부 코드 목록
+ * SMD: V_IVI, V_DISP, V_PCBA
+ * HANES: V_HMS
+ */
 export const BUSINESS_UNITS = [
-  "V_HNS",
-  "V_DISP",
   "V_IVI",
+  "V_DISP",
   "V_PCBA",
-  "IT",
+  "V_HMS",
 ] as const;
 
 /** 사업부 타입 */
-export type BusinessUnit = typeof BUSINESS_UNITS[number];
+export type BusinessUnit = (typeof BUSINESS_UNITS)[number];
+
+/**
+ * 제품유형별 사업부 매핑
+ * - SMD: V_IVI, V_DISP, V_PCBA (동일 마스터 공유)
+ * - HANES: V_HMS (별도 마스터)
+ */
+export const PRODUCT_TYPE_BUSINESS_UNITS: Record<string, readonly BusinessUnit[]> = {
+  SMD: ["V_IVI", "V_DISP", "V_PCBA"] as const,
+  HANES: ["V_HMS"] as const,
+};
 
 /** 사업부 한글명 (선택적 사용) */
 export const BUSINESS_UNIT_LABELS: Record<BusinessUnit, string> = {
-  V_HNS: "V_HNS",
-  V_DISP: "V_DISP",
   V_IVI: "V_IVI",
+  V_DISP: "V_DISP",
   V_PCBA: "V_PCBA",
-  IT: "IT",
+  V_HMS: "V_HMS",
 };

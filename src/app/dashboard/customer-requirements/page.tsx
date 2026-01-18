@@ -6,10 +6,14 @@
  * Issues 페이지 스타일을 따릅니다.
  *
  * 초보자 가이드:
- * 1. **통계 카드**: 적용률, 전체, 적용, 미적용, 검토중 현황
- * 2. **탭**: 활성(검토중/적용) vs 미적용/보류
+ * 1. **통계 카드**: 적용률, 전체, 검토/승인/개발/적용/거절/보류 현황
+ * 2. **탭**: 활성(검토/승인/개발/적용) vs 거절/보류
  * 3. **필터**: 사업부, 검색어로 필터링
  * 4. **테이블**: 고객요구사항 목록 (상태 클릭으로 변경)
+ *
+ * 상태 흐름 (필독 가이드 기준):
+ * REVIEWING (검토) → APPROVED (승인) / REJECTED (거절)
+ *                  → IN_DEVELOPMENT (개발) → APPLIED (적용) / HOLD (보류)
  *
  * @example
  * 접속 URL: /dashboard/customer-requirements
@@ -82,6 +86,11 @@ export default function CustomerRequirementsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingRequirement, setDeletingRequirement] = useState<CustomerRequirement | null>(null);
 
+  // 협의요청 이관 모달 상태
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [transferringRequirement, setTransferringRequirement] = useState<CustomerRequirement | null>(null);
+  const [isTransferring, setIsTransferring] = useState(false);
+
   const toast = useToast();
 
   // 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
@@ -100,9 +109,12 @@ export default function CustomerRequirementsPage() {
   const updateMutation = useUpdateCustomerRequirement();
   const deleteMutation = useDeleteCustomerRequirement();
 
-  // 탭별 요구사항 분리
+  // 탭별 요구사항 분리 (필독 가이드 기준)
+  // 활성: 검토중 → 승인 → 개발중 → 적용
+  // 비활성: 거절, 보류
   const activeRequirements = requirements.filter(
-    (r) => r.applyStatus === "REVIEWING" || r.applyStatus === "APPLIED"
+    (r) => r.applyStatus === "REVIEWING" || r.applyStatus === "APPROVED" ||
+           r.applyStatus === "IN_DEVELOPMENT" || r.applyStatus === "APPLIED"
   );
   const inactiveRequirements = requirements.filter(
     (r) => r.applyStatus === "REJECTED" || r.applyStatus === "HOLD"
@@ -153,12 +165,14 @@ export default function CustomerRequirementsPage() {
     setCurrentPage(1);
   }, [activeTab, filterBusinessUnit, filterCategory, filterRequester, searchQuery, sortBy]);
 
-  // 통계 계산
+  // 통계 계산 (필독 가이드 기준)
   const stats = useMemo(() => {
     const total = requirements.length;
+    const reviewing = requirements.filter((r) => r.applyStatus === "REVIEWING").length;
+    const approved = requirements.filter((r) => r.applyStatus === "APPROVED").length;
+    const inDevelopment = requirements.filter((r) => r.applyStatus === "IN_DEVELOPMENT").length;
     const applied = requirements.filter((r) => r.applyStatus === "APPLIED").length;
     const rejected = requirements.filter((r) => r.applyStatus === "REJECTED").length;
-    const reviewing = requirements.filter((r) => r.applyStatus === "REVIEWING").length;
     const hold = requirements.filter((r) => r.applyStatus === "HOLD").length;
 
     // 전주 데이터 계산 (지난 7일~14일)
@@ -179,9 +193,11 @@ export default function CustomerRequirementsPage() {
 
     return {
       total,
+      reviewing,
+      approved,
+      inDevelopment,
       applied,
       rejected,
-      reviewing,
       hold,
       appliedRate: total > 0 ? Math.round((applied / total) * 100) : 0,
       lastWeekCreated,
@@ -297,6 +313,71 @@ export default function CustomerRequirementsPage() {
       id,
       data: { applyStatus: newStatus },
     });
+  };
+
+  /**
+   * 협의요청 이관 클릭
+   */
+  const handleTransferToDiscussion = useCallback((requirement: CustomerRequirement) => {
+    setTransferringRequirement(requirement);
+    setShowTransferConfirm(true);
+  }, []);
+
+  /**
+   * 협의요청 이관 확인
+   */
+  const handleConfirmTransfer = async () => {
+    if (!transferringRequirement || !selectedProjectId) return;
+
+    setIsTransferring(true);
+    try {
+      // 업무구분에 따라 발생 단계 결정
+      const stageMap: Record<string, string> = {
+        "자재": "ANALYSIS",
+        "생산": "IMPLEMENTATION",
+        "품질": "TESTING",
+        "공통": "ANALYSIS",
+      };
+      const stage = stageMap[transferringRequirement.category || ""] || "ANALYSIS";
+
+      // 협의요청 생성
+      const response = await fetch("/api/discussion-items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: selectedProjectId,
+          businessUnit: transferringRequirement.businessUnit || "공통",
+          title: transferringRequirement.functionName || transferringRequirement.content?.substring(0, 50) || "고객요구사항 협의",
+          description: `${transferringRequirement.content || ""}\n\n[고객요구사항에서 이관: ${transferringRequirement.code}]`,
+          stage,
+          priority: "MEDIUM",
+          requesterName: transferringRequirement.requester || null,
+          options: [
+            { label: "A안", description: transferringRequirement.solution || "대안 A 검토 필요" },
+            { label: "B안", description: "대안 B 검토 필요" },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "협의요청 생성에 실패했습니다.");
+      }
+
+      const createdItem = await response.json();
+
+      // 원본 요구사항 삭제
+      await deleteMutation.mutateAsync(transferringRequirement.id);
+
+      toast.success(`협의요청으로 이관되었습니다. (${createdItem.code})`);
+      setShowTransferConfirm(false);
+      setTransferringRequirement(null);
+    } catch (error) {
+      console.error("이관 실패:", error);
+      toast.error(error instanceof Error ? error.message : "이관에 실패했습니다.");
+    } finally {
+      setIsTransferring(false);
+    }
   };
 
   /**
@@ -459,7 +540,7 @@ export default function CustomerRequirementsPage() {
                 isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
               }`}
             >
-              <div className="grid grid-cols-2 lg:grid-cols-8 gap-2 pb-2">
+              <div className="grid grid-cols-2 lg:grid-cols-10 gap-2 pb-2">
                 {/* 적용률 카드 */}
                 <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-lg p-3 flex flex-col items-center justify-center text-center">
                   <div className="size-9 rounded-lg bg-primary/20 flex items-center justify-center mb-2">
@@ -495,6 +576,7 @@ export default function CustomerRequirementsPage() {
                   </div>
                 </div>
 
+                {/* 전체 */}
                 <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
                   <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
                     <Icon name="list_alt" size="sm" className="text-primary" />
@@ -502,6 +584,31 @@ export default function CustomerRequirementsPage() {
                   <p className="text-2xl font-bold text-text dark:text-white">{stats.total}</p>
                   <p className="text-xs text-text-secondary">전체</p>
                 </div>
+                {/* 검토 */}
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
+                  <div className="size-9 rounded-lg bg-warning/10 flex items-center justify-center mb-2">
+                    <Icon name="pending" size="sm" className="text-warning" />
+                  </div>
+                  <p className="text-2xl font-bold text-text dark:text-white">{stats.reviewing}</p>
+                  <p className="text-xs text-text-secondary">검토</p>
+                </div>
+                {/* 승인 */}
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
+                  <div className="size-9 rounded-lg bg-blue-500/10 flex items-center justify-center mb-2">
+                    <Icon name="thumb_up" size="sm" className="text-blue-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-text dark:text-white">{stats.approved}</p>
+                  <p className="text-xs text-text-secondary">승인</p>
+                </div>
+                {/* 개발 */}
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
+                  <div className="size-9 rounded-lg bg-purple-500/10 flex items-center justify-center mb-2">
+                    <Icon name="code" size="sm" className="text-purple-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-text dark:text-white">{stats.inDevelopment}</p>
+                  <p className="text-xs text-text-secondary">개발</p>
+                </div>
+                {/* 적용 */}
                 <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
                   <div className="size-9 rounded-lg bg-success/10 flex items-center justify-center mb-2">
                     <Icon name="check_circle" size="sm" className="text-success" />
@@ -509,19 +616,13 @@ export default function CustomerRequirementsPage() {
                   <p className="text-2xl font-bold text-text dark:text-white">{stats.applied}</p>
                   <p className="text-xs text-text-secondary">적용</p>
                 </div>
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                  <div className="size-9 rounded-lg bg-warning/10 flex items-center justify-center mb-2">
-                    <Icon name="pending" size="sm" className="text-warning" />
-                  </div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.reviewing}</p>
-                  <p className="text-xs text-text-secondary">검토중</p>
-                </div>
+                {/* 거절 */}
                 <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
                   <div className="size-9 rounded-lg bg-error/10 flex items-center justify-center mb-2">
                     <Icon name="cancel" size="sm" className="text-error" />
                   </div>
                   <p className="text-2xl font-bold text-text dark:text-white">{stats.rejected}</p>
-                  <p className="text-xs text-text-secondary">미적용</p>
+                  <p className="text-xs text-text-secondary">거절</p>
                 </div>
                 {/* 사업부 막대 카드 */}
                 <div className="lg:col-span-2 bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-3">
@@ -595,7 +696,7 @@ export default function CustomerRequirementsPage() {
                 />
               </div>
 
-              {/* 탭 (활성/미적용) */}
+              {/* 탭 (진행/종료) - 필독 기준 상태 흐름 */}
               <div className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg">
                 <button
                   onClick={() => setActiveTab("active")}
@@ -606,7 +707,7 @@ export default function CustomerRequirementsPage() {
                   }`}
                 >
                   <Icon name="pending_actions" size="xs" />
-                  <span>활성</span>
+                  <span>진행</span>
                   <span className={`px-1.5 py-0.5 rounded text-xs ${
                     activeTab === "active" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
                   }`}>
@@ -622,7 +723,7 @@ export default function CustomerRequirementsPage() {
                   }`}
                 >
                   <Icon name="block" size="xs" />
-                  <span>미적용</span>
+                  <span>거절/보류</span>
                   <span className={`px-1.5 py-0.5 rounded text-xs ${
                     activeTab === "inactive" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
                   }`}>
@@ -711,6 +812,7 @@ export default function CustomerRequirementsPage() {
               onEdit={handleOpenEdit}
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
+              onTransferToDiscussion={handleTransferToDiscussion}
               currentPage={currentPage}
               onPageChange={setCurrentPage}
               itemsPerPage={itemsPerPage}
@@ -772,7 +874,7 @@ export default function CustomerRequirementsPage() {
           "첫 번째 행은 헤더로 인식됩니다",
           "요구번호가 없으면 자동 생성됩니다",
           "사업부: V_HNS, V_DISP, V_IVI, V_PCBA, IT",
-          "적용여부: 적용/미적용/검토중/보류",
+          "적용여부: 검토/승인/거절/개발/적용/보류",
         ]}
         clearExistingLabel="기존 고객요구사항 삭제 후 가져오기"
       />
@@ -798,6 +900,28 @@ export default function CustomerRequirementsPage() {
         cancelText="취소"
         variant="danger"
         isLoading={deleteMutation.isPending}
+      />
+
+      {/* 협의요청 이관 확인 모달 */}
+      <ConfirmModal
+        isOpen={showTransferConfirm}
+        title="협의요청으로 이관"
+        message={
+          transferringRequirement
+            ? `"${transferringRequirement.code}" 항목을 협의요청으로 이관하시겠습니까?\n\n` +
+              `기능명: ${transferringRequirement.functionName}\n\n` +
+              "이관 시 원본 고객요구사항은 삭제되고, 협의요청관리에 새로운 항목이 생성됩니다."
+            : ""
+        }
+        onConfirm={handleConfirmTransfer}
+        onCancel={() => {
+          setShowTransferConfirm(false);
+          setTransferringRequirement(null);
+        }}
+        confirmText="이관"
+        cancelText="취소"
+        variant="info"
+        isLoading={isTransferring}
       />
     </div>
   );

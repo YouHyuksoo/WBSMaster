@@ -76,22 +76,40 @@ const TaskStatsSection = memo(function TaskStatsSection({
 
       const assignee = assigneeMap.get(assigneeId)!;
 
-      if (task.status === "PENDING") assignee.pending++;
-      else if (task.status === "IN_PROGRESS") assignee.inProgress++;
-      else if (task.status === "COMPLETED") assignee.completed++;
-      else if (task.status === "DELAYED") assignee.delayed++;
+      // 지연 여부 판정 (마감일이 지났거나 DELAYED 상태)
+      const isDelayed = task.status === "DELAYED" ||
+        (task.status !== "COMPLETED" && task.dueDate && new Date(task.dueDate) < new Date());
 
-      // 마감일 지났는데 완료 안된 경우 추가 지연 체크
-      if (task.status !== "DELAYED" && task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "COMPLETED") {
+      // 상호 배타적으로 카운팅 (지연 > 진행 > 대기 > 완료 순서)
+      if (task.status === "COMPLETED") {
+        assignee.completed++;
+      } else if (isDelayed) {
         assignee.delayed++;
+      } else if (task.status === "IN_PROGRESS" || task.status === "HOLDING") {
+        assignee.inProgress++;
+      } else if (task.status === "PENDING") {
+        assignee.pending++;
       }
     });
 
+    // 전체 통계 (상호 배타적으로 계산)
     const totals = {
-      pending: tasks.filter((t) => t.status === "PENDING").length,
-      inProgress: tasks.filter((t) => t.status === "IN_PROGRESS").length,
       completed: tasks.filter((t) => t.status === "COMPLETED").length,
-      delayed: tasks.filter((t) => t.status === "DELAYED" || (t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "COMPLETED")).length,
+      delayed: tasks.filter((t) => {
+        const isDelayed = t.status === "DELAYED" ||
+          (t.status !== "COMPLETED" && t.dueDate && new Date(t.dueDate) < new Date());
+        return isDelayed;
+      }).length,
+      inProgress: tasks.filter((t) => {
+        const isDelayed = t.status === "DELAYED" ||
+          (t.status !== "COMPLETED" && t.dueDate && new Date(t.dueDate) < new Date());
+        return !isDelayed && (t.status === "IN_PROGRESS" || t.status === "HOLDING");
+      }).length,
+      pending: tasks.filter((t) => {
+        const isDelayed = t.status === "DELAYED" ||
+          (t.status !== "COMPLETED" && t.dueDate && new Date(t.dueDate) < new Date());
+        return !isDelayed && t.status === "PENDING";
+      }).length,
     };
 
     return {

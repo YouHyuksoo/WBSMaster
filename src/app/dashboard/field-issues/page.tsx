@@ -5,10 +5,13 @@
  * 현업이슈 목록 조회, 등록, 수정, 삭제 기능을 제공합니다.
  *
  * 초보자 가이드:
- * 1. **통계 카드**: 전체, 오픈, Pending, 완료 현황
- * 2. **탭**: 활성(오픈/Pending) vs 완료
+ * 1. **통계 카드**: 전체, 발견/수정중/해결/수정안함/완료 현황
+ * 2. **탭**: 진행(발견/수정중) vs 종료(해결/수정안함/완료)
  * 3. **필터**: 사업부, 업무구분, 검색어로 필터링
  * 4. **테이블**: 현업이슈 목록 (상태 클릭으로 변경)
+ *
+ * 상태 흐름 (필독 가이드 기준):
+ * OPEN (발견) → IN_PROGRESS (수정 중) → RESOLVED (해결) / WONT_FIX (수정 안함) → CLOSED (완료)
  *
  * @example
  * 접속 URL: /dashboard/field-issues
@@ -48,8 +51,8 @@ export default function FieldIssuesPage() {
   const [filterBusinessUnit, setFilterBusinessUnit] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  /** 현재 선택된 탭 (active: 오픈/Pending, completed: 완료) */
-  const [activeTab, setActiveTab] = useState<"active" | "completed">("active");
+  /** 현재 선택된 탭 (active: 발견/수정중, closed: 해결/수정안함/완료) */
+  const [activeTab, setActiveTab] = useState<"active" | "closed">("active");
 
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
@@ -76,6 +79,11 @@ export default function FieldIssuesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingIssue, setDeletingIssue] = useState<FieldIssue | null>(null);
 
+  // 협의요청 이관 모달 상태
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [transferringIssue, setTransferringIssue] = useState<FieldIssue | null>(null);
+  const [isTransferring, setIsTransferring] = useState(false);
+
   const toast = useToast();
 
   // 필터 객체 메모이제이션
@@ -94,14 +102,18 @@ export default function FieldIssuesPage() {
   const updateMutation = useUpdateFieldIssue();
   const deleteMutation = useDeleteFieldIssue();
 
-  // 탭별 이슈 분리
+  // 탭별 이슈 분리 (필독 가이드 기준)
+  // 진행: 발견(OPEN), 수정 중(IN_PROGRESS) + 레거시(PENDING)
+  // 종료: 해결(RESOLVED), 수정안함(WONT_FIX), 완료(CLOSED) + 레거시(COMPLETED)
   const activeIssues = issues.filter(
-    (i) => i.status === "OPEN" || i.status === "PENDING"
+    (i) => i.status === "OPEN" || i.status === "IN_PROGRESS" || i.status === "PENDING"
   );
-  const completedIssues = issues.filter((i) => i.status === "COMPLETED");
+  const closedIssues = issues.filter(
+    (i) => i.status === "RESOLVED" || i.status === "WONT_FIX" || i.status === "CLOSED" || i.status === "COMPLETED"
+  );
 
   // 현재 탭에 해당하는 이슈 목록
-  const tabIssues = activeTab === "active" ? activeIssues : completedIssues;
+  const tabIssues = activeTab === "active" ? activeIssues : closedIssues;
 
   // 필터링된 이슈
   const filteredIssues = useMemo(() => {
@@ -132,33 +144,45 @@ export default function FieldIssuesPage() {
     setCurrentPage(1);
   }, [activeTab, filterBusinessUnit, filterCategory, searchQuery]);
 
-  // 통계 계산
+  // 통계 계산 (필독 가이드 기준)
   const stats = useMemo(() => {
     const total = issues.length;
     const open = issues.filter((i) => i.status === "OPEN").length;
-    const pending = issues.filter((i) => i.status === "PENDING").length;
-    const completed = issues.filter((i) => i.status === "COMPLETED").length;
+    const inProgress = issues.filter((i) => i.status === "IN_PROGRESS" || i.status === "PENDING").length;
+    const resolved = issues.filter((i) => i.status === "RESOLVED").length;
+    const wontFix = issues.filter((i) => i.status === "WONT_FIX").length;
+    const closed = issues.filter((i) => i.status === "CLOSED" || i.status === "COMPLETED").length;
+
+    // 종료 상태 합계 (해결 + 수정안함 + 완료)
+    const totalClosed = resolved + wontFix + closed;
 
     return {
       total,
       open,
-      pending,
-      completed,
-      completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+      inProgress,
+      resolved,
+      wontFix,
+      closed,
+      completionRate: total > 0 ? Math.round((totalClosed / total) * 100) : 0,
     };
   }, [issues]);
 
-  // 사업부별 통계
+  // 사업부별 통계 (필독 가이드 기준)
   const businessUnitStats = useMemo(() => {
-    const unitCounts: Record<string, { open: number; pending: number; completed: number }> = {};
+    const unitCounts: Record<string, { active: number; closed: number }> = {};
     issues.forEach((issue) => {
       if (issue.businessUnit) {
         if (!unitCounts[issue.businessUnit]) {
-          unitCounts[issue.businessUnit] = { open: 0, pending: 0, completed: 0 };
+          unitCounts[issue.businessUnit] = { active: 0, closed: 0 };
         }
-        if (issue.status === "OPEN") unitCounts[issue.businessUnit].open++;
-        else if (issue.status === "PENDING") unitCounts[issue.businessUnit].pending++;
-        else if (issue.status === "COMPLETED") unitCounts[issue.businessUnit].completed++;
+        // 진행 중 (발견, 수정 중)
+        if (issue.status === "OPEN" || issue.status === "IN_PROGRESS" || issue.status === "PENDING") {
+          unitCounts[issue.businessUnit].active++;
+        }
+        // 종료 (해결, 수정안함, 완료)
+        else {
+          unitCounts[issue.businessUnit].closed++;
+        }
       }
     });
     return unitCounts;
@@ -245,6 +269,67 @@ export default function FieldIssuesPage() {
       data: { status: newStatus },
     });
     toast.success("상태가 변경되었습니다.");
+  };
+
+  // 협의요청 이관 클릭
+  const handleTransferToDiscussion = useCallback((issue: FieldIssue) => {
+    setTransferringIssue(issue);
+    setShowTransferConfirm(true);
+  }, []);
+
+  // 협의요청 이관 확인
+  const handleConfirmTransfer = async () => {
+    if (!transferringIssue || !selectedProjectId) return;
+
+    setIsTransferring(true);
+    try {
+      // 카테고리에 따라 발생 단계 결정
+      const stageMap: Record<string, string> = {
+        "자재": "ANALYSIS",
+        "생산": "IMPLEMENTATION",
+        "품질": "TESTING",
+        "공통": "ANALYSIS",
+      };
+      const stage = stageMap[transferringIssue.category || ""] || "ANALYSIS";
+
+      // 협의요청 생성
+      const response = await fetch("/api/discussion-items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: selectedProjectId,
+          businessUnit: transferringIssue.businessUnit || "공통",
+          title: transferringIssue.title,
+          description: `${transferringIssue.description || ""}\n\n[현업이슈에서 이관: ${transferringIssue.code}]`,
+          stage,
+          priority: "MEDIUM",
+          requesterName: transferringIssue.issuer || null,
+          options: [
+            { label: "A안", description: transferringIssue.proposedSolution || "대안 A 검토 필요" },
+            { label: "B안", description: "대안 B 검토 필요" },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "협의요청 생성에 실패했습니다.");
+      }
+
+      const createdItem = await response.json();
+
+      // 원본 이슈 삭제
+      await deleteMutation.mutateAsync(transferringIssue.id);
+
+      toast.success(`협의요청으로 이관되었습니다. (${createdItem.code})`);
+      setShowTransferConfirm(false);
+      setTransferringIssue(null);
+    } catch (error) {
+      console.error("이관 실패:", error);
+      toast.error(error instanceof Error ? error.message : "이관에 실패했습니다.");
+    } finally {
+      setIsTransferring(false);
+    }
   };
 
   // 새로고침 핸들러
@@ -401,12 +486,12 @@ export default function FieldIssuesPage() {
                 isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
               }`}
             >
-              <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 pb-2">
-                {/* 완료율 카드 */}
+              <div className="grid grid-cols-2 lg:grid-cols-8 gap-3 pb-2">
+                {/* 종료율 카드 */}
                 <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <Icon name="speed" size="xs" className="text-primary" />
-                    <span className="text-xs font-semibold text-primary">완료율</span>
+                    <span className="text-xs font-semibold text-primary">종료율</span>
                   </div>
                   <p className="text-2xl font-bold text-primary mb-1">{stats.completionRate}%</p>
                   <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
@@ -430,40 +515,66 @@ export default function FieldIssuesPage() {
                   </div>
                 </div>
 
-                {/* 오픈 */}
+                {/* 발견 (OPEN) */}
                 <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
                   <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Icon name="radio_button_checked" size="xs" className="text-primary" />
+                    <div className="size-8 rounded-lg bg-error/10 flex items-center justify-center">
+                      <Icon name="radio_button_checked" size="xs" className="text-error" />
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.open}</p>
-                      <p className="text-[10px] text-text-secondary">오픈</p>
+                      <p className="text-[10px] text-text-secondary">발견</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Pending */}
+                {/* 수정 중 (IN_PROGRESS) */}
                 <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
                   <div className="flex items-center gap-2">
                     <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                      <Icon name="pending" size="xs" className="text-warning" />
+                      <Icon name="build" size="xs" className="text-warning" />
                     </div>
                     <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{stats.pending}</p>
-                      <p className="text-[10px] text-text-secondary">Pending</p>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.inProgress}</p>
+                      <p className="text-[10px] text-text-secondary">수정 중</p>
                     </div>
                   </div>
                 </div>
 
-                {/* 완료 */}
+                {/* 해결 (RESOLVED) */}
                 <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
                   <div className="flex items-center gap-2">
                     <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
                       <Icon name="check_circle" size="xs" className="text-success" />
                     </div>
                     <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{stats.completed}</p>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.resolved}</p>
+                      <p className="text-[10px] text-text-secondary">해결</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 수정안함 (WONT_FIX) */}
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      <Icon name="block" size="xs" className="text-text-secondary" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.wontFix}</p>
+                      <p className="text-[10px] text-text-secondary">수정안함</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 완료 (CLOSED) */}
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Icon name="done_all" size="xs" className="text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.closed}</p>
                       <p className="text-[10px] text-text-secondary">완료</p>
                     </div>
                   </div>
@@ -479,7 +590,7 @@ export default function FieldIssuesPage() {
                     {Object.entries(businessUnitStats).slice(0, 4).map(([unit, counts]) => (
                       <div key={unit} className="text-center flex-1">
                         <p className="text-sm font-bold text-text dark:text-white">
-                          {counts.open + counts.pending}
+                          {counts.active}
                         </p>
                         <p className="text-[8px] text-text-secondary truncate">{unit}</p>
                       </div>
@@ -519,7 +630,7 @@ export default function FieldIssuesPage() {
             </div>
           </div>
 
-          {/* 탭 및 필터 */}
+          {/* 탭 및 필터 (필독 가이드 기준) */}
           <div className="flex flex-wrap items-center gap-4">
             {/* 탭 */}
             <div className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg">
@@ -532,7 +643,7 @@ export default function FieldIssuesPage() {
                 }`}
               >
                 <Icon name="pending_actions" size="xs" />
-                <span>활성</span>
+                <span>진행</span>
                 <span className={`px-1.5 py-0.5 rounded text-xs ${
                   activeTab === "active" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
                 }`}>
@@ -540,19 +651,19 @@ export default function FieldIssuesPage() {
                 </span>
               </button>
               <button
-                onClick={() => setActiveTab("completed")}
+                onClick={() => setActiveTab("closed")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === "completed"
+                  activeTab === "closed"
                     ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
                     : "text-text-secondary hover:text-text dark:hover:text-white"
                 }`}
               >
                 <Icon name="done_all" size="xs" />
-                <span>완료</span>
+                <span>종료</span>
                 <span className={`px-1.5 py-0.5 rounded text-xs ${
-                  activeTab === "completed" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
+                  activeTab === "closed" ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"
                 }`}>
-                  {completedIssues.length}
+                  {closedIssues.length}
                 </span>
               </button>
             </div>
@@ -599,6 +710,7 @@ export default function FieldIssuesPage() {
             onEdit={handleOpenEdit}
             onDelete={handleDelete}
             onStatusChange={handleStatusChange}
+            onTransferToDiscussion={handleTransferToDiscussion}
             currentPage={currentPage}
             onPageChange={setCurrentPage}
             itemsPerPage={itemsPerPage}
@@ -657,7 +769,7 @@ export default function FieldIssuesPage() {
           "첫 번째 행은 헤더로 인식됩니다",
           "이슈번호가 없으면 자동 생성됩니다 (IS0001 형식)",
           "사업부: V_HNS, V_DISP, V_IVI, V_PCBA, 공통",
-          "상태: 오픈/Pending/완료",
+          "상태: 발견/수정중/해결/수정안함/완료",
         ]}
         clearExistingLabel="기존 현업이슈 삭제 후 가져오기"
       />
@@ -682,6 +794,28 @@ export default function FieldIssuesPage() {
         cancelText="취소"
         variant="danger"
         isLoading={deleteMutation.isPending}
+      />
+
+      {/* 협의요청 이관 확인 모달 */}
+      <ConfirmModal
+        isOpen={showTransferConfirm}
+        title="협의요청으로 이관"
+        message={
+          transferringIssue
+            ? `"${transferringIssue.code}" 항목을 협의요청으로 이관하시겠습니까?\n\n` +
+              `이슈관리명: ${transferringIssue.title}\n\n` +
+              "이관 시 원본 현업이슈는 삭제되고, 협의요청관리에 새로운 항목이 생성됩니다."
+            : ""
+        }
+        onConfirm={handleConfirmTransfer}
+        onCancel={() => {
+          setShowTransferConfirm(false);
+          setTransferringIssue(null);
+        }}
+        confirmText="이관"
+        cancelText="취소"
+        variant="info"
+        isLoading={isTransferring}
       />
     </div>
   );

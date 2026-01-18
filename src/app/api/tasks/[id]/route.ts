@@ -19,26 +19,6 @@ import { prisma } from "@/lib/prisma";
 import { TaskStatus } from "@prisma/client";
 import { sendTaskCompletedNotification } from "@/lib/slack";
 
-/**
- * 마감일 초과 여부 확인 헬퍼 함수
- * @param dueDate - 마감일
- * @param status - 현재 상태
- * @returns 지연 상태로 변경해야 하는지 여부
- */
-function shouldBeDelayed(dueDate: Date | null, status: TaskStatus): boolean {
-  // 마감일이 없거나 이미 완료/취소/지연 상태면 지연 처리 안함
-  if (!dueDate) return false;
-  if (status === "COMPLETED" || status === "CANCELLED" || status === "DELAYED") return false;
-
-  // 마감일이 오늘보다 과거인지 확인 (자정 기준)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dueDateNormalized = new Date(dueDate);
-  dueDateNormalized.setHours(0, 0, 0, 0);
-
-  return dueDateNormalized < today;
-}
-
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
@@ -47,7 +27,7 @@ type RouteParams = {
  * 태스크 상세 조회
  * GET /api/tasks/:id
  *
- * 마감일이 초과된 미완료 태스크는 자동으로 DELAYED(지연) 상태로 변경됩니다.
+ * 지연 여부는 프론트엔드에서 마감일을 보고 표시만 합니다. (상태 변경 안함)
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -120,20 +100,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 마감일 초과된 태스크는 자동으로 DELAYED 상태로 업데이트
-    let currentStatus: TaskStatus = task.status;
-    if (shouldBeDelayed(task.dueDate, task.status)) {
-      await prisma.task.update({
-        where: { id },
-        data: { status: TaskStatus.DELAYED },
-      });
-      currentStatus = TaskStatus.DELAYED;
-    }
-
-    // 응답 형식 변환 (assignees 배열 평탄화, 지연 상태 반영)
+    // 응답 형식 변환 (assignees 배열 평탄화)
+    // 주의: 지연 여부는 프론트엔드에서 계산하여 표시만 함 (상태 변경 안함)
     const transformedTask = {
       ...task,
-      status: currentStatus,
       assignees: task.assignees.map((a) => a.user),
     };
 
@@ -159,7 +129,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { title, description, status, priority, assigneeId, assigneeIds, startDate, dueDate, order, requirementId, wbsItemId, flowX, flowY } = body;
+    const { title, description, status, priority, progress, assigneeId, assigneeIds, startDate, dueDate, actualStartDate, actualEndDate, order, requirementId, wbsItemId, flowX, flowY } = body;
 
     // 태스크 존재 확인
     const existing = await prisma.task.findUnique({ where: { id } });
@@ -195,9 +165,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(description !== undefined && { description }),
         ...(status !== undefined && { status }),
         ...(priority !== undefined && { priority }),
+        ...(progress !== undefined && { progress }),  // 진행률
         ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),  // 주 담당자
-        ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),  // 시작일
-        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),          // 마감일
+        ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),  // 계획 시작일
+        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),          // 계획 마감일
+        ...(actualStartDate !== undefined && { actualStartDate: actualStartDate ? new Date(actualStartDate) : null }),  // 실제 시작일
+        ...(actualEndDate !== undefined && { actualEndDate: actualEndDate ? new Date(actualEndDate) : null }),          // 실제 마감일
         ...(order !== undefined && { order }),
         ...(requirementId !== undefined && { requirementId: requirementId || null }),
         ...(wbsItemId !== undefined && { wbsItemId: wbsItemId || null }),

@@ -22,30 +22,10 @@ import { requireAuth } from "@/lib/auth";
 import { createTask } from "@/lib/services/taskService";
 
 /**
- * 마감일 초과 여부 확인 헬퍼 함수
- * @param dueDate - 마감일
- * @param status - 현재 상태
- * @returns 지연 상태로 변경해야 하는지 여부
- */
-function shouldBeDelayed(dueDate: Date | null, status: TaskStatus): boolean {
-  // 마감일이 없거나 이미 완료/취소/지연 상태면 지연 처리 안함
-  if (!dueDate) return false;
-  if (status === "COMPLETED" || status === "CANCELLED" || status === "DELAYED") return false;
-
-  // 마감일이 오늘보다 과거인지 확인 (자정 기준)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dueDateNormalized = new Date(dueDate);
-  dueDateNormalized.setHours(0, 0, 0, 0);
-
-  return dueDateNormalized < today;
-}
-
-/**
  * 태스크 목록 조회
  * GET /api/tasks
  *
- * 마감일이 초과된 미완료 태스크는 자동으로 DELAYED(지연) 상태로 변경됩니다.
+ * 지연 여부는 프론트엔드에서 마감일을 보고 표시만 합니다. (상태 변경 안함)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -142,24 +122,10 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // 마감일 초과된 태스크들의 상태를 DELAYED로 업데이트
-    const delayedTaskIds = tasks
-      .filter((task) => shouldBeDelayed(task.dueDate, task.status))
-      .map((task) => task.id);
-
-    if (delayedTaskIds.length > 0) {
-      // 지연 상태로 일괄 업데이트
-      await prisma.task.updateMany({
-        where: { id: { in: delayedTaskIds } },
-        data: { status: TaskStatus.DELAYED },
-      });
-    }
-
-    // 응답 형식 변환 (assignees 배열을 평탄화, 지연 상태 반영)
+    // 응답 형식 변환 (assignees 배열을 평탄화)
+    // 주의: 지연 여부는 프론트엔드에서 계산하여 표시만 함 (상태 변경 안함)
     const transformedTasks = tasks.map((task) => ({
       ...task,
-      // 마감일 초과된 태스크는 DELAYED 상태로 반환
-      status: delayedTaskIds.includes(task.id) ? "DELAYED" : task.status,
       // 주 담당자는 그대로 유지 (assignee)
       // 부 담당자 배열 평탄화 (assignees) - null 유저 필터링
       assignees: task.assignees.map((a) => a.user).filter((u) => u !== null),

@@ -14,11 +14,11 @@
 
 import { useState, useMemo } from "react";
 import { Icon } from "@/components/ui";
-import { ProcessVerificationCategory, ProcessVerificationItem } from "../types";
+import { ProcessVerificationCategory, ProcessVerificationMaster } from "../types";
 
 interface CategoryListProps {
   categories: ProcessVerificationCategory[];
-  items: ProcessVerificationItem[];
+  items: ProcessVerificationMaster[];
   selectedCategoryId: string | null;
   selectedManagementArea: string | null;
   onSelectCategory: (categoryId: string | null) => void;

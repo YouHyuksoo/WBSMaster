@@ -20,19 +20,34 @@ import { FieldIssueStatus } from "@prisma/client";
 import * as XLSX from "xlsx";
 
 /**
- * 상태 문자열을 FieldIssueStatus로 변환
+ * 상태 문자열을 FieldIssueStatus로 변환 (필독 가이드 기준)
+ * 상태 흐름: OPEN → IN_PROGRESS → RESOLVED/WONT_FIX → CLOSED
  */
 function parseStatus(value: string | undefined | null): FieldIssueStatus {
   if (!value) return FieldIssueStatus.OPEN;
   const normalized = String(value).toUpperCase().trim();
 
-  if (normalized === "완료" || normalized === "COMPLETED" || normalized === "DONE") {
-    return FieldIssueStatus.COMPLETED;
+  // 발견 (OPEN)
+  if (normalized === "발견" || normalized === "OPEN" || normalized === "오픈") {
+    return FieldIssueStatus.OPEN;
   }
-  if (normalized === "PENDING" || normalized === "대기" || normalized === "보류") {
-    return FieldIssueStatus.PENDING;
+  // 수정 중 (IN_PROGRESS)
+  if (normalized === "수정중" || normalized === "수정 중" || normalized === "IN_PROGRESS" || normalized === "PENDING" || normalized === "대기") {
+    return FieldIssueStatus.IN_PROGRESS;
   }
-  // 기본값: 오픈
+  // 해결 (RESOLVED)
+  if (normalized === "해결" || normalized === "RESOLVED") {
+    return FieldIssueStatus.RESOLVED;
+  }
+  // 수정 안함 (WONT_FIX)
+  if (normalized === "수정안함" || normalized === "수정 안함" || normalized === "WONT_FIX" || normalized === "WONTFIX") {
+    return FieldIssueStatus.WONT_FIX;
+  }
+  // 완료 (CLOSED)
+  if (normalized === "완료" || normalized === "CLOSED" || normalized === "COMPLETED" || normalized === "DONE") {
+    return FieldIssueStatus.CLOSED;
+  }
+  // 기본값: 발견
   return FieldIssueStatus.OPEN;
 }
 

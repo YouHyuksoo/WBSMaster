@@ -166,3 +166,13 @@ export {
   useImportFieldIssues,
   fieldIssueKeys,
 } from "./useFieldIssues";
+
+// 인터뷰 관리 hooks
+export {
+  useInterviews,
+  useInterview,
+  useCreateInterview,
+  useUpdateInterview,
+  useDeleteInterview,
+  interviewKeys,
+} from "./useInterviews";
