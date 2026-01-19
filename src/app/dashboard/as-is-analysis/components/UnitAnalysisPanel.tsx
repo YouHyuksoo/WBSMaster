@@ -192,11 +192,29 @@ export function UnitAnalysisPanel({ item, onBack }: UnitAnalysisPanelProps) {
             </div>
           </div>
         </div>
+
+        {/* 세부내용 */}
+        {item.details && (
+          <div className="mt-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-start gap-2">
+              <Icon name="description" size="xs" className="text-slate-500 mt-0.5" />
+              <div>
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">세부내용</span>
+                <p className="text-sm text-text dark:text-white mt-1 whitespace-pre-wrap">{item.details}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 이슈 요약 */}
         {item.issueSummary && (
           <div className="mt-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-dashed border-red-200 dark:border-red-800">
             <div className="flex items-start gap-2">
               <Icon name="warning" size="xs" className="text-red-500 mt-0.5" />
-              <p className="text-sm text-red-600 dark:text-red-400">{item.issueSummary}</p>
+              <div>
+                <span className="text-xs font-semibold text-red-600 dark:text-red-400">이슈 요약</span>
+                <p className="text-sm text-red-600 dark:text-red-400 mt-1 whitespace-pre-wrap">{item.issueSummary}</p>
+              </div>
             </div>
           </div>
         )}
@@ -220,6 +238,8 @@ export function UnitAnalysisPanel({ item, onBack }: UnitAnalysisPanelProps) {
             unitAnalysis={unitAnalysis}
             onSaveFlowChart={saveFlowChart}
             onSaveSwimlane={saveSwimlane}
+            isSavingFlowChart={isSaving}
+            isSavingSwimlane={isSaving}
           />
 
           {/* R&R 정의 */}
