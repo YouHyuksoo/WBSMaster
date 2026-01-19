@@ -633,3 +633,409 @@ const handleUpload = async (blob: Blob, userId: string) => {
 
 - **main**: 메인 브랜치
 - **romantic-hellman**: 현재 작업 브랜치 (worktree)
+
+## 🚨 엑셀 데이터 변환 가이드 (2026-01-18 학습) - 매우 중요!
+
+### 핵심 원칙
+엑셀 데이터를 DB에 입력할 때는 **스크립트 방식**을 사용하고, **Prisma 7 adapter 설정**을 반드시 포함해야 함.
+
+### 성공한 스크립트 템플릿
+
+**파일 위치**: `scripts/import-*.ts`
+
+```typescript
+/**
+ * 엑셀 데이터 가져오기 스크립트 템플릿
+ * 실행: npx tsx scripts/import-xxx.ts
+ */
+
+// 1. 환경변수 먼저 로드 (필수!)
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
+// 2. Prisma 7 adapter 설정 (필수!)
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import * as XLSX from "xlsx";
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+// 3. 매핑 테이블 정의 (엑셀 값 → DB Enum)
+const CATEGORY_MAP: Record<string, string> = {
+  "기준관리": "MASTER",
+  "생산관리": "PRODUCTION",
+  // ... 모든 매핑 정의
+};
+
+async function main() {
+  // 4. 엑셀 파일 읽기
+  const workbook = XLSX.readFile("파일경로.xlsx");
+  const sheet = workbook.Sheets["시트명"];
+  const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as (string | null)[][];
+
+  // 5. 데이터 파싱 (병합 셀 처리!)
+  let currentCategory = "";
+  for (let i = 헤더행수; i < rawData.length; i++) {
+    const row = rawData[i];
+    // 대분류/중분류 병합 셀 처리
+    if (row[0]) currentCategory = String(row[0]).trim();
+    // ...
+  }
+
+  // 6. 기존 데이터 삭제 후 재입력 (권장)
+  await prisma.model.deleteMany({ where: { parentId } });
+
+  // 7. 새 데이터 생성
+  for (const item of items) {
+    await prisma.model.create({ data: item });
+  }
+}
+
+// 8. 정리 (pool도 종료!)
+main()
+  .catch(console.error)
+  .finally(async () => {
+    await prisma.$disconnect();
+    await pool.end();
+  });
+```
+
+### ⭐ 필수 체크리스트
+
+**스크립트 작성 시:**
+
+1. ✅ `dotenv` 환경변수 로드 (`config({ path: ".env.local" })`)
+2. ✅ Prisma 7 adapter 설정 (`PrismaPg` + `Pool`)
+3. ✅ 엑셀 값 → DB Enum 매핑 테이블 정의
+4. ✅ 병합 셀 처리 (currentMajor, currentMiddle 변수 유지)
+5. ✅ 전각 공백("　") 처리 (`.trim()` 사용)
+6. ✅ pool.end() 호출 (finally에서)
+
+**새 Enum 값 추가 시:**
+
+1. ✅ `prisma/schema.prisma` - enum에 값 추가
+2. ✅ `src/app/dashboard/.../types.ts` - 타입에 값 추가
+3. ✅ `src/app/dashboard/.../constants.ts` - 라벨/아이콘 추가
+4. ✅ `npx prisma db push` 실행
+5. ✅ `npx prisma generate` 실행
+6. ✅ **개발 서버 재시작** (중요! 안 하면 Enum 오류 발생)
+
+### 엑셀 구조 분석 방법
+
+```javascript
+// 먼저 헤더와 샘플 데이터 확인
+const XLSX = require('xlsx');
+const workbook = XLSX.readFile('파일.xlsx');
+console.log('시트 목록:', workbook.SheetNames);
+
+const sheet = workbook.Sheets['시트명'];
+const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+console.log('헤더:', data[0]);
+console.log('샘플:', data.slice(1, 10));
+```
+
+### 흔한 실수
+
+| 실수 | 해결 방법 |
+|------|-----------|
+| `PrismaClient needs valid options` | dotenv 로드 + adapter 설정 |
+| `Value 'X' not found in enum` | Enum 추가 후 **서버 재시작** |
+| 데이터 누락 | 병합 셀 처리 (이전 값 유지) |
+| 빈 값이 "　"로 저장 | `.trim()` 후 빈 문자열 체크 |
+| 매핑 안 됨 | 매핑 테이블에 모든 값 정의 |
+
+### ❌ 절대 하지 말 것
+
+- `new PrismaClient()` 직접 호출 (adapter 없이)
+- curl로 API 호출 시도 (인증 필요)
+- Enum 추가 후 서버 재시작 안 함
+- 매핑 테이블에 새 카테고리 누락
+
+### ✅ 반드시 할 것
+
+- 스크립트 방식으로 데이터 입력
+- 환경변수 + adapter 설정 포함
+- 모든 엑셀 값에 대한 매핑 정의
+- Enum 변경 시 **3곳 수정 + 서버 재시작**
+
+## 🚀 AS-IS 분석 데이터 마이그레이션 가이드 (2026-01-18 학습)
+
+### 개요
+AS-IS 분석 시스템은 **사업부별(V_IVI, V_PCBA, V_DISP, V_HNS)** 데이터를 관리하며,
+엑셀 파일에서 데이터를 가져와 DB에 저장합니다.
+
+### 핵심 스크립트 패턴
+
+**파일 위치**: `scripts/import-as-is-{사업부명}.ts`
+
+```typescript
+/**
+ * @file scripts/import-as-is-{사업부명}.ts
+ * @description
+ * {사업부명} 사업부 AS-IS 분석 데이터 가져오기 스크립트
+ * 실행: npx tsx scripts/import-as-is-{사업부명}.ts
+ */
+
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import * as XLSX from "xlsx";
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+const PROJECT_ID = "프로젝트ID";
+const BUSINESS_UNIT = "V_사업부명"; // V_IVI, V_PCBA, V_DISP, V_HNS
+
+// 대분류 매핑 (엑셀 → Enum)
+const MAJOR_CATEGORY_MAP: Record<string, string> = {
+  "기준관리": "MASTER",
+  "생산관리": "PRODUCTION",
+  "품질관리": "QUALITY",
+  "자재관리": "MATERIAL",
+  "설비관리": "EQUIPMENT",
+  "재고관리": "INVENTORY",
+  "출하관리": "SHIPMENT",
+};
+
+// 현행방식 매핑
+const CURRENT_METHOD_MAP: Record<string, string> = {
+  "GMES": "SYSTEM",
+  "GERP": "SYSTEM",
+  "ERP": "SYSTEM",
+  "MES": "SYSTEM",
+  "수기": "MANUAL",
+  "엑셀": "EXCEL",
+  "Excel": "EXCEL",
+};
+
+async function main() {
+  console.log("🚀 {사업부명} AS-IS 데이터 가져오기 시작...\n");
+
+  // 1. 엑셀 파일 읽기
+  const filePath = "엑셀파일경로.xlsx";
+  const workbook = XLSX.readFile(filePath);
+  const sheet = workbook.Sheets["{시트명}"];
+  const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as (string | null | undefined)[][];
+
+  // 2. 데이터 파싱 (병합 셀 처리!)
+  const items = [];
+  let currentMajor = "";
+  let currentMiddle = "";
+
+  for (let i = 2; i < rawData.length; i++) { // 3번째 행부터 데이터
+    const row = rawData[i];
+    if (!row || row.length === 0) continue;
+
+    const [major, middle, managementNo, taskName, department, details, system, issue, remarks] = row;
+
+    // 병합 셀 처리: 대분류/중분류가 비어있으면 이전 값 유지
+    if (major) currentMajor = String(major).trim();
+    if (middle) currentMiddle = String(middle).trim();
+
+    if (!taskName) continue; // 업무명이 없으면 스킵
+
+    // 현행방식 자동 판단
+    let currentMethod = "MANUAL";
+    if (system) {
+      const systemStr = String(system).trim().toUpperCase();
+      if (systemStr.includes("GMES") || systemStr.includes("MES")) {
+        currentMethod = "SYSTEM";
+      } else if (systemStr.includes("GERP") || systemStr.includes("ERP")) {
+        currentMethod = "SYSTEM";
+      } else if (systemStr.includes("엑셀") || systemStr.includes("EXCEL")) {
+        currentMethod = "EXCEL";
+      } else if (systemStr.includes("수기")) {
+        currentMethod = "MANUAL";
+      } else if (systemStr.length > 0) {
+        currentMethod = "SYSTEM";
+      }
+    }
+
+    items.push({
+      asIsManagementNo: managementNo ? String(managementNo).trim() : "",
+      majorCategory: MAJOR_CATEGORY_MAP[currentMajor] || "MASTER", // 기본값 MASTER
+      middleCategory: currentMiddle || "기타",
+      taskName: String(taskName).trim(),
+      currentMethod,
+      details: details ? String(details).trim() : "",
+      issueSummary: issue ? String(issue).trim() : "",
+      remarks: remarks ? String(remarks).trim() : "",
+    });
+  }
+
+  console.log(`📊 파싱된 항목 수: ${items.length}개\n`);
+
+  // 3. Overview 확인 또는 생성
+  let overview = await prisma.asIsOverview.findFirst({
+    where: { projectId: PROJECT_ID, businessUnit: BUSINESS_UNIT },
+  });
+
+  if (!overview) {
+    overview = await prisma.asIsOverview.create({
+      data: {
+        projectId: PROJECT_ID,
+        businessUnit: BUSINESS_UNIT,
+        customerName: "고객명",
+        author: "시스템 가져오기",
+        createdDate: new Date(),
+      },
+    });
+    console.log(`✅ Overview 생성 완료: ${overview.id}\n`);
+  } else {
+    // 기존 항목 삭제 후 재입력
+    const deleted = await prisma.asIsOverviewItem.deleteMany({
+      where: { overviewId: overview.id },
+    });
+    console.log(`🗑️ 기존 항목 ${deleted.count}개 삭제\n`);
+  }
+
+  // 4. 항목 생성
+  console.log("📝 항목 생성 중...");
+  let order = 0;
+  for (const item of items) {
+    await prisma.asIsOverviewItem.create({
+      data: {
+        overviewId: overview.id,
+        asIsManagementNo: item.asIsManagementNo || null,
+        majorCategory: item.majorCategory as never,
+        middleCategory: item.middleCategory,
+        taskName: item.taskName,
+        currentMethod: item.currentMethod as never,
+        details: item.details || null,
+        issueSummary: item.issueSummary || null,
+        remarks: item.remarks || null,
+        order: order++,
+      },
+    });
+    process.stdout.write(".");
+  }
+
+  console.log(`\n\n✅ 완료! ${items.length}개 항목이 입력되었습니다.`);
+}
+
+main()
+  .catch((e) => {
+    console.error("❌ 오류 발생:", e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+    await pool.end();
+  });
+```
+
+### 실행 방법
+
+```bash
+# 각 사업부별 스크립트 실행
+npx tsx scripts/import-as-is-vivi.ts
+npx tsx scripts/import-as-is-pcba.ts
+npx tsx scripts/import-as-is-disp.ts
+npx tsx scripts/import-as-is-hns.ts
+```
+
+### 데이터 구조
+
+| 엑셀 컬럼 | DB 필드 | 비고 |
+|----------|---------|------|
+| 대분류 | majorCategory | 병합 셀 - 이전 값 유지 |
+| 중분류 | middleCategory | 병합 셀 - 이전 값 유지 |
+| 관리번호 | asIsManagementNo | 옵션 |
+| 업무명 | taskName | 필수 |
+| 담당부서 | - | 사용 안 함 |
+| 세부내용 | details | 옵션 |
+| 현행시스템 | currentMethod | 자동 판단 (SYSTEM/MANUAL/EXCEL) |
+| 이슈사항 | issueSummary | 옵션 |
+| 비고 | remarks | 옵션 |
+
+### ⭐ 핵심 포인트
+
+1. **병합 셀 처리**: 대분류/중분류가 비어있으면 이전 값(`currentMajor`, `currentMiddle`) 유지
+2. **데이터 시작 행**: 3번째 행(index 2)부터 데이터 시작 (1-2행은 헤더)
+3. **기본값 설정**: 매핑 안 되는 대분류는 `MASTER`로 설정 (`|| "MASTER"`)
+4. **안전한 재실행**: 기존 데이터 삭제 후 재입력하여 중복 방지
+5. **사업부 분리**: `businessUnit` 필드로 각 사업부 데이터 구분
+
+### 데이터 수정 스크립트
+
+이미 입력된 데이터를 수정할 때 사용:
+
+```typescript
+// scripts/fix-other-to-master.ts
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+const PROJECT_ID = "프로젝트ID";
+
+async function main() {
+  console.log("🔧 대분류 OTHER → MASTER 변경 시작...\n");
+
+  const businessUnits = ["V_PCBA", "V_DISP", "V_HNS"];
+
+  for (const businessUnit of businessUnits) {
+    const overview = await prisma.asIsOverview.findFirst({
+      where: { projectId: PROJECT_ID, businessUnit },
+    });
+
+    if (!overview) continue;
+
+    const result = await prisma.asIsOverviewItem.updateMany({
+      where: { overviewId: overview.id, majorCategory: "OTHER" },
+      data: { majorCategory: "MASTER" },
+    });
+
+    console.log(`✅ ${businessUnit}: ${result.count}개 변경`);
+  }
+}
+
+main()
+  .catch(console.error)
+  .finally(async () => {
+    await prisma.$disconnect();
+    await pool.end();
+  });
+```
+
+### 사업부 상수 수정
+
+사업부 코드 변경 시 (예: V_HMS → V_HNS):
+
+**파일들:**
+1. `src/constants/business-units.ts` - BUSINESS_UNITS 배열
+2. `src/app/dashboard/as-is-analysis/types.ts` - 주석의 사업부 목록
+
+### ❌ 흔한 실수
+
+| 실수 | 해결 방법 |
+|------|-----------|
+| 데이터가 "기타" 대분류로 들어감 | 기본값을 `"OTHER"` → `"MASTER"`로 수정 |
+| 병합 셀 데이터 누락 | `currentMajor`, `currentMiddle` 변수로 이전 값 유지 |
+| 중복 데이터 생성 | 재실행 시 기존 항목 먼저 삭제 |
+| 사업부 코드 오타 | constants 파일에서 상수로 관리 |
+
+### ✅ 체크리스트
+
+- [ ] 엑셀 파일 경로 확인
+- [ ] 시트명 확인 (V_IVI, V_PCBA, V_DISP, V_HNS)
+- [ ] 프로젝트 ID 확인
+- [ ] 대분류 매핑 테이블에 모든 값 포함
+- [ ] 기본값을 MASTER로 설정 (`|| "MASTER"`)
+- [ ] 병합 셀 처리 로직 포함
+- [ ] pool.end() 호출 확인
+- [ ] 실행 후 웹에서 데이터 확인

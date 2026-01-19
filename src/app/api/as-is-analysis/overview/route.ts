@@ -52,8 +52,7 @@ export async function GET(request: NextRequest) {
         },
         items: {
           orderBy: [
-            { majorCategory: "asc" },
-            { order: "asc" },
+            { asIsManagementNo: "asc" }, // 관리번호 기준 정렬
           ],
           include: {
             unitAnalysis: {

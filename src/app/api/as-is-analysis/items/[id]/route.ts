@@ -73,6 +73,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     const body = await request.json();
     const {
+      asIsManagementNo, // AS-IS 관리번호
       majorCategory,
       middleCategory,
       taskName,
@@ -99,6 +100,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const item = await prisma.asIsOverviewItem.update({
       where: { id },
       data: {
+        ...(asIsManagementNo !== undefined && { asIsManagementNo }), // AS-IS 관리번호
         ...(majorCategory !== undefined && { majorCategory: majorCategory as never }),
         ...(middleCategory !== undefined && { middleCategory }),
         ...(taskName !== undefined && { taskName }),

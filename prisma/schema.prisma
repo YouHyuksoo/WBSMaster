@@ -1709,6 +1709,7 @@ enum DiscussionConvertType {
  * 업무 분류 체계의 대분류 항목
  */
 enum AsIsMajorCategory {
+  MASTER      // 기준관리
   MATERIAL    // 자재관리
   PRODUCTION  // 생산관리
   QUALITY     // 품질관리
@@ -1760,6 +1761,7 @@ model AsIsOverview {
 // ============================================
 model AsIsOverviewItem {
   id               String              @id @default(uuid())
+  asIsManagementNo String?             // AS-IS 관리번호 (예: AS-001)
   majorCategory    AsIsMajorCategory   // 대분류 (자재/생산/품질/설비/재고/출하/기타)
   middleCategory   String              // 중분류 (텍스트 입력)
   taskName         String              // 업무명 (단위업무)

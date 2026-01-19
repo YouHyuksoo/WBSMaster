@@ -42,8 +42,7 @@ export async function GET(request: NextRequest) {
         ...(majorCategory && { majorCategory: majorCategory as never }),
       },
       orderBy: [
-        { majorCategory: "asc" },
-        { order: "asc" },
+        { asIsManagementNo: "asc" }, // 관리번호 기준 정렬
       ],
       include: {
         unitAnalysis: {
@@ -77,6 +76,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       overviewId,
+      asIsManagementNo, // AS-IS 관리번호
       majorCategory,
       middleCategory,
       taskName,
@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
     const item = await prisma.asIsOverviewItem.create({
       data: {
         overviewId,
+        asIsManagementNo: asIsManagementNo || null, // AS-IS 관리번호
         majorCategory: majorCategory as never,
         middleCategory,
         taskName,

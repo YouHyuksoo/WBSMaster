@@ -89,20 +89,33 @@ function StartEndNodeComponent({ id, data, selected }: NodeProps<StartEndNodeDat
 
       {/* 노드 내용 */}
       {isEditing ? (
-        <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-col items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
           <input
             type="text"
             value={editLabel}
             onChange={(e) => setEditLabel(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleSave();
               if (e.key === "Escape") handleCancel();
             }}
-            onBlur={handleSave}
             autoFocus
             className={`px-2 py-1 text-sm font-medium text-text dark:text-white ${bgColor} dark:bg-slate-700 border border-primary rounded text-center min-w-[80px]`}
             placeholder={isStart ? "시작" : "종료"}
           />
+          {/* 저장/취소 버튼 */}
+          <div className="flex items-center justify-center gap-1">
+            <button
+              onClick={handleSave}
+              className="px-2 py-0.5 text-[10px] font-medium text-white bg-primary hover:bg-primary-hover rounded transition-colors"
+            >
+              저장
+            </button>
+            <button
+              onClick={handleCancel}
+              className="px-2 py-0.5 text-[10px] font-medium text-text-secondary hover:text-text bg-slate-100 dark:bg-slate-700 rounded transition-colors"
+            >
+              취소
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex items-center justify-center gap-1.5">

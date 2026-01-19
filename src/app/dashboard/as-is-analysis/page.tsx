@@ -31,6 +31,7 @@ import { OverviewHeader } from "./components/OverviewHeader";
 import { OverviewTable } from "./components/OverviewTable";
 import { TaskListPanel } from "./components/TaskListPanel";
 import { UnitAnalysisPanel } from "./components/UnitAnalysisPanel";
+import { WritingGuideModal } from "./components/WritingGuideModal";
 import { useAsIsOverview } from "./hooks/useAsIsOverview";
 import type { AsIsOverviewItem } from "./types";
 
@@ -50,6 +51,8 @@ export default function AsIsAnalysisPage() {
   // 좌측 패널 접기 상태
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const [isLeftPanelHovered, setIsLeftPanelHovered] = useState(false);
+  // 작성가이드 모달 상태
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   // AS-IS 총괄 데이터 조회 (프로젝트+사업부별)
   const {
@@ -197,6 +200,7 @@ export default function AsIsAnalysisPage() {
           businessUnit={businessUnit}
           onBusinessUnitChange={setBusinessUnit}
           onRefresh={refetch}
+          onShowGuide={() => setShowGuideModal(true)}
         />
       </div>
 
@@ -346,6 +350,11 @@ export default function AsIsAnalysisPage() {
           </div>
         </div>
       </div>
+
+      {/* 작성가이드 모달 */}
+      {showGuideModal && (
+        <WritingGuideModal onClose={() => setShowGuideModal(false)} />
+      )}
     </div>
   );
 }

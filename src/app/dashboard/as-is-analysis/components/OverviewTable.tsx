@@ -13,12 +13,21 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon, Button } from "@/components/ui";
 import { useAsIsOverview } from "../hooks/useAsIsOverview";
 import { MAJOR_CATEGORIES, CURRENT_METHODS } from "../constants";
 import type { AsIsOverview, AsIsOverviewItem, AsIsMajorCategory } from "../types";
 import { AddItemModal } from "./AddItemModal";
 import { EditItemModal } from "./EditItemModal";
+
+/**
+ * 툴팁 위치 정보 타입
+ */
+interface TooltipPosition {
+  x: number;
+  y: number;
+}
 
 interface OverviewTableProps {
   /** AS-IS 총괄 데이터 */
@@ -44,7 +53,43 @@ export function OverviewTable({
   const [editTarget, setEditTarget] = useState<AsIsOverviewItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AsIsOverviewItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  // 호버 상태: itemId + field + 내용 + 위치 조합으로 관리
+  const [tooltip, setTooltip] = useState<{
+    itemId: string;
+    field: "details" | "issue";
+    content: string;
+    position: TooltipPosition;
+  } | null>(null);
+
+  /**
+   * 툴팁 표시 핸들러
+   */
+  const handleShowTooltip = (
+    e: React.MouseEvent,
+    itemId: string,
+    field: "details" | "issue",
+    content: string | null | undefined
+  ) => {
+    if (!content) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltip({
+      itemId,
+      field,
+      content,
+      position: {
+        x: rect.left,
+        y: rect.top - 8, // 셀 위에 표시
+      },
+    });
+  };
+
+  /**
+   * 툴팁 숨기기 핸들러
+   */
+  const handleHideTooltip = () => {
+    setTooltip(null);
+  };
 
   // 삭제 기능을 위해 훅 사용 (overview가 있을 때만)
   const { deleteItem } = useAsIsOverview(
@@ -123,8 +168,9 @@ export function OverviewTable({
         {/* 테이블 헤더 */}
         <div
           className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase"
-          style={{ gridTemplateColumns: "120px 150px 1fr 100px 150px 1fr 40px 40px 40px" }}
+          style={{ gridTemplateColumns: "100px 120px 150px 1fr 100px 150px 1fr 40px 40px 40px" }}
         >
+          <div>관리번호</div>
           <div>대분류</div>
           <div>중분류</div>
           <div>업무명</div>
@@ -160,14 +206,18 @@ export function OverviewTable({
                 return (
                   <div
                     key={item.id}
-                    onClick={() => onSelectItem(item)}
-                    className={`grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark cursor-pointer transition-colors items-center ${
+                    className={`grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark transition-colors items-center ${
                       isSelected
                         ? "bg-primary/5 border-l-2 border-l-primary"
                         : "hover:bg-surface dark:hover:bg-background-dark"
                     }`}
-                    style={{ gridTemplateColumns: "120px 150px 1fr 100px 150px 1fr 40px 40px 40px" }}
+                    style={{ gridTemplateColumns: "100px 120px 150px 1fr 100px 150px 1fr 40px 40px 40px" }}
                   >
+                    {/* AS-IS 관리번호 */}
+                    <div className="text-xs font-mono text-primary">
+                      {item.asIsManagementNo || "-"}
+                    </div>
+
                     {/* 대분류 */}
                     {index === 0 ? (
                       <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${config.bgColor}`}>
@@ -200,40 +250,39 @@ export function OverviewTable({
 
                     {/* 세부내용 (툴팁 포함) */}
                     <div
-                      className="relative text-xs text-text-secondary line-clamp-2"
-                      onMouseEnter={() => setHoveredItemId(item.id)}
-                      onMouseLeave={() => setHoveredItemId(null)}
+                      className="text-xs text-text-secondary line-clamp-2 cursor-help"
+                      onMouseEnter={(e) => handleShowTooltip(e, item.id, "details", item.details)}
+                      onMouseLeave={handleHideTooltip}
                     >
                       {item.details || "-"}
-                      {/* 툴팁 */}
-                      {hoveredItemId === item.id && item.details && (
-                        <div className="absolute left-0 bottom-full mb-2 z-50 max-w-md">
-                          <div className="bg-slate-800 dark:bg-slate-900 text-white text-xs rounded-lg shadow-xl p-3 border border-slate-700">
-                            <div className="font-semibold mb-1 text-primary">세부내용</div>
-                            <div className="whitespace-pre-wrap">{item.details}</div>
-                          </div>
-                          {/* 화살표 */}
-                          <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-800 dark:bg-slate-900 border-r border-b border-slate-700 transform rotate-45" />
-                        </div>
-                      )}
                     </div>
 
-                    {/* 이슈 요약 */}
-                    <div className="text-xs text-text-secondary line-clamp-2">
+                    {/* 이슈 요약 (툴팁 포함) */}
+                    <div
+                      className="text-xs text-text-secondary line-clamp-2 cursor-help"
+                      onMouseEnter={(e) => handleShowTooltip(e, item.id, "issue", item.issueSummary)}
+                      onMouseLeave={handleHideTooltip}
+                    >
                       {item.issueSummary || "-"}
                     </div>
 
-                    {/* 분석 상태 */}
+                    {/* 분석 버튼 */}
                     <div className="flex justify-center">
-                      {hasAnalysis ? (
-                        <div className="size-6 rounded-full bg-success/10 flex items-center justify-center">
-                          <Icon name="check" size="xs" className="text-success" />
-                        </div>
-                      ) : (
-                        <div className="size-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                          <Icon name="remove" size="xs" className="text-text-secondary" />
-                        </div>
-                      )}
+                      <button
+                        onClick={() => onSelectItem(item)}
+                        className={`size-6 rounded-full flex items-center justify-center transition-colors ${
+                          hasAnalysis
+                            ? "bg-success/10 hover:bg-success/20"
+                            : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
+                        }`}
+                        title="단위업무 분석"
+                      >
+                        <Icon
+                          name={hasAnalysis ? "check" : "arrow_forward"}
+                          size="xs"
+                          className={hasAnalysis ? "text-success" : "text-text-secondary"}
+                        />
+                      </button>
                     </div>
 
                     {/* 수정 버튼 */}
@@ -355,6 +404,32 @@ export function OverviewTable({
           </div>
         </div>
       )}
+
+      {/* 툴팁 (Portal로 body에 렌더링) */}
+      {tooltip && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed z-[9999] max-w-md pointer-events-none"
+            style={{
+              left: tooltip.position.x,
+              top: tooltip.position.y,
+              transform: "translateY(-100%)",
+            }}
+          >
+            <div className="bg-slate-800 dark:bg-slate-900 text-white text-xs rounded-lg shadow-xl p-3 border border-slate-700">
+              <div className={`font-semibold mb-1 ${tooltip.field === "details" ? "text-primary" : "text-warning"}`}>
+                {tooltip.field === "details" ? "세부내용" : "이슈 요약"}
+              </div>
+              <div className="whitespace-pre-wrap max-h-60 overflow-y-auto">
+                {tooltip.content}
+              </div>
+            </div>
+            {/* 화살표 */}
+            <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-800 dark:bg-slate-900 border-r border-b border-slate-700 transform rotate-45" />
+          </div>,
+          document.body
+        )
+      }
     </div>
   );
 }

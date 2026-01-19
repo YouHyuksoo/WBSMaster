@@ -42,6 +42,8 @@ interface FlowChartCanvasProps {
   onSave?: (data: FlowChartData) => void;
   /** 읽기 전용 모드 */
   readOnly?: boolean;
+  /** 저장 중 상태 */
+  isSaving?: boolean;
 }
 
 /** 노드 팔레트 아이템 */
@@ -77,7 +79,7 @@ const defaultEdges: Edge[] = [];
 /**
  * Flow Chart 캔버스 내부 컴포넌트
  */
-function FlowChartCanvasInner({ initialData, onSave, readOnly = false }: FlowChartCanvasProps) {
+function FlowChartCanvasInner({ initialData, onSave, readOnly = false, isSaving = false }: FlowChartCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialData?.nodes || defaultNodes);
@@ -367,11 +369,16 @@ function FlowChartCanvasInner({ initialData, onSave, readOnly = false }: FlowCha
               {/* 저장 버튼 */}
               <button
                 onClick={handleSave}
-                className="flex items-center gap-1 px-2 py-1 rounded bg-primary hover:bg-primary-hover text-white transition-colors"
+                disabled={isSaving}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-white transition-colors ${
+                  isSaving
+                    ? "bg-primary/50 cursor-not-allowed"
+                    : "bg-primary hover:bg-primary-hover"
+                }`}
                 title="저장"
               >
-                <Icon name="save" size="xs" />
-                <span className="text-[10px] font-medium">저장</span>
+                <Icon name={isSaving ? "hourglass_empty" : "save"} size="xs" className={isSaving ? "animate-spin" : ""} />
+                <span className="text-[10px] font-medium">{isSaving ? "저장 중..." : "저장"}</span>
               </button>
             </Panel>
           )}

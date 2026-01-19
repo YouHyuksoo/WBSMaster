@@ -37,6 +37,7 @@ export function EditItemModal({ item, projectId, businessUnit, onClose }: EditIt
   const { updateItem, isUpdatingItem } = useAsIsOverview(projectId, businessUnit);
 
   // 초기값: 기존 항목 데이터
+  const [asIsManagementNo, setAsIsManagementNo] = useState(item.asIsManagementNo || ""); // AS-IS 관리번호
   const [majorCategory, setMajorCategory] = useState<AsIsMajorCategory>(item.majorCategory);
   const [middleCategory, setMiddleCategory] = useState(item.middleCategory);
   const [taskName, setTaskName] = useState(item.taskName);
@@ -55,6 +56,7 @@ export function EditItemModal({ item, projectId, businessUnit, onClose }: EditIt
       {
         id: item.id,
         data: {
+          asIsManagementNo: asIsManagementNo.trim() || undefined, // AS-IS 관리번호
           majorCategory,
           middleCategory: middleCategory.trim(),
           taskName: taskName.trim(),
@@ -97,6 +99,18 @@ export function EditItemModal({ item, projectId, businessUnit, onClose }: EditIt
 
         {/* 본문 */}
         <div className="p-6 space-y-4">
+          {/* AS-IS 관리번호 */}
+          <div>
+            <label className="block text-sm font-medium text-text dark:text-white mb-1.5">
+              AS-IS 관리번호
+            </label>
+            <Input
+              value={asIsManagementNo}
+              onChange={(e) => setAsIsManagementNo(e.target.value)}
+              placeholder="예: AS-001, AS-002"
+            />
+          </div>
+
           {/* 대분류 */}
           <div>
             <label className="block text-sm font-medium text-text dark:text-white mb-1.5">

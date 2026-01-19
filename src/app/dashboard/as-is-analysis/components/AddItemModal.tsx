@@ -37,6 +37,7 @@ export function AddItemModal({ overviewId, projectId, businessUnit, onClose }: A
   // projectId, businessUnit을 전달해야 mutation 성공 시 올바른 캐시가 무효화됨
   const { createItem, isCreatingItem } = useAsIsOverview(projectId, businessUnit);
 
+  const [asIsManagementNo, setAsIsManagementNo] = useState(""); // AS-IS 관리번호
   const [majorCategory, setMajorCategory] = useState<AsIsMajorCategory>("OTHER");
   const [middleCategory, setMiddleCategory] = useState("");
   const [taskName, setTaskName] = useState("");
@@ -54,6 +55,7 @@ export function AddItemModal({ overviewId, projectId, businessUnit, onClose }: A
     createItem(
       {
         overviewId,
+        asIsManagementNo: asIsManagementNo.trim() || undefined, // AS-IS 관리번호
         majorCategory,
         middleCategory: middleCategory.trim(),
         taskName: taskName.trim(),
@@ -95,6 +97,18 @@ export function AddItemModal({ overviewId, projectId, businessUnit, onClose }: A
 
         {/* 본문 */}
         <div className="p-6 space-y-4">
+          {/* AS-IS 관리번호 */}
+          <div>
+            <label className="block text-sm font-medium text-text dark:text-white mb-1.5">
+              AS-IS 관리번호
+            </label>
+            <Input
+              value={asIsManagementNo}
+              onChange={(e) => setAsIsManagementNo(e.target.value)}
+              placeholder="예: AS-001, AS-002"
+            />
+          </div>
+
           {/* 대분류 */}
           <div>
             <label className="block text-sm font-medium text-text dark:text-white mb-1.5">

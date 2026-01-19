@@ -94,10 +94,8 @@ function DecisionNodeComponent({ id, data, selected }: NodeProps<DecisionNodeDat
               value={editLabel}
               onChange={(e) => setEditLabel(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleSave();
                 if (e.key === "Escape") handleCancel();
               }}
-              onBlur={handleSave}
               autoFocus
               className="w-[70px] px-1 py-0.5 text-xs font-medium text-text dark:text-white bg-orange-50 dark:bg-slate-700 border border-primary rounded text-center"
               placeholder="라벨"
@@ -107,12 +105,26 @@ function DecisionNodeComponent({ id, data, selected }: NodeProps<DecisionNodeDat
               value={editCondition}
               onChange={(e) => setEditCondition(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleSave();
                 if (e.key === "Escape") handleCancel();
               }}
               className="w-[70px] px-1 py-0.5 text-[8px] text-text-secondary bg-orange-50 dark:bg-slate-700 border border-primary/50 rounded text-center"
               placeholder="조건 (선택)"
             />
+            {/* 저장/취소 버튼 */}
+            <div className="flex items-center justify-center gap-1 pt-1">
+              <button
+                onClick={handleSave}
+                className="px-2 py-0.5 text-[10px] font-medium text-white bg-primary hover:bg-primary-hover rounded transition-colors"
+              >
+                저장
+              </button>
+              <button
+                onClick={handleCancel}
+                className="px-2 py-0.5 text-[10px] font-medium text-text-secondary hover:text-text bg-slate-100 dark:bg-slate-700 rounded transition-colors"
+              >
+                취소
+              </button>
+            </div>
           </div>
         ) : (
           <div className="text-center px-2">

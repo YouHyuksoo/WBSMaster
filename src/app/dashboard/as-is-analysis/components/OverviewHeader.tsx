@@ -27,6 +27,8 @@ interface OverviewHeaderProps {
   onBusinessUnitChange: (unit: BusinessUnit) => void;
   /** 새로고침 핸들러 */
   onRefresh: () => void;
+  /** 작성가이드 모달 열기 핸들러 */
+  onShowGuide: () => void;
 }
 
 /**
@@ -38,6 +40,7 @@ export function OverviewHeader({
   businessUnit,
   onBusinessUnitChange,
   onRefresh,
+  onShowGuide,
 }: OverviewHeaderProps) {
 
   return (
@@ -83,6 +86,16 @@ export function OverviewHeader({
             {projectName}
           </span>
         </div>
+
+        {/* 작성가이드 버튼 */}
+        <Button
+          variant="outline"
+          size="sm"
+          leftIcon="menu_book"
+          onClick={onShowGuide}
+        >
+          작성가이드
+        </Button>
 
         {/* 새로고침 버튼 */}
         <Button

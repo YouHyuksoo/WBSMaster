@@ -18,6 +18,7 @@ import { Node, Edge } from "reactflow";
 
 /** 대분류 카테고리 */
 export type AsIsMajorCategory =
+  | "MASTER"        // 기준관리
   | "MATERIAL"      // 자재관리
   | "PRODUCTION"    // 생산관리
   | "QUALITY"       // 품질관리
@@ -50,7 +51,7 @@ export type Priority = "HIGH" | "MEDIUM" | "LOW";
 /** AS-IS 총괄 */
 export interface AsIsOverview {
   id: string;
-  businessUnit: string; // 사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HMS)
+  businessUnit: string; // 사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HNS)
   customerName?: string | null;
   author?: string | null;
   createdDate: string;
@@ -67,6 +68,7 @@ export interface AsIsOverview {
 /** AS-IS 총괄 항목 */
 export interface AsIsOverviewItem {
   id: string;
+  asIsManagementNo?: string | null; // AS-IS 관리번호 (예: AS-001)
   majorCategory: AsIsMajorCategory;
   middleCategory: string;
   taskName: string;
@@ -362,6 +364,8 @@ export interface ProcessNodeData {
   description?: string;
   responsible?: string;
   systemUsed?: string;
+  inputData?: string;   // 입력 데이터
+  outputData?: string;  // 출력 데이터
 }
 
 /** 판단 노드 데이터 */
@@ -396,7 +400,7 @@ export interface SwimlaneProcessNodeData {
 /** 총괄 생성 요청 */
 export interface CreateAsIsOverviewRequest {
   projectId: string;
-  businessUnit: string; // 사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HMS)
+  businessUnit: string; // 사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HNS)
   customerName?: string;
   author?: string;
 }
@@ -404,6 +408,7 @@ export interface CreateAsIsOverviewRequest {
 /** 총괄 항목 생성 요청 */
 export interface CreateAsIsOverviewItemRequest {
   overviewId: string;
+  asIsManagementNo?: string; // AS-IS 관리번호 (예: AS-001)
   majorCategory: AsIsMajorCategory;
   middleCategory: string;
   taskName: string;

@@ -26,6 +26,13 @@ export interface MajorCategoryConfig {
 
 /** 대분류 카테고리 설정 */
 export const MAJOR_CATEGORIES: Record<AsIsMajorCategory, MajorCategoryConfig> = {
+  MASTER: {
+    label: "기준관리",
+    labelEn: "MASTER",
+    icon: "settings",
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-50",
+  },
   MATERIAL: {
     label: "자재관리",
     labelEn: "MATERIAL",

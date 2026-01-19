@@ -41,6 +41,8 @@ interface SwimlaneCanvasProps {
   onSave?: (data: SwimlaneData) => void;
   /** 읽기 전용 모드 */
   readOnly?: boolean;
+  /** 저장 중 상태 */
+  isSaving?: boolean;
 }
 
 /** 레인 높이 */
@@ -59,7 +61,7 @@ const LANE_COLORS = [
 /**
  * Swimlane 캔버스 내부 컴포넌트
  */
-function SwimlaneCanvasInner({ initialData, onSave, readOnly = false }: SwimlaneCanvasProps) {
+function SwimlaneCanvasInner({ initialData, onSave, readOnly = false, isSaving = false }: SwimlaneCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialData?.nodes || []);
@@ -287,8 +289,15 @@ function SwimlaneCanvasInner({ initialData, onSave, readOnly = false }: Swimlane
             {/* 상단 패널 */}
             <Panel position="top-right" className="flex items-center gap-2">
               {!readOnly && (
-                <Button variant="primary" size="sm" leftIcon="save" onClick={handleSave}>
-                  저장
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={isSaving ? "hourglass_empty" : "save"}
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  isLoading={isSaving}
+                >
+                  {isSaving ? "저장 중..." : "저장"}
                 </Button>
               )}
             </Panel>
