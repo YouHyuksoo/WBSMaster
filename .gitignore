@@ -56,3 +56,9 @@ nul
 tmpclaude-*.cwd
 bash.exe.stackdump
 tmpclaude-*
+
+# Backup files
+backup*.sql
+
+# Supabase temp files
+supabase/.temp/

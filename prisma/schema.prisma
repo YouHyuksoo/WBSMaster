@@ -1498,9 +1498,12 @@ model Notification {
 // 알림 타입 Enum
 // ============================================
 enum NotificationType {
-  TASK_ASSIGNED      // Task 할당됨
-  MILESTONE_DUE_SOON // 마일스톤 기한 임박 (D-3, D-1)
-  ISSUE_URGENT       // 긴급 이슈 발생
+  TASK_ASSIGNED         // Task 할당됨
+  MILESTONE_DUE_SOON    // 마일스톤 기한 임박 (D-3, D-1)
+  ISSUE_URGENT          // 긴급 이슈 발생
+  FIELD_ISSUE_CREATED   // 고객이슈 등록됨
+  CUSTOMER_REQ_CREATED  // 고객요구사항 등록됨
+  DISCUSSION_CREATED    // 협의요청 등록됨
 }
 
 // ============================================

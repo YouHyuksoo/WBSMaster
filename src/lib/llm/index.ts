@@ -13,7 +13,12 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Mistral } from "@mistralai/mistralai";
-import { getSchemaInfo, getProjectFilterInfo } from "./schema-info";
+import {
+  getSchemaInfo,
+  getProjectFilterInfo,
+  getTableSummariesForLLM,
+  getDynamicSchemaInfo,
+} from "./schema-info";
 
 /**
  * 마인드맵 노드 타입
@@ -275,6 +280,101 @@ export function createLLMClient(config: LLMConfig): LLMClient {
   }
 }
 
+// ============================================
+// 2단계 LLM 파이프라인
+// 1단계: 테이블 선택 (가벼운 호출)
+// 2단계: SQL 생성 (선택된 테이블만)
+// ============================================
+
+/**
+ * 1단계 테이블 선택용 시스템 프롬프트
+ * 간결하게 유지하여 토큰 절약
+ */
+const TABLE_SELECTION_SYSTEM_PROMPT = `당신은 SQL 쿼리에 필요한 테이블을 선택하는 AI입니다.
+
+## 규칙
+1. 사용자 질문에 필요한 테이블만 선택하세요 (최대 5개)
+2. 연관 테이블도 함께 선택하세요 (JOIN 필요시 users, projects 등)
+3. 오타나 유사어를 이해하세요 (테스크=태스크, 고객이슈=필드이슈)
+4. 응답은 **반드시 JSON 배열만** 출력하세요
+
+## 응답 형식 (JSON 배열만!)
+["테이블명1", "테이블명2", "users", "projects"]
+
+## 예시
+- "태스크 보여줘" → ["tasks", "users", "projects"]
+- "고객이슈 현황" → ["field_issues", "projects"]
+- "협의사항 목록" → ["discussion_items", "users", "projects"]
+- "WBS 마인드맵" → ["wbs_items", "wbs_assignees", "users", "projects"]
+- "AS-IS 분석 현황" → ["as_is_overviews", "as_is_overview_items", "projects"]
+
+JSON 배열만 출력하고 다른 설명은 하지 마세요.`;
+
+/**
+ * 1단계: 사용자 질문에서 관련 테이블 선택
+ * @param client LLM 클라이언트
+ * @param userMessage 사용자 메시지
+ * @returns 선택된 테이블명 배열
+ */
+export async function selectRelevantTables(
+  client: LLMClient,
+  userMessage: string
+): Promise<string[]> {
+  const tableSummaries = getTableSummariesForLLM();
+
+  const prompt = `${tableSummaries}
+
+## 사용자 질문
+${userMessage}
+
+위 질문에 필요한 테이블을 선택하세요. JSON 배열로만 응답하세요.`;
+
+  try {
+    const response = await client.generate(prompt, TABLE_SELECTION_SYSTEM_PROMPT);
+    console.log("[selectRelevantTables] LLM 응답:", response.slice(0, 200));
+
+    // JSON 배열 파싱
+    const trimmed = response.trim();
+
+    // JSON 코드 블록 제거
+    let jsonStr = trimmed;
+    if (jsonStr.startsWith("```json")) {
+      jsonStr = jsonStr.slice(7);
+    } else if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.slice(3);
+    }
+    if (jsonStr.endsWith("```")) {
+      jsonStr = jsonStr.slice(0, -3);
+    }
+    jsonStr = jsonStr.trim();
+
+    // JSON 배열 파싱 시도
+    const tables = JSON.parse(jsonStr) as string[];
+
+    if (!Array.isArray(tables)) {
+      console.warn("[selectRelevantTables] 배열이 아님, 기본 테이블 사용");
+      return ["tasks", "users", "projects"];
+    }
+
+    // 기본 테이블 추가 (users, projects는 거의 항상 필요)
+    const resultSet = new Set(tables);
+    if (!resultSet.has("projects") && tables.some(t => !["users", "notifications", "ai_settings", "chat_history"].includes(t))) {
+      resultSet.add("projects");
+    }
+    if (tables.some(t => ["tasks", "requirements", "issues", "wbs_items", "milestones", "field_issues", "discussion_items"].includes(t))) {
+      resultSet.add("users");
+    }
+
+    const result = Array.from(resultSet);
+    console.log("[selectRelevantTables] 선택된 테이블:", result);
+    return result;
+  } catch (error) {
+    console.error("[selectRelevantTables] 파싱 실패:", error);
+    // 실패 시 기본 테이블 반환
+    return ["tasks", "users", "projects"];
+  }
+}
+
 /**
  * SQL 쿼리 생성
  * @param client LLM 클라이언트
@@ -282,6 +382,7 @@ export function createLLMClient(config: LLMConfig): LLMClient {
  * @param projectId 프로젝트 ID (선택)
  * @param userId 현재 로그인한 사용자 ID (INSERT/UPDATE에 필요)
  * @param sqlSystemPrompt 커스텀 SQL 시스템 프롬프트 (선택, 없으면 기본값 사용)
+ * @param selectedTables 선택된 테이블 목록 (2단계 파이프라인용, 없으면 전체 스키마 사용)
  * @returns 생성된 SQL 쿼리 또는 null
  */
 export async function generateSQL(
@@ -289,10 +390,16 @@ export async function generateSQL(
   userMessage: string,
   projectId?: string,
   userId?: string,
-  sqlSystemPrompt?: string
+  sqlSystemPrompt?: string,
+  selectedTables?: string[]
 ): Promise<string | null> {
-  const schemaInfo = getSchemaInfo();
+  // 🚀 2단계 파이프라인: 선택된 테이블이 있으면 동적 스키마, 없으면 전체 스키마
+  const schemaInfo = selectedTables && selectedTables.length > 0
+    ? getDynamicSchemaInfo(selectedTables)
+    : getSchemaInfo();
   const projectFilter = getProjectFilterInfo(projectId);
+
+  console.log("[generateSQL] 스키마 모드:", selectedTables ? `동적 (${selectedTables.length}개 테이블)` : "전체");
 
   // 현재 날짜 정보 (LLM이 연도를 정확히 인식하도록)
   const now = new Date();
@@ -843,10 +950,23 @@ export async function processChatMessage(
 
   const client = createLLMClient(config);
 
-  // 1. SQL 생성 (SQL 시스템 프롬프트 적용, userId 전달)
-  console.log("[processChatMessage] SQL 생성 시작...");
-  const sql = await generateSQL(client, userMessage, projectId, userId, promptConfig?.sqlSystemPrompt);
-  console.log("[processChatMessage] 생성된 SQL:", sql?.slice(0, 100) || "NULL");
+  // 🚀 2단계 파이프라인 시작
+  // [1단계] 관련 테이블 선택 (가벼운 LLM 호출, ~500 토큰)
+  console.log("[processChatMessage] [1단계] 테이블 선택 시작...");
+  const selectedTables = await selectRelevantTables(client, userMessage);
+  console.log("[processChatMessage] [1단계] 선택된 테이블:", selectedTables);
+
+  // [2단계] SQL 생성 (선택된 테이블 스키마만 사용, ~1,500 토큰)
+  console.log("[processChatMessage] [2단계] SQL 생성 시작...");
+  const sql = await generateSQL(
+    client,
+    userMessage,
+    projectId,
+    userId,
+    promptConfig?.sqlSystemPrompt,
+    selectedTables  // 🚀 동적 스키마 사용!
+  );
+  console.log("[processChatMessage] [2단계] 생성된 SQL:", sql?.slice(0, 100) || "NULL");
 
   // 2. SQL 검증 및 실행
   let results: unknown[] | null = null;

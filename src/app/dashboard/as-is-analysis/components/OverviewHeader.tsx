@@ -29,6 +29,12 @@ interface OverviewHeaderProps {
   onRefresh: () => void;
   /** 작성가이드 모달 열기 핸들러 */
   onShowGuide: () => void;
+  /** 다른 사업부로 복사 모달 열기 핸들러 */
+  onShowCopyModal?: () => void;
+  /** 선택된 항목 수 */
+  selectedCount?: number;
+  /** 선택 해제 핸들러 */
+  onClearSelection?: () => void;
 }
 
 /**
@@ -41,6 +47,9 @@ export function OverviewHeader({
   onBusinessUnitChange,
   onRefresh,
   onShowGuide,
+  onShowCopyModal,
+  selectedCount = 0,
+  onClearSelection,
 }: OverviewHeaderProps) {
 
   return (
@@ -86,6 +95,50 @@ export function OverviewHeader({
             {projectName}
           </span>
         </div>
+
+        {/* 선택 항목 표시 및 복사 버튼 */}
+        {selectedCount > 0 ? (
+          <>
+            {/* 선택 해제 버튼 */}
+            <button
+              onClick={onClearSelection}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text-secondary hover:text-text dark:hover:text-white transition-colors"
+            >
+              <Icon name="close" size="xs" />
+              <span>선택 해제</span>
+            </button>
+            {/* 선택된 항목 수 표시 */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 border border-success/20">
+              <Icon name="check_circle" size="sm" className="text-success" />
+              <span className="text-sm font-medium text-success">
+                {selectedCount}개 선택됨
+              </span>
+            </div>
+            {/* 선택 복사 버튼 */}
+            {onShowCopyModal && (
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon="content_copy"
+                onClick={onShowCopyModal}
+              >
+                선택 항목 복사
+              </Button>
+            )}
+          </>
+        ) : (
+          /* 다른 사업부로 복사 버튼 (전체 복사) */
+          onShowCopyModal && overview && (overview.items?.length ?? 0) > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon="content_copy"
+              onClick={onShowCopyModal}
+            >
+              다른 사업부로 복사
+            </Button>
+          )
+        )}
 
         {/* 작성가이드 버튼 */}
         <Button

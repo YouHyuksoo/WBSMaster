@@ -37,7 +37,7 @@ interface LocalUser {
 /** 알림 타입 */
 interface Notification {
   id: string;
-  type: "TASK_ASSIGNED" | "MILESTONE_DUE_SOON" | "ISSUE_URGENT";
+  type: "TASK_ASSIGNED" | "MILESTONE_DUE_SOON" | "ISSUE_URGENT" | "FIELD_ISSUE_CREATED" | "CUSTOMER_REQ_CREATED" | "DISCUSSION_CREATED";
   title: string;
   message: string;
   link?: string | null;
@@ -171,30 +171,9 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     };
   }, [showNotificationMenu]);
 
-  // 알림 조회 (앱 최초 시작 시 1회만)
+  // 알림 조회 (페이지 로드 시 항상 서버에서 조회)
   useEffect(() => {
     if (!user) return;
-
-    // 이미 조회했는지 확인 (localStorage)
-    const lastFetchTime = localStorage.getItem("notification_last_fetch");
-    const now = Date.now();
-    const ONE_DAY = 24 * 60 * 60 * 1000;
-
-    // 24시간 이내에 조회했으면 스킵
-    if (lastFetchTime && now - parseInt(lastFetchTime) < ONE_DAY) {
-      // 로컬스토리지에서 캐시된 알림 복원
-      const cachedNotifications = localStorage.getItem("notifications_cache");
-      const cachedUnreadCount = localStorage.getItem("notifications_unread_count");
-      if (cachedNotifications) {
-        try {
-          setNotifications(JSON.parse(cachedNotifications));
-          setUnreadCount(parseInt(cachedUnreadCount || "0"));
-        } catch (e) {
-          console.error("캐시 복원 실패:", e);
-        }
-      }
-      return;
-    }
 
     const fetchNotifications = async () => {
       setIsLoadingNotifications(true);
@@ -202,16 +181,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         const response = await fetch("/api/notifications?checkMilestones=true");
         if (response.ok) {
           const data = await response.json();
-          const notifs = data.notifications || [];
-          const unread = data.unreadCount || 0;
-
-          setNotifications(notifs);
-          setUnreadCount(unread);
-
-          // 로컬스토리지에 저장
-          localStorage.setItem("notification_last_fetch", now.toString());
-          localStorage.setItem("notifications_cache", JSON.stringify(notifs));
-          localStorage.setItem("notifications_unread_count", unread.toString());
+          setNotifications(data.notifications || []);
+          setUnreadCount(data.unreadCount || 0);
         }
       } catch (error) {
         console.error("알림 조회 실패:", error);
@@ -231,16 +202,10 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     if (!notification.isRead) {
       try {
         await fetch(`/api/notifications/${notification.id}`, { method: "PATCH" });
-        const updatedNotifs = notifications.map((n) =>
+        setNotifications(notifications.map((n) =>
           n.id === notification.id ? { ...n, isRead: true } : n
-        );
-        setNotifications(updatedNotifs);
-        const newUnreadCount = Math.max(0, unreadCount - 1);
-        setUnreadCount(newUnreadCount);
-
-        // 로컬스토리지 캐시 업데이트
-        localStorage.setItem("notifications_cache", JSON.stringify(updatedNotifs));
-        localStorage.setItem("notifications_unread_count", newUnreadCount.toString());
+        ));
+        setUnreadCount(Math.max(0, unreadCount - 1));
       } catch (error) {
         console.error("알림 읽음 처리 실패:", error);
       }
@@ -259,14 +224,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const handleReadAllNotifications = async () => {
     try {
       await fetch("/api/notifications/read-all", { method: "PATCH" });
-      const updatedNotifs = notifications.map((n) => ({ ...n, isRead: true }));
-      setNotifications(updatedNotifs);
+      setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-
-      // 로컬스토리지 캐시 업데이트
-      localStorage.setItem("notifications_cache", JSON.stringify(updatedNotifs));
-      localStorage.setItem("notifications_unread_count", "0");
-
       toast.success("모든 알림을 읽음 처리했습니다.");
     } catch (error) {
       console.error("모두 읽음 처리 실패:", error);
@@ -285,6 +244,12 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         return { icon: "flag_circle", color: "text-warning" };
       case "ISSUE_URGENT":
         return { icon: "error", color: "text-error" };
+      case "FIELD_ISSUE_CREATED":
+        return { icon: "support_agent", color: "text-orange-500" };
+      case "CUSTOMER_REQ_CREATED":
+        return { icon: "contact_page", color: "text-cyan-500" };
+      case "DISCUSSION_CREATED":
+        return { icon: "forum", color: "text-purple-500" };
       default:
         return { icon: "notifications", color: "text-text-secondary" };
     }
@@ -704,7 +669,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
             {/* 알림 드롭다운 메뉴 */}
             {showNotificationMenu && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl shadow-lg z-[60] animate-slide-in-down">
+              <div className="absolute right-0 top-full mt-2 w-96 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl shadow-lg z-[60] animate-slide-in-down">
                 {/* 헤더 */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border dark:border-border-dark">
                   <p className="text-sm font-bold text-text dark:text-white">알림</p>
@@ -756,7 +721,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             }`}>
                               {notification.title}
                             </p>
-                            <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">
+                            <p className="text-xs text-text-secondary mt-0.5 line-clamp-3">
                               {notification.message}
                             </p>
                             <p className="text-[10px] text-text-secondary mt-1">

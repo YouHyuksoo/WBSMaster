@@ -5,7 +5,7 @@
  * 5초마다 항목이 순환하면서 표시됩니다.
  *
  * 초보자 가이드:
- * 1. **아이템 배열**: TASK(완료수 포함), 고객요구사항, 업무협조요청, 이슈 순서
+ * 1. **아이템 배열**: TASK(완료수 포함), 고객요구사항, 고객협의사항, 필드이슈 순서
  * 2. **상태 관리**: currentIndex로 현재 표시 항목 추적
  * 3. **자동 순환**: useEffect에서 5초마다 인덱스 증가
  * 4. **데이터 소스**: useTodayStats 훅으로 10분마다 갱신
@@ -43,18 +43,18 @@ export function TodayStatsScroller() {
       color: "text-green-500",
     },
     {
-      id: "requirements",
-      icon: "handshake",
-      label: "업무협조요청",
-      displayText: `${stats?.requirements || 0}건`,
-      color: "text-amber-500",
+      id: "discussionItems",
+      icon: "forum",
+      label: "고객협의사항",
+      displayText: `${stats?.discussionItems || 0}건`,
+      color: "text-purple-500",
     },
     {
-      id: "issues",
-      icon: "warning",
-      label: "이슈",
-      displayText: `${stats?.issues || 0}건`,
-      color: "text-rose-500",
+      id: "fieldIssues",
+      icon: "support_agent",
+      label: "필드이슈",
+      displayText: `${stats?.fieldIssues || 0}건`,
+      color: "text-orange-500",
     },
   ];
 

@@ -23,9 +23,9 @@ import { requireAuth } from "@/lib/auth";
  * {
  *   "tasks": 5,
  *   "completedTasks": 2,
- *   "requirements": 3,
+ *   "discussionItems": 3,
  *   "customerRequirements": 2,
- *   "issues": 4
+ *   "fieldIssues": 4
  * }
  */
 export async function GET(request: NextRequest) {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
     // 병렬 집계 (5개 count 쿼리 동시 실행)
-    const [tasks, completedTasks, requirements, customerRequirements, issues] = await Promise.all([
+    const [tasks, completedTasks, discussionItems, customerRequirements, fieldIssues] = await Promise.all([
       // 오늘 등록된 TASK
       prisma.task.count({
         where: {
@@ -67,8 +67,8 @@ export async function GET(request: NextRequest) {
         },
       }),
 
-      // 오늘 등록된 Requirement (업무협조요청)
-      prisma.requirement.count({
+      // 오늘 등록된 DiscussionItem (고객협의사항)
+      prisma.discussionItem.count({
         where: {
           ...(projectId && { projectId }),
           createdAt: {
@@ -89,8 +89,8 @@ export async function GET(request: NextRequest) {
         },
       }),
 
-      // 오늘 등록된 Issue (이슈)
-      prisma.issue.count({
+      // 오늘 등록된 FieldIssue (필드이슈)
+      prisma.fieldIssue.count({
         where: {
           ...(projectId && { projectId }),
           createdAt: {
@@ -104,9 +104,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       tasks,
       completedTasks,
-      requirements,
+      discussionItems,
       customerRequirements,
-      issues,
+      fieldIssues,
     });
   } catch (error) {
     console.error("[API] 오늘 통계 조회 실패:", error);

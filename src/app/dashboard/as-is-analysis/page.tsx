@@ -32,6 +32,7 @@ import { OverviewTable } from "./components/OverviewTable";
 import { TaskListPanel } from "./components/TaskListPanel";
 import { UnitAnalysisPanel } from "./components/UnitAnalysisPanel";
 import { WritingGuideModal } from "./components/WritingGuideModal";
+import { CopyToBusinessUnitModal } from "./components/CopyToBusinessUnitModal";
 import { useAsIsOverview } from "./hooks/useAsIsOverview";
 import type { AsIsOverviewItem } from "./types";
 
@@ -53,6 +54,10 @@ export default function AsIsAnalysisPage() {
   const [isLeftPanelHovered, setIsLeftPanelHovered] = useState(false);
   // 작성가이드 모달 상태
   const [showGuideModal, setShowGuideModal] = useState(false);
+  // 다른 사업부로 복사 모달 상태
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  // 체크된 항목 ID 목록 (복사용)
+  const [checkedItemIds, setCheckedItemIds] = useState<Set<string>>(new Set());
 
   // AS-IS 총괄 데이터 조회 (프로젝트+사업부별)
   const {
@@ -64,10 +69,11 @@ export default function AsIsAnalysisPage() {
     isCreating,
   } = useAsIsOverview(selectedProject?.id, businessUnit);
 
-  // 사업부 변경 시 선택 항목 초기화
+  // 사업부 변경 시 선택 항목 및 체크 상태 초기화
   useEffect(() => {
     setSelectedItem(null);
     setActiveTab("overview");
+    setCheckedItemIds(new Set());
   }, [businessUnit]);
 
   // 항목 선택 핸들러
@@ -201,6 +207,9 @@ export default function AsIsAnalysisPage() {
           onBusinessUnitChange={setBusinessUnit}
           onRefresh={refetch}
           onShowGuide={() => setShowGuideModal(true)}
+          onShowCopyModal={() => setShowCopyModal(true)}
+          selectedCount={checkedItemIds.size}
+          onClearSelection={() => setCheckedItemIds(new Set())}
         />
       </div>
 
@@ -340,6 +349,8 @@ export default function AsIsAnalysisPage() {
                 items={overview?.items || []}
                 onSelectItem={handleSelectItem}
                 selectedItem={selectedItem}
+                checkedItemIds={checkedItemIds}
+                onCheckedItemsChange={setCheckedItemIds}
               />
             ) : (
               <UnitAnalysisPanel
@@ -354,6 +365,24 @@ export default function AsIsAnalysisPage() {
       {/* 작성가이드 모달 */}
       {showGuideModal && (
         <WritingGuideModal onClose={() => setShowGuideModal(false)} />
+      )}
+
+      {/* 다른 사업부로 복사 모달 */}
+      {overview && (
+        <CopyToBusinessUnitModal
+          isOpen={showCopyModal}
+          onClose={() => setShowCopyModal(false)}
+          sourceOverviewId={overview.id}
+          sourceBusinessUnit={businessUnit}
+          projectId={selectedProject.id}
+          itemCount={overview.items?.length ?? 0}
+          selectedItemIds={checkedItemIds.size > 0 ? Array.from(checkedItemIds) : undefined}
+          onSuccess={() => {
+            // 복사 성공 시 새로고침 및 선택 초기화
+            refetch();
+            setCheckedItemIds(new Set());
+          }}
+        />
       )}
     </div>
   );

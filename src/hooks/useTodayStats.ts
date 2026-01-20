@@ -21,9 +21,9 @@ import { api } from "@/lib/api";
 export interface TodayStats {
   tasks: number;
   completedTasks: number;
-  requirements: number;
+  discussionItems: number;
   customerRequirements: number;
-  issues: number;
+  fieldIssues: number;
 }
 
 /** 쿼리 키 */

@@ -38,6 +38,7 @@ import {
 import { WeekCarousel } from "./WeekCarousel";
 import { ReportItemRow } from "./ReportItemRow";
 import { ItemModal } from "./ItemModal";
+import { AiWriteModal } from "./AiWriteModal";
 import { WeekInfo, ReportWithRelations } from "../types";
 import dynamic from "next/dynamic";
 
@@ -97,6 +98,10 @@ export function ReportDetailView({
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WeeklyReportItem | null>(null);
   const [savingAction, setSavingAction] = useState<"temp" | "submit" | "cancel" | null>(null);
+
+  // AI 작성 모달 상태
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiTargetType, setAiTargetType] = useState<ReportItemType>("PREVIOUS_RESULT");
 
   // 현재 주차 보고서 필터 메모이제이션 (불필요한 쿼리 재실행 방지)
   const currentWeekReportFilters = useMemo(
@@ -297,6 +302,12 @@ export function ReportDetailView({
       console.error("전주 계획 불러오기 실패:", error);
       toast.error("전주 계획 불러오기에 실패했습니다.");
     }
+  };
+
+  // AI 작성 모달 열기
+  const openAiModal = (type: ReportItemType) => {
+    setAiTargetType(type);
+    setIsAiModalOpen(true);
   };
 
   // 항목 추가 모달 열기
@@ -537,13 +548,20 @@ export function ReportDetailView({
                 )}
               </div>
               {/* 항목 추가 버튼 */}
-              <div className="border-t border-border p-3">
+              <div className="border-t border-border p-3 flex gap-2">
                 <button
                   onClick={() => openAddItemModal("PREVIOUS_RESULT")}
-                  className="w-full py-2 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2 text-sm"
+                  className="flex-1 py-2 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   <Icon name="add" size="sm" />
                   추가 업무 등록
+                </button>
+                <button
+                  onClick={() => openAiModal("PREVIOUS_RESULT")}
+                  className="px-4 py-2 bg-gradient-to-r from-primary to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 text-sm font-medium"
+                >
+                  <Icon name="auto_awesome" size="sm" />
+                  AI 작성
                 </button>
               </div>
             </div>
@@ -574,13 +592,20 @@ export function ReportDetailView({
                 )}
               </div>
               {/* 항목 추가 버튼 */}
-              <div className="border-t border-border p-3">
+              <div className="border-t border-border p-3 flex gap-2">
                 <button
                   onClick={() => openAddItemModal("NEXT_PLAN")}
-                  className="w-full py-2 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2 text-sm"
+                  className="flex-1 py-2 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   <Icon name="add" size="sm" />
                   계획 추가
+                </button>
+                <button
+                  onClick={() => openAiModal("NEXT_PLAN")}
+                  className="px-4 py-2 bg-gradient-to-r from-primary to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 text-sm font-medium"
+                >
+                  <Icon name="auto_awesome" size="sm" />
+                  AI 작성
                 </button>
               </div>
             </div>
@@ -648,6 +673,19 @@ export function ReportDetailView({
         }}
         onSave={handleSaveItem}
       />
+
+      {/* AI 작성 모달 */}
+      {currentReportId && (
+        <AiWriteModal
+          isOpen={isAiModalOpen}
+          onClose={() => setIsAiModalOpen(false)}
+          reportId={currentReportId}
+          targetType={aiTargetType}
+          onItemsAdded={() => {
+            // 데이터 갱신은 React Query가 자동으로 처리
+          }}
+        />
+      )}
     </div>
   );
 }

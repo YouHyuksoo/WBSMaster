@@ -34,10 +34,14 @@ interface OverviewTableProps {
   overview?: AsIsOverview | null;
   /** 항목 목록 */
   items: AsIsOverviewItem[];
-  /** 항목 선택 핸들러 */
+  /** 항목 선택 핸들러 (단위업무 분석용) */
   onSelectItem: (item: AsIsOverviewItem) => void;
-  /** 현재 선택된 항목 */
+  /** 현재 선택된 항목 (단위업무 분석용) */
   selectedItem: AsIsOverviewItem | null;
+  /** 체크된 항목 ID 목록 (복사용) */
+  checkedItemIds?: Set<string>;
+  /** 체크 상태 변경 핸들러 */
+  onCheckedItemsChange?: (ids: Set<string>) => void;
 }
 
 /**
@@ -48,6 +52,8 @@ export function OverviewTable({
   items,
   onSelectItem,
   selectedItem,
+  checkedItemIds = new Set(),
+  onCheckedItemsChange,
 }: OverviewTableProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTarget, setEditTarget] = useState<AsIsOverviewItem | null>(null);
@@ -140,6 +146,40 @@ export function OverviewTable({
     return acc;
   }, {} as Record<AsIsMajorCategory, AsIsOverviewItem[]>);
 
+  // 전체 선택 여부
+  const isAllChecked = items.length > 0 && checkedItemIds.size === items.length;
+  const isIndeterminate = checkedItemIds.size > 0 && checkedItemIds.size < items.length;
+
+  /**
+   * 전체 선택/해제 핸들러
+   */
+  const handleSelectAll = () => {
+    if (!onCheckedItemsChange) return;
+
+    if (isAllChecked) {
+      // 전체 해제
+      onCheckedItemsChange(new Set());
+    } else {
+      // 전체 선택
+      onCheckedItemsChange(new Set(items.map((item) => item.id)));
+    }
+  };
+
+  /**
+   * 개별 항목 체크 핸들러
+   */
+  const handleCheckItem = (itemId: string, checked: boolean) => {
+    if (!onCheckedItemsChange) return;
+
+    const newCheckedIds = new Set(checkedItemIds);
+    if (checked) {
+      newCheckedIds.add(itemId);
+    } else {
+      newCheckedIds.delete(itemId);
+    }
+    onCheckedItemsChange(newCheckedIds);
+  };
+
   return (
     <div className="p-4 space-y-4">
       {/* 헤더 */}
@@ -168,8 +208,36 @@ export function OverviewTable({
         {/* 테이블 헤더 */}
         <div
           className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase"
-          style={{ gridTemplateColumns: "100px 120px 150px 1fr 100px 150px 1fr 40px 40px 40px" }}
+          style={{ gridTemplateColumns: "32px 100px 120px 150px 1fr 100px 150px 1fr 40px 40px 40px" }}
         >
+          {/* 전체 선택 체크박스 */}
+          <div className="flex items-center justify-center">
+            {onCheckedItemsChange && (
+              <label className="relative flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAllChecked}
+                  ref={(el) => {
+                    if (el) el.indeterminate = isIndeterminate;
+                  }}
+                  onChange={handleSelectAll}
+                  className="peer sr-only"
+                />
+                <div className={`size-4 rounded border-2 flex items-center justify-center transition-colors ${
+                  isAllChecked || isIndeterminate
+                    ? "bg-primary border-primary"
+                    : "border-border dark:border-border-dark hover:border-primary/50"
+                }`}>
+                  {isAllChecked && (
+                    <Icon name="check" size="xs" className="text-white" />
+                  )}
+                  {isIndeterminate && (
+                    <div className="w-2 h-0.5 bg-white rounded" />
+                  )}
+                </div>
+              </label>
+            )}
+          </div>
           <div>관리번호</div>
           <div>대분류</div>
           <div>중분류</div>
@@ -209,10 +277,36 @@ export function OverviewTable({
                     className={`grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark transition-colors items-center ${
                       isSelected
                         ? "bg-primary/5 border-l-2 border-l-primary"
+                        : checkedItemIds.has(item.id)
+                        ? "bg-primary/5"
                         : "hover:bg-surface dark:hover:bg-background-dark"
                     }`}
-                    style={{ gridTemplateColumns: "100px 120px 150px 1fr 100px 150px 1fr 40px 40px 40px" }}
+                    style={{ gridTemplateColumns: "32px 100px 120px 150px 1fr 100px 150px 1fr 40px 40px 40px" }}
                   >
+                    {/* 체크박스 */}
+                    <div className="flex items-center justify-center">
+                      {onCheckedItemsChange && (
+                        <label className="relative flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checkedItemIds.has(item.id)}
+                            onChange={(e) => handleCheckItem(item.id, e.target.checked)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="peer sr-only"
+                          />
+                          <div className={`size-4 rounded border-2 flex items-center justify-center transition-colors ${
+                            checkedItemIds.has(item.id)
+                              ? "bg-primary border-primary"
+                              : "border-border dark:border-border-dark hover:border-primary/50"
+                          }`}>
+                            {checkedItemIds.has(item.id) && (
+                              <Icon name="check" size="xs" className="text-white" />
+                            )}
+                          </div>
+                        </label>
+                      )}
+                    </div>
+
                     {/* AS-IS 관리번호 */}
                     <div className="text-xs font-mono text-primary">
                       {item.asIsManagementNo || "-"}

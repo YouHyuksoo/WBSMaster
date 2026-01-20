@@ -171,6 +171,32 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // 프로젝트 팀 멤버들에게 알림 생성
+    try {
+      const teamMembers = await prisma.teamMember.findMany({
+        where: { projectId },
+        select: { userId: true },
+      });
+
+      if (teamMembers.length > 0) {
+        await prisma.notification.createMany({
+          data: teamMembers.map((member) => ({
+            userId: member.userId,
+            type: "CUSTOMER_REQ_CREATED",
+            title: `고객요구사항 등록: ${code}`,
+            message: `[${project.name}] "${functionName}" 고객요구사항이 등록되었습니다.`,
+            link: "/dashboard/customer-requirements",
+            relatedId: requirement.id,
+            projectId: projectId,
+            projectName: project.name,
+          })),
+        });
+      }
+    } catch (notifError) {
+      // 알림 생성 실패해도 요구사항 생성은 성공 처리
+      console.error("알림 생성 실패:", notifError);
+    }
+
     return NextResponse.json(requirement, { status: 201 });
   } catch (error) {
     console.error("고객요구사항 생성 실패:", error);
