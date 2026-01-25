@@ -400,11 +400,12 @@ export interface WbsStats {
     inProgress: number;
     pending: number;
     delayed: number; // 지연건수 (종료일이 지났는데 완료되지 않은 업무)
+    totalProgress: number; // 전체 항목의 진행률 합계 (평균 진행률 계산용)
   };
   projectCount: number;
 }
 
-/** WBS 일정 통계 응답 타입 */
+/** WBS 일정 통계 응답 타입 (엑셀 WBS 산식 기준) */
 export interface WbsScheduleStats {
   project: {
     id: string;
@@ -428,11 +429,11 @@ export interface WbsScheduleStats {
     completed: number;
     inProgress: number;
     delayed: number;
-    progressRate: number;         // 실제 진행률
-    completionRate: number;       // 완료율
-    delayRate: number;            // 지연율
-    expectedProgressRate: number; // 예상 진행률 (항목별 평균)
-    achievementRate: number;      // 달성율 (기대 대비 실제)
+    plannedProgress: number;     // 계획 진척률 (대분류별 기간경과비율×가중치 합계)
+    actualProgress: number;      // 실적 진척률 (대분류별 가중치×평균진행률 합계)
+    delayRate: number;           // 지연율 (계획 - 실적, 양수면 지연)
+    achievementRate: number;     // 달성률 (실적 / 계획 × 100)
+    totalWeight: number;         // 가중치 합계 (100이어야 정상)
   } | null;
   message?: string;
 }

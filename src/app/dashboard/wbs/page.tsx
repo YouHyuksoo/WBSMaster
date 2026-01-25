@@ -498,17 +498,15 @@ export default function WBSPage() {
 
   const visibleItems = useMemo(() => flattenItems(wbsTree), [wbsTree, expandedIds]);
 
-  /** 통계 계산 */
+  /** 통계 계산 (엑셀 WBS 산식 기준) */
   const stats = useMemo(() => {
     // 말단 항목만 수집 (자식이 없는 항목)
     const leafItems: WbsItem[] = [];
     const collectLeafItems = (items: WbsItem[]) => {
       items.forEach((item) => {
         if (!item.children || item.children.length === 0) {
-          // 자식이 없으면 말단 항목
           leafItems.push(item);
         } else {
-          // 자식이 있으면 재귀적으로 계속 탐색
           collectLeafItems(item.children);
         }
       });
@@ -522,50 +520,94 @@ export default function WBSPage() {
 
     // 지연 항목 (종료일이 지났는데 완료/취소 아닌 항목)
     const delayed = leafItems.filter((i) => isDelayed(i.endDate, i.status)).length;
-    // 지연 비율 (완료/취소 제외한 항목 중 지연 비율)
-    const activeItems = leafItems.filter((i) => i.status !== "COMPLETED" && i.status !== "CANCELLED").length;
-    const delayedRate = activeItems > 0 ? Math.round((delayed / activeItems) * 100) : 0;
 
-    // Leaf 항목들의 평균 진행률 (지연율과 동일한 기준)
-    const avgProgress =
-      leafItems.length > 0
-        ? Math.round(leafItems.reduce((sum, i) => sum + i.progress, 0) / leafItems.length)
-        : 0;
-
-    // 목표달성율 계산 (예상 진행률 대비 실제 진행률)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 각 항목별 예상 진행률 계산
-    const expectedProgressList = leafItems.map((item) => {
-      if (!item.startDate || !item.endDate) return item.progress; // 날짜 없으면 실제값 사용
+    // ============================================
+    // 엑셀 WBS 산식 기반 계획/실적 계산
+    // ============================================
 
-      const start = new Date(item.startDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(item.endDate);
-      end.setHours(0, 0, 0, 0);
+    // LEVEL1(대분류) 항목들만 추출
+    const level1Items = wbsTree.filter((item) => item.level === "LEVEL1");
 
-      if (today < start) return 0; // 아직 시작 전
-      if (today >= end) return 100; // 종료 기한 지남 또는 당일
+    let plannedProgress = 0;
+    let actualProgress = 0;
+    let totalWeight = 0;
 
-      // 기간 대비 경과 비율
-      const totalDays = end.getTime() - start.getTime();
-      const elapsedDays = today.getTime() - start.getTime();
-      return totalDays > 0 ? Math.round((elapsedDays / totalDays) * 100) : 0;
-    });
+    level1Items.forEach((level1) => {
+      const weight = level1.weight || 0;
+      totalWeight += weight;
 
-    const avgExpectedProgress =
-      expectedProgressList.length > 0
-        ? expectedProgressList.reduce((sum, p) => sum + p, 0) / expectedProgressList.length
+      // 대분류의 시작일/종료일
+      const l1StartDate = level1.startDate ? new Date(level1.startDate) : null;
+      const l1EndDate = level1.endDate ? new Date(level1.endDate) : null;
+
+      // 해당 대분류의 하위 말단 항목들 수집
+      const level1LeafItems: WbsItem[] = [];
+      const collectLevel1Leaves = (items: WbsItem[]) => {
+        items.forEach((item) => {
+          if (!item.children || item.children.length === 0) {
+            level1LeafItems.push(item);
+          } else {
+            collectLevel1Leaves(item.children);
+          }
+        });
+      };
+      collectLevel1Leaves([level1]);
+
+      // 대분류 평균 진행률
+      const avgProgressLevel1 = level1LeafItems.length > 0
+        ? level1LeafItems.reduce((sum, i) => sum + i.progress, 0) / level1LeafItems.length
         : 0;
 
-    // 목표달성율 = 실제 진행률 / 예상 진행률 × 100 (예상이 0이면 100%)
-    const achievementRate =
-      avgExpectedProgress > 0
-        ? Math.round((avgProgress / avgExpectedProgress) * 100)
-        : avgProgress > 0 ? 100 : 0;
+      // 실적 진척률: 가중치 × 평균진행률 / 100
+      actualProgress += (weight * avgProgressLevel1) / 100;
 
-    return { total, completed, inProgress, pending, delayed, delayedRate, progress: avgProgress, achievementRate };
+      // 계획 진척률: 기간경과비율 × 가중치
+      if (l1StartDate && l1EndDate) {
+        l1StartDate.setHours(0, 0, 0, 0);
+        l1EndDate.setHours(0, 0, 0, 0);
+
+        let periodProgress = 0;
+        if (today < l1StartDate) {
+          periodProgress = 0;
+        } else if (today >= l1EndDate) {
+          periodProgress = 100;
+        } else {
+          const totalPeriod = l1EndDate.getTime() - l1StartDate.getTime();
+          const elapsedPeriod = today.getTime() - l1StartDate.getTime();
+          periodProgress = totalPeriod > 0 ? (elapsedPeriod / totalPeriod) * 100 : 0;
+        }
+
+        plannedProgress += (periodProgress * weight) / 100;
+      }
+    });
+
+    // 소수점 첫째자리까지 반올림
+    plannedProgress = Math.round(plannedProgress * 10) / 10;
+    actualProgress = Math.round(actualProgress * 10) / 10;
+
+    // 지연율: 계획 - 실적 (양수면 지연, 음수면 선행)
+    const delayRate = Math.round((plannedProgress - actualProgress) * 10) / 10;
+
+    // 달성률: (실적 / 계획) × 100
+    const achievementRate = plannedProgress > 0
+      ? Math.round((actualProgress / plannedProgress) * 100)
+      : actualProgress > 0 ? 100 : 0;
+
+    return {
+      total,
+      completed,
+      inProgress,
+      pending,
+      delayed,
+      plannedProgress,
+      actualProgress,
+      delayRate,
+      achievementRate,
+      totalWeight,
+    };
   }, [wbsTree]);
 
   /** 프로젝트 일정 통계 */
@@ -1196,63 +1238,57 @@ export default function WBSPage() {
 
       {selectedProjectId && (
         <>
-          {/* 프로젝트 상태 요약 */}
+          {/* 프로젝트 상태 요약 (엑셀 WBS 산식 기준) */}
           <div className="p-4 border-b border-border dark:border-border-dark bg-surface dark:bg-surface-dark">
-            <div className="flex items-center gap-6">
-              {/* 진행률 바 */}
-              <div className="w-36 flex-shrink-0">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-text-secondary">진행률</span>
-                  <span className="font-medium text-text dark:text-white">{stats.progress}%</span>
-                </div>
-                <div className="h-2 bg-background dark:bg-background-dark rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${stats.progress}%` }}
-                  />
-                </div>
+            <div className="flex items-center gap-4">
+              {/* 계획 진척률 */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-500/10 rounded-lg border border-sky-500/20">
+                <span className="text-xs text-text-secondary">계획</span>
+                <span className="text-lg font-bold text-sky-500">{stats.plannedProgress}%</span>
               </div>
 
-              {/* 지연율 바 */}
-              <div className="w-36 flex-shrink-0">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-text-secondary">지연율</span>
-                  <span className="font-medium text-rose-600 dark:text-rose-400">{stats.delayedRate}%</span>
-                </div>
-                <div className="h-2 bg-background dark:bg-background-dark rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-rose-500 rounded-full transition-all"
-                    style={{ width: `${stats.delayedRate}%` }}
-                  />
-                </div>
+              {/* 실적 진척률 */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20">
+                <span className="text-xs text-text-secondary">실적</span>
+                <span className="text-lg font-bold text-primary">{stats.actualProgress}%</span>
               </div>
 
-              {/* 목표달성율 바 */}
-              <div className="w-36 flex-shrink-0">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-text-secondary">목표달성율</span>
-                  <span className={`font-medium ${
-                    stats.achievementRate >= 100
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : stats.achievementRate >= 80
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-rose-600 dark:text-rose-400"
-                  }`}>
-                    {stats.achievementRate}%
-                  </span>
-                </div>
-                <div className="h-2 bg-background dark:bg-background-dark rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      stats.achievementRate >= 100
-                        ? "bg-emerald-500"
-                        : stats.achievementRate >= 80
-                          ? "bg-amber-500"
-                          : "bg-rose-500"
-                    }`}
-                    style={{ width: `${Math.min(stats.achievementRate, 100)}%` }}
-                  />
-                </div>
+              {/* 지연율 */}
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+                stats.delayRate <= 0
+                  ? "bg-emerald-500/10 border-emerald-500/20"
+                  : "bg-rose-500/10 border-rose-500/20"
+              }`}>
+                <span className="text-xs text-text-secondary">지연율</span>
+                <span className={`text-lg font-bold ${
+                  stats.delayRate <= 0 ? "text-emerald-500" : "text-rose-500"
+                }`}>
+                  {stats.delayRate > 0 ? "+" : ""}{stats.delayRate}%
+                </span>
+              </div>
+
+              {/* 달성률 */}
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+                stats.achievementRate >= 100
+                  ? "bg-emerald-500/10 border-emerald-500/20"
+                  : stats.achievementRate >= 80
+                    ? "bg-sky-500/10 border-sky-500/20"
+                    : stats.achievementRate >= 60
+                      ? "bg-amber-500/10 border-amber-500/20"
+                      : "bg-rose-500/10 border-rose-500/20"
+              }`}>
+                <span className="text-xs text-text-secondary">달성률</span>
+                <span className={`text-lg font-bold ${
+                  stats.achievementRate >= 100
+                    ? "text-emerald-500"
+                    : stats.achievementRate >= 80
+                      ? "text-sky-500"
+                      : stats.achievementRate >= 60
+                        ? "text-amber-500"
+                        : "text-rose-500"
+                }`}>
+                  {stats.achievementRate}%
+                </span>
               </div>
 
               {/* 프로젝트 일정 통계 */}

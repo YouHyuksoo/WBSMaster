@@ -8,15 +8,11 @@
  * 1. **GET /api/wbs/schedule-stats**: 프로젝트 일정 통계 조회
  *    - ?projectId=xxx: 특정 프로젝트 (필수)
  *
- * 계산 방식:
- * - 총일수: 프로젝트 시작일 ~ 종료일
- * - 휴무일: 해당 기간 내 휴일 + 주말 수
- * - 작업일: 총일수 - 휴무일
- * - 진행일: 시작일 ~ 오늘 (작업일 기준)
- * - 남은일: 오늘 ~ 종료일 (작업일 기준)
- * - 진행율: 완료 WBS / 전체 WBS
- * - 지연율: 지연 WBS / 전체 WBS
- * - 달성율: (진행일 대비 기대 진행률) vs (실제 진행률)
+ * 계산 방식 (엑셀 WBS 산식 기준):
+ * - **계획 진척률**: 각 대분류(LEVEL1)별 (기간경과비율 × 가중치)의 합계
+ * - **실적 진척률**: 각 대분류(LEVEL1)의 (가중치 × 평균진행률)의 합계
+ * - **지연율**: 계획 - 실적 (양수면 지연, 음수면 선행)
+ * - **달성률**: (실적 / 계획) × 100
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -196,44 +192,59 @@ export async function GET(request: NextRequest) {
       ? Math.round((elapsedWorkingDays / workingDays) * 100)
       : 0;
 
-    // WBS 통계 조회
-    const wbsItems = await prisma.wbsItem.findMany({
+    // ============================================
+    // 엑셀 WBS 산식 기반 계획/실적 계산
+    // ============================================
+
+    // LEVEL1(대분류) 항목들 조회 (하위 항목 포함)
+    const level1Items = await prisma.wbsItem.findMany({
       where: {
         projectId,
-        // 말단 노드만 (실제 작업 단위)
-        children: { none: {} },
+        level: "LEVEL1",
       },
-      select: {
-        id: true,
-        status: true,
-        progress: true,
-        startDate: true,
-        endDate: true,
+      include: {
+        children: {
+          include: {
+            children: {
+              include: {
+                children: true, // LEVEL4까지
+              },
+            },
+          },
+        },
       },
     });
 
-    const totalWbs = wbsItems.length;
+    // 말단 노드만 수집하여 전체 통계 계산
+    const leafItems: { status: string; progress: number; endDate: Date | null }[] = [];
+    const collectLeafItems = (items: typeof level1Items) => {
+      items.forEach((item) => {
+        if (!item.children || item.children.length === 0) {
+          leafItems.push({
+            status: item.status,
+            progress: item.progress,
+            endDate: item.endDate,
+          });
+        } else {
+          collectLeafItems(item.children as typeof level1Items);
+        }
+      });
+    };
+    collectLeafItems(level1Items);
+
+    const totalWbs = leafItems.length;
     let completedWbs = 0;
     let inProgressWbs = 0;
-    let cancelledWbs = 0;
     let delayedWbs = 0;
-    let totalProgress = 0;
 
-    // 각 항목별 예상 진행률 계산 (WBS 페이지와 동일한 방식)
-    const expectedProgressList: number[] = [];
-
-    wbsItems.forEach((item) => {
-      totalProgress += item.progress;
-
+    leafItems.forEach((item) => {
       if (item.status === "COMPLETED") {
         completedWbs++;
       } else if (item.status === "IN_PROGRESS") {
         inProgressWbs++;
-      } else if (item.status === "CANCELLED") {
-        cancelledWbs++;
       }
 
-      // 지연 체크: 종료일이 오늘보다 이전이고 완료/취소 아닌 경우 (WBS 페이지와 동일)
+      // 지연 체크
       if (item.endDate && item.status !== "COMPLETED" && item.status !== "CANCELLED") {
         const itemEndDate = new Date(item.endDate);
         itemEndDate.setHours(0, 0, 0, 0);
@@ -241,50 +252,85 @@ export async function GET(request: NextRequest) {
           delayedWbs++;
         }
       }
+    });
 
-      // 각 항목별 예상 진행률 계산 (WBS 페이지 로직과 동일)
-      if (!item.startDate || !item.endDate) {
-        // 날짜 없으면 실제값 사용
-        expectedProgressList.push(item.progress);
-      } else {
-        const itemStart = new Date(item.startDate);
-        itemStart.setHours(0, 0, 0, 0);
-        const itemEnd = new Date(item.endDate);
-        itemEnd.setHours(0, 0, 0, 0);
+    // ============================================
+    // 계획 진척률 계산 (엑셀 산식)
+    // 각 대분류별 (기간경과비율 × 가중치)의 합계
+    // ============================================
+    let plannedProgress = 0;
+    let totalWeight = 0;
 
-        if (today < itemStart) {
+    // ============================================
+    // 실적 진척률 계산 (엑셀 산식)
+    // 각 대분류의 (가중치 × 평균진행률)의 합계
+    // ============================================
+    let actualProgress = 0;
+
+    level1Items.forEach((level1) => {
+      const weight = level1.weight || 0; // 가중치 (%)
+      totalWeight += weight;
+
+      // 대분류의 시작일/종료일
+      const l1StartDate = level1.startDate ? new Date(level1.startDate) : null;
+      const l1EndDate = level1.endDate ? new Date(level1.endDate) : null;
+
+      // 해당 대분류의 하위 말단 항목들 수집
+      const level1LeafItems: { progress: number }[] = [];
+      const collectLevel1Leaves = (items: typeof level1Items) => {
+        items.forEach((item) => {
+          if (!item.children || item.children.length === 0) {
+            level1LeafItems.push({ progress: item.progress });
+          } else {
+            collectLevel1Leaves(item.children as typeof level1Items);
+          }
+        });
+      };
+      collectLevel1Leaves([level1]);
+
+      // 대분류 평균 진행률
+      const avgProgressLevel1 = level1LeafItems.length > 0
+        ? level1LeafItems.reduce((sum, i) => sum + i.progress, 0) / level1LeafItems.length
+        : 0;
+
+      // 실적 진척률: 가중치 × 평균진행률 / 100
+      actualProgress += (weight * avgProgressLevel1) / 100;
+
+      // 계획 진척률: 기간경과비율 × 가중치
+      if (l1StartDate && l1EndDate) {
+        l1StartDate.setHours(0, 0, 0, 0);
+        l1EndDate.setHours(0, 0, 0, 0);
+
+        let periodProgress = 0;
+        if (today < l1StartDate) {
           // 아직 시작 전
-          expectedProgressList.push(0);
-        } else if (today >= itemEnd) {
-          // 종료 기한 지남 또는 당일
-          expectedProgressList.push(100);
+          periodProgress = 0;
+        } else if (today >= l1EndDate) {
+          // 종료일 이후
+          periodProgress = 100;
         } else {
-          // 기간 대비 경과 비율
-          const totalDaysItem = itemEnd.getTime() - itemStart.getTime();
-          const elapsedDaysItem = today.getTime() - itemStart.getTime();
-          const expectedProg = totalDaysItem > 0 ? Math.round((elapsedDaysItem / totalDaysItem) * 100) : 0;
-          expectedProgressList.push(expectedProg);
+          // 진행 중: 기간 경과 비율
+          const totalPeriod = l1EndDate.getTime() - l1StartDate.getTime();
+          const elapsedPeriod = today.getTime() - l1StartDate.getTime();
+          periodProgress = totalPeriod > 0 ? (elapsedPeriod / totalPeriod) * 100 : 0;
         }
+
+        // 계획 진척률: 기간경과비율 × 가중치 / 100
+        plannedProgress += (periodProgress * weight) / 100;
       }
     });
 
-    // WBS 기반 진행률 계산
-    const wbsProgressRate = totalWbs > 0 ? Math.round(totalProgress / totalWbs) : 0;
-    const wbsCompletionRate = totalWbs > 0 ? Math.round((completedWbs / totalWbs) * 100) : 0;
+    // 소수점 첫째자리까지 반올림
+    plannedProgress = Math.round(plannedProgress * 10) / 10;
+    actualProgress = Math.round(actualProgress * 10) / 10;
 
-    // 지연율: 활성 항목 (완료/취소 제외) 중 지연 비율 (WBS 페이지와 동일)
-    const activeWbs = totalWbs - completedWbs - cancelledWbs;
-    const wbsDelayRate = activeWbs > 0 ? Math.round((delayedWbs / activeWbs) * 100) : 0;
+    // 지연율: 계획 - 실적 (양수면 지연, 음수면 선행)
+    const delayRate = Math.round((plannedProgress - actualProgress) * 10) / 10;
 
-    // 각 항목별 예상 진행률 평균 계산
-    const avgExpectedProgress = expectedProgressList.length > 0
-      ? expectedProgressList.reduce((sum, p) => sum + p, 0) / expectedProgressList.length
-      : 0;
-
-    // 달성율: 실제 평균 진행률 / 예상 평균 진행률 × 100 (WBS 페이지와 동일한 방식)
-    const achievementRate = avgExpectedProgress > 0
-      ? Math.round((wbsProgressRate / avgExpectedProgress) * 100)
-      : wbsProgressRate > 0 ? 100 : 0;
+    // 달성률: (실적 / 계획) × 100
+    const achievementRate = plannedProgress > 0
+      ? Math.round((actualProgress / plannedProgress) * 100)
+      : actualProgress > 0 ? 100 : 0;
 
     return NextResponse.json({
       project: {
@@ -309,11 +355,11 @@ export async function GET(request: NextRequest) {
         completed: completedWbs,
         inProgress: inProgressWbs,
         delayed: delayedWbs,
-        progressRate: wbsProgressRate,     // 실제 진행률
-        completionRate: wbsCompletionRate, // 완료율
-        delayRate: wbsDelayRate,           // 지연율
-        expectedProgressRate: Math.round(avgExpectedProgress), // 예상 진행률 (항목별 평균)
-        achievementRate,                    // 달성율 (기대 대비 실제)
+        plannedProgress,     // 계획 진척률 (엑셀 산식: 대분류별 기간경과비율×가중치 합계)
+        actualProgress,      // 실적 진척률 (엑셀 산식: 대분류별 가중치×평균진행률 합계)
+        delayRate,           // 지연율 (계획 - 실적, 양수면 지연)
+        achievementRate,     // 달성률 (실적 / 계획 × 100)
+        totalWeight,         // 가중치 합계 (100이어야 정상)
       },
     });
   } catch (error) {

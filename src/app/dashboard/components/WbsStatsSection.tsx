@@ -34,6 +34,7 @@ export interface WbsStats {
     total: number;
     completed: number;
     inProgress: number;
+    totalProgress: number; // 전체 항목의 진행률 합계 (평균 진행률 계산용)
   };
 }
 
@@ -187,7 +188,9 @@ const WbsStatsSection = memo(function WbsStatsSection({
           <div className="text-center text-xs font-bold text-emerald-500">{wbsStats.total.completed}</div>
           <div className="text-center text-xs font-bold text-sky-500">{wbsStats.total.inProgress}</div>
           <div className="text-center text-xs font-bold text-primary">
-            {wbsStats.total.total > 0 ? Math.round((wbsStats.total.completed / wbsStats.total.total) * 100) : 0}%
+            {wbsStats.total.total > 0 && wbsStats.total.totalProgress != null
+              ? Math.round(wbsStats.total.totalProgress / wbsStats.total.total)
+              : 0}%
           </div>
         </div>
       )}

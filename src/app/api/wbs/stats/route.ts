@@ -130,6 +130,7 @@ export async function GET(request: NextRequest) {
       inProgress: 0,
       pending: 0,
       delayed: 0, // 지연건수 (종료일이 지났는데 완료되지 않은 업무)
+      totalProgress: 0, // 전체 항목의 진행률 합계 (평균 진행률 계산용)
     };
 
     // 오늘 날짜 (시간 제외, 날짜만 비교)
@@ -139,6 +140,7 @@ export async function GET(request: NextRequest) {
     // 미할당 항목 통계 계산
     unassignedItems.forEach((item) => {
       unassigned.totalProgress += item.progress;
+      totalStats.totalProgress += item.progress; // 전체 진행률 합계에도 추가
       if (item.status === "COMPLETED") {
         unassigned.completed++;
         totalStats.completed++;
@@ -163,6 +165,7 @@ export async function GET(request: NextRequest) {
     // 담당자 배정된 WBS 항목 순회
     wbsItems.forEach((item) => {
       // 전체 통계 업데이트
+      totalStats.totalProgress += item.progress; // 전체 진행률 합계에 추가
       if (item.status === "COMPLETED") {
         totalStats.completed++;
       } else if (item.status === "IN_PROGRESS") {

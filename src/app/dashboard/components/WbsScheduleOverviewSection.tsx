@@ -290,33 +290,49 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
               <p className="text-[10px] text-text-secondary">지연</p>
             </div>
           </div>
-          {/* 진행률 바 */}
-          <div className="pt-2">
+          {/* 계획 vs 실적 진행률 바 */}
+          <div className="pt-2 space-y-2">
             <ProgressBar
-              value={wbs.progressRate}
-              expectedValue={wbs.expectedProgressRate}
-              label="WBS 진행률"
+              value={wbs.plannedProgress}
+              label="계획"
+              color="text-sky-500"
+            />
+            <ProgressBar
+              value={wbs.actualProgress}
+              expectedValue={wbs.plannedProgress}
+              label="실적"
               color="text-primary"
             />
           </div>
         </div>
 
-        {/* 오른쪽: 주요 지표 */}
+        {/* 오른쪽: 주요 지표 (엑셀 WBS 산식 기준) */}
         <div className="space-y-3">
           <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1">
             <Icon name="speed" size="xs" />
             주요 지표
           </h4>
-          <div className="grid grid-cols-3 gap-2">
-            {/* 진행률 */}
-            <div className="text-center p-2 rounded-lg bg-primary/10">
-              <p className="text-2xl font-bold text-primary">{wbs.progressRate}%</p>
-              <p className="text-[10px] text-text-secondary">진행률</p>
+          <div className="grid grid-cols-4 gap-2">
+            {/* 계획 */}
+            <div className="text-center p-2 rounded-lg bg-sky-500/10">
+              <p className="text-xl font-bold text-sky-500">{wbs.plannedProgress}%</p>
+              <p className="text-[10px] text-text-secondary">계획</p>
             </div>
-            {/* 지연률 */}
-            <div className="text-center p-2 rounded-lg bg-rose-500/10">
-              <p className="text-2xl font-bold text-rose-500">{wbs.delayRate}%</p>
-              <p className="text-[10px] text-text-secondary">지연률</p>
+            {/* 실적 */}
+            <div className="text-center p-2 rounded-lg bg-primary/10">
+              <p className="text-xl font-bold text-primary">{wbs.actualProgress}%</p>
+              <p className="text-[10px] text-text-secondary">실적</p>
+            </div>
+            {/* 지연율 */}
+            <div className={`text-center p-2 rounded-lg ${
+              wbs.delayRate <= 0 ? "bg-emerald-500/10" : "bg-rose-500/10"
+            }`}>
+              <p className={`text-xl font-bold ${
+                wbs.delayRate <= 0 ? "text-emerald-500" : "text-rose-500"
+              }`}>
+                {wbs.delayRate > 0 ? "+" : ""}{wbs.delayRate}%
+              </p>
+              <p className="text-[10px] text-text-secondary">지연율</p>
             </div>
             {/* 달성률 */}
             <div className={`text-center p-2 rounded-lg ${
@@ -324,19 +340,19 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
               wbs.achievementRate >= 80 ? "bg-sky-500/10" :
               wbs.achievementRate >= 60 ? "bg-amber-500/10" : "bg-rose-500/10"
             }`}>
-              <p className={`text-2xl font-bold ${achievementColor}`}>{wbs.achievementRate}%</p>
+              <p className={`text-xl font-bold ${achievementColor}`}>{wbs.achievementRate}%</p>
               <p className="text-[10px] text-text-secondary">달성률</p>
             </div>
           </div>
-          {/* 달성률 설명 */}
+          {/* 산출근거 설명 */}
           <div className="text-[10px] text-text-secondary flex items-start gap-1 pt-1">
             <Icon name="info" size="xs" className="mt-0.5 shrink-0" />
             <span>
-              달성률 = 실제 진행률({wbs.progressRate}%) / 예상 진행률({wbs.expectedProgressRate}%)
-              {wbs.achievementRate >= 100 && " - 일정보다 앞서 진행 중"}
-              {wbs.achievementRate >= 80 && wbs.achievementRate < 100 && " - 양호"}
-              {wbs.achievementRate < 80 && wbs.achievementRate >= 60 && " - 주의 필요"}
-              {wbs.achievementRate < 60 && " - 일정 지연 위험"}
+              계획 = Σ(대분류별 기간경과비율×가중치) |
+              실적 = Σ(가중치×진행률) |
+              지연율 = 계획-실적
+              {wbs.delayRate < 0 && ` (${Math.abs(wbs.delayRate)}% 선행)`}
+              {wbs.delayRate > 0 && ` (${wbs.delayRate}% 지연)`}
             </span>
           </div>
         </div>
