@@ -1293,62 +1293,16 @@ export default function WBSPage() {
 
               {/* 프로젝트 일정 통계 */}
               {scheduleStats && (
-                <div className="flex gap-2 flex-shrink-0">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg border border-blue-500/20">
-                    <Icon name="date_range" size="xs" className="text-blue-500" />
-                    <span className="text-xs text-text-secondary">총</span>
-                    <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{scheduleStats.totalDays}일</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/10 dark:bg-rose-500/20 rounded-lg border border-rose-500/20">
-                    <Icon name="weekend" size="xs" className="text-rose-500" />
-                    <span className="text-xs text-text-secondary">휴무</span>
-                    <span className="text-sm font-bold text-rose-600 dark:text-rose-400">{scheduleStats.weekendDays}일</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg border border-emerald-500/20">
-                    <Icon name="work" size="xs" className="text-emerald-500" />
-                    <span className="text-xs text-text-secondary">작업</span>
-                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{scheduleStats.workableDays}일</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg border border-amber-500/20">
-                    <Icon name="hourglass_top" size="xs" className="text-amber-500" />
-                    <span className="text-xs text-text-secondary">경과</span>
-                    <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{scheduleStats.elapsedDays}일</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg border border-purple-500/20">
-                    <Icon name="hourglass_bottom" size="xs" className="text-purple-500" />
-                    <span className="text-xs text-text-secondary">남은</span>
-                    <span className="text-sm font-bold text-purple-600 dark:text-purple-400">{scheduleStats.remainingDays}일</span>
-                  </div>
+                <div className="flex items-center gap-1 text-xs text-text-secondary ml-auto">
+                  <Icon name="date_range" size="xs" className="text-text-secondary" />
+                  <span>총 <span className="font-bold text-text dark:text-white">{scheduleStats.totalDays}</span>일</span>
+                  <span className="mx-1 text-border dark:text-border-dark">|</span>
+                  <span>경과 <span className="font-bold text-amber-500">{scheduleStats.elapsedDays}</span>일</span>
+                  <span className="mx-1 text-border dark:text-border-dark">|</span>
+                  <span>남은 <span className="font-bold text-primary">{scheduleStats.remainingDays}</span>일</span>
                 </div>
               )}
 
-              {/* 통계 */}
-              <div className="flex gap-2 ml-auto">
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background-white dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
-                  <div className="size-2 rounded-full bg-success" />
-                  <span className="text-xs text-text-secondary">완료</span>
-                  <span className="text-sm font-bold text-text dark:text-white">{stats.completed}</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background-white dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
-                  <div className="size-2 rounded-full bg-primary" />
-                  <span className="text-xs text-text-secondary">진행중</span>
-                  <span className="text-sm font-bold text-text dark:text-white">{stats.inProgress}</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background-white dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
-                  <div className="size-2 rounded-full bg-gray-400" />
-                  <span className="text-xs text-text-secondary">대기</span>
-                  <span className="text-sm font-bold text-text dark:text-white">{stats.pending}</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background-white dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
-                  <div className="size-2 rounded-full bg-rose-500" />
-                  <span className="text-xs text-text-secondary">지연</span>
-                  <span className="text-sm font-bold text-rose-600 dark:text-rose-400">{stats.delayed}</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background-white dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
-                  <span className="text-xs text-text-secondary">총 항목</span>
-                  <span className="text-sm font-bold text-text dark:text-white">{stats.total}</span>
-                </div>
-              </div>
             </div>
           </div>
 
