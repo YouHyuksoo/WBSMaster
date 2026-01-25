@@ -182,9 +182,9 @@ export async function GET(request: NextRequest) {
     } else {
       // 프로젝트 진행 중
       elapsedDays = daysBetween(startDate, today);
-      remainingDays = daysBetween(today, endDate);
+      remainingDays = totalDays - elapsedDays; // 오늘 중복 방지
       elapsedWorkingDays = countWorkingDays(startDate, today, holidayDates);
-      remainingWorkingDays = countWorkingDays(today, endDate, holidayDates);
+      remainingWorkingDays = workingDays - elapsedWorkingDays; // 오늘 중복 방지
     }
 
     // 일정 진행률 (기대 진행률)

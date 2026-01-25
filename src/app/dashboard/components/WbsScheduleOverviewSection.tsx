@@ -224,7 +224,7 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
             <Icon name="event" size="xs" />
             일정 현황
           </h4>
-          <div className="grid grid-cols-5 gap-1">
+          <div className="grid grid-cols-3 gap-1">
             <StatItem
               value={schedule.totalDays}
               label="총 일수"
@@ -232,25 +232,13 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
               color="bg-slate-500"
             />
             <StatItem
-              value={schedule.weekendDays + schedule.holidayCount}
-              label="휴무일"
-              icon="event_busy"
-              color="bg-rose-500"
-            />
-            <StatItem
-              value={schedule.workingDays}
-              label="작업일"
-              icon="work"
-              color="bg-primary"
-            />
-            <StatItem
-              value={schedule.elapsedWorkingDays}
+              value={schedule.elapsedDays}
               label="경과일"
               icon="hourglass_bottom"
               color="bg-amber-500"
             />
             <StatItem
-              value={schedule.remainingWorkingDays}
+              value={schedule.remainingDays}
               label="남은일"
               icon="hourglass_top"
               color="bg-emerald-500"
