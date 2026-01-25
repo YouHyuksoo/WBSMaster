@@ -215,6 +215,7 @@ export async function GET(request: NextRequest) {
     const totalWbs = wbsItems.length;
     let completedWbs = 0;
     let inProgressWbs = 0;
+    let cancelledWbs = 0;
     let delayedWbs = 0;
     let totalProgress = 0;
 
@@ -228,10 +229,12 @@ export async function GET(request: NextRequest) {
         completedWbs++;
       } else if (item.status === "IN_PROGRESS") {
         inProgressWbs++;
+      } else if (item.status === "CANCELLED") {
+        cancelledWbs++;
       }
 
-      // 지연 체크: 종료일이 오늘보다 이전이고 완료되지 않은 경우
-      if (item.endDate && item.status !== "COMPLETED") {
+      // 지연 체크: 종료일이 오늘보다 이전이고 완료/취소 아닌 경우 (WBS 페이지와 동일)
+      if (item.endDate && item.status !== "COMPLETED" && item.status !== "CANCELLED") {
         const itemEndDate = new Date(item.endDate);
         itemEndDate.setHours(0, 0, 0, 0);
         if (itemEndDate < today) {
@@ -268,7 +271,10 @@ export async function GET(request: NextRequest) {
     // WBS 기반 진행률 계산
     const wbsProgressRate = totalWbs > 0 ? Math.round(totalProgress / totalWbs) : 0;
     const wbsCompletionRate = totalWbs > 0 ? Math.round((completedWbs / totalWbs) * 100) : 0;
-    const wbsDelayRate = totalWbs > 0 ? Math.round((delayedWbs / totalWbs) * 100) : 0;
+
+    // 지연율: 활성 항목 (완료/취소 제외) 중 지연 비율 (WBS 페이지와 동일)
+    const activeWbs = totalWbs - completedWbs - cancelledWbs;
+    const wbsDelayRate = activeWbs > 0 ? Math.round((delayedWbs / activeWbs) * 100) : 0;
 
     // 각 항목별 예상 진행률 평균 계산
     const avgExpectedProgress = expectedProgressList.length > 0
