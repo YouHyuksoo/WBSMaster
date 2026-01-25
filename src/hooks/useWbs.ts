@@ -28,7 +28,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, WbsItem, WbsLevel, WbsStats } from "@/lib/api";
+import { api, WbsItem, WbsLevel, WbsStats, WbsScheduleStats } from "@/lib/api";
 
 /** WBS Query Keys */
 export const wbsKeys = {
@@ -212,6 +212,22 @@ export function useWbsStats(params?: { projectId?: string }) {
   return useQuery({
     queryKey: wbsKeys.stats(params),
     queryFn: () => api.wbs.stats(params),
+    staleTime: 1000 * 60 * 5, // 5분간 캐시
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+}
+
+/**
+ * WBS 프로젝트 일정 통계 조회 Hook
+ * 대시보드에서 총일수, 휴무, 작업일, 진행률/지연률/달성률 표시에 사용
+ */
+export function useWbsScheduleStats(params: { projectId?: string }) {
+  return useQuery({
+    queryKey: [...wbsKeys.all, "schedule-stats", params] as const,
+    queryFn: () => api.wbs.scheduleStats({ projectId: params.projectId! }),
+    enabled: !!params.projectId,
     staleTime: 1000 * 60 * 5, // 5분간 캐시
     refetchOnWindowFocus: false,
     refetchOnMount: false,

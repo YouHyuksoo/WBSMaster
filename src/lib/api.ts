@@ -404,6 +404,39 @@ export interface WbsStats {
   projectCount: number;
 }
 
+/** WBS 일정 통계 응답 타입 */
+export interface WbsScheduleStats {
+  project: {
+    id: string;
+    name: string;
+    startDate?: string;
+    endDate?: string;
+  };
+  schedule: {
+    totalDays: number;           // 총 일수
+    weekendDays: number;         // 주말 일수
+    holidayCount: number;        // 휴일 수
+    workingDays: number;         // 작업일 수
+    elapsedDays: number;         // 경과 일수 (총)
+    remainingDays: number;       // 남은 일수 (총)
+    elapsedWorkingDays: number;  // 경과 작업일
+    remainingWorkingDays: number; // 남은 작업일
+    expectedProgress: number;    // 기대 진행률 (일정 기준)
+  } | null;
+  wbs: {
+    total: number;
+    completed: number;
+    inProgress: number;
+    delayed: number;
+    progressRate: number;         // 실제 진행률
+    completionRate: number;       // 완료율
+    delayRate: number;            // 지연율
+    expectedProgressRate: number; // 예상 진행률 (항목별 평균)
+    achievementRate: number;      // 달성율 (기대 대비 실제)
+  } | null;
+  message?: string;
+}
+
 /** 이슈 카테고리별 통계 */
 export interface IssueCategoryStat {
   category: string;
@@ -1271,6 +1304,9 @@ export const api = {
     /** WBS 단위업무 기반 담당자별 통계 조회 */
     stats: (params?: { projectId?: string }) =>
       get<WbsStats>("/api/wbs/stats", params as Record<string, string | undefined>),
+    /** WBS 프로젝트 일정 통계 조회 (총일수, 휴무, 작업일, 진행률 등) */
+    scheduleStats: (params: { projectId: string }) =>
+      get<WbsScheduleStats>("/api/wbs/schedule-stats", params),
   },
 
   /** AI 페르소나 API */

@@ -82,6 +82,7 @@ export {
   useDeleteWbsItem,
   useChangeWbsLevel,
   useWbsStats,
+  useWbsScheduleStats,
   wbsKeys,
 } from "./useWbs";
 

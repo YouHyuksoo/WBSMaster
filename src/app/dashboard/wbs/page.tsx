@@ -526,14 +526,46 @@ export default function WBSPage() {
     const activeItems = leafItems.filter((i) => i.status !== "COMPLETED" && i.status !== "CANCELLED").length;
     const delayedRate = activeItems > 0 ? Math.round((delayed / activeItems) * 100) : 0;
 
-    // 최상위 레벨의 평균 진행률
-    const level1Items = wbsTree.filter((i) => i.level === "LEVEL1");
+    // Leaf 항목들의 평균 진행률 (지연율과 동일한 기준)
     const avgProgress =
-      level1Items.length > 0
-        ? Math.round(level1Items.reduce((sum, i) => sum + i.progress, 0) / level1Items.length)
+      leafItems.length > 0
+        ? Math.round(leafItems.reduce((sum, i) => sum + i.progress, 0) / leafItems.length)
         : 0;
 
-    return { total, completed, inProgress, pending, delayed, delayedRate, progress: avgProgress };
+    // 목표달성율 계산 (예상 진행률 대비 실제 진행률)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // 각 항목별 예상 진행률 계산
+    const expectedProgressList = leafItems.map((item) => {
+      if (!item.startDate || !item.endDate) return item.progress; // 날짜 없으면 실제값 사용
+
+      const start = new Date(item.startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(item.endDate);
+      end.setHours(0, 0, 0, 0);
+
+      if (today < start) return 0; // 아직 시작 전
+      if (today >= end) return 100; // 종료 기한 지남 또는 당일
+
+      // 기간 대비 경과 비율
+      const totalDays = end.getTime() - start.getTime();
+      const elapsedDays = today.getTime() - start.getTime();
+      return totalDays > 0 ? Math.round((elapsedDays / totalDays) * 100) : 0;
+    });
+
+    const avgExpectedProgress =
+      expectedProgressList.length > 0
+        ? expectedProgressList.reduce((sum, p) => sum + p, 0) / expectedProgressList.length
+        : 0;
+
+    // 목표달성율 = 실제 진행률 / 예상 진행률 × 100 (예상이 0이면 100%)
+    const achievementRate =
+      avgExpectedProgress > 0
+        ? Math.round((avgProgress / avgExpectedProgress) * 100)
+        : avgProgress > 0 ? 100 : 0;
+
+    return { total, completed, inProgress, pending, delayed, delayedRate, progress: avgProgress, achievementRate };
   }, [wbsTree]);
 
   /** 프로젝트 일정 통계 */
@@ -1191,6 +1223,34 @@ export default function WBSPage() {
                   <div
                     className="h-full bg-rose-500 rounded-full transition-all"
                     style={{ width: `${stats.delayedRate}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* 목표달성율 바 */}
+              <div className="w-36 flex-shrink-0">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-text-secondary">목표달성율</span>
+                  <span className={`font-medium ${
+                    stats.achievementRate >= 100
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : stats.achievementRate >= 80
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-rose-600 dark:text-rose-400"
+                  }`}>
+                    {stats.achievementRate}%
+                  </span>
+                </div>
+                <div className="h-2 bg-background dark:bg-background-dark rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      stats.achievementRate >= 100
+                        ? "bg-emerald-500"
+                        : stats.achievementRate >= 80
+                          ? "bg-amber-500"
+                          : "bg-rose-500"
+                    }`}
+                    style={{ width: `${Math.min(stats.achievementRate, 100)}%` }}
                   />
                 </div>
               </div>

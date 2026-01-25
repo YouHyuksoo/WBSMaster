@@ -22,7 +22,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon, Button, Card, Input, useToast, ConfirmModal } from "@/components/ui";
-import { useProjects, useTasks, useCreateProject, useUpdateProject, useDeleteProject, useWbsStats, useIssueStats, useRequirementStats, useTodaySchedules, useIssues, useRequirements } from "@/hooks";
+import { useProjects, useTasks, useCreateProject, useUpdateProject, useDeleteProject, useWbsStats, useWbsScheduleStats, useIssueStats, useRequirementStats, useTodaySchedules, useIssues, useRequirements } from "@/hooks";
 import { useProject } from "@/contexts/ProjectContext";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Project } from "@/lib/api";
@@ -38,6 +38,7 @@ import {
   TaskStatsSection,
   IssueStatsSection,
   RequirementStatsSection,
+  WbsScheduleOverviewSection,
   type ProjectWithWbs,
   type OrgMember,
 } from "./components";
@@ -121,6 +122,9 @@ export default function DashboardPage() {
 
   /** WBS 단위업무 기반 담당자별 통계 */
   const { data: wbsStats, isLoading: wbsStatsLoading } = useWbsStats(projectFilters);
+
+  /** WBS 프로젝트 일정 통계 (총일수, 휴무, 작업일, 진행률 등) */
+  const { data: wbsScheduleStats, isLoading: wbsScheduleStatsLoading } = useWbsScheduleStats(projectFilters);
 
   /** 이슈 통계 (카테고리별, 해결/미해결) */
   const { data: issueStats, isLoading: issueStatsLoading } = useIssueStats(projectFilters);
@@ -356,6 +360,7 @@ export default function DashboardPage() {
         queryClient.invalidateQueries({ queryKey: ["projects"] }),
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
         queryClient.invalidateQueries({ queryKey: ["wbs-stats"] }),
+        queryClient.invalidateQueries({ queryKey: ["wbs", "schedule-stats"] }),
         queryClient.invalidateQueries({ queryKey: ["issue-stats"] }),
         queryClient.invalidateQueries({ queryKey: ["requirement-stats"] }),
         queryClient.invalidateQueries({ queryKey: ["today-schedules"] }),
@@ -564,7 +569,7 @@ export default function DashboardPage() {
   };
 
   /** 로딩 상태 */
-  if (projectsLoading || tasksLoading || wbsStatsLoading || issueStatsLoading || reqStatsLoading || schedulesLoading) {
+  if (projectsLoading || tasksLoading || wbsStatsLoading || wbsScheduleStatsLoading || issueStatsLoading || reqStatsLoading || schedulesLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -881,6 +886,14 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* WBS 프로젝트 일정 현황 - 프로젝트 선택 시에만 표시 */}
+      {selectedProjectId && (
+        <WbsScheduleOverviewSection
+          scheduleStats={wbsScheduleStats}
+          isLoading={wbsScheduleStatsLoading}
+        />
+      )}
 
       {/* 현황 대시보드 - 왼쪽 일정 + 오른쪽 2x2 통계 */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

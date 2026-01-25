@@ -23,3 +23,5 @@ export type { IssueStats } from "./IssueStatsSection";
 
 export { default as RequirementStatsSection } from "./RequirementStatsSection";
 export type { ReqStats } from "./RequirementStatsSection";
+
+export { default as WbsScheduleOverviewSection } from "./WbsScheduleOverviewSection";
