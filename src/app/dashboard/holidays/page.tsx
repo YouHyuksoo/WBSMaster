@@ -113,19 +113,45 @@ export default function HolidaysPage() {
   const goToToday = () => setCurrentDate(new Date());
 
   // === 일정 필터링 함수 ===
+  /**
+   * 해당 날짜에 표시할 일정 목록 반환
+   * 시작일~종료일 사이의 모든 날짜에 일정이 표시됨
+   */
   const getHolidaysForDate = (day: number) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const targetDate = new Date(year, month, day);
+    targetDate.setHours(0, 0, 0, 0);
+
     return holidays.filter((h) => {
       if (selectedType !== "all" && h.type !== selectedType) return false;
-      return h.date.split("T")[0] === dateStr;
+
+      const startDate = new Date(h.date);
+      startDate.setHours(0, 0, 0, 0);
+
+      // endDate가 없으면 시작일과 동일
+      const endDate = h.endDate ? new Date(h.endDate) : new Date(h.date);
+      endDate.setHours(0, 0, 0, 0);
+
+      // 해당 날짜가 시작일~종료일 범위 안에 있는지 확인
+      return targetDate >= startDate && targetDate <= endDate;
     });
   };
 
   const getHolidaysForDateObj = (date: Date) => {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+
     return holidays.filter((h) => {
       if (selectedType !== "all" && h.type !== selectedType) return false;
-      return h.date.split("T")[0] === dateStr;
+
+      const startDate = new Date(h.date);
+      startDate.setHours(0, 0, 0, 0);
+
+      // endDate가 없으면 시작일과 동일
+      const endDate = h.endDate ? new Date(h.endDate) : new Date(h.date);
+      endDate.setHours(0, 0, 0, 0);
+
+      // 해당 날짜가 시작일~종료일 범위 안에 있는지 확인
+      return targetDate >= startDate && targetDate <= endDate;
     });
   };
 
