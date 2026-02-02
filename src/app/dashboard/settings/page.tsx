@@ -26,13 +26,16 @@ import { api, AiPersona } from "@/lib/api";
  * AI 설정 타입
  */
 interface AiSettings {
-  provider: "gemini" | "mistral";
+  provider: "gemini" | "mistral" | "kimi";
   geminiApiKey: string | null;
   geminiModel: string;
   mistralApiKey: string | null;
   mistralModel: string;
+  kimiApiKey: string | null;
+  kimiModel: string;
   hasGeminiKey: boolean;
   hasMistralKey: boolean;
+  hasKimiKey: boolean;
   sqlSystemPrompt: string;
   analysisSystemPrompt: string;
 }
@@ -53,6 +56,18 @@ const MISTRAL_MODELS = [
   { value: "mistral-small-latest", label: "Mistral Small (빠름)" },
   { value: "mistral-medium-latest", label: "Mistral Medium (균형)" },
   { value: "mistral-large-latest", label: "Mistral Large (고품질)" },
+];
+
+/**
+ * Kimi 모델 목록 (Moonshot AI)
+ */
+const KIMI_MODELS = [
+  { value: "kimi-k2.5", label: "Kimi K2.5 (최신, 추론/이미지/비디오)" },
+  { value: "kimi-k2-thinking", label: "Kimi K2 Thinking (추론 모드)" },
+  { value: "kimi-latest", label: "Kimi Latest (이미지 지원)" },
+  { value: "moonshot-v1-8k", label: "Moonshot V1 8K (빠름)" },
+  { value: "moonshot-v1-32k", label: "Moonshot V1 32K (중간)" },
+  { value: "moonshot-v1-128k", label: "Moonshot V1 128K (긴 컨텍스트)" },
 ];
 
 /**
@@ -84,8 +99,11 @@ export default function SettingsPage() {
     geminiModel: "gemini-1.5-flash",
     mistralApiKey: null,
     mistralModel: "mistral-small-latest",
+    kimiApiKey: null,
+    kimiModel: "moonshot-v1-8k",
     hasGeminiKey: false,
     hasMistralKey: false,
+    hasKimiKey: false,
     sqlSystemPrompt: "",
     analysisSystemPrompt: "",
   });
@@ -96,6 +114,7 @@ export default function SettingsPage() {
   // API 키 입력 상태 (새로 입력하는 경우)
   const [newGeminiKey, setNewGeminiKey] = useState("");
   const [newMistralKey, setNewMistralKey] = useState("");
+  const [newKimiKey, setNewKimiKey] = useState("");
 
   // 로딩 상태
   const [isLoadingAi, setIsLoadingAi] = useState(true);
@@ -105,6 +124,7 @@ export default function SettingsPage() {
   // API 키 표시 상태
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showMistralKey, setShowMistralKey] = useState(false);
+  const [showKimiKey, setShowKimiKey] = useState(false);
 
   // 페르소나 상태
   const [personas, setPersonas] = useState<AiPersona[]>([]);
@@ -267,6 +287,7 @@ export default function SettingsPage() {
         provider: aiSettings.provider,
         geminiModel: aiSettings.geminiModel,
         mistralModel: aiSettings.mistralModel,
+        kimiModel: aiSettings.kimiModel,
         sqlSystemPrompt: aiSettings.sqlSystemPrompt,
         analysisSystemPrompt: aiSettings.analysisSystemPrompt,
       };
@@ -277,6 +298,9 @@ export default function SettingsPage() {
       }
       if (newMistralKey) {
         payload.mistralApiKey = newMistralKey;
+      }
+      if (newKimiKey) {
+        payload.kimiApiKey = newKimiKey;
       }
 
       const res = await fetch("/api/ai-settings", {
@@ -290,6 +314,7 @@ export default function SettingsPage() {
         setAiSettings(data);
         setNewGeminiKey("");
         setNewMistralKey("");
+        setNewKimiKey("");
         toast.success("AI 설정이 저장되었습니다.");
       } else {
         const error = await res.json();
@@ -420,6 +445,32 @@ export default function SettingsPage() {
                       </div>
                     )}
                   </button>
+
+                  {/* Kimi 버튼 */}
+                  <button
+                    onClick={() => setAiSettings((prev) => ({ ...prev, provider: "kimi" }))}
+                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                      aiSettings.provider === "kimi"
+                        ? "border-cyan-500 bg-cyan-500/10"
+                        : "border-border dark:border-border-dark hover:border-cyan-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">K</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-text dark:text-white">Kimi AI</p>
+                        <p className="text-xs text-text-secondary">Moonshot Platform</p>
+                      </div>
+                    </div>
+                    {aiSettings.hasKimiKey && (
+                      <div className="mt-2 flex items-center gap-1 text-xs text-success">
+                        <Icon name="check_circle" size="xs" />
+                        <span>API 키 등록됨</span>
+                      </div>
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -531,6 +582,60 @@ export default function SettingsPage() {
                 </div>
               )}
 
+              {/* Kimi 설정 */}
+              {aiSettings.provider === "kimi" && (
+                <div className="space-y-4 p-4 rounded-lg bg-cyan-50 dark:bg-cyan-950/30">
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                      Kimi API 키
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type={showKimiKey ? "text" : "password"}
+                        placeholder={aiSettings.hasKimiKey ? "••••••••••••" : "API 키를 입력하세요"}
+                        value={newKimiKey}
+                        onChange={(e) => setNewKimiKey(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKimiKey(!showKimiKey)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text"
+                      >
+                        <Icon name={showKimiKey ? "visibility_off" : "visibility"} size="sm" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-text-secondary mt-1">
+                      <a
+                        href="https://platform.moonshot.cn/console/api-keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-500 hover:underline"
+                      >
+                        Moonshot Platform
+                      </a>
+                      에서 API 키를 발급받으세요
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
+                      모델 선택
+                    </label>
+                    <select
+                      value={aiSettings.kimiModel}
+                      onChange={(e) => setAiSettings((prev) => ({ ...prev, kimiModel: e.target.value }))}
+                      className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white"
+                    >
+                      {KIMI_MODELS.map((model) => (
+                        <option key={model.value} value={model.value}>
+                          {model.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               {/* 시스템 프롬프트 설정 */}
               <div className="border-t border-border dark:border-border-dark pt-6">
                 <div className="flex items-center justify-between mb-4">
@@ -598,7 +703,7 @@ export default function SettingsPage() {
                 <Button
                   variant="ghost"
                   onClick={handleTestConnection}
-                  disabled={isTestingConnection || (!aiSettings.hasGeminiKey && !newGeminiKey && !aiSettings.hasMistralKey && !newMistralKey)}
+                  disabled={isTestingConnection || (!aiSettings.hasGeminiKey && !newGeminiKey && !aiSettings.hasMistralKey && !newMistralKey && !aiSettings.hasKimiKey && !newKimiKey)}
                   leftIcon={isTestingConnection ? "progress_activity" : "network_check"}
                 >
                   연결 테스트

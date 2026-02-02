@@ -85,7 +85,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-slate-900/90 border border-[#00f3ff]/50 p-4 rounded-lg shadow-[0_0_15px_rgba(0,243,255,0.3)] backdrop-blur-md">
+      <div className="bg-white/95 dark:bg-slate-900/90 border border-purple-500/50 dark:border-[#00f3ff]/50 p-4 rounded-lg shadow-lg dark:shadow-[0_0_15px_rgba(0,243,255,0.3)] backdrop-blur-md">
         <div className="flex items-center gap-2 mb-2">
           <span
             className="w-3 h-3 rounded-full"
@@ -94,17 +94,17 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
               boxShadow: `0 0 8px ${data.color}`,
             }}
           />
-          <span className="text-sm font-bold text-white">{data.name}</span>
+          <span className="text-sm font-bold text-text dark:text-white">{data.name}</span>
         </div>
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-slate-400">작업 건수:</span>
+            <span className="text-xs text-text-secondary dark:text-slate-400">작업 건수:</span>
             <span className="text-sm font-bold" style={{ color: data.color }}>
               {data.value}건
             </span>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-slate-400">비율:</span>
+            <span className="text-xs text-text-secondary dark:text-slate-400">비율:</span>
             <span className="text-sm font-bold" style={{ color: data.color }}>
               {data.percentage.toFixed(1)}%
             </span>
@@ -283,15 +283,15 @@ export function AssigneeTaskChart({ projectId }: AssigneeTaskChartProps) {
 
   if (isLoading) {
     return (
-      <div className="h-[400px] w-full flex items-center justify-center bg-slate-900 rounded-xl border border-slate-800">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00f3ff]" />
+      <div className="h-[400px] w-full flex items-center justify-center bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary dark:border-[#00f3ff]" />
       </div>
     );
   }
 
   if (!projectId) {
     return (
-      <div className="h-[400px] w-full flex flex-col items-center justify-center bg-slate-900 rounded-xl border border-slate-800 gap-4 text-slate-400">
+      <div className="h-[400px] w-full flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 gap-4 text-text-secondary dark:text-slate-400">
         <Icon name="group" size="xl" />
         <p>프로젝트를 선택하면 담당자별 차트가 표시됩니다.</p>
       </div>
@@ -299,7 +299,7 @@ export function AssigneeTaskChart({ projectId }: AssigneeTaskChartProps) {
   }
 
   return (
-    <div className="relative w-full bg-[#0a0a12] rounded-xl border border-[#1e1e3f] overflow-hidden shadow-2xl group">
+    <div className="relative w-full bg-white dark:bg-[#0a0a12] rounded-xl border border-border dark:border-[#1e1e3f] overflow-hidden shadow-2xl group">
       {/* 사이버펑크 배경 효과 */}
       <div className="absolute inset-0 bg-[url('https://api.placeholder.com/cyberpunk-grid.png')] opacity-10 pointer-events-none" />
       <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-[#fa00ff] to-transparent opacity-50" />
@@ -308,16 +308,16 @@ export function AssigneeTaskChart({ projectId }: AssigneeTaskChartProps) {
       {/* 헤더 */}
       <div className="relative z-10 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Icon name="group" className="text-[#fa00ff]" />
-            <span className="tracking-wider bg-clip-text text-transparent bg-linear-to-r from-[#fa00ff] to-[#00f3ff]">
+          <h2 className="text-xl font-bold text-text dark:text-white flex items-center gap-2">
+            <Icon name="group" className="text-purple-500 dark:text-[#fa00ff]" />
+            <span className="tracking-wider bg-clip-text text-transparent bg-linear-to-r from-purple-500 to-primary dark:from-[#fa00ff] dark:to-[#00f3ff]">
               ASSIGNEE DISTRIBUTION
             </span>
-            <span className="text-slate-400 text-sm font-normal ml-1">
+            <span className="text-text-secondary dark:text-slate-400 text-sm font-normal ml-1">
               / 담당자별 작업분포
             </span>
           </h2>
-          <p className="text-slate-400 text-xs mt-1 font-mono tracking-wide">
+          <p className="text-text-secondary dark:text-slate-400 text-xs mt-1 font-mono tracking-wide">
             TOTAL {totalTasks} TASKS // {chartData.length} MEMBERS
           </p>
         </div>
@@ -367,14 +367,14 @@ export function AssigneeTaskChart({ projectId }: AssigneeTaskChartProps) {
 
             {/* 범례 */}
             <div className="w-48 pr-6 py-4 flex flex-col justify-center">
-              <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
                 {chartData.map((entry, index) => (
                   <div
                     key={index}
                     className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all cursor-pointer ${
                       activeIndex === index
-                        ? "bg-white/10"
-                        : "hover:bg-white/5"
+                        ? "bg-slate-200 dark:bg-white/10"
+                        : "hover:bg-slate-100 dark:hover:bg-white/5"
                     }`}
                     onMouseEnter={() => setActiveIndex(index)}
                     onMouseLeave={() => setActiveIndex(undefined)}
@@ -386,7 +386,7 @@ export function AssigneeTaskChart({ projectId }: AssigneeTaskChartProps) {
                         boxShadow: `0 0 6px ${entry.color}`,
                       }}
                     />
-                    <span className="text-xs text-slate-300 truncate flex-1">
+                    <span className="text-xs text-text-secondary dark:text-slate-300 truncate flex-1">
                       {entry.name}
                     </span>
                     <span
@@ -401,9 +401,9 @@ export function AssigneeTaskChart({ projectId }: AssigneeTaskChartProps) {
             </div>
           </>
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 font-mono">
+          <div className="w-full h-full flex flex-col items-center justify-center text-text-secondary dark:text-slate-500 font-mono">
             <span className="text-4xl mb-2 opacity-20">NO DATA</span>
-            <p className="text-xs tracking-widest text-[#00f3ff]/50">
+            <p className="text-xs tracking-widest text-purple-500/50 dark:text-[#00f3ff]/50">
               ASSIGN TASKS TO TEAM MEMBERS
             </p>
           </div>

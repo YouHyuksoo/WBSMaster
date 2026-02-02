@@ -74,20 +74,20 @@ interface CustomTooltipProps {
 }
 
 /**
- * 커스텀 툴팁 컴포넌트 - 사이버펑크 스타일
+ * 커스텀 툴팁 컴포넌트 - 라이트/다크 모드 지원
  */
 const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0];
     return (
-      <div className="bg-slate-900/90 border border-[#00f3ff]/50 p-4 rounded-lg shadow-[0_0_15px_rgba(0,243,255,0.3)] text-[#00f3ff] backdrop-blur-md">
-        <p className="text-sm font-bold mb-2 text-white">
+      <div className="bg-white/95 dark:bg-slate-900/90 border border-primary/50 dark:border-[#00f3ff]/50 p-4 rounded-lg shadow-lg dark:shadow-[0_0_15px_rgba(0,243,255,0.3)] text-primary dark:text-[#00f3ff] backdrop-blur-md">
+        <p className="text-sm font-bold mb-2 text-text dark:text-white">
           {label || data.payload.name}
         </p>
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#fa00ff] shadow-[0_0_8px_#fa00ff]" />
-          <span className="text-sm font-medium text-slate-300">값:</span>
-          <span className="text-lg font-bold text-[#fa00ff]">
+          <span className="w-2 h-2 rounded-full bg-purple-500 dark:bg-[#fa00ff] shadow-[0_0_8px_rgba(168,85,247,0.5)] dark:shadow-[0_0_8px_#fa00ff]" />
+          <span className="text-sm font-medium text-text-secondary dark:text-slate-300">값:</span>
+          <span className="text-lg font-bold text-purple-500 dark:text-[#fa00ff]">
             {data.value}
           </span>
         </div>
@@ -98,7 +98,7 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
 };
 
 /**
- * 파이 차트용 커스텀 툴팁
+ * 파이 차트용 커스텀 툴팁 - 라이트/다크 모드 지원
  */
 const PieTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
@@ -107,16 +107,16 @@ const PieTooltip = ({ active, payload }: CustomTooltipProps) => {
     const percentage = total > 0 ? ((Number(data.value) / total) * 100).toFixed(1) : 0;
 
     return (
-      <div className="bg-slate-900/90 border border-[#fa00ff]/50 p-4 rounded-lg shadow-[0_0_15px_rgba(250,0,255,0.3)] backdrop-blur-md">
-        <p className="text-sm font-bold mb-2 text-white">{data.name}</p>
+      <div className="bg-white/95 dark:bg-slate-900/90 border border-purple-500/50 dark:border-[#fa00ff]/50 p-4 rounded-lg shadow-lg dark:shadow-[0_0_15px_rgba(250,0,255,0.3)] backdrop-blur-md">
+        <p className="text-sm font-bold mb-2 text-text dark:text-white">{data.name}</p>
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-slate-400">값:</span>
-            <span className="text-sm font-bold text-[#00f3ff]">{data.value}</span>
+            <span className="text-xs text-text-secondary dark:text-slate-400">값:</span>
+            <span className="text-sm font-bold text-primary dark:text-[#00f3ff]">{data.value}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-slate-400">비율:</span>
-            <span className="text-sm font-bold text-[#fa00ff]">{percentage}%</span>
+            <span className="text-xs text-text-secondary dark:text-slate-400">비율:</span>
+            <span className="text-sm font-bold text-purple-500 dark:text-[#fa00ff]">{percentage}%</span>
           </div>
         </div>
       </div>
@@ -126,7 +126,7 @@ const PieTooltip = ({ active, payload }: CustomTooltipProps) => {
 };
 
 /**
- * 커스텀 범례 렌더링 함수 - 사이버펑크 스타일
+ * 커스텀 범례 렌더링 함수 - 라이트/다크 모드 지원
  */
 const renderLegend = (props: { payload?: Array<{ value: string; color: string }> }) => {
   const { payload } = props;
@@ -143,7 +143,7 @@ const renderLegend = (props: { payload?: Array<{ value: string; color: string }>
               boxShadow: `0 0 6px ${entry.color || CYBER_COLORS[index % CYBER_COLORS.length]}`,
             }}
           />
-          <span className="text-xs text-slate-300">{entry.value}</span>
+          <span className="text-xs text-text-secondary dark:text-slate-300">{entry.value}</span>
         </div>
       ))}
     </div>
@@ -243,7 +243,7 @@ const ChartRenderer = memo(function ChartRenderer({
                             boxShadow: `0 0 6px ${CYBER_COLORS[index % CYBER_COLORS.length]}`,
                           }}
                         />
-                        <span className="text-xs text-slate-300">{item.name}</span>
+                        <span className="text-xs text-text-secondary dark:text-slate-300">{item.name}</span>
                         <span className="text-xs font-bold" style={{ color: CYBER_COLORS[index % CYBER_COLORS.length] }}>
                           ({item.value})
                         </span>
@@ -306,7 +306,7 @@ const ChartRenderer = memo(function ChartRenderer({
                             boxShadow: `0 0 6px ${CYBER_COLORS[index % CYBER_COLORS.length]}`,
                           }}
                         />
-                        <span className="text-xs text-slate-300">{item.name}</span>
+                        <span className="text-xs text-text-secondary dark:text-slate-300">{item.name}</span>
                         <span className="text-xs font-bold" style={{ color: CYBER_COLORS[index % CYBER_COLORS.length] }}>
                           ({item.value})
                         </span>
@@ -382,7 +382,7 @@ const ChartRenderer = memo(function ChartRenderer({
                             boxShadow: `0 0 6px ${CYBER_COLORS[index % CYBER_COLORS.length]}`,
                           }}
                         />
-                        <span className="text-xs text-slate-300">{item.name}</span>
+                        <span className="text-xs text-text-secondary dark:text-slate-300">{item.name}</span>
                         <span className="text-xs font-bold" style={{ color: CYBER_COLORS[index % CYBER_COLORS.length] }}>
                           ({item.value})
                         </span>
@@ -391,14 +391,14 @@ const ChartRenderer = memo(function ChartRenderer({
                   </div>
                 )}
               />
-              {/* 중앙 총계 표시 */}
+              {/* 중앙 총계 표시 - 라이트/다크 모드 지원 */}
               <text
                 x="50%"
                 y="36%"
                 textAnchor="middle"
                 dominantBaseline="middle"
-                className="text-2xl font-bold"
-                fill="#fff"
+                className="text-2xl font-bold text-text dark:text-white"
+                style={{ fill: "currentColor" }}
               >
                 {total}
               </text>
@@ -407,8 +407,8 @@ const ChartRenderer = memo(function ChartRenderer({
                 y="44%"
                 textAnchor="middle"
                 dominantBaseline="middle"
-                className="text-xs"
-                fill="#94a3b8"
+                className="text-xs text-text-secondary dark:text-slate-400"
+                style={{ fill: "currentColor" }}
               >
                 총계
               </text>
@@ -455,7 +455,7 @@ const ChartRenderer = memo(function ChartRenderer({
                             boxShadow: `0 0 6px ${CYBER_COLORS[index % CYBER_COLORS.length]}`,
                           }}
                         />
-                        <span className="text-xs text-slate-300">{item.name}</span>
+                        <span className="text-xs text-text-secondary dark:text-slate-300">{item.name}</span>
                         <span className="text-xs font-bold" style={{ color: CYBER_COLORS[index % CYBER_COLORS.length] }}>
                           ({item.value})
                         </span>
@@ -485,10 +485,10 @@ const ChartRenderer = memo(function ChartRenderer({
   };
 
   return (
-    <div className="relative w-full bg-[#0a0a12] rounded-xl border border-[#1e1e3f] overflow-hidden shadow-2xl p-4">
-      {/* 사이버펑크 배경 효과 */}
-      <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-[#00f3ff] to-transparent opacity-50" />
-      <div className="absolute bottom-0 inset-x-0 h-px bg-linear-to-r from-transparent via-[#fa00ff] to-transparent opacity-50" />
+    <div className="relative w-full bg-white dark:bg-[#0a0a12] rounded-xl border border-border dark:border-[#1e1e3f] overflow-hidden shadow-2xl p-4">
+      {/* 배경 효과 - 라이트/다크 모드 지원 */}
+      <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-primary dark:via-[#00f3ff] to-transparent opacity-50" />
+      <div className="absolute bottom-0 inset-x-0 h-px bg-linear-to-r from-transparent via-purple-500 dark:via-[#fa00ff] to-transparent opacity-50" />
 
       {/* 차트 영역 */}
       <div className="relative z-10">{renderChart()}</div>

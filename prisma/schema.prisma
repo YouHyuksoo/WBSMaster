@@ -529,11 +529,13 @@ model AiSetting {
   userId        String   @unique
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  provider      String   @default("gemini")  // "gemini" | "mistral"
+  provider      String   @default("gemini")  // "gemini" | "mistral" | "kimi"
   geminiApiKey  String?  // Google AI Studio API 키
   geminiModel   String   @default("gemini-1.5-flash")
   mistralApiKey String?  // Mistral API 키
   mistralModel  String   @default("mistral-small-latest")
+  kimiApiKey    String?  // Kimi (Moonshot) API 키
+  kimiModel     String   @default("moonshot-v1-8k")
 
   // 현재 선택된 페르소나
   activePersonaId String?

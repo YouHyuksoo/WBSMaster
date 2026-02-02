@@ -766,11 +766,13 @@ export const DATABASE_SCHEMA = {
     description: "AI 설정 테이블 - 사용자별 AI API 키 및 모델 설정",
     columns: {
       id: { type: "uuid", description: "설정 고유 ID (Primary Key)" },
-      provider: { type: "string", description: "현재 선택된 제공자 (gemini/mistral)" },
+      provider: { type: "string", description: "현재 선택된 제공자 (gemini/mistral/kimi)" },
       geminiApiKey: { type: "string?", description: "Gemini API 키 (암호화)" },
       geminiModel: { type: "string", description: "Gemini 모델명" },
       mistralApiKey: { type: "string?", description: "Mistral API 키 (암호화)" },
       mistralModel: { type: "string", description: "Mistral 모델명" },
+      kimiApiKey: { type: "string?", description: "Kimi (Moonshot) API 키 (암호화)" },
+      kimiModel: { type: "string", description: "Kimi 모델명 (moonshot-v1-8k 등)" },
       sqlSystemPrompt: { type: "string?", description: "SQL 생성 시스템 프롬프트 (커스텀)" },
       analysisSystemPrompt: { type: "string?", description: "분석 시스템 프롬프트 (커스텀)" },
       userId: { type: "uuid", description: "사용자 ID (FK -> users.id, Unique)" },
@@ -1376,7 +1378,14 @@ export function getProjectFilterInfo(projectId?: string): string {
   if (!projectId) {
     return "\n\n**주의**: 현재 선택된 프로젝트가 없습니다. 전체 데이터를 조회합니다.";
   }
-  return `\n\n**현재 프로젝트 ID**: \`${projectId}\`\n프로젝트 관련 테이블 조회 시 \`"projectId" = '${projectId}'\` 조건을 사용하세요.`;
+  return `\n\n**현재 프로젝트 ID**: \`${projectId}\`
+프로젝트 관련 테이블 조회 시 \`"projectId" = '${projectId}'\` 조건을 사용하세요.
+
+**⚠️ projectId가 없는 테이블 (조건 추가 금지!)**:
+- ai_settings (userId만 있음)
+- users
+- notifications
+- ai_personas`;
 }
 
 // ============================================

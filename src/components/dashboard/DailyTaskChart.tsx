@@ -82,12 +82,12 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-slate-900/90 border border-[#00f3ff]/50 p-4 rounded-lg shadow-[0_0_15px_rgba(0,243,255,0.3)] text-[#00f3ff] backdrop-blur-md">
-        <p className="text-sm font-bold mb-2 text-white">{data.fullDate}</p>
+      <div className="bg-white/95 dark:bg-slate-900/90 border border-primary/50 dark:border-[#00f3ff]/50 p-4 rounded-lg shadow-lg dark:shadow-[0_0_15px_rgba(0,243,255,0.3)] text-primary dark:text-[#00f3ff] backdrop-blur-md">
+        <p className="text-sm font-bold mb-2 text-text dark:text-white">{data.fullDate}</p>
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#fa00ff] shadow-[0_0_8px_#fa00ff]" />
-          <span className="text-sm font-medium text-slate-300">진행 작업:</span>
-          <span className="text-lg font-bold text-[#fa00ff]">
+          <span className="w-2 h-2 rounded-full bg-purple-500 dark:bg-[#fa00ff] shadow-[0_0_8px_rgba(168,85,247,0.5)] dark:shadow-[0_0_8px_#fa00ff]" />
+          <span className="text-sm font-medium text-text-secondary dark:text-slate-300">진행 작업:</span>
+          <span className="text-lg font-bold text-purple-500 dark:text-[#fa00ff]">
             {data.count}건
           </span>
         </div>
@@ -191,7 +191,7 @@ export function DailyTaskChart({ projectId }: DailyTaskChartProps) {
 
   if (isLoading) {
     return (
-      <div className="h-[400px] w-full flex items-center justify-center bg-slate-900 rounded-xl border border-slate-800">
+      <div className="h-[400px] w-full flex items-center justify-center bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00f3ff]" />
       </div>
     );
@@ -199,7 +199,7 @@ export function DailyTaskChart({ projectId }: DailyTaskChartProps) {
 
   if (!projectId) {
     return (
-      <div className="h-[400px] w-full flex flex-col items-center justify-center bg-slate-900 rounded-xl border border-slate-800 gap-4 text-slate-400">
+      <div className="h-[400px] w-full flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-xl border border-border dark:border-slate-800 gap-4 text-text-secondary dark:text-slate-400">
         <Icon name="insert_chart" size="xl" />
         <p>프로젝트를 선택하면 작업 차트가 표시됩니다.</p>
       </div>
@@ -207,7 +207,7 @@ export function DailyTaskChart({ projectId }: DailyTaskChartProps) {
   }
 
   return (
-    <div className="relative w-full bg-[#0a0a12] rounded-xl border border-[#1e1e3f] overflow-hidden shadow-2xl group">
+    <div className="relative w-full bg-white dark:bg-[#0a0a12] rounded-xl border border-border dark:border-[#1e1e3f] overflow-hidden shadow-2xl group">
       {/* 사이버펑크 배경 효과 */}
       <div className="absolute inset-0 bg-[url('https://api.placeholder.com/cyberpunk-grid.png')] opacity-10 pointer-events-none" />
       <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-[#00f3ff] to-transparent opacity-50" />
@@ -216,22 +216,22 @@ export function DailyTaskChart({ projectId }: DailyTaskChartProps) {
       {/* 헤더 & 필터 */}
       <div className="relative z-10 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Icon name="ssid_chart" className="text-[#00f3ff]" />
-            <span className="tracking-wider bg-clip-text text-transparent bg-linear-to-r from-[#00f3ff] to-[#fa00ff]">
+          <h2 className="text-xl font-bold text-text dark:text-white flex items-center gap-2">
+            <Icon name="ssid_chart" className="text-primary dark:text-[#00f3ff]" />
+            <span className="tracking-wider bg-clip-text text-transparent bg-linear-to-r from-primary to-purple-500 dark:from-[#00f3ff] dark:to-[#fa00ff]">
               PROJECT WORKLOAD
             </span>
-            <span className="text-slate-400 text-sm font-normal ml-1">
+            <span className="text-text-secondary dark:text-slate-400 text-sm font-normal ml-1">
               / 일자별 할당건수
             </span>
           </h2>
-          <p className="text-slate-400 text-xs mt-1 font-mono tracking-wide">
+          <p className="text-text-secondary dark:text-slate-400 text-xs mt-1 font-mono tracking-wide">
             DAILY TASK DISTRIBUTION // PROJECT ID: {projectId.slice(0, 8)}...
           </p>
         </div>
 
         {/* 네온 스타일 필터 버튼 */}
-        <div className="flex items-center p-1 bg-[#1a1a2e] rounded-lg border border-[#2d2d44]">
+        <div className="flex items-center p-1 bg-slate-100 dark:bg-[#1a1a2e] rounded-lg border border-slate-200 dark:border-[#2d2d44]">
           {[
             { key: "7D", label: "7 DAYS" },
             { key: "30D", label: "30 DAYS" },
@@ -244,8 +244,8 @@ export function DailyTaskChart({ projectId }: DailyTaskChartProps) {
                 px-4 py-1.5 text-xs font-bold font-mono transition-all duration-300 rounded-md
                 ${
                   filter === item.key
-                    ? "bg-[#00f3ff]/20 text-[#00f3ff] shadow-[0_0_10px_rgba(0,243,255,0.3)]"
-                    : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
+                    ? "bg-primary/20 text-primary dark:bg-[#00f3ff]/20 dark:text-[#00f3ff] shadow-[0_0_10px_rgba(0,243,255,0.3)]"
+                    : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/5"
                 }
               `}
             >
@@ -320,9 +320,9 @@ export function DailyTaskChart({ projectId }: DailyTaskChartProps) {
             </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 font-mono">
+          <div className="w-full h-full flex flex-col items-center justify-center text-text-secondary dark:text-slate-500 font-mono">
             <span className="text-4xl mb-2 opacity-20">NO DATA</span>
-            <p className="text-xs tracking-widest text-[#fa00ff]/50">
+            <p className="text-xs tracking-widest text-primary/50 dark:text-[#fa00ff]/50">
               ASSIGN TASKS TO VISUALIZE WORKLOAD
             </p>
           </div>

@@ -2,13 +2,18 @@
  * @file src/lib/llm/index.ts
  * @description
  * LLM (Large Language Model) 클라이언트 통합 모듈입니다.
- * Google Gemini와 Mistral AI를 모두 지원합니다.
+ * Google Gemini, Mistral AI, Kimi AI (Moonshot)를 모두 지원합니다.
  *
  * 초보자 가이드:
- * 1. **LLMClient**: LLM 추상화 클래스 (Gemini/Mistral 공통 인터페이스)
+ * 1. **LLMClient**: LLM 추상화 클래스 (Gemini/Mistral/Kimi 공통 인터페이스)
  * 2. **createLLMClient()**: 설정에 따라 적절한 LLM 클라이언트 생성
  * 3. **generateSQL()**: 사용자 질문을 SQL로 변환
  * 4. **analyzeResults()**: SQL 실행 결과를 분석하여 응답 생성
+ *
+ * 지원 LLM:
+ * - Google Gemini: @google/generative-ai SDK 사용
+ * - Mistral AI: @mistralai/mistralai SDK 사용
+ * - Kimi AI (Moonshot): OpenAI 호환 API 직접 호출 (https://api.moonshot.ai/v1)
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -57,7 +62,7 @@ export interface LLMResponse {
  * LLM 설정 타입
  */
 export interface LLMConfig {
-  provider: "gemini" | "mistral";
+  provider: "gemini" | "mistral" | "kimi";
   apiKey: string;
   model: string;
 }
@@ -265,6 +270,53 @@ class MistralClient extends LLMClient {
 }
 
 /**
+ * Kimi AI 클라이언트 (Moonshot AI)
+ * OpenAI 호환 API 사용
+ */
+class KimiClient extends LLMClient {
+  private baseUrl = "https://api.moonshot.ai/v1";
+
+  constructor(config: LLMConfig) {
+    super(config);
+  }
+
+  async generate(prompt: string, systemPrompt?: string): Promise<string> {
+    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [];
+
+    if (systemPrompt) {
+      messages.push({ role: "system", content: systemPrompt });
+    }
+    messages.push({ role: "user", content: prompt });
+
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.config.model,
+        messages,
+        max_tokens: 4096,  // 응답 잘림 방지
+        temperature: 0.3,  // SQL 생성 시 일관성 향상
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Kimi API 오류 (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (typeof content === "string") {
+      return content;
+    }
+    return "";
+  }
+}
+
+/**
  * LLM 클라이언트 팩토리 함수
  * @param config LLM 설정
  * @returns LLM 클라이언트 인스턴스
@@ -275,6 +327,8 @@ export function createLLMClient(config: LLMConfig): LLMClient {
       return new GeminiClient(config);
     case "mistral":
       return new MistralClient(config);
+    case "kimi":
+      return new KimiClient(config);
     default:
       throw new Error(`지원하지 않는 LLM 제공자: ${config.provider}`);
   }
@@ -331,7 +385,7 @@ ${userMessage}
 
   try {
     const response = await client.generate(prompt, TABLE_SELECTION_SYSTEM_PROMPT);
-    console.log("[selectRelevantTables] LLM 응답:", response.slice(0, 200));
+    console.log("[selectRelevantTables] LLM 응답:", response.slice(0, 500));
 
     // JSON 배열 파싱
     const trimmed = response.trim();
@@ -439,7 +493,7 @@ ${userMessage}
   const response = await client.generate(prompt, systemPrompt);
   const trimmed = response.trim();
 
-  console.log("[generateSQL] LLM 응답:", trimmed.slice(0, 200));
+  console.log("[generateSQL] LLM 응답:", trimmed.slice(0, 500));
 
   if (trimmed === "NO_SQL" || trimmed.toLowerCase().includes("no_sql")) {
     console.log("[generateSQL] NO_SQL 반환됨");
@@ -911,8 +965,11 @@ function generateCountQuery(sql: string): string | null {
     return null;
   }
 
+  // 세미콜론 제거 (서브쿼리 안에 세미콜론 있으면 syntax error)
+  let countSql = sql.replace(/;+\s*$/g, "").trim();
+
   // LIMIT/OFFSET 제거
-  let countSql = sql
+  countSql = countSql
     .replace(/\s+LIMIT\s+\d+/gi, "")
     .replace(/\s+OFFSET\s+\d+/gi, "");
 
@@ -966,7 +1023,7 @@ export async function processChatMessage(
     promptConfig?.sqlSystemPrompt,
     selectedTables  // 🚀 동적 스키마 사용!
   );
-  console.log("[processChatMessage] [2단계] 생성된 SQL:", sql?.slice(0, 100) || "NULL");
+  console.log("[processChatMessage] [2단계] 생성된 SQL:", sql?.slice(0, 300) || "NULL");
 
   // 2. SQL 검증 및 실행
   let results: unknown[] | null = null;

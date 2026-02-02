@@ -60,6 +60,7 @@ export default function ChatPage() {
     provider: string;
     geminiModel: string;
     mistralModel: string;
+    kimiModel: string;
   } | null>(null);
 
   // 동적 제안 질문 상태
@@ -213,6 +214,7 @@ export default function ChatPage() {
           provider: data.provider,
           geminiModel: data.geminiModel,
           mistralModel: data.mistralModel,
+          kimiModel: data.kimiModel,
         });
       }
     } catch (error) {
@@ -659,10 +661,14 @@ export default function ChatPage() {
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                   aiSettings.provider === "gemini"
                     ? "bg-blue-500/20 text-blue-500"
+                    : aiSettings.provider === "kimi"
+                    ? "bg-cyan-500/20 text-cyan-500"
                     : "bg-orange-500/20 text-orange-500"
                 }`}>
                   {aiSettings.provider === "gemini"
                     ? `Gemini ${aiSettings.geminiModel.replace("gemini-", "").replace("-latest", "")}`
+                    : aiSettings.provider === "kimi"
+                    ? `Kimi ${aiSettings.kimiModel.replace("moonshot-", "").replace("-latest", "")}`
                     : `Mistral ${aiSettings.mistralModel.replace("mistral-", "").replace("-latest", "")}`}
                 </span>
               )}

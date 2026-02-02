@@ -51,8 +51,11 @@ export async function GET() {
         geminiModel: "gemini-1.5-flash",
         mistralApiKey: null,
         mistralModel: "mistral-small-latest",
+        kimiApiKey: null,
+        kimiModel: "moonshot-v1-8k",
         hasGeminiKey: false,
         hasMistralKey: false,
+        hasKimiKey: false,
         sqlSystemPrompt: DEFAULT_SQL_SYSTEM_PROMPT,
         analysisSystemPrompt: DEFAULT_ANALYSIS_SYSTEM_PROMPT,
       });
@@ -65,8 +68,11 @@ export async function GET() {
       geminiModel: settings.geminiModel,
       mistralApiKey: maskApiKey(settings.mistralApiKey),
       mistralModel: settings.mistralModel,
+      kimiApiKey: maskApiKey(settings.kimiApiKey),
+      kimiModel: settings.kimiModel,
       hasGeminiKey: !!settings.geminiApiKey,
       hasMistralKey: !!settings.mistralApiKey,
+      hasKimiKey: !!settings.kimiApiKey,
       sqlSystemPrompt: settings.sqlSystemPrompt || DEFAULT_SQL_SYSTEM_PROMPT,
       analysisSystemPrompt: settings.analysisSystemPrompt || DEFAULT_ANALYSIS_SYSTEM_PROMPT,
     });
@@ -97,12 +103,14 @@ export async function POST(request: NextRequest) {
       geminiModel,
       mistralApiKey,
       mistralModel,
+      kimiApiKey,
+      kimiModel,
       sqlSystemPrompt,
       analysisSystemPrompt,
     } = body;
 
     // 유효성 검증
-    if (provider && !["gemini", "mistral"].includes(provider)) {
+    if (provider && !["gemini", "mistral", "kimi"].includes(provider)) {
       return NextResponse.json(
         { error: "지원하지 않는 LLM 제공자입니다." },
         { status: 400 }
@@ -133,6 +141,8 @@ export async function POST(request: NextRequest) {
       geminiModel?: string;
       mistralApiKey?: string;
       mistralModel?: string;
+      kimiApiKey?: string;
+      kimiModel?: string;
       sqlSystemPrompt?: string | null;
       analysisSystemPrompt?: string | null;
     } = {};
@@ -140,6 +150,7 @@ export async function POST(request: NextRequest) {
     if (provider !== undefined) updateData.provider = provider;
     if (geminiModel !== undefined) updateData.geminiModel = geminiModel;
     if (mistralModel !== undefined) updateData.mistralModel = mistralModel;
+    if (kimiModel !== undefined) updateData.kimiModel = kimiModel;
 
     // API 키는 마스킹된 값이 아닌 경우에만 업데이트
     if (geminiApiKey && !geminiApiKey.includes("...")) {
@@ -147,6 +158,9 @@ export async function POST(request: NextRequest) {
     }
     if (mistralApiKey && !mistralApiKey.includes("...")) {
       updateData.mistralApiKey = mistralApiKey;
+    }
+    if (kimiApiKey && !kimiApiKey.includes("...")) {
+      updateData.kimiApiKey = kimiApiKey;
     }
 
     // 시스템 프롬프트 업데이트 (빈 문자열이면 null로 저장하여 기본값 사용)
@@ -168,6 +182,8 @@ export async function POST(request: NextRequest) {
         geminiModel: geminiModel || "gemini-1.5-flash",
         mistralApiKey: mistralApiKey && !mistralApiKey.includes("...") ? mistralApiKey : null,
         mistralModel: mistralModel || "mistral-small-latest",
+        kimiApiKey: kimiApiKey && !kimiApiKey.includes("...") ? kimiApiKey : null,
+        kimiModel: kimiModel || "kimi-k2-2-5",
         sqlSystemPrompt: sqlSystemPrompt?.trim() || null,
         analysisSystemPrompt: analysisSystemPrompt?.trim() || null,
       },
@@ -180,8 +196,11 @@ export async function POST(request: NextRequest) {
       geminiModel: settings.geminiModel,
       mistralApiKey: maskApiKey(settings.mistralApiKey),
       mistralModel: settings.mistralModel,
+      kimiApiKey: maskApiKey(settings.kimiApiKey),
+      kimiModel: settings.kimiModel,
       hasGeminiKey: !!settings.geminiApiKey,
       hasMistralKey: !!settings.mistralApiKey,
+      hasKimiKey: !!settings.kimiApiKey,
       sqlSystemPrompt: settings.sqlSystemPrompt || DEFAULT_SQL_SYSTEM_PROMPT,
       analysisSystemPrompt: settings.analysisSystemPrompt || DEFAULT_ANALYSIS_SYSTEM_PROMPT,
     });

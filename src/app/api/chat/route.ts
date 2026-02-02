@@ -112,13 +112,29 @@ export async function POST(request: NextRequest) {
     }
 
     // 현재 선택된 제공자의 API 키 확인
-    const provider = aiSettings.provider as "gemini" | "mistral";
-    const apiKey = provider === "gemini" ? aiSettings.geminiApiKey : aiSettings.mistralApiKey;
-    const model = provider === "gemini" ? aiSettings.geminiModel : aiSettings.mistralModel;
+    const provider = aiSettings.provider as "gemini" | "mistral" | "kimi";
+    let apiKey: string | null = null;
+    let model: string = "";
+
+    switch (provider) {
+      case "gemini":
+        apiKey = aiSettings.geminiApiKey;
+        model = aiSettings.geminiModel;
+        break;
+      case "mistral":
+        apiKey = aiSettings.mistralApiKey;
+        model = aiSettings.mistralModel;
+        break;
+      case "kimi":
+        apiKey = aiSettings.kimiApiKey;
+        model = aiSettings.kimiModel;
+        break;
+    }
 
     if (!apiKey) {
+      const providerName = provider === "gemini" ? "Gemini" : provider === "mistral" ? "Mistral" : "Kimi";
       return NextResponse.json(
-        { error: `${provider === "gemini" ? "Gemini" : "Mistral"} API 키가 설정되지 않았습니다.` },
+        { error: `${providerName} API 키가 설정되지 않았습니다.` },
         { status: 400 }
       );
     }
