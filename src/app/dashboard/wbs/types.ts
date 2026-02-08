@@ -182,6 +182,9 @@ export interface DeliverablePreviewModalProps {
   onClose: () => void;
 }
 
+/** 우측 패널 뷰 타입 */
+export type RightPanelView = "gantt" | "detail";
+
 /** WBS 통계 */
 export interface WbsStats {
   /** 총 항목 수 */

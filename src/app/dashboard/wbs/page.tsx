@@ -30,11 +30,11 @@ import { useProject } from "@/contexts/ProjectContext";
 import type { WbsItem, WbsLevel } from "@/lib/api";
 
 // 모듈화된 상수, 타입, 유틸, 컴포넌트 import
-import { levelNames, levelColors, statusColors, statusNames, zoomLevels, defaultZoomIndex, defaultPanelWidth, rowHeight } from "./constants";
-import type { NewItemForm } from "./types";
+import { levelNames, levelColors, levelRowColors, statusColors, statusNames, zoomLevels, defaultZoomIndex, defaultPanelWidth, rowHeight } from "./constants";
+import type { NewItemForm, RightPanelView } from "./types";
 import { applyCalculatedDates, calculateProjectSchedule, isDelayed, getDelayDays, getDisplayStatus, getAllItemIds, flattenItems, filterByAssignee, getEmbedUrl } from "./utils/wbsHelpers";
 import { generateDates, getItemPosition, calculateChartRange } from "./utils/ganttHelpers";
-import { WbsTreeItem, BulkAssignModal, BulkTaskAssignModal, WbsFormModal, DeliverablePreviewModal } from "./components";
+import { WbsTreeItem, WbsDetailPanel, BulkAssignModal, BulkTaskAssignModal, WbsFormModal, DeliverablePreviewModal } from "./components";
 
 // 헬퍼 함수들은 ./utils/wbsHelpers.ts 및 ./utils/ganttHelpers.ts로 이동됨
 // WbsTreeItem 컴포넌트는 ./components/WbsTreeItem.tsx로 이동됨
@@ -68,6 +68,9 @@ export default function WBSPage() {
 
   /** 산출물 미리보기 URL 상태 */
   const [deliverablePreviewUrl, setDeliverablePreviewUrl] = useState<string | null>(null);
+
+  /** 우측 패널 뷰 전환 (간트보기 / 상세보기) */
+  const [rightPanelView, setRightPanelView] = useState<RightPanelView>("gantt");
 
   /** 삭제 확인 모달 상태 */
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -180,6 +183,20 @@ export default function WBSPage() {
 
     return () => clearTimeout(timeoutId);
   }, [selectedItemId]);
+
+  /**
+   * 트리에서 항목 ID로 WBS 항목 찾기 (재귀 탐색)
+   */
+  const findItemById = useCallback((items: WbsItem[], id: string): WbsItem | null => {
+    for (const item of items) {
+      if (item.id === id) return item;
+      if (item.children) {
+        const found = findItemById(item.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  }, []);
 
   // 새 항목 폼 상태
   const [newItem, setNewItem] = useState({
@@ -816,6 +833,56 @@ export default function WBSPage() {
     setShowAddModal(true);
   };
 
+  /** 상세보기 모드에서 선택 항목 변경 시 폼 데이터 자동 로딩 */
+  useEffect(() => {
+    if (rightPanelView !== "detail" || !selectedItemId) return;
+    const item = findItemById(wbsTree, selectedItemId);
+    if (item) {
+      setNewItem({
+        name: item.name,
+        description: item.description || "",
+        level: item.level,
+        parentId: item.parentId,
+        assigneeIds: item.assignees?.map((a) => a.id) || [],
+        startDate: item.startDate?.split("T")[0] || "",
+        endDate: item.endDate?.split("T")[0] || "",
+        actualStartDate: item.actualStartDate?.split("T")[0] || "",
+        actualEndDate: item.actualEndDate?.split("T")[0] || "",
+        progress: item.progress || 0,
+        weight: item.weight || 1,
+        deliverableName: item.deliverableName || "",
+        deliverableLink: item.deliverableLink || "",
+      });
+      setEditingItem(item);
+    }
+  }, [rightPanelView, selectedItemId, wbsTree, findItemById]);
+
+  /** 상세보기 패널에서 저장 핸들러 */
+  const handleDetailSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem || !newItem.name.trim()) return;
+
+    try {
+      await updateWbs.mutateAsync({
+        id: editingItem.id,
+        name: newItem.name,
+        description: newItem.description,
+        assigneeIds: newItem.assigneeIds.length > 0 ? newItem.assigneeIds : undefined,
+        startDate: newItem.startDate || undefined,
+        endDate: newItem.endDate || undefined,
+        actualStartDate: newItem.actualStartDate || undefined,
+        actualEndDate: newItem.actualEndDate || undefined,
+        progress: newItem.progress,
+        weight: newItem.level === "LEVEL1" ? newItem.weight : undefined,
+        deliverableName: newItem.deliverableName || undefined,
+        deliverableLink: newItem.deliverableLink || undefined,
+      });
+      toast.success("항목이 수정되었습니다.");
+    } catch (error) {
+      toast.error("항목 수정에 실패했습니다.");
+    }
+  };
+
   /** 항목 삭제 - 확인 모달 표시 */
   const handleDelete = (id: string) => {
     // 삭제할 항목 찾기
@@ -1182,6 +1249,36 @@ export default function WBSPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* 뷰 전환 토글 */}
+          {selectedProjectId && (
+            <div className="flex items-center gap-0.5 p-0.5 bg-surface dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
+              <button
+                onClick={() => setRightPanelView("gantt")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  rightPanelView === "gantt"
+                    ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                    : "text-text-secondary hover:text-text dark:hover:text-white"
+                }`}
+              >
+                <Icon name="bar_chart" size="xs" />
+                간트보기
+              </button>
+              <button
+                onClick={() => setRightPanelView("detail")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  rightPanelView === "detail"
+                    ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
+                    : "text-text-secondary hover:text-text dark:hover:text-white"
+                }`}
+              >
+                <Icon name="edit_note" size="xs" />
+                상세보기
+              </button>
+            </div>
+          )}
+
+          <div className="h-5 w-px bg-border dark:bg-border-dark" />
+
           <Button
             variant="outline"
             size="sm"
@@ -1449,7 +1546,17 @@ export default function WBSPage() {
                 <div className="w-0.5 h-8 bg-text-secondary/30 group-hover:bg-primary rounded-full" />
               </div>
 
-              {/* 우측: 간트 차트 */}
+              {/* 우측: 간트 차트 또는 상세보기 */}
+              {rightPanelView === "detail" ? (
+                <WbsDetailPanel
+                  selectedItem={selectedItemId ? findItemById(wbsTree, selectedItemId) : null}
+                  teamMembers={teamMembers}
+                  formData={newItem}
+                  onFormChange={(data) => setNewItem({ ...newItem, ...data })}
+                  onSave={handleDetailSave}
+                  isSaving={updateWbs.isPending}
+                />
+              ) : (
               <div className="flex-1 flex flex-col overflow-hidden bg-background-white dark:bg-[#161b22]">
                 {/* 줌 컨트롤 + 변경사항 저장/취소 버튼 */}
                 <div className="h-8 px-2 flex items-center gap-2 border-b border-border dark:border-border-dark bg-surface/50 dark:bg-surface-dark/50 shrink-0">
@@ -1644,7 +1751,7 @@ export default function WBSPage() {
                       <div
                         key={item.id}
                         data-gantt-id={item.id}
-                        className="h-10 border-b border-border/30 dark:border-border-dark/30 relative flex items-center"
+                        className={`h-10 border-b border-border/30 dark:border-border-dark/30 relative flex items-center ${levelRowColors[item.level]}`}
                       >
                         <div
                           data-gantt-bar
@@ -1716,6 +1823,7 @@ export default function WBSPage() {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           )}
         </>

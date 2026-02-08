@@ -6,4 +6,5 @@
  */
 
 export { WbsTreeItem } from "./WbsTreeItem";
+export { WbsDetailPanel } from "./WbsDetailPanel";
 export * from "./modals";
