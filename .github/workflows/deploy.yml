@@ -26,8 +26,11 @@ jobs:
       - name: Configure Git safe directory
         run: git config --global --add safe.directory C:/Project/WBSMaster
 
-      - name: Stop all Node processes
-        run: taskkill /F /IM node.exe /T 2>nul || echo "No node process"
+      - name: Stop PM2 and Node processes
+        run: |
+          set PM2_HOME=C:\Users\Administrator\.pm2
+          pm2 kill 2>nul || echo "PM2 not running"
+          taskkill /F /IM node.exe /T 2>nul || echo "No node process"
         shell: cmd
         continue-on-error: true
 
@@ -48,13 +51,11 @@ jobs:
       - name: Restart with PM2
         run: |
           set PM2_HOME=C:\Users\Administrator\.pm2
-          echo "=== PM2_HOME ==="
-          echo %PM2_HOME%
-          echo "=== PM2 Path ==="
-          where pm2
+          echo "=== Cleaning stale PM2 state ==="
+          pm2 kill 2>nul || echo "PM2 daemon not running"
           echo "=== Starting PM2 ==="
           pm2 start ecosystem.config.js --update-env
-          echo "=== PM2 Status After Start ==="
+          echo "=== PM2 Status ==="
           pm2 list
           pm2 save
         shell: cmd
