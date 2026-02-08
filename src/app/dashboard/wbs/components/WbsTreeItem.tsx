@@ -20,7 +20,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Icon } from "@/components/ui";
 import type { WbsItem, WbsLevel } from "@/lib/api";
-import { levelNames, levelColors, statusColors, statusNames } from "../constants";
+import { levelNames, levelColors, levelRowColors, levelRowHoverColors, statusColors, statusNames } from "../constants";
 import { calculateWorkDays, getDisplayStatus, getDelayDays, isDelayed } from "../utils/wbsHelpers";
 import type { WbsTreeItemProps } from "../types";
 
@@ -128,7 +128,7 @@ export function WbsTreeItem({
         className={`
           h-10 border-b border-border dark:border-border-dark flex items-center
           cursor-pointer transition-colors group
-          ${isSelected ? "bg-primary/10 border-l-3 border-l-primary" : "hover:bg-surface dark:hover:bg-surface-dark"}
+          ${isSelected ? "bg-primary/10 border-l-3 border-l-primary" : `${levelRowColors[item.level]} ${levelRowHoverColors[item.level]}`}
         `}
         style={{ paddingLeft: `${12 + indent}px` }}
       >

@@ -33,12 +33,28 @@ export const levelFullNames: Record<WbsLevel, string> = {
   LEVEL4: "단위업무",
 };
 
-/** 레벨별 색상 */
+/** 레벨별 색상 (배지, 간트바 등) */
 export const levelColors: Record<WbsLevel, string> = {
   LEVEL1: "bg-blue-500",
   LEVEL2: "bg-green-500",
   LEVEL3: "bg-yellow-500",
   LEVEL4: "bg-purple-500",
+};
+
+/** 레벨별 행 배경색 (라이트/다크 모드 모두 지원) */
+export const levelRowColors: Record<WbsLevel, string> = {
+  LEVEL1: "bg-blue-50 dark:bg-blue-950/40",
+  LEVEL2: "bg-green-50 dark:bg-green-950/40",
+  LEVEL3: "bg-yellow-50/70 dark:bg-yellow-950/30",
+  LEVEL4: "bg-purple-50/50 dark:bg-purple-950/20",
+};
+
+/** 레벨별 행 호버색 */
+export const levelRowHoverColors: Record<WbsLevel, string> = {
+  LEVEL1: "hover:bg-blue-100 dark:hover:bg-blue-950/60",
+  LEVEL2: "hover:bg-green-100 dark:hover:bg-green-950/60",
+  LEVEL3: "hover:bg-yellow-100/80 dark:hover:bg-yellow-950/50",
+  LEVEL4: "hover:bg-purple-100/60 dark:hover:bg-purple-950/40",
 };
 
 /** 상태별 색상 */
