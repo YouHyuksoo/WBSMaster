@@ -48,14 +48,15 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Restart with PM2
+      - name: Restart PM2 via scheduled task
         run: |
+          echo "=== Scheduling PM2 restart (detached from runner) ==="
+          schtasks /delete /tn "WBSMaster_PM2" /f 2>nul
+          schtasks /create /tn "WBSMaster_PM2" /tr "C:\Project\WBSMaster\scripts\pm2-restart.cmd" /sc once /st 00:00 /ru Administrator /rl highest /f
+          schtasks /run /tn "WBSMaster_PM2"
+          echo "=== Waiting for PM2 to start ==="
+          timeout /t 8 /nobreak >nul
+          echo "=== Verifying PM2 status ==="
           set PM2_HOME=C:\Users\Administrator\.pm2
-          echo "=== Cleaning stale PM2 state ==="
-          pm2 kill 2>nul || echo "PM2 daemon not running"
-          echo "=== Starting PM2 ==="
-          pm2 start ecosystem.config.js --update-env
-          echo "=== PM2 Status ==="
-          pm2 list
-          pm2 save
+          pm2 list || echo "PM2 list check done"
         shell: cmd
