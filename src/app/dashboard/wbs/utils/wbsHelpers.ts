@@ -20,58 +20,93 @@ import type { CalculatedDates, ProjectScheduleStats } from "../types";
 
 /**
  * 지연 여부 판단
- * 종료일이 오늘보다 이전이고 완료/취소가 아니면 지연
- * @param endDate 종료일
+ * - 달성율 < 100%: 계획종료일이 오늘보다 이전이면 지연
+ * - 달성율 = 100%: 실제종료일이 계획종료일보다 늦으면 지연
+ * @param endDate 계획종료일
  * @param status 현재 상태
+ * @param progress 달성율 (0~100)
+ * @param actualEndDate 실제종료일
  * @returns 지연 여부
  */
 export const isDelayed = (
   endDate: string | null | undefined,
-  status: string
+  status: string,
+  progress: number = 0,
+  actualEndDate?: string | null
 ): boolean => {
   if (!endDate) return false;
-  if (status === "COMPLETED" || status === "CANCELLED") return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  if (status === "CANCELLED") return false;
+
   const end = new Date(endDate);
   end.setHours(0, 0, 0, 0);
-  return end < today;
+
+  if (progress >= 100) {
+    // 달성율 100%: 실제종료일이 계획종료일보다 늦으면 지연
+    if (!actualEndDate) return false;
+    const actual = new Date(actualEndDate);
+    actual.setHours(0, 0, 0, 0);
+    return actual > end;
+  } else {
+    // 달성율 미달: 계획종료일이 오늘보다 이전이면 지연
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return end < today;
+  }
 };
 
 /**
  * 지연 일수 계산
- * 종료일로부터 오늘까지 며칠 지연되었는지 반환
- * @param endDate 종료일
+ * - 달성율 < 100%: 오늘 - 계획종료일
+ * - 달성율 = 100%: 실제종료일 - 계획종료일
+ * @param endDate 계획종료일
  * @param status 현재 상태
+ * @param progress 달성율 (0~100)
+ * @param actualEndDate 실제종료일
  * @returns 지연 일수 (지연 아니면 0)
  */
 export const getDelayDays = (
   endDate: string | null | undefined,
-  status: string
+  status: string,
+  progress: number = 0,
+  actualEndDate?: string | null
 ): number => {
   if (!endDate) return 0;
-  if (status === "COMPLETED" || status === "CANCELLED") return 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  if (status === "CANCELLED") return 0;
+
   const end = new Date(endDate);
   end.setHours(0, 0, 0, 0);
-  if (end >= today) return 0;
-  const diffTime = today.getTime() - end.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+
+  if (progress >= 100) {
+    // 달성율 100%: 실제종료일 - 계획종료일
+    if (!actualEndDate) return 0;
+    const actual = new Date(actualEndDate);
+    actual.setHours(0, 0, 0, 0);
+    if (actual <= end) return 0;
+    return Math.ceil((actual.getTime() - end.getTime()) / (1000 * 60 * 60 * 24));
+  } else {
+    // 달성율 미달: 오늘 - 계획종료일
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (end >= today) return 0;
+    return Math.ceil((today.getTime() - end.getTime()) / (1000 * 60 * 60 * 24));
+  }
 };
 
 /**
  * 표시용 상태 결정 (지연 여부 반영)
  * @param status 원래 상태
- * @param endDate 종료일
+ * @param endDate 계획종료일
+ * @param progress 달성율 (0~100)
+ * @param actualEndDate 실제종료일
  * @returns 표시할 상태 문자열
  */
 export const getDisplayStatus = (
   status: string,
-  endDate: string | null | undefined
+  endDate: string | null | undefined,
+  progress: number = 0,
+  actualEndDate?: string | null
 ): string => {
-  if (isDelayed(endDate, status)) {
+  if (isDelayed(endDate, status, progress, actualEndDate)) {
     return "DELAYED";
   }
   return status;
@@ -364,14 +399,18 @@ export const calculateWbsStats = (items: WbsItem[]) => {
 
         if (item.status === "COMPLETED") {
           completed++;
+          // 100% 달성이어도 실제종료일이 계획보다 늦으면 지연
+          if (isDelayed(item.endDate, item.status, item.progress, item.actualEndDate)) {
+            delayed++;
+          }
         } else if (item.status === "IN_PROGRESS") {
           inProgress++;
-          if (isDelayed(item.endDate, item.status)) {
+          if (isDelayed(item.endDate, item.status, item.progress, item.actualEndDate)) {
             delayed++;
           }
         } else if (item.status === "PENDING") {
           pending++;
-          if (isDelayed(item.endDate, item.status)) {
+          if (isDelayed(item.endDate, item.status, item.progress, item.actualEndDate)) {
             delayed++;
           }
         }

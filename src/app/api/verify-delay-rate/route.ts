@@ -13,35 +13,51 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * 지연 여부 판단
+ * - 달성율 < 100%: 계획종료일이 오늘보다 이전이면 지연
+ * - 달성율 = 100%: 실제종료일이 계획종료일보다 늦으면 지연
  */
-function isDelayed(endDate: Date | null, status: string): boolean {
+function isDelayed(endDate: Date | null, status: string, progress: number = 0, actualEndDate?: Date | null): boolean {
   if (!endDate) return false;
-  if (status === "COMPLETED" || status === "CANCELLED") return false;
+  if (status === "CANCELLED") return false;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   const end = new Date(endDate);
   end.setHours(0, 0, 0, 0);
 
-  return end < today;
+  if (progress >= 100) {
+    if (!actualEndDate) return false;
+    const actual = new Date(actualEndDate);
+    actual.setHours(0, 0, 0, 0);
+    return actual > end;
+  } else {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return end < today;
+  }
 }
 
 /**
  * 지연 일수 계산
+ * - 달성율 < 100%: 오늘 - 계획종료일
+ * - 달성율 = 100%: 실제종료일 - 계획종료일
  */
-function getDelayDays(endDate: Date | null): number {
+function getDelayDays(endDate: Date | null, progress: number = 0, actualEndDate?: Date | null): number {
   if (!endDate) return 0;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   const end = new Date(endDate);
   end.setHours(0, 0, 0, 0);
 
-  if (end >= today) return 0;
-
-  const diffTime = today.getTime() - end.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+  if (progress >= 100) {
+    if (!actualEndDate) return 0;
+    const actual = new Date(actualEndDate);
+    actual.setHours(0, 0, 0, 0);
+    if (actual <= end) return 0;
+    return Math.ceil((actual.getTime() - end.getTime()) / (1000 * 60 * 60 * 24));
+  } else {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (end >= today) return 0;
+    return Math.ceil((today.getTime() - end.getTime()) / (1000 * 60 * 60 * 24));
+  }
 }
 
 export async function GET() {
@@ -70,6 +86,7 @@ export async function GET() {
           status: true,
           startDate: true,
           endDate: true,
+          actualEndDate: true,
           progress: true,
           parentId: true,
         },
@@ -92,7 +109,7 @@ export async function GET() {
         i.status !== "COMPLETED" && i.status !== "CANCELLED"
       );
       const delayed = wbsItems.filter(i =>
-        isDelayed(i.endDate, i.status)
+        isDelayed(i.endDate, i.status, i.progress, i.actualEndDate)
       );
 
       const delayedRate = activeItems.length > 0
@@ -101,7 +118,7 @@ export async function GET() {
 
       // 지연 항목 상세
       const delayedDetails = delayed.map(item => {
-        const delayDays = getDelayDays(item.endDate);
+        const delayDays = getDelayDays(item.endDate, item.progress, item.actualEndDate);
         return {
           code: item.code,
           name: item.name,

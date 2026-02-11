@@ -536,7 +536,7 @@ export default function WBSPage() {
     const pending = leafItems.filter((i) => i.status === "PENDING").length;
 
     // 지연 항목 (종료일이 지났는데 완료/취소 아닌 항목)
-    const delayed = leafItems.filter((i) => isDelayed(i.endDate, i.status)).length;
+    const delayed = leafItems.filter((i) => isDelayed(i.endDate, i.status, i.progress, i.actualEndDate)).length;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -751,7 +751,7 @@ export default function WBSPage() {
       "WBS 코드": item.code,
       "레벨": levelNames[item.level],
       "항목명": item.name,
-      "상태": statusNames[getDisplayStatus(item.status, item.endDate)],
+      "상태": statusNames[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)],
       "진행률": `${item.progress}%`,
       "시작일": item.startDate ? new Date(item.startDate).toLocaleDateString() : "-",
       "종료일": item.endDate ? new Date(item.endDate).toLocaleDateString() : "-",

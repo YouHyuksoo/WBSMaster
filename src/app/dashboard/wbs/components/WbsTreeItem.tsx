@@ -317,12 +317,12 @@ export function WbsTreeItem({
                   <span className="font-semibold text-sm truncate">{item.name}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
                     item.status === "COMPLETED" ? "bg-green-500/20 text-green-400" :
-                    item.status === "IN_PROGRESS" ? (isDelayed(item.endDate, item.status) ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400") :
+                    item.status === "IN_PROGRESS" ? (isDelayed(item.endDate, item.status, item.progress, item.actualEndDate) ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400") :
                     item.status === "CANCELLED" ? "bg-slate-500/20 text-slate-400" :
-                    isDelayed(item.endDate, item.status) ? "bg-red-500/20 text-red-400" :
+                    isDelayed(item.endDate, item.status, item.progress, item.actualEndDate) ? "bg-red-500/20 text-red-400" :
                     "bg-yellow-500/20 text-yellow-400"
                   }`}>
-                    {statusNames[getDisplayStatus(item.status, item.endDate)]}
+                    {statusNames[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)]}
                   </span>
                 </div>
 
@@ -474,22 +474,22 @@ export function WbsTreeItem({
 
         {/* 상태 */}
         <div className="w-20 flex-shrink-0 flex justify-center">
-          {getDisplayStatus(item.status, item.endDate) === "DELAYED" ? (
+          {getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate) === "DELAYED" ? (
             <span
               className={`px-1.5 py-0.5 rounded text-[10px] font-semibold text-white ${statusColors.DELAYED} flex items-center gap-1`}
             >
               <span>지연</span>
               <span className="bg-white/20 px-1 rounded">
-                D+{getDelayDays(item.endDate, item.status)}
+                D+{getDelayDays(item.endDate, item.status, item.progress, item.actualEndDate)}
               </span>
             </span>
           ) : (
             <span
               className={`px-1.5 py-0.5 rounded text-[10px] font-semibold text-white ${
-                statusColors[getDisplayStatus(item.status, item.endDate)]
+                statusColors[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)]
               }`}
             >
-              {statusNames[getDisplayStatus(item.status, item.endDate)]}
+              {statusNames[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)]}
             </span>
           )}
         </div>

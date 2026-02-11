@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
         status: true,
         progress: true,
         endDate: true,
+        actualEndDate: true,
       },
     });
 
@@ -152,11 +153,19 @@ export async function GET(request: NextRequest) {
         totalStats.pending++;
       }
 
-      // 지연 체크
-      if (item.endDate && item.status !== "COMPLETED") {
+      // 지연 체크: 달성율 기준
+      if (item.endDate && item.status !== "CANCELLED") {
         const endDate = new Date(item.endDate);
         endDate.setHours(0, 0, 0, 0);
-        if (endDate < today) {
+        if (item.progress >= 100) {
+          if (item.actualEndDate) {
+            const actualEnd = new Date(item.actualEndDate);
+            actualEnd.setHours(0, 0, 0, 0);
+            if (actualEnd > endDate) {
+              totalStats.delayed++;
+            }
+          }
+        } else if (endDate < today) {
           totalStats.delayed++;
         }
       }
@@ -174,11 +183,19 @@ export async function GET(request: NextRequest) {
         totalStats.pending++;
       }
 
-      // 지연 체크: 종료일이 오늘보다 이전이고 완료되지 않은 경우
-      if (item.endDate && item.status !== "COMPLETED") {
+      // 지연 체크: 달성율 기준
+      if (item.endDate && item.status !== "CANCELLED") {
         const endDate = new Date(item.endDate);
         endDate.setHours(0, 0, 0, 0);
-        if (endDate < today) {
+        if (item.progress >= 100) {
+          if (item.actualEndDate) {
+            const actualEnd = new Date(item.actualEndDate);
+            actualEnd.setHours(0, 0, 0, 0);
+            if (actualEnd > endDate) {
+              totalStats.delayed++;
+            }
+          }
+        } else if (endDate < today) {
           totalStats.delayed++;
         }
       }

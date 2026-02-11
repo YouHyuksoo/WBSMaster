@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
     });
 
     // 말단 노드만 수집하여 전체 통계 계산
-    const leafItems: { status: string; progress: number; endDate: Date | null }[] = [];
+    const leafItems: { status: string; progress: number; endDate: Date | null; actualEndDate: Date | null }[] = [];
     const collectLeafItems = (items: typeof level1Items) => {
       items.forEach((item) => {
         if (!item.children || item.children.length === 0) {
@@ -224,6 +224,7 @@ export async function GET(request: NextRequest) {
             status: item.status,
             progress: item.progress,
             endDate: item.endDate,
+            actualEndDate: item.actualEndDate,
           });
         } else {
           collectLeafItems(item.children as typeof level1Items);
@@ -244,12 +245,24 @@ export async function GET(request: NextRequest) {
         inProgressWbs++;
       }
 
-      // 지연 체크
-      if (item.endDate && item.status !== "COMPLETED" && item.status !== "CANCELLED") {
+      // 지연 체크: 달성율 기준
+      if (item.endDate && item.status !== "CANCELLED") {
         const itemEndDate = new Date(item.endDate);
         itemEndDate.setHours(0, 0, 0, 0);
-        if (itemEndDate < today) {
-          delayedWbs++;
+        if (item.progress >= 100) {
+          // 달성율 100%: 실제종료일이 계획종료일보다 늦으면 지연
+          if (item.actualEndDate) {
+            const actualEnd = new Date(item.actualEndDate);
+            actualEnd.setHours(0, 0, 0, 0);
+            if (actualEnd > itemEndDate) {
+              delayedWbs++;
+            }
+          }
+        } else {
+          // 달성율 미달: 계획종료일이 오늘보다 이전이면 지연
+          if (itemEndDate < today) {
+            delayedWbs++;
+          }
         }
       }
     });
