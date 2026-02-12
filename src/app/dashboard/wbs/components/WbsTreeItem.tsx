@@ -312,18 +312,28 @@ export function WbsTreeItem({
                   left: `${tooltipPos.x}px`,
                   transform: 'translate(-50%, -100%)',
                 }}>
-                {/* 헤더: 항목명 + 상태 */}
+                {/* 헤더: 항목명 + 상태 + 지연 */}
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <span className="font-semibold text-sm truncate">{item.name}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
-                    item.status === "COMPLETED" ? "bg-green-500/20 text-green-400" :
-                    item.status === "IN_PROGRESS" ? (isDelayed(item.endDate, item.status, item.progress, item.actualEndDate) ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400") :
-                    item.status === "CANCELLED" ? "bg-slate-500/20 text-slate-400" :
-                    isDelayed(item.endDate, item.status, item.progress, item.actualEndDate) ? "bg-red-500/20 text-red-400" :
-                    "bg-yellow-500/20 text-yellow-400"
-                  }`}>
-                    {statusNames[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)]}
-                  </span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {(() => {
+                      const effectiveStatus = item.progress >= 100 ? "COMPLETED" : item.progress > 0 ? "IN_PROGRESS" : "PENDING";
+                      return (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          effectiveStatus === "COMPLETED" ? "bg-green-500/20 text-green-400" :
+                          effectiveStatus === "IN_PROGRESS" ? "bg-blue-500/20 text-blue-400" :
+                          "bg-yellow-500/20 text-yellow-400"
+                        }`}>
+                          {statusNames[effectiveStatus]}
+                        </span>
+                      );
+                    })()}
+                    {isDelayed(item.endDate, item.status, item.progress, item.actualEndDate) && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">
+                        D+{getDelayDays(item.endDate, item.status, item.progress, item.actualEndDate)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* 시작일, 종료일 */}
@@ -472,25 +482,23 @@ export function WbsTreeItem({
           )}
         </div>
 
-        {/* 상태 */}
-        <div className="w-20 flex-shrink-0 flex justify-center">
-          {getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate) === "DELAYED" ? (
-            <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold text-white ${statusColors.DELAYED} flex items-center gap-1`}
-            >
-              <span>지연</span>
-              <span className="bg-white/20 px-1 rounded">
-                D+{getDelayDays(item.endDate, item.status, item.progress, item.actualEndDate)}
-              </span>
+        {/* 상태 (progress 기반: 대기/진행중/완료) */}
+        <div className="w-16 flex-shrink-0 flex justify-center">
+          <span
+            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold text-white ${statusColors[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)]}`}
+          >
+            {statusNames[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)]}
+          </span>
+        </div>
+
+        {/* 지연일수 */}
+        <div className="w-14 flex-shrink-0 flex justify-center">
+          {isDelayed(item.endDate, item.status, item.progress, item.actualEndDate) ? (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-white bg-rose-500">
+              D+{getDelayDays(item.endDate, item.status, item.progress, item.actualEndDate)}
             </span>
           ) : (
-            <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold text-white ${
-                statusColors[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)]
-              }`}
-            >
-              {statusNames[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)]}
-            </span>
+            <span className="text-[10px] text-text-secondary">-</span>
           )}
         </div>
 

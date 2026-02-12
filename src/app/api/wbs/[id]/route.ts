@@ -179,6 +179,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         }
       : undefined;
 
+    // progress 변경 시 status 자동 결정 (명시적 status 지정이 없고, 수동 상태가 아닌 경우)
+    let autoStatus: TaskStatus | undefined;
+    if (progress !== undefined && status === undefined) {
+      if (existing.status !== "CANCELLED" && existing.status !== "HOLDING") {
+        if (progress >= 100) {
+          autoStatus = "COMPLETED";
+        } else if (progress > 0) {
+          autoStatus = "IN_PROGRESS";
+        } else {
+          autoStatus = "PENDING";
+        }
+      }
+    }
+
     // WBS 항목 업데이트
     const wbsItem = await prisma.wbsItem.update({
       where: { id },
@@ -186,6 +200,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
         ...(status !== undefined && { status }),
+        ...(autoStatus !== undefined && status === undefined && { status: autoStatus }),
         ...(progress !== undefined && { progress }),
         ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),
         ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),

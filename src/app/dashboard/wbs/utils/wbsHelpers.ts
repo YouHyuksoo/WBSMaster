@@ -41,11 +41,10 @@ export const isDelayed = (
   end.setHours(0, 0, 0, 0);
 
   if (progress >= 100) {
-    // 달성율 100%: 실제종료일이 계획종료일보다 늦으면 지연
-    if (!actualEndDate) return false;
-    const actual = new Date(actualEndDate);
-    actual.setHours(0, 0, 0, 0);
-    return actual > end;
+    // 달성율 100%: 실제종료일 vs 계획종료일 비교 (실제종료일 없으면 오늘 기준)
+    const compareDate = actualEndDate ? new Date(actualEndDate) : new Date();
+    compareDate.setHours(0, 0, 0, 0);
+    return compareDate > end;
   } else {
     // 달성율 미달: 계획종료일이 오늘보다 이전이면 지연
     const today = new Date();
@@ -77,12 +76,11 @@ export const getDelayDays = (
   end.setHours(0, 0, 0, 0);
 
   if (progress >= 100) {
-    // 달성율 100%: 실제종료일 - 계획종료일
-    if (!actualEndDate) return 0;
-    const actual = new Date(actualEndDate);
-    actual.setHours(0, 0, 0, 0);
-    if (actual <= end) return 0;
-    return Math.ceil((actual.getTime() - end.getTime()) / (1000 * 60 * 60 * 24));
+    // 달성율 100%: 실제종료일 - 계획종료일 (실제종료일 없으면 오늘 기준)
+    const compareDate = actualEndDate ? new Date(actualEndDate) : new Date();
+    compareDate.setHours(0, 0, 0, 0);
+    if (compareDate <= end) return 0;
+    return Math.ceil((compareDate.getTime() - end.getTime()) / (1000 * 60 * 60 * 24));
   } else {
     // 달성율 미달: 오늘 - 계획종료일
     const today = new Date();
@@ -93,23 +91,32 @@ export const getDelayDays = (
 };
 
 /**
- * 표시용 상태 결정 (지연 여부 반영)
+ * 표시용 상태 결정 (progress 기반)
+ * 상태와 지연은 분리 표시하므로, 이 함수는 실질적 상태만 반환
+ * 지연 여부는 isDelayed()를 별도로 사용
  * @param status 원래 상태
- * @param endDate 계획종료일
+ * @param endDate 계획종료일 (미사용, 호환성 유지)
  * @param progress 달성율 (0~100)
- * @param actualEndDate 실제종료일
- * @returns 표시할 상태 문자열
+ * @param actualEndDate 실제종료일 (미사용, 호환성 유지)
+ * @returns 표시할 상태 문자열 (PENDING, IN_PROGRESS, COMPLETED, HOLDING, CANCELLED)
  */
 export const getDisplayStatus = (
   status: string,
-  endDate: string | null | undefined,
+  endDate?: string | null | undefined,
   progress: number = 0,
   actualEndDate?: string | null
 ): string => {
-  if (isDelayed(endDate, status, progress, actualEndDate)) {
-    return "DELAYED";
+  // HOLDING, CANCELLED은 수동 상태이므로 유지
+  if (status === "CANCELLED" || status === "HOLDING") {
+    return status;
   }
-  return status;
+  // progress 기반으로 실질적 상태 결정
+  if (progress >= 100) {
+    return "COMPLETED";
+  } else if (progress > 0) {
+    return "IN_PROGRESS";
+  }
+  return "PENDING";
 };
 
 /**
@@ -397,22 +404,21 @@ export const calculateWbsStats = (items: WbsItem[]) => {
         totalProgress += item.progress * (item.weight || 1);
         totalWeight += item.weight || 1;
 
-        if (item.status === "COMPLETED") {
+        // progress 기반으로 실질적 상태 결정
+        const effectiveStatus = getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate);
+
+        // 지연 여부 별도 체크
+        if (isDelayed(item.endDate, item.status, item.progress, item.actualEndDate)) {
+          delayed++;
+        }
+
+        // 상태별 분류
+        if (effectiveStatus === "COMPLETED") {
           completed++;
-          // 100% 달성이어도 실제종료일이 계획보다 늦으면 지연
-          if (isDelayed(item.endDate, item.status, item.progress, item.actualEndDate)) {
-            delayed++;
-          }
-        } else if (item.status === "IN_PROGRESS") {
+        } else if (effectiveStatus === "IN_PROGRESS") {
           inProgress++;
-          if (isDelayed(item.endDate, item.status, item.progress, item.actualEndDate)) {
-            delayed++;
-          }
-        } else if (item.status === "PENDING") {
+        } else if (effectiveStatus === "PENDING") {
           pending++;
-          if (isDelayed(item.endDate, item.status, item.progress, item.actualEndDate)) {
-            delayed++;
-          }
         }
       }
 

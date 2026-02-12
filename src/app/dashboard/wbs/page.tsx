@@ -747,19 +747,25 @@ export default function WBSPage() {
     }
 
     // 엑셀 데이터 변환
-    const excelData = flatItems.map((item) => ({
-      "WBS 코드": item.code,
-      "레벨": levelNames[item.level],
-      "항목명": item.name,
-      "상태": statusNames[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)],
-      "진행률": `${item.progress}%`,
-      "시작일": item.startDate ? new Date(item.startDate).toLocaleDateString() : "-",
-      "종료일": item.endDate ? new Date(item.endDate).toLocaleDateString() : "-",
-      "담당자": item.assignees?.map((a) => a.name).join(", ") || "-",
-      "가중치": item.weight ? `${item.weight}%` : "-",
-      "산출물": item.deliverableName || "-",
-      "설명": item.description || "",
-    }));
+    const excelData = flatItems.map((item) => {
+      const delayDays = isDelayed(item.endDate, item.status, item.progress, item.actualEndDate)
+        ? getDelayDays(item.endDate, item.status, item.progress, item.actualEndDate)
+        : 0;
+      return {
+        "WBS 코드": item.code,
+        "레벨": levelNames[item.level],
+        "항목명": item.name,
+        "상태": statusNames[getDisplayStatus(item.status, item.endDate, item.progress, item.actualEndDate)],
+        "지연일수": delayDays > 0 ? `D+${delayDays}` : "-",
+        "진행률": `${item.progress}%`,
+        "시작일": item.startDate ? new Date(item.startDate).toLocaleDateString() : "-",
+        "종료일": item.endDate ? new Date(item.endDate).toLocaleDateString() : "-",
+        "담당자": item.assignees?.map((a) => a.name).join(", ") || "-",
+        "가중치": item.weight ? `${item.weight}%` : "-",
+        "산출물": item.deliverableName || "-",
+        "설명": item.description || "",
+      };
+    });
 
     // 워크시트 생성
     const worksheet = utils.json_to_sheet(excelData);
@@ -770,6 +776,7 @@ export default function WBSPage() {
       { wch: 8 },  // 레벨
       { wch: 40 }, // 항목명
       { wch: 10 }, // 상태
+      { wch: 10 }, // 지연일수
       { wch: 8 },  // 진행률
       { wch: 12 }, // 시작일
       { wch: 12 }, // 종료일
@@ -1488,8 +1495,11 @@ export default function WBSPage() {
                   <div className="w-16 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
                     진행률
                   </div>
-                  <div className="w-20 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
+                  <div className="w-16 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
                     상태
+                  </div>
+                  <div className="w-14 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
+                    지연
                   </div>
                   <div className="w-14 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
                     담당
