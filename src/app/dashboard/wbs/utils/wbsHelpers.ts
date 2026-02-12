@@ -285,12 +285,50 @@ export const getEmbedUrl = (url: string): string => {
   // OneDrive/SharePoint 공유 링크를 임베드 URL로 변환
   if (url.includes("sharepoint.com") || url.includes("onedrive.live.com")) {
     // 이미 임베드 URL이면 그대로 반환
-    if (url.includes("embed")) {
+    if (url.includes("embed") || url.includes("action=embedview")) {
       return url;
     }
-    // 공유 URL을 임베드 URL로 변환
-    return url.replace("?e=", "?embed=1&e=");
+    // SharePoint 파일 공유 링크 (/:x:/, /:w:/, /:p:/ 등) → action=embedview 추가
+    if (url.match(/\/:[\w]:\//) || url.includes("/personal/")) {
+      const separator = url.includes("?") ? "&" : "?";
+      return `${url}${separator}action=embedview`;
+    }
+    // 일반 공유 URL → embed 파라미터 추가
+    if (url.includes("?e=")) {
+      return url.replace("?e=", "?embed=1&e=");
+    }
+    // 그 외 SharePoint URL → action=embedview 추가
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}action=embedview`;
   }
+
+  // Google Drive 공유 링크를 임베드 URL로 변환
+  if (url.includes("drive.google.com")) {
+    // /file/d/{ID}/view → /file/d/{ID}/preview
+    if (url.includes("/view")) {
+      return url.replace("/view", "/preview");
+    }
+    // /file/d/{ID}/edit → /file/d/{ID}/preview
+    if (url.includes("/edit")) {
+      return url.replace("/edit", "/preview");
+    }
+  }
+
+  // Google Docs/Sheets/Slides → 임베드 URL로 변환
+  if (
+    url.includes("docs.google.com") ||
+    url.includes("sheets.google.com") ||
+    url.includes("slides.google.com")
+  ) {
+    if (url.includes("/edit")) {
+      return url.replace("/edit", "/preview");
+    }
+    if (!url.includes("/preview") && !url.includes("/pub")) {
+      const separator = url.includes("?") ? "&" : "?";
+      return `${url}${separator}embedded=true`;
+    }
+  }
+
   return url;
 };
 
