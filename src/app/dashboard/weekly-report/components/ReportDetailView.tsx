@@ -468,15 +468,6 @@ export function ReportDetailView({
           )}
         </div>
 
-        {/* 프로젝트 표시 */}
-        {selectedProject && (
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border">
-            <Icon name="folder" size="sm" className="text-primary" />
-            <span className="text-sm font-medium text-foreground">
-              {selectedProject.name}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* 주차 선택 캐로셀 */}
