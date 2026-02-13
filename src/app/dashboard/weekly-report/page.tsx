@@ -50,6 +50,9 @@ export default function WeeklyReportPage() {
   // 초기 주차 정보 (새 작성 모드에서 사용)
   const [initialWeekInfo, setInitialWeekInfo] = useState<WeekInfo | null>(null);
 
+  // 멤버 필터 상태 (뷰 전환 시에도 유지)
+  const [memberFilter, setMemberFilter] = useState<"mine" | "all">("mine");
+
   // 취합 모달 상태 (새 취합 생성용)
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
@@ -116,6 +119,8 @@ export default function WeeklyReportPage() {
               <ReportListView
                 onSelectReport={handleSelectReport}
                 onCreateNew={handleCreateNew}
+                memberFilter={memberFilter}
+                onMemberFilterChange={setMemberFilter}
               />
             </div>
 

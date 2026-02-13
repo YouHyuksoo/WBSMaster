@@ -37,10 +37,7 @@ export function useWeeklySummaries(params?: {
         weekNumber: params?.weekNumber?.toString(),
       }),
     enabled: !!params?.projectId,
-    staleTime: 1000 * 60 * 5, // 5분간 캐시
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    staleTime: 1000 * 30, // 30초간 캐시 (분석 완료 후 빠르게 반영)
   });
 }
 

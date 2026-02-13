@@ -69,6 +69,10 @@ export function ReportDetailView({
   const { selectedProject, selectedProjectId } = useProject();
   const toast = useToast();
 
+  // 다른 사람의 보고서인지 판단
+  const viewingUserId = selectedReport?.userId || currentUser?.id;
+  const isReadOnly = !!(selectedReport?.userId && currentUser?.id && selectedReport.userId !== currentUser.id);
+
   // 주차 상태 초기화
   const [currentWeekInfo, setCurrentWeekInfo] = useState<WeekInfo>(() => {
     // 선택된 보고서가 있으면 해당 주차 정보 사용
@@ -107,11 +111,11 @@ export function ReportDetailView({
   const currentWeekReportFilters = useMemo(
     () => ({
       projectId: selectedProjectId || undefined,
-      userId: currentUser?.id,
+      userId: viewingUserId,
       year: String(currentWeekInfo.year),
       weekNumber: String(currentWeekInfo.week),
     }),
-    [selectedProjectId, currentUser?.id, currentWeekInfo.year, currentWeekInfo.week]
+    [selectedProjectId, viewingUserId, currentWeekInfo.year, currentWeekInfo.week]
   );
 
   // 현재 주차의 주간보고 조회
@@ -121,10 +125,10 @@ export function ReportDetailView({
   const allReportsFilters = useMemo(
     () => ({
       projectId: selectedProjectId || undefined,
-      userId: currentUser?.id,
+      userId: viewingUserId,
       year: String(currentWeekInfo.year),
     }),
-    [selectedProjectId, currentUser?.id, currentWeekInfo.year]
+    [selectedProjectId, viewingUserId, currentWeekInfo.year]
   );
 
   // 해당 프로젝트의 전체 주간보고 조회 (주차별 상태 표시용)
@@ -442,6 +446,26 @@ export function ReportDetailView({
               {REPORT_STATUS_MAP[currentReport.status].label}
             </span>
           )}
+          {/* 읽기 전용: 보고서 소유자 표시 */}
+          {isReadOnly && selectedReport?.user && (
+            <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+              {selectedReport.user.avatar ? (
+                <img
+                  src={selectedReport.user.avatar}
+                  alt={selectedReport.user.name || ""}
+                  className="size-5 rounded-full object-cover"
+                />
+              ) : (
+                <Icon name="person" size="xs" className="text-amber-600 dark:text-amber-400" />
+              )}
+              <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                {selectedReport.user.name || selectedReport.user.email}
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-800 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
+                읽기 전용
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 프로젝트 표시 */}
@@ -466,6 +490,14 @@ export function ReportDetailView({
         />
       )}
 
+      {/* 로딩 중 */}
+      {isLoading && (
+        <div className="bg-card rounded-xl border border-border p-12 flex flex-col items-center justify-center">
+          <Icon name="sync" className="animate-spin text-primary mb-3" size="lg" />
+          <p className="text-muted-foreground text-sm">주간보고를 불러오는 중...</p>
+        </div>
+      )}
+
       {/* 보고서 미존재 시 */}
       {!isLoading && !currentReport && selectedProjectId && (
         <div className="bg-card rounded-xl border border-border p-8 text-center">
@@ -477,17 +509,19 @@ export function ReportDetailView({
           <p className="text-foreground mb-4">
             해당 주차의 주간보고가 없습니다.
           </p>
-          <Button onClick={handleCreateReport} isLoading={createReport.isPending}>
-            주간보고 작성 시작
-          </Button>
+          {!isReadOnly && (
+            <Button onClick={handleCreateReport} isLoading={createReport.isPending}>
+              주간보고 작성 시작
+            </Button>
+          )}
         </div>
       )}
 
       {/* 보고서 존재 시 */}
       {currentReport && (
         <>
-          {/* 자동 로드 안내 */}
-          {hasAutoLoadItems && (
+          {/* 자동 로드 안내 (읽기 전용일 때 숨김) */}
+          {!isReadOnly && hasAutoLoadItems && (
             <div className="bg-sky-50 dark:bg-sky-900/20 rounded-lg p-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Icon name="auto_fix_high" className="text-sky-500" />
@@ -542,28 +576,31 @@ export function ReportDetailView({
                         item={item}
                         onEdit={() => openEditItemModal(item)}
                         onDelete={() => handleDeleteItem(item.id)}
+                        readOnly={isReadOnly}
                       />
                     ))}
                   </>
                 )}
               </div>
-              {/* 항목 추가 버튼 */}
-              <div className="border-t border-border p-3 flex gap-2">
-                <button
-                  onClick={() => openAddItemModal("PREVIOUS_RESULT")}
-                  className="flex-1 py-2 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2 text-sm"
-                >
-                  <Icon name="add" size="sm" />
-                  추가 업무 등록
-                </button>
-                <button
-                  onClick={() => openAiModal("PREVIOUS_RESULT")}
-                  className="px-4 py-2 bg-gradient-to-r from-primary to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 text-sm font-medium"
-                >
-                  <Icon name="auto_awesome" size="sm" />
-                  AI 작성
-                </button>
-              </div>
+              {/* 항목 추가 버튼 (읽기 전용일 때 숨김) */}
+              {!isReadOnly && (
+                <div className="border-t border-border p-3 flex gap-2">
+                  <button
+                    onClick={() => openAddItemModal("PREVIOUS_RESULT")}
+                    className="flex-1 py-2 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Icon name="add" size="sm" />
+                    추가 업무 등록
+                  </button>
+                  <button
+                    onClick={() => openAiModal("PREVIOUS_RESULT")}
+                    className="px-4 py-2 bg-gradient-to-r from-primary to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 text-sm font-medium"
+                  >
+                    <Icon name="auto_awesome" size="sm" />
+                    AI 작성
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* 오른쪽: 차주 계획 */}
@@ -587,27 +624,30 @@ export function ReportDetailView({
                       onEdit={() => openEditItemModal(item)}
                       onDelete={() => handleDeleteItem(item.id)}
                       showProgress={false}
+                      readOnly={isReadOnly}
                     />
                   ))
                 )}
               </div>
-              {/* 항목 추가 버튼 */}
-              <div className="border-t border-border p-3 flex gap-2">
-                <button
-                  onClick={() => openAddItemModal("NEXT_PLAN")}
-                  className="flex-1 py-2 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2 text-sm"
-                >
-                  <Icon name="add" size="sm" />
-                  계획 추가
-                </button>
-                <button
-                  onClick={() => openAiModal("NEXT_PLAN")}
-                  className="px-4 py-2 bg-gradient-to-r from-primary to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 text-sm font-medium"
-                >
-                  <Icon name="auto_awesome" size="sm" />
-                  AI 작성
-                </button>
-              </div>
+              {/* 항목 추가 버튼 (읽기 전용일 때 숨김) */}
+              {!isReadOnly && (
+                <div className="border-t border-border p-3 flex gap-2">
+                  <button
+                    onClick={() => openAddItemModal("NEXT_PLAN")}
+                    className="flex-1 py-2 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Icon name="add" size="sm" />
+                    계획 추가
+                  </button>
+                  <button
+                    onClick={() => openAiModal("NEXT_PLAN")}
+                    className="px-4 py-2 bg-gradient-to-r from-primary to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 text-sm font-medium"
+                  >
+                    <Icon name="auto_awesome" size="sm" />
+                    AI 작성
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -617,49 +657,64 @@ export function ReportDetailView({
               <Icon name="warning" size="sm" className="text-warning" />
               이슈사항
             </h3>
-            <RichTextEditor
-              key={currentReportId}
-              value={displayIssueContent}
-              onChange={(val) => {
-                setIssueContent(val);
-                setIssueEdited(true);
-              }}
-              placeholder="이슈사항을 입력하세요..."
-              minHeight={150}
-            />
-          </div>
-
-          {/* 하단 액션 버튼 */}
-          <div className="flex justify-end gap-3">
-            {currentReport.status === "DRAFT" ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={handleTempSave}
-                  isLoading={savingAction === "temp"}
-                  disabled={savingAction !== null}
-                >
-                  임시저장
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  isLoading={savingAction === "submit"}
-                  disabled={savingAction !== null}
-                >
-                  제출 완료
-                </Button>
-              </>
+            {isReadOnly ? (
+              displayIssueContent ? (
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none min-h-[100px] text-foreground"
+                  dangerouslySetInnerHTML={{ __html: displayIssueContent }}
+                />
+              ) : (
+                <div className="min-h-[100px] flex items-center justify-center text-muted-foreground text-sm">
+                  등록된 이슈사항이 없습니다.
+                </div>
+              )
             ) : (
-              <Button
-                variant="outline"
-                onClick={handleCancelSubmit}
-                isLoading={savingAction === "cancel"}
-                disabled={savingAction !== null}
-              >
-                제출 취소
-              </Button>
+              <RichTextEditor
+                key={currentReportId}
+                value={displayIssueContent}
+                onChange={(val) => {
+                  setIssueContent(val);
+                  setIssueEdited(true);
+                }}
+                placeholder="이슈사항을 입력하세요..."
+                minHeight={150}
+              />
             )}
           </div>
+
+          {/* 하단 액션 버튼 (읽기 전용일 때 숨김) */}
+          {!isReadOnly && (
+            <div className="flex justify-end gap-3">
+              {currentReport.status === "DRAFT" ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleTempSave}
+                    isLoading={savingAction === "temp"}
+                    disabled={savingAction !== null}
+                  >
+                    임시저장
+                  </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    isLoading={savingAction === "submit"}
+                    disabled={savingAction !== null}
+                  >
+                    제출 완료
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={handleCancelSubmit}
+                  isLoading={savingAction === "cancel"}
+                  disabled={savingAction !== null}
+                >
+                  제출 취소
+                </Button>
+              )}
+            </div>
+          )}
         </>
       )}
 

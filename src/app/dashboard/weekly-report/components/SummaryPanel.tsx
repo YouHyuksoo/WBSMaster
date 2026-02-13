@@ -16,7 +16,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Icon, Button, ConfirmModal, useToast } from "@/components/ui";
 import { WeeklySummary } from "@/lib/api";
-import { useWeeklySummaries, useDeleteWeeklySummary } from "@/hooks";
+import { useWeeklySummaries, useDeleteWeeklySummary, useAnalyzeWeeklySummary } from "@/hooks";
 
 interface SummaryPanelProps {
   /** 프로젝트 ID */
@@ -46,6 +46,10 @@ export function SummaryPanel({
 
   const { data: summaries = [], isLoading } = useWeeklySummaries(summaryFilters);
   const deleteSummary = useDeleteWeeklySummary();
+  const analyzeMutation = useAnalyzeWeeklySummary();
+
+  // 현재 분석 중인 취합 ID
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
 
   /** 취합 보고서 클릭 - 상세 페이지로 이동 */
   const handleSelectSummary = (summary: WeeklySummary) => {
@@ -66,6 +70,20 @@ export function SummaryPanel({
     setDeletingSummaryId(id);
     setDeletingSummaryTitle(title);
     setShowDeleteConfirm(true);
+  };
+
+  /** AI 분석/재분석 핸들러 */
+  const handleAnalyze = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setAnalyzingId(id);
+    try {
+      await analyzeMutation.mutateAsync(id);
+      toast.success("AI 분석이 완료되었습니다.");
+    } catch {
+      toast.error("AI 분석에 실패했습니다.");
+    } finally {
+      setAnalyzingId(null);
+    }
   };
 
   /** 삭제 확인 */
@@ -149,9 +167,14 @@ export function SummaryPanel({
                   </span>
                 </div>
 
-                {/* LLM 분석 상태 */}
+                {/* LLM 분석 상태 + 분석 버튼 */}
                 <div className="flex items-center gap-2 mt-2">
-                  {summary.llmAnalyzedAt ? (
+                  {analyzingId === summary.id ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary">
+                      <Icon name="sync" size="xs" className="animate-spin" />
+                      분석 중...
+                    </span>
+                  ) : summary.llmAnalyzedAt ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">
                       <Icon name="auto_awesome" size="xs" />
                       AI 분석 완료
@@ -161,6 +184,17 @@ export function SummaryPanel({
                       <Icon name="pending" size="xs" />
                       분석 대기
                     </span>
+                  )}
+                  {/* 분석/재분석 버튼 */}
+                  {analyzingId !== summary.id && (
+                    <button
+                      onClick={(e) => handleAnalyze(e, summary.id)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                      title={summary.llmAnalyzedAt ? "AI 재분석" : "AI 분석 실행"}
+                    >
+                      <Icon name="auto_awesome" size="xs" />
+                      {summary.llmAnalyzedAt ? "재분석" : "분석"}
+                    </button>
                   )}
                 </div>
 

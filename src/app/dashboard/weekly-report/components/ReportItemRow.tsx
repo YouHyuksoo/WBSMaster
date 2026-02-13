@@ -27,6 +27,8 @@ interface ReportItemRowProps {
   onDelete: () => void;
   /** 진행률 표시 여부 (기본값: true) */
   showProgress?: boolean;
+  /** 읽기 전용 모드 (다른 사람의 보고서 열람 시) */
+  readOnly?: boolean;
 }
 
 /**
@@ -38,11 +40,12 @@ export function ReportItemRow({
   onEdit,
   onDelete,
   showProgress = true,
+  readOnly = false,
 }: ReportItemRowProps) {
   return (
     <div
-      className="px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer group"
-      onClick={onEdit}
+      className={`px-4 py-3 transition-colors ${readOnly ? "" : "hover:bg-muted/50 cursor-pointer group"}`}
+      onClick={readOnly ? undefined : onEdit}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -65,12 +68,14 @@ export function ReportItemRow({
                 {formatShortDate(item.targetDate)}
               </span>
             )}
-            {/* 편집 힌트 아이콘 */}
-            <Icon
-              name="edit"
-              size="xs"
-              className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-            />
+            {/* 편집 힌트 아이콘 (읽기 전용일 때 숨김) */}
+            {!readOnly && (
+              <Icon
+                name="edit"
+                size="xs"
+                className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+            )}
           </div>
           {/* 제목 */}
           <div className="text-sm font-medium text-foreground">{item.title}</div>
@@ -99,15 +104,17 @@ export function ReportItemRow({
               )}
             </>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation(); // 행 클릭 이벤트 방지
-              onDelete();
-            }}
-            className="p-1 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded transition-colors"
-          >
-            <Icon name="delete" size="sm" className="text-rose-500" />
-          </button>
+          {!readOnly && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // 행 클릭 이벤트 방지
+                onDelete();
+              }}
+              className="p-1 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded transition-colors"
+            >
+              <Icon name="delete" size="sm" className="text-rose-500" />
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -65,7 +65,7 @@ const SUMMARY_ANALYSIS_PROMPT = `당신은 프로젝트 관리 전문가입니�
 - 업무 우선순위 조정 권고 (필요시)
 
 ## 규칙
-1. 한국어로 응답하세요
+1. 한국어로 응답하되, 반드시 정중한 존댓말(합니다/습니다 체)을 사용하세요
 2. 마크다운 형식을 사용하세요
 3. 구체적인 업무 제목을 언급하세요
 4. 객관적이고 건설적인 피드백을 제공하세요
@@ -104,10 +104,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // API 키 확인
-    const apiKey = aiSetting.provider === "gemini"
-      ? aiSetting.geminiApiKey
-      : aiSetting.mistralApiKey;
+    // API 키 확인 (provider별 분기)
+    let apiKey: string | null = null;
+    let model: string = "";
+
+    switch (aiSetting.provider) {
+      case "gemini":
+        apiKey = aiSetting.geminiApiKey;
+        model = aiSetting.geminiModel;
+        break;
+      case "mistral":
+        apiKey = aiSetting.mistralApiKey;
+        model = aiSetting.mistralModel;
+        break;
+      case "kimi":
+        apiKey = aiSetting.kimiApiKey;
+        model = aiSetting.kimiModel;
+        break;
+      default:
+        return NextResponse.json(
+          { error: `Unsupported AI provider: ${aiSetting.provider}` },
+          { status: 400 }
+        );
+    }
 
     if (!apiKey) {
       return NextResponse.json(
@@ -118,11 +137,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // LLM 클라이언트 생성
     const llmConfig: LLMConfig = {
-      provider: aiSetting.provider as "gemini" | "mistral",
+      provider: aiSetting.provider as "gemini" | "mistral" | "kimi",
       apiKey,
-      model: aiSetting.provider === "gemini"
-        ? aiSetting.geminiModel
-        : aiSetting.mistralModel,
+      model,
     };
 
     const client = createLLMClient(llmConfig);

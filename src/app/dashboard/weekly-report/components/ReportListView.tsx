@@ -26,13 +26,17 @@ interface ReportListViewProps {
   onSelectReport: (report: ReportWithRelations) => void;
   /** 새 보고서 작성 시 콜백 */
   onCreateNew: (weekInfo: WeekInfo) => void;
+  /** 멤버 필터 상태 (부모에서 관리) */
+  memberFilter: "mine" | "all";
+  /** 멤버 필터 변경 핸들러 */
+  onMemberFilterChange: (filter: "mine" | "all") => void;
 }
 
 /**
  * 주간보고 목록 뷰 컴포넌트
  * 모든 멤버의 주간보고를 테이블로 표시
  */
-export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewProps) {
+export function ReportListView({ onSelectReport, onCreateNew, memberFilter, onMemberFilterChange }: ReportListViewProps) {
   const { selectedProject, selectedProjectId } = useProject();
   const { data: currentUser } = useCurrentUser();
 
@@ -47,7 +51,6 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
   // 필터 상태 - 프로젝트 주차 기반으로 기본값 설정
   const [yearFilter, setYearFilter] = useState<number>(new Date().getFullYear());
   const [weekFilter, setWeekFilter] = useState<number | "all">("all"); // 초기값은 all, useEffect에서 금주로 설정
-  const [memberFilter, setMemberFilter] = useState<"mine" | "all">("mine"); // 기본값: 내꺼만 보기
 
   // 프로젝트 선택 시 금주로 필터 초기화
   useEffect(() => {
@@ -172,7 +175,7 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
           {/* 멤버 필터 (내꺼만/전체) */}
           <div className="flex rounded-lg border border-border overflow-hidden">
             <button
-              onClick={() => setMemberFilter("mine")}
+              onClick={() => onMemberFilterChange("mine")}
               className={`px-3 py-2 text-sm font-medium transition-colors ${
                 memberFilter === "mine"
                   ? "bg-primary text-primary-foreground"
@@ -182,7 +185,7 @@ export function ReportListView({ onSelectReport, onCreateNew }: ReportListViewPr
               내꺼만
             </button>
             <button
-              onClick={() => setMemberFilter("all")}
+              onClick={() => onMemberFilterChange("all")}
               className={`px-3 py-2 text-sm font-medium transition-colors ${
                 memberFilter === "all"
                   ? "bg-primary text-primary-foreground"
