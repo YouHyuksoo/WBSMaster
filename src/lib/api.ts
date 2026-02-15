@@ -1615,6 +1615,18 @@ export const api = {
     },
   },
 
+  /** 백업 관리 API */
+  backups: {
+    /** 백업 파일 목록 조회 */
+    list: () => get<{ filename: string; size: number; createdAt: string }[]>("/api/backups"),
+    /** 새 백업 생성 */
+    create: () => post<{ success: boolean; filename: string; size: number; tables: number; totalRows: number; createdAt: string }>("/api/backups"),
+    /** 백업 파일 삭제 */
+    delete: (filename: string) => del<{ message: string }>(`/api/backups/${encodeURIComponent(filename)}`),
+    /** 백업 파일 다운로드 URL */
+    downloadUrl: (filename: string) => `/api/backups/${encodeURIComponent(filename)}`,
+  },
+
   // ============================================
   // 인터뷰 관리 API
   // ============================================

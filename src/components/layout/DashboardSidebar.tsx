@@ -75,6 +75,7 @@ const managementItems: MenuItem[] = [
   { label: "업무협조 점검표", icon: "checklist", href: "/dashboard/requirements" },
   { label: "이슈사항 점검표", icon: "bug_report", href: "/dashboard/issues" },
   { label: "Slack 설정", icon: "forum", href: "/dashboard/slack" },
+  { label: "데이터 백업", icon: "backup", href: "/dashboard/backups" },
 ];
 
 /**
