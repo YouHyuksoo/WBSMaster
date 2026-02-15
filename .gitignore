@@ -59,6 +59,7 @@ tmpclaude-*
 
 # Backup files
 backup*.sql
+/backups/
 
 # Supabase temp files
 supabase/.temp/

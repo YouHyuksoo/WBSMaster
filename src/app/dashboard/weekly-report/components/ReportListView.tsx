@@ -399,11 +399,26 @@ export function ReportListView({ onSelectReport, onCreateNew, memberFilter, onMe
         ) : (
           <div className="flex flex-col items-center justify-center py-12">
             <Icon name="description" size="xl" className="text-muted-foreground mb-4" />
-            <p className="text-muted-foreground mb-4">등록된 주간보고가 없습니다.</p>
-            <Button onClick={handleCreateNew} disabled={!currentProjectWeek}>
-              <Icon name="add" size="sm" className="mr-1" />
-              주간보고 작성
-            </Button>
+            <p className="text-muted-foreground mb-4">
+              {memberFilter === "all"
+                ? "해당 주차에 작성된 주간보고가 없습니다."
+                : "등록된 주간보고가 없습니다."}
+            </p>
+            {memberFilter === "mine" && (
+              <Button onClick={handleCreateNew} disabled={!currentProjectWeek}>
+                <Icon name="add" size="sm" className="mr-1" />
+                주간보고 작성
+              </Button>
+            )}
+            {memberFilter === "all" && weekFilter !== "all" && (
+              <Button
+                variant="outline"
+                onClick={() => setWeekFilter("all")}
+              >
+                <Icon name="filter_list_off" size="sm" className="mr-1" />
+                전체 주차 보기
+              </Button>
+            )}
           </div>
         )}
       </div>
