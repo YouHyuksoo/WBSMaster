@@ -1366,10 +1366,41 @@ export default function WBSPage() {
 
       {selectedProjectId && (
         <>
-          {/* 프로젝트 상태 요약 (엑셀 WBS 산식 기준) */}
-          <div className="p-4 border-b border-border dark:border-border-dark bg-surface dark:bg-surface-dark">
-            <div className="flex items-center gap-4">
-              {/* 계획 진척률 */}
+          {/* 프로젝트 상태 요약 - 건수 통계 + 진척률 배지 (한 줄) */}
+          <div className="px-4 py-1 border-b border-border dark:border-border-dark bg-surface dark:bg-surface-dark">
+            <div className="flex items-center gap-1.5">
+              {/* 건수 통계 배지 */}
+              <div className="flex items-center gap-0.5 px-2 py-0.5 rounded border-2 border-gray-800 dark:border-gray-300">
+                <span className="text-[10px] font-bold text-red-500">전체:</span>
+                <span className="text-xs font-black text-red-500">{stats.total}건</span>
+              </div>
+              <div className="flex items-center gap-0.5 px-2 py-0.5 rounded border-2 border-blue-500">
+                <span className="text-[10px] font-bold text-blue-500">계획:</span>
+                <span className="text-xs font-black text-blue-500">{stats.pending}건</span>
+              </div>
+              <div className="flex items-center gap-0.5 px-2 py-0.5 rounded border-2 border-green-500">
+                <span className="text-[10px] font-bold text-green-500">완료:</span>
+                <span className="text-xs font-black text-green-500">{stats.completed}건</span>
+              </div>
+              <div className="flex items-center gap-0.5 px-2 py-0.5 rounded border-2 border-amber-500">
+                <span className="text-[10px] font-bold text-amber-500">진행중:</span>
+                <span className="text-xs font-black text-amber-500">{stats.inProgress}건</span>
+              </div>
+              <div className="flex items-center gap-0.5 px-2 py-0.5 rounded border-2 border-red-500">
+                <span className="text-[10px] font-bold text-red-500">미완료:</span>
+                <span className="text-xs font-black text-red-500">{stats.delayed}건</span>
+              </div>
+              <div className="flex items-center gap-0.5 px-2 py-0.5 rounded border-2 border-red-800 dark:border-red-400">
+                <span className="text-[10px] font-bold text-red-700 dark:text-red-400">진척율:</span>
+                <span className="text-xs font-black text-red-700 dark:text-red-400">
+                  {stats.total > 0 ? Math.round((stats.completed / stats.total) * 1000) / 10 : 0}%
+                </span>
+              </div>
+
+              {/* 구분선 */}
+              <div className="h-5 w-px bg-border dark:bg-border-dark mx-1" />
+
+              {/* 가중치 기반 진척률 배지 */}
               <StatsTooltipBadge
                 type="planned"
                 align="left"
@@ -1380,13 +1411,11 @@ export default function WBSPage() {
                 achievementRate={stats.achievementRate}
                 totalWeight={stats.totalWeight}
               >
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-500/10 rounded-lg border border-sky-500/20">
-                  <span className="text-xs text-text-secondary">계획</span>
-                  <span className="text-lg font-bold text-sky-500">{stats.plannedProgress}%</span>
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-sky-500/10 rounded border border-sky-500/20">
+                  <span className="text-[10px] text-text-secondary">계획</span>
+                  <span className="text-xs font-bold text-sky-500">{stats.plannedProgress}%</span>
                 </div>
               </StatsTooltipBadge>
-
-              {/* 실적 진척률 */}
               <StatsTooltipBadge
                 type="actual"
                 level1Details={stats.level1Details}
@@ -1396,13 +1425,11 @@ export default function WBSPage() {
                 achievementRate={stats.achievementRate}
                 totalWeight={stats.totalWeight}
               >
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20">
-                  <span className="text-xs text-text-secondary">실적</span>
-                  <span className="text-lg font-bold text-primary">{stats.actualProgress}%</span>
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 rounded border border-primary/20">
+                  <span className="text-[10px] text-text-secondary">실적</span>
+                  <span className="text-xs font-bold text-primary">{stats.actualProgress}%</span>
                 </div>
               </StatsTooltipBadge>
-
-              {/* 지연율 */}
               <StatsTooltipBadge
                 type="delay"
                 level1Details={stats.level1Details}
@@ -1412,21 +1439,19 @@ export default function WBSPage() {
                 achievementRate={stats.achievementRate}
                 totalWeight={stats.totalWeight}
               >
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded border ${
                   stats.delayRate <= 0
                     ? "bg-emerald-500/10 border-emerald-500/20"
                     : "bg-rose-500/10 border-rose-500/20"
                 }`}>
-                  <span className="text-xs text-text-secondary">지연율</span>
-                  <span className={`text-lg font-bold ${
+                  <span className="text-[10px] text-text-secondary">지연율</span>
+                  <span className={`text-xs font-bold ${
                     stats.delayRate <= 0 ? "text-emerald-500" : "text-rose-500"
                   }`}>
                     {stats.delayRate > 0 ? "+" : ""}{stats.delayRate}%
                   </span>
                 </div>
               </StatsTooltipBadge>
-
-              {/* 달성률 */}
               <StatsTooltipBadge
                 type="achievement"
                 level1Details={stats.level1Details}
@@ -1436,7 +1461,7 @@ export default function WBSPage() {
                 achievementRate={stats.achievementRate}
                 totalWeight={stats.totalWeight}
               >
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded border ${
                   stats.achievementRate >= 100
                     ? "bg-emerald-500/10 border-emerald-500/20"
                     : stats.achievementRate >= 80
@@ -1445,8 +1470,8 @@ export default function WBSPage() {
                         ? "bg-amber-500/10 border-amber-500/20"
                         : "bg-rose-500/10 border-rose-500/20"
                 }`}>
-                  <span className="text-xs text-text-secondary">달성률</span>
-                  <span className={`text-lg font-bold ${
+                  <span className="text-[10px] text-text-secondary">달성률</span>
+                  <span className={`text-xs font-bold ${
                     stats.achievementRate >= 100
                       ? "text-emerald-500"
                       : stats.achievementRate >= 80
@@ -1462,16 +1487,15 @@ export default function WBSPage() {
 
               {/* 프로젝트 일정 통계 */}
               {scheduleStats && (
-                <div className="flex items-center gap-1 text-xs text-text-secondary ml-auto">
+                <div className="flex items-center gap-1 text-[10px] text-text-secondary ml-auto">
                   <Icon name="date_range" size="xs" className="text-text-secondary" />
                   <span>총 <span className="font-bold text-text dark:text-white">{scheduleStats.totalDays}</span>일</span>
-                  <span className="mx-1 text-border dark:text-border-dark">|</span>
+                  <span className="mx-0.5 text-border dark:text-border-dark">|</span>
                   <span>경과 <span className="font-bold text-amber-500">{scheduleStats.elapsedDays}</span>일</span>
-                  <span className="mx-1 text-border dark:text-border-dark">|</span>
+                  <span className="mx-0.5 text-border dark:text-border-dark">|</span>
                   <span>남은 <span className="font-bold text-primary">{scheduleStats.remainingDays}</span>일</span>
                 </div>
               )}
-
             </div>
           </div>
 
