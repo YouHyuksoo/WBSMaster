@@ -153,17 +153,15 @@ export async function GET(request: NextRequest) {
         totalStats.pending++;
       }
 
-      // 지연 체크: 달성율 기준
+      // 지연 체크: isDelayed() 기준 통일
       if (item.endDate && item.status !== "CANCELLED") {
         const endDate = new Date(item.endDate);
         endDate.setHours(0, 0, 0, 0);
         if (item.progress >= 100) {
-          if (item.actualEndDate) {
-            const actualEnd = new Date(item.actualEndDate);
-            actualEnd.setHours(0, 0, 0, 0);
-            if (actualEnd > endDate) {
-              totalStats.delayed++;
-            }
+          const compareDate = item.actualEndDate ? new Date(item.actualEndDate) : new Date();
+          compareDate.setHours(0, 0, 0, 0);
+          if (compareDate > endDate) {
+            totalStats.delayed++;
           }
         } else if (endDate < today) {
           totalStats.delayed++;
@@ -183,17 +181,15 @@ export async function GET(request: NextRequest) {
         totalStats.pending++;
       }
 
-      // 지연 체크: 달성율 기준
+      // 지연 체크: isDelayed() 기준 통일
       if (item.endDate && item.status !== "CANCELLED") {
         const endDate = new Date(item.endDate);
         endDate.setHours(0, 0, 0, 0);
         if (item.progress >= 100) {
-          if (item.actualEndDate) {
-            const actualEnd = new Date(item.actualEndDate);
-            actualEnd.setHours(0, 0, 0, 0);
-            if (actualEnd > endDate) {
-              totalStats.delayed++;
-            }
+          const compareDate = item.actualEndDate ? new Date(item.actualEndDate) : new Date();
+          compareDate.setHours(0, 0, 0, 0);
+          if (compareDate > endDate) {
+            totalStats.delayed++;
           }
         } else if (endDate < today) {
           totalStats.delayed++;

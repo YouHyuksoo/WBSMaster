@@ -7,4 +7,8 @@
 
 export { WbsTreeItem } from "./WbsTreeItem";
 export { WbsDetailPanel } from "./WbsDetailPanel";
+export { WbsToolbar } from "./WbsToolbar";
+export { WbsStatsBar } from "./WbsStatsBar";
+export { GanttChart } from "./GanttChart";
+export { WbsTreePanel } from "./WbsTreePanel";
 export * from "./modals";

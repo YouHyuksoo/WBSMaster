@@ -11,7 +11,7 @@
  * 4. **DragState**: 간트 차트 드래그 상태
  */
 
-import type { WbsItem, WbsLevel, TeamMember } from "@/lib/api";
+import type { WbsItem, WbsLevel, TeamMember, Project } from "@/lib/api";
 
 /** 계산된 날짜 (상위 항목용) */
 export interface CalculatedDates {
@@ -38,13 +38,13 @@ export interface DragState {
   /** 드래그 중인 항목 ID */
   itemId: string;
   /** 드래그 타입: 이동, 시작일 조정, 종료일 조정 */
-  type: "move" | "resize-start" | "resize-end";
+  type: "move" | "resize-left" | "resize-right";
   /** 드래그 시작 X 좌표 */
   startX: number;
   /** 원본 시작일 */
-  originalStart: string;
+  originalStartDate: string;
   /** 원본 종료일 */
-  originalEnd: string;
+  originalEndDate: string;
 }
 
 /** 간트 차트 날짜 정보 */
@@ -199,4 +199,108 @@ export interface WbsStats {
   delayed: number;
   /** 전체 진행률 */
   overallProgress: number;
+}
+
+/** 대분류별 상세 데이터 (StatsTooltipBadge용) */
+export interface Level1Detail {
+  name: string;
+  weight: number;
+  leafCount: number;
+  avgProgress: number;
+  avgPeriodProgress: number;
+  plannedContrib: number;
+  actualContrib: number;
+}
+
+/** 통계 계산 결과 (useWbsStats 반환값) */
+export interface WbsPageStats {
+  total: number;
+  completed: number;
+  inProgress: number;
+  pending: number;
+  delayed: number;
+  plannedProgress: number;
+  actualProgress: number;
+  delayRate: number;
+  achievementRate: number;
+  totalWeight: number;
+  level1Details: Level1Detail[];
+}
+
+/** WbsToolbar Props */
+export interface WbsToolbarProps {
+  selectedProject: Project | null;
+  selectedProjectId: string | null;
+  wbsTree: WbsItem[];
+  rightPanelView: RightPanelView;
+  filterAssigneeId: string | null;
+  teamMembers: TeamMember[];
+  onFilterChange: (id: string | null) => void;
+  onViewChange: (view: RightPanelView) => void;
+  onExpandAll: () => void;
+  onExpandLevel2: () => void;
+  onCollapseAll: () => void;
+  onExportExcel: () => void;
+  onAddNew: () => void;
+}
+
+/** WbsStatsBar Props */
+export interface WbsStatsBarProps {
+  stats: WbsPageStats;
+  scheduleStats: ProjectScheduleStats | null;
+}
+
+/** GanttChart Props */
+export interface GanttChartProps {
+  visibleItems: WbsItem[];
+  dates: GanttDateInfo[];
+  cellWidth: number;
+  todayIndex: number;
+  selectedItemId: string | null;
+  dragState: DragState | null;
+  dragDelta: number;
+  pendingDates: Map<string, { startDate: string; endDate: string }>;
+  isSavingDates: boolean;
+  zoomIndex: number;
+  zoomLevels: number[];
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onDragStart: (
+    e: React.MouseEvent,
+    itemId: string,
+    type: "move" | "resize-left" | "resize-right",
+    startDate: string | null | undefined,
+    endDate: string | null | undefined
+  ) => void;
+  onSavePending: () => void;
+  onCancelPending: () => void;
+  onSelectItem: (id: string) => void;
+  ganttScrollRef: React.RefObject<HTMLDivElement | null>;
+}
+
+/** WbsTreePanel Props */
+export interface WbsTreePanelProps {
+  panelWidth: number;
+  wbsTree: WbsItem[];
+  expandedIds: Set<string>;
+  selectedItemId: string | null;
+  checkedIds: Set<string>;
+  stats: WbsPageStats;
+  treeListRef: React.RefObject<HTMLDivElement | null>;
+  onToggle: (id: string) => void;
+  onSelect: (id: string) => void;
+  onCheck: (id: string, checked: boolean) => void;
+  onCheckAll: (checked: boolean) => void;
+  onAddChild: (parentId: string, level: WbsLevel) => void;
+  onEdit: (item: WbsItem) => void;
+  onDelete: (id: string) => void;
+  onLevelUp: (id: string) => void;
+  onLevelDown: (id: string) => void;
+  onRegisterTask: (item: WbsItem) => void;
+  onUpdateProgress: (id: string, progress: number) => void;
+  onPreviewDeliverable: (url: string) => void;
+  onBulkAssign: () => void;
+  onBulkTaskAssign: () => void;
+  onClearChecked: () => void;
+  getAllItemIds: (items: WbsItem[]) => string[];
 }

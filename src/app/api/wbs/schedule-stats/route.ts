@@ -245,18 +245,16 @@ export async function GET(request: NextRequest) {
         inProgressWbs++;
       }
 
-      // 지연 체크: 달성율 기준
+      // 지연 체크: isDelayed() 기준 통일
       if (item.endDate && item.status !== "CANCELLED") {
         const itemEndDate = new Date(item.endDate);
         itemEndDate.setHours(0, 0, 0, 0);
         if (item.progress >= 100) {
-          // 달성율 100%: 실제종료일이 계획종료일보다 늦으면 지연
-          if (item.actualEndDate) {
-            const actualEnd = new Date(item.actualEndDate);
-            actualEnd.setHours(0, 0, 0, 0);
-            if (actualEnd > itemEndDate) {
-              delayedWbs++;
-            }
+          // 달성율 100%: actualEndDate 없으면 오늘 기준으로 비교
+          const compareDate = item.actualEndDate ? new Date(item.actualEndDate) : new Date();
+          compareDate.setHours(0, 0, 0, 0);
+          if (compareDate > itemEndDate) {
+            delayedWbs++;
           }
         } else {
           // 달성율 미달: 계획종료일이 오늘보다 이전이면 지연
