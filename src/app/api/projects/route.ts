@@ -4,10 +4,10 @@
  * 프로젝트 API 라우트입니다.
  * 프로젝트 목록 조회(GET), 프로젝트 생성(POST)을 처리합니다.
  *
- * WBS 계층적 가중치 기반으로 진행율을 계산하여 반환합니다.
- * - 대분류(LEVEL1)의 가중치를 기준으로 전체 비중 결정
- * - 각 대분류 내 말단 업무들의 평균 진행률 계산
- * - 최종 진행률 = Σ(대분류 평균진행률 × 대분류 weight) / Σ(대분류 weight)
+ * WBS 엑셀 산식 기반으로 진행율을 계산하여 반환합니다.
+ * - 대분류(LEVEL1)별 하위 말단 항목들의 평균 진행률 계산
+ * - 최종 진행률 = Σ(대분류 가중치 × 대분류 말단평균진행률) / 100
+ * - 소수점 첫째자리까지 반올림 (WBS 페이지와 동일)
  *
  * 초보자 가이드:
  * 1. **GET /api/projects**: 모든 프로젝트 목록 조회 (WBS 기반 진행율 포함)
@@ -28,7 +28,7 @@ import { requireAuth } from "@/lib/auth";
  * GET /api/projects
  *
  * 반환 데이터에 WBS 단위업무 기반 진행율 포함:
- * - calculatedProgress: 가중치 기반 계산된 진행율
+ * - calculatedProgress: WBS 엑셀 산식 기반 진행율 (소수점 1자리)
  * - totalUnitTasks: 총 단위업무 수
  * - completedUnitTasks: 완료된 단위업무 수
  */
@@ -102,11 +102,10 @@ export async function GET(request: NextRequest) {
     // ========== 디버깅 로그 끝 ==========
 
     /**
-     * 각 프로젝트의 WBS 기반 진행율 계산
-     * 계층적 가중치 방식:
-     * 1. 대분류(LEVEL1)의 가중치로 전체 비중 결정
-     * 2. 각 대분류 내 말단 업무들의 평균 진행률 계산
-     * 3. 최종 진행률 = Σ(대분류 평균진행률 × 대분류 weight) / Σ(대분류 weight)
+     * 각 프로젝트의 WBS 기반 진행율 계산 (WBS 엑셀 산식과 동일)
+     * 1. 대분류(LEVEL1)별 하위 말단 항목들의 평균 진행률 계산
+     * 2. 최종 진행률 = Σ(대분류 가중치 × 대분류 말단평균진행률) / 100
+     * 3. 소수점 첫째자리까지 반올림
      */
     const projectsWithCalculatedProgress = projects.map((project) => {
       const allWbsItems = project.wbsItems || [];
@@ -180,27 +179,40 @@ export async function GET(request: NextRequest) {
       };
 
       /**
-       * 각 대분류별 진행률 계산
-       * 대분류의 progress 값은 이미 하위 항목들의 가중 평균으로 자동 계산됨
-       * 따라서 대분류의 progress를 직접 사용하여 가중치 적용
+       * 각 대분류별 진행률 계산 (WBS 엑셀 산식과 동일)
+       * 각 대분류의 하위 말단 항목들의 평균 진행률을 구한 뒤, 가중치 적용
        *
-       * 최종 진행률 = Σ(대분류 progress × 대분류 weight) / Σ(대분류 weight)
+       * 최종 진행률 = Σ(대분류 가중치 × 대분류 말단평균진행률) / 100
        */
       let totalLevel1Weight = 0;
-      let weightedLevel1Progress = 0;
+      let actualProgress = 0;
 
       level1Items.forEach((level1Item) => {
-        const level1Weight = level1Item.weight || 1;
+        const level1Weight = level1Item.weight || 0;
         totalLevel1Weight += level1Weight;
 
-        // 대분류의 progress 값을 직접 사용 (이미 하위 항목 평균이 반영됨)
-        weightedLevel1Progress += level1Item.progress * level1Weight;
+        // 해당 대분류의 하위 말단 항목들 수집
+        const descendantIds = getDescendantIds(level1Item.id);
+        const level1LeafItems = leafItems.filter(
+          (item) => descendantIds.has(item.id) || item.id === level1Item.id
+        );
+
+        // 대분류 자체가 말단(하위 없음)인 경우
+        const effectiveLeafItems = level1LeafItems.length > 0
+          ? level1LeafItems
+          : (!parentIds.has(level1Item.id) ? [level1Item] : []);
+
+        // 대분류 평균 진행률
+        const avgProgressLevel1 = effectiveLeafItems.length > 0
+          ? effectiveLeafItems.reduce((sum, i) => sum + i.progress, 0) / effectiveLeafItems.length
+          : 0;
+
+        // 실적 진척률: 가중치 × 평균진행률 / 100
+        actualProgress += (level1Weight * avgProgressLevel1) / 100;
       });
 
-      // 최종 진행률 = Σ(대분류 progress × 대분류 weight) / Σ(대분류 weight)
-      const calculatedProgress = totalLevel1Weight > 0
-        ? Math.round(weightedLevel1Progress / totalLevel1Weight)
-        : 0;
+      // 소수점 첫째자리까지 반올림 (WBS 페이지와 동일)
+      const calculatedProgress = Math.round(actualProgress * 10) / 10;
 
       // 완료된 말단 업무 수 (progress가 100인 것)
       const completedUnitTasks = leafItems.filter((item) => item.progress === 100).length;

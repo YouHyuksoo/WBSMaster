@@ -35,6 +35,7 @@ import type { NewItemForm, RightPanelView } from "./types";
 import { applyCalculatedDates, calculateProjectSchedule, isDelayed, getDelayDays, getDisplayStatus, getAllItemIds, flattenItems, filterByAssignee, getEmbedUrl } from "./utils/wbsHelpers";
 import { generateDates, getItemPosition, calculateChartRange } from "./utils/ganttHelpers";
 import { WbsTreeItem, WbsDetailPanel, BulkAssignModal, BulkTaskAssignModal, WbsFormModal, DeliverablePreviewModal } from "./components";
+import StatsTooltipBadge from "./components/StatsTooltip";
 
 // 헬퍼 함수들은 ./utils/wbsHelpers.ts 및 ./utils/ganttHelpers.ts로 이동됨
 // WbsTreeItem 컴포넌트는 ./components/WbsTreeItem.tsx로 이동됨
@@ -552,13 +553,34 @@ export default function WBSPage() {
     let actualProgress = 0;
     let totalWeight = 0;
 
+    // 대분류별 상세 계산 데이터 (호버 툴팁용)
+    const level1Details: {
+      name: string;
+      weight: number;
+      leafCount: number;
+      avgProgress: number;
+      avgPeriodProgress: number;
+      plannedContrib: number;
+      actualContrib: number;
+    }[] = [];
+
+    /** 말단 업무의 기간경과비율 계산 */
+    const calcLeafPeriodProgress = (leaf: WbsItem): number => {
+      const leafStart = leaf.startDate ? new Date(leaf.startDate) : null;
+      const leafEnd = leaf.endDate ? new Date(leaf.endDate) : null;
+      if (!leafStart || !leafEnd) return 0;
+      leafStart.setHours(0, 0, 0, 0);
+      leafEnd.setHours(0, 0, 0, 0);
+      if (today < leafStart) return 0;
+      if (today >= leafEnd) return 100;
+      const total = leafEnd.getTime() - leafStart.getTime();
+      const elapsed = today.getTime() - leafStart.getTime();
+      return total > 0 ? (elapsed / total) * 100 : 0;
+    };
+
     level1Items.forEach((level1) => {
       const weight = level1.weight || 0;
       totalWeight += weight;
-
-      // 대분류의 시작일/종료일
-      const l1StartDate = level1.startDate ? new Date(level1.startDate) : null;
-      const l1EndDate = level1.endDate ? new Date(level1.endDate) : null;
 
       // 해당 대분류의 하위 말단 항목들 수집
       const level1LeafItems: WbsItem[] = [];
@@ -573,32 +595,33 @@ export default function WBSPage() {
       };
       collectLevel1Leaves([level1]);
 
-      // 대분류 평균 진행률
+      // 대분류 내 말단 평균 진행률 (실적)
       const avgProgressLevel1 = level1LeafItems.length > 0
         ? level1LeafItems.reduce((sum, i) => sum + i.progress, 0) / level1LeafItems.length
         : 0;
 
-      // 실적 진척률: 가중치 × 평균진행률 / 100
-      actualProgress += (weight * avgProgressLevel1) / 100;
+      // 대분류 내 말단 평균 기간경과비율 (계획)
+      const avgPeriodProgress = level1LeafItems.length > 0
+        ? level1LeafItems.reduce((sum, i) => sum + calcLeafPeriodProgress(i), 0) / level1LeafItems.length
+        : 0;
 
-      // 계획 진척률: 기간경과비율 × 가중치
-      if (l1StartDate && l1EndDate) {
-        l1StartDate.setHours(0, 0, 0, 0);
-        l1EndDate.setHours(0, 0, 0, 0);
+      // 실적 진척률: 가중치 × 말단 평균진행률 / 100
+      const actualContrib = (weight * avgProgressLevel1) / 100;
+      actualProgress += actualContrib;
 
-        let periodProgress = 0;
-        if (today < l1StartDate) {
-          periodProgress = 0;
-        } else if (today >= l1EndDate) {
-          periodProgress = 100;
-        } else {
-          const totalPeriod = l1EndDate.getTime() - l1StartDate.getTime();
-          const elapsedPeriod = today.getTime() - l1StartDate.getTime();
-          periodProgress = totalPeriod > 0 ? (elapsedPeriod / totalPeriod) * 100 : 0;
-        }
+      // 계획 진척률: 가중치 × 말단 평균기간경과비율 / 100
+      const plannedContrib = (weight * avgPeriodProgress) / 100;
+      plannedProgress += plannedContrib;
 
-        plannedProgress += (periodProgress * weight) / 100;
-      }
+      level1Details.push({
+        name: level1.name,
+        weight,
+        leafCount: level1LeafItems.length,
+        avgProgress: Math.round(avgProgressLevel1 * 10) / 10,
+        avgPeriodProgress: Math.round(avgPeriodProgress * 10) / 10,
+        plannedContrib: Math.round(plannedContrib * 100) / 100,
+        actualContrib: Math.round(actualContrib * 100) / 100,
+      });
     });
 
     // 소수점 첫째자리까지 반올림
@@ -624,6 +647,7 @@ export default function WBSPage() {
       delayRate,
       achievementRate,
       totalWeight,
+      level1Details,
     };
   }, [wbsTree]);
 
@@ -1346,54 +1370,95 @@ export default function WBSPage() {
           <div className="p-4 border-b border-border dark:border-border-dark bg-surface dark:bg-surface-dark">
             <div className="flex items-center gap-4">
               {/* 계획 진척률 */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-500/10 rounded-lg border border-sky-500/20">
-                <span className="text-xs text-text-secondary">계획</span>
-                <span className="text-lg font-bold text-sky-500">{stats.plannedProgress}%</span>
-              </div>
+              <StatsTooltipBadge
+                type="planned"
+                align="left"
+                level1Details={stats.level1Details}
+                plannedProgress={stats.plannedProgress}
+                actualProgress={stats.actualProgress}
+                delayRate={stats.delayRate}
+                achievementRate={stats.achievementRate}
+                totalWeight={stats.totalWeight}
+              >
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-500/10 rounded-lg border border-sky-500/20">
+                  <span className="text-xs text-text-secondary">계획</span>
+                  <span className="text-lg font-bold text-sky-500">{stats.plannedProgress}%</span>
+                </div>
+              </StatsTooltipBadge>
 
               {/* 실적 진척률 */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20">
-                <span className="text-xs text-text-secondary">실적</span>
-                <span className="text-lg font-bold text-primary">{stats.actualProgress}%</span>
-              </div>
+              <StatsTooltipBadge
+                type="actual"
+                level1Details={stats.level1Details}
+                plannedProgress={stats.plannedProgress}
+                actualProgress={stats.actualProgress}
+                delayRate={stats.delayRate}
+                achievementRate={stats.achievementRate}
+                totalWeight={stats.totalWeight}
+              >
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20">
+                  <span className="text-xs text-text-secondary">실적</span>
+                  <span className="text-lg font-bold text-primary">{stats.actualProgress}%</span>
+                </div>
+              </StatsTooltipBadge>
 
               {/* 지연율 */}
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
-                stats.delayRate <= 0
-                  ? "bg-emerald-500/10 border-emerald-500/20"
-                  : "bg-rose-500/10 border-rose-500/20"
-              }`}>
-                <span className="text-xs text-text-secondary">지연율</span>
-                <span className={`text-lg font-bold ${
-                  stats.delayRate <= 0 ? "text-emerald-500" : "text-rose-500"
+              <StatsTooltipBadge
+                type="delay"
+                level1Details={stats.level1Details}
+                plannedProgress={stats.plannedProgress}
+                actualProgress={stats.actualProgress}
+                delayRate={stats.delayRate}
+                achievementRate={stats.achievementRate}
+                totalWeight={stats.totalWeight}
+              >
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+                  stats.delayRate <= 0
+                    ? "bg-emerald-500/10 border-emerald-500/20"
+                    : "bg-rose-500/10 border-rose-500/20"
                 }`}>
-                  {stats.delayRate > 0 ? "+" : ""}{stats.delayRate}%
-                </span>
-              </div>
+                  <span className="text-xs text-text-secondary">지연율</span>
+                  <span className={`text-lg font-bold ${
+                    stats.delayRate <= 0 ? "text-emerald-500" : "text-rose-500"
+                  }`}>
+                    {stats.delayRate > 0 ? "+" : ""}{stats.delayRate}%
+                  </span>
+                </div>
+              </StatsTooltipBadge>
 
               {/* 달성률 */}
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
-                stats.achievementRate >= 100
-                  ? "bg-emerald-500/10 border-emerald-500/20"
-                  : stats.achievementRate >= 80
-                    ? "bg-sky-500/10 border-sky-500/20"
-                    : stats.achievementRate >= 60
-                      ? "bg-amber-500/10 border-amber-500/20"
-                      : "bg-rose-500/10 border-rose-500/20"
-              }`}>
-                <span className="text-xs text-text-secondary">달성률</span>
-                <span className={`text-lg font-bold ${
+              <StatsTooltipBadge
+                type="achievement"
+                level1Details={stats.level1Details}
+                plannedProgress={stats.plannedProgress}
+                actualProgress={stats.actualProgress}
+                delayRate={stats.delayRate}
+                achievementRate={stats.achievementRate}
+                totalWeight={stats.totalWeight}
+              >
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
                   stats.achievementRate >= 100
-                    ? "text-emerald-500"
+                    ? "bg-emerald-500/10 border-emerald-500/20"
                     : stats.achievementRate >= 80
-                      ? "text-sky-500"
+                      ? "bg-sky-500/10 border-sky-500/20"
                       : stats.achievementRate >= 60
-                        ? "text-amber-500"
-                        : "text-rose-500"
+                        ? "bg-amber-500/10 border-amber-500/20"
+                        : "bg-rose-500/10 border-rose-500/20"
                 }`}>
-                  {stats.achievementRate}%
-                </span>
-              </div>
+                  <span className="text-xs text-text-secondary">달성률</span>
+                  <span className={`text-lg font-bold ${
+                    stats.achievementRate >= 100
+                      ? "text-emerald-500"
+                      : stats.achievementRate >= 80
+                        ? "text-sky-500"
+                        : stats.achievementRate >= 60
+                          ? "text-amber-500"
+                          : "text-rose-500"
+                  }`}>
+                    {stats.achievementRate}%
+                  </span>
+                </div>
+              </StatsTooltipBadge>
 
               {/* 프로젝트 일정 통계 */}
               {scheduleStats && (

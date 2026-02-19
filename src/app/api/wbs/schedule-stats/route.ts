@@ -8,9 +8,9 @@
  * 1. **GET /api/wbs/schedule-stats**: 프로젝트 일정 통계 조회
  *    - ?projectId=xxx: 특정 프로젝트 (필수)
  *
- * 계산 방식 (엑셀 WBS 산식 기준):
- * - **계획 진척률**: 각 대분류(LEVEL1)별 (기간경과비율 × 가중치)의 합계
- * - **실적 진척률**: 각 대분류(LEVEL1)의 (가중치 × 평균진행률)의 합계
+ * 계산 방식 (말단 업무 기준 통일):
+ * - **계획 진척률**: 각 대분류(LEVEL1)별 (가중치 × 말단 평균기간경과비율)의 합계
+ * - **실적 진척률**: 각 대분류(LEVEL1)별 (가중치 × 말단 평균진행률)의 합계
  * - **지연율**: 계획 - 실적 (양수면 지연, 음수면 선행)
  * - **달성률**: (실적 / 계획) × 100
  */
@@ -268,32 +268,38 @@ export async function GET(request: NextRequest) {
     });
 
     // ============================================
-    // 계획 진척률 계산 (엑셀 산식)
-    // 각 대분류별 (기간경과비율 × 가중치)의 합계
+    // 계획/실적 진척률 계산 (말단 업무 기준 통일)
+    // 계획: Σ(가중치 × 말단 평균기간경과비율) / 100
+    // 실적: Σ(가중치 × 말단 평균진행률) / 100
     // ============================================
     let plannedProgress = 0;
+    let actualProgress = 0;
     let totalWeight = 0;
 
-    // ============================================
-    // 실적 진척률 계산 (엑셀 산식)
-    // 각 대분류의 (가중치 × 평균진행률)의 합계
-    // ============================================
-    let actualProgress = 0;
+    /** 말단 업무의 기간경과비율 계산 */
+    const calcLeafPeriodProgress = (leaf: { startDate: Date | null; endDate: Date | null }): number => {
+      if (!leaf.startDate || !leaf.endDate) return 0;
+      const leafStart = new Date(leaf.startDate);
+      const leafEnd = new Date(leaf.endDate);
+      leafStart.setHours(0, 0, 0, 0);
+      leafEnd.setHours(0, 0, 0, 0);
+      if (today < leafStart) return 0;
+      if (today >= leafEnd) return 100;
+      const total = leafEnd.getTime() - leafStart.getTime();
+      const elapsed = today.getTime() - leafStart.getTime();
+      return total > 0 ? (elapsed / total) * 100 : 0;
+    };
 
     level1Items.forEach((level1) => {
-      const weight = level1.weight || 0; // 가중치 (%)
+      const weight = level1.weight || 0;
       totalWeight += weight;
 
-      // 대분류의 시작일/종료일
-      const l1StartDate = level1.startDate ? new Date(level1.startDate) : null;
-      const l1EndDate = level1.endDate ? new Date(level1.endDate) : null;
-
       // 해당 대분류의 하위 말단 항목들 수집
-      const level1LeafItems: { progress: number }[] = [];
+      const level1LeafItems: { progress: number; startDate: Date | null; endDate: Date | null }[] = [];
       const collectLevel1Leaves = (items: typeof level1Items) => {
         items.forEach((item) => {
           if (!item.children || item.children.length === 0) {
-            level1LeafItems.push({ progress: item.progress });
+            level1LeafItems.push({ progress: item.progress, startDate: item.startDate, endDate: item.endDate });
           } else {
             collectLevel1Leaves(item.children as typeof level1Items);
           }
@@ -301,36 +307,21 @@ export async function GET(request: NextRequest) {
       };
       collectLevel1Leaves([level1]);
 
-      // 대분류 평균 진행률
+      // 대분류 내 말단 평균 진행률 (실적)
       const avgProgressLevel1 = level1LeafItems.length > 0
         ? level1LeafItems.reduce((sum, i) => sum + i.progress, 0) / level1LeafItems.length
         : 0;
 
-      // 실적 진척률: 가중치 × 평균진행률 / 100
+      // 대분류 내 말단 평균 기간경과비율 (계획)
+      const avgPeriodProgress = level1LeafItems.length > 0
+        ? level1LeafItems.reduce((sum, i) => sum + calcLeafPeriodProgress(i), 0) / level1LeafItems.length
+        : 0;
+
+      // 실적 진척률: 가중치 × 말단 평균진행률 / 100
       actualProgress += (weight * avgProgressLevel1) / 100;
 
-      // 계획 진척률: 기간경과비율 × 가중치
-      if (l1StartDate && l1EndDate) {
-        l1StartDate.setHours(0, 0, 0, 0);
-        l1EndDate.setHours(0, 0, 0, 0);
-
-        let periodProgress = 0;
-        if (today < l1StartDate) {
-          // 아직 시작 전
-          periodProgress = 0;
-        } else if (today >= l1EndDate) {
-          // 종료일 이후
-          periodProgress = 100;
-        } else {
-          // 진행 중: 기간 경과 비율
-          const totalPeriod = l1EndDate.getTime() - l1StartDate.getTime();
-          const elapsedPeriod = today.getTime() - l1StartDate.getTime();
-          periodProgress = totalPeriod > 0 ? (elapsedPeriod / totalPeriod) * 100 : 0;
-        }
-
-        // 계획 진척률: 기간경과비율 × 가중치 / 100
-        plannedProgress += (periodProgress * weight) / 100;
-      }
+      // 계획 진척률: 가중치 × 말단 평균기간경과비율 / 100
+      plannedProgress += (weight * avgPeriodProgress) / 100;
     });
 
     // 소수점 첫째자리까지 반올림

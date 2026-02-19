@@ -159,7 +159,7 @@ const ProjectCard = memo(function ProjectCard({
             progressAnimated >= 50 ? "text-sky-500" :
             progressAnimated >= 20 ? "text-amber-500" : "text-text dark:text-white"
           }`}>
-            {progressAnimated}%
+            {Number.isInteger(progressAnimated) ? progressAnimated : progressAnimated.toFixed(1)}%
           </span>
         </div>
         <div className="h-2.5 bg-surface dark:bg-background-dark rounded-full overflow-hidden">

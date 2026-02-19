@@ -463,7 +463,7 @@ function ProjectListItem({ project, index }: { project: ProjectWithWbs; index: n
                 displayProgress >= 80 ? "text-emerald-500" :
                 displayProgress >= 50 ? "text-sky-500" :
                 displayProgress >= 20 ? "text-amber-500" : "text-text dark:text-white"
-              }`}>{displayProgress}%</span>
+              }`}>{Number.isInteger(displayProgress) ? displayProgress : displayProgress.toFixed(1)}%</span>
             </div>
             <div className="h-2 bg-surface dark:bg-background-dark rounded-full overflow-hidden">
               <div
