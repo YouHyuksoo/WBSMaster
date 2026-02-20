@@ -53,7 +53,7 @@ jobs:
         run: |
           echo "=== Scheduling PM2 restart (detached from runner) ==="
           schtasks /delete /tn "WBSMaster_PM2" /f 2>nul
-          schtasks /create /tn "WBSMaster_PM2" /tr "C:\Project\WBSMaster\scripts\pm2-restart.cmd" /sc once /st 00:00 /ru Administrator /rl highest /f
+          schtasks /create /tn "WBSMaster_PM2" /tr "C:\Project\WBSMaster\scripts\pm2-restart.cmd" /sc once /st 00:00 /ru HS_ADMIN /rl highest /f
           schtasks /run /tn "WBSMaster_PM2"
           echo "=== Waiting for PM2 to start ==="
           timeout /t 8 /nobreak >nul
