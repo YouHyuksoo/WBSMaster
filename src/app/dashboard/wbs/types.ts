@@ -210,6 +210,14 @@ export interface Level1Detail {
   avgPeriodProgress: number;
   plannedContrib: number;
   actualContrib: number;
+  /** 대분류별 완료 건수 */
+  completedCount: number;
+  /** 대분류별 진행중 건수 */
+  inProgressCount: number;
+  /** 대분류별 계획(종료일≤오늘) 건수 */
+  pendingCount: number;
+  /** 대분류별 미완료(지연) 건수 */
+  delayedCount: number;
 }
 
 /** 통계 계산 결과 (useWbsStats 반환값) */

@@ -32,14 +32,19 @@ export function useWbsStats(wbsTree: WbsItem[], selectedProject: Project | null)
     };
     collectLeafItems(wbsTree);
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const total = leafItems.length;
     const completed = leafItems.filter((i) => i.status === "COMPLETED").length;
     const inProgress = leafItems.filter((i) => i.status === "IN_PROGRESS").length;
-    const pending = leafItems.filter((i) => i.status === "PENDING").length;
+    const pending = leafItems.filter((i) => {
+      if (!i.endDate) return false;
+      const endDate = new Date(i.endDate);
+      endDate.setHours(0, 0, 0, 0);
+      return endDate <= today;
+    }).length;
     const delayed = leafItems.filter((i) => isDelayed(i.endDate, i.status, i.progress, i.actualEndDate)).length;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
     const level1Items = wbsTree.filter((item) => item.level === "LEVEL1");
 
@@ -93,6 +98,16 @@ export function useWbsStats(wbsTree: WbsItem[], selectedProject: Project | null)
       const plannedContrib = (weight * avgPeriodProgress) / 100;
       plannedProgress += plannedContrib;
 
+      const l1Completed = level1LeafItems.filter((i) => i.status === "COMPLETED").length;
+      const l1InProgress = level1LeafItems.filter((i) => i.status === "IN_PROGRESS").length;
+      const l1Pending = level1LeafItems.filter((i) => {
+        if (!i.endDate) return false;
+        const ed = new Date(i.endDate);
+        ed.setHours(0, 0, 0, 0);
+        return ed <= today;
+      }).length;
+      const l1Delayed = level1LeafItems.filter((i) => isDelayed(i.endDate, i.status, i.progress, i.actualEndDate)).length;
+
       level1Details.push({
         name: level1.name,
         weight,
@@ -101,6 +116,10 @@ export function useWbsStats(wbsTree: WbsItem[], selectedProject: Project | null)
         avgPeriodProgress: Math.round(avgPeriodProgress * 10) / 10,
         plannedContrib: Math.round(plannedContrib * 100) / 100,
         actualContrib: Math.round(actualContrib * 100) / 100,
+        completedCount: l1Completed,
+        inProgressCount: l1InProgress,
+        pendingCount: l1Pending,
+        delayedCount: l1Delayed,
       });
     });
 

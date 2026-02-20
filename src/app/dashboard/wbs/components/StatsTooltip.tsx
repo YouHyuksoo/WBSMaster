@@ -22,6 +22,10 @@ export interface Level1Detail {
   avgPeriodProgress: number;
   plannedContrib: number;
   actualContrib: number;
+  completedCount: number;
+  inProgressCount: number;
+  pendingCount: number;
+  delayedCount: number;
 }
 
 /** 툴팁 종류 */
