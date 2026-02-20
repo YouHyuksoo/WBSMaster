@@ -26,11 +26,12 @@ jobs:
       - name: Configure Git safe directory
         run: git config --global --add safe.directory C:/Project/WBSMaster
 
-      - name: Stop PM2 and Node processes
+      - name: Stop WBSMaster process only
         run: |
           set PM2_HOME=C:\Users\Administrator\.pm2
-          pm2 kill 2>nul || echo "PM2 not running"
-          taskkill /F /IM node.exe /T 2>nul || echo "No node process"
+          echo "=== Stopping wbs-master only (not killing PM2) ==="
+          pm2 stop wbs-master 2>nul || echo "wbs-master not running"
+          pm2 delete wbs-master 2>nul || echo "wbs-master not registered"
         shell: cmd
         continue-on-error: true
 
