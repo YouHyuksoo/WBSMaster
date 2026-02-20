@@ -49,15 +49,15 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Restart PM2 via scheduled task
+      - name: Start WBSMaster PM2 process
         run: |
-          echo "=== Scheduling PM2 restart (detached from runner) ==="
-          schtasks /delete /tn "WBSMaster_PM2" /f 2>nul
-          schtasks /create /tn "WBSMaster_PM2" /tr "C:\Project\WBSMaster\scripts\pm2-restart.cmd" /sc once /st 00:00 /ru HS_ADMIN /rl highest /f
-          schtasks /run /tn "WBSMaster_PM2"
-          echo "=== Waiting for PM2 to start ==="
-          timeout /t 8 /nobreak >nul
-          echo "=== Verifying PM2 status ==="
-          set PM2_HOME=C:\Users\Administrator\.pm2
-          pm2 list || echo "PM2 list check done"
-        shell: cmd
+          $env:PM2_HOME = "C:\Users\Administrator\.pm2"
+          $ErrorActionPreference = 'SilentlyContinue'
+          pm2 delete wbs-master 2>&1 | Out-Null
+          $ErrorActionPreference = 'Stop'
+          Set-Location C:\Project\WBSMaster
+          pm2 start ecosystem.config.js --update-env
+          pm2 save
+          Start-Sleep 5
+          pm2 list
+        shell: powershell
