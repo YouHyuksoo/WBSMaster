@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { WorkCategory, ReportItemType } from "@prisma/client";
+import { requireAuth } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -23,6 +24,9 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id: reportId } = await params;
 
     // 보고서 존재 확인
@@ -105,6 +109,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // 보고서 존재 확인
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const report = await prisma.weeklyReport.findUnique({
       where: { id: reportId },
     });
@@ -113,6 +120,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: "주간보고를 찾을 수 없습니다." },
         { status: 404 }
+      );
+    }
+
+    // 소유권 확인: 본인의 보고서에만 항목 추가 가능
+    if (report.userId !== user!.id) {
+      return NextResponse.json(
+        { error: "본인의 주간보고에만 항목을 추가할 수 있습니다." },
+        { status: 403 }
       );
     }
 

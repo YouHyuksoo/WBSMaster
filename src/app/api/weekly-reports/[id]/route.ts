@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ReportStatus } from "@prisma/client";
+import { requireAuth } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -24,6 +25,9 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const report = await prisma.weeklyReport.findUnique({
@@ -90,6 +94,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
     const body = await request.json();
     const { issueContent, status } = body;
@@ -103,6 +110,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: "주간보고를 찾을 수 없습니다." },
         { status: 404 }
+      );
+    }
+
+    // 소유권 확인: 본인의 보고서만 수정 가능
+    if (existingReport.userId !== user!.id) {
+      return NextResponse.json(
+        { error: "본인의 주간보고만 수정할 수 있습니다." },
+        { status: 403 }
       );
     }
 
@@ -165,6 +180,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     // 기존 보고서 확인
@@ -176,6 +194,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: "주간보고를 찾을 수 없습니다." },
         { status: 404 }
+      );
+    }
+
+    // 소유권 확인: 본인의 보고서만 삭제 가능
+    if (existingReport.userId !== user!.id) {
+      return NextResponse.json(
+        { error: "본인의 주간보고만 삭제할 수 있습니다." },
+        { status: 403 }
       );
     }
 

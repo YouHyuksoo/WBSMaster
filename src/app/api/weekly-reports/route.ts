@@ -16,7 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getUser } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * 주간보고 목록 조회
@@ -24,6 +24,9 @@ import { getUser } from "@/lib/auth";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const userId = searchParams.get("userId");
@@ -36,6 +39,7 @@ export async function GET(request: NextRequest) {
     if (projectId) {
       where.projectId = projectId;
     }
+    // userId가 지정되면 해당 사용자, 아니면 현재 사용자 필터 적용
     if (userId) {
       where.userId = userId;
     }
@@ -102,15 +106,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 현재 로그인한 사용자 확인
-    const currentUser = await getUser();
-    const currentUserId = userId || currentUser?.id;
+    const { user: currentUser, error } = await requireAuth();
+    if (error) return error;
 
-    if (!currentUserId) {
-      return NextResponse.json(
-        { error: "사용자 인증이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const currentUserId = currentUser!.id;
 
     // 프로젝트 존재 확인
     const project = await prisma.project.findUnique({

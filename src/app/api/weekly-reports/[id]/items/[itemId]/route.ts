@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { WorkCategory, ReportItemType } from "@prisma/client";
+import { requireAuth } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string; itemId: string }>;
@@ -23,8 +24,30 @@ interface RouteParams {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id: reportId, itemId } = await params;
     const body = await request.json();
+
+    // 보고서 소유권 확인
+    const report = await prisma.weeklyReport.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!report) {
+      return NextResponse.json(
+        { error: "주간보고를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    if (report.userId !== user!.id) {
+      return NextResponse.json(
+        { error: "본인의 주간보고 항목만 수정할 수 있습니다." },
+        { status: 403 }
+      );
+    }
 
     // 기존 항목 확인
     const existingItem = await prisma.weeklyReportItem.findUnique({
@@ -138,7 +161,29 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id: reportId, itemId } = await params;
+
+    // 보고서 소유권 확인
+    const report = await prisma.weeklyReport.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!report) {
+      return NextResponse.json(
+        { error: "주간보고를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    if (report.userId !== user!.id) {
+      return NextResponse.json(
+        { error: "본인의 주간보고 항목만 삭제할 수 있습니다." },
+        { status: 403 }
+      );
+    }
 
     // 기존 항목 확인
     const existingItem = await prisma.weeklyReportItem.findUnique({
