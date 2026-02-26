@@ -58,6 +58,7 @@ export function useWeeklyReports(filters?: {
   return useQuery({
     queryKey: weeklyReportKeys.list(filters),
     queryFn: () => api.weeklyReports.list(filters),
+    enabled: filters !== undefined,
     staleTime: 1000 * 60 * 5, // 5분간 캐시
     refetchOnWindowFocus: false,
     refetchOnMount: false,

@@ -71,7 +71,11 @@ export function ReportListView({ onSelectReport, onCreateNew, memberFilter, onMe
   );
 
   // 주간보고 조회 (memberFilter에 따라 userId 필터 적용)
-  const { data: reports, isLoading } = useWeeklyReports(reportFilters);
+  // "내꺼만" 모드에서 currentUser 로딩 전에는 쿼리 비활성화 (다른 사람 보고서 노출 방지)
+  const isFiltersReady = memberFilter === "all" || !!currentUser?.id;
+  const { data: reports, isLoading } = useWeeklyReports(
+    isFiltersReady ? reportFilters : undefined
+  );
 
   // 멤버 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
   const memberFilters = useMemo(

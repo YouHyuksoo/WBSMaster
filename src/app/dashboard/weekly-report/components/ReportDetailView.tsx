@@ -70,8 +70,11 @@ export function ReportDetailView({
   const toast = useToast();
 
   // 다른 사람의 보고서인지 판단
+  // currentUser 로딩 중이면 안전하게 읽기 전용으로 설정 (다른 사람 보고서 수정 방지)
   const viewingUserId = selectedReport?.userId || currentUser?.id;
-  const isReadOnly = !!(selectedReport?.userId && currentUser?.id && selectedReport.userId !== currentUser.id);
+  const isReadOnly = selectedReport?.userId
+    ? !currentUser?.id || selectedReport.userId !== currentUser.id
+    : false;
 
   // 주차 상태 초기화
   const [currentWeekInfo, setCurrentWeekInfo] = useState<WeekInfo>(() => {
