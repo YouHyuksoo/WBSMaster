@@ -20,6 +20,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Icon, Button, Input, ImageCropper, useToast } from "@/components/ui";
 import { useProject } from "@/contexts/ProjectContext";
 import { TodayStatsScroller } from "@/components/dashboard/TodayStatsScroller";
@@ -57,6 +58,7 @@ interface DashboardHeaderProps {
 export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const router = useRouter();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<LocalUser | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -289,6 +291,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
       setIsLoggingOut(true);
       // localStorage에서 user 삭제
       localStorage.removeItem("user");
+      // React Query 캐시 전체 초기화 (이전 사용자 데이터 제거)
+      queryClient.clear();
       // 서버 쿠키 삭제
       await fetch("/api/auth/logout", { method: "POST" });
       router.push("/login");
