@@ -33,7 +33,7 @@ export function useCurrentUser() {
   return useQuery({
     queryKey: currentUserKeys.all,
     queryFn: async (): Promise<CurrentUser | null> => {
-      const response = await fetch("/api/auth/me");
+      const response = await fetch("/api/auth/me", { credentials: "include" });
       if (!response.ok) {
         if (response.status === 401) {
           return null; // 로그인 안됨
@@ -43,9 +43,7 @@ export function useCurrentUser() {
       return response.json();
     },
     staleTime: 5 * 60 * 1000, // 5분간 캐시
-    retry: false, // 실패 시 재시도 안함
+    retry: 1, // 1회 재시도
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
   });
 }

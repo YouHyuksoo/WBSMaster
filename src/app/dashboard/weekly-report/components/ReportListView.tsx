@@ -14,7 +14,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Icon, Button } from "@/components/ui";
 import { useWeeklyReports, useCurrentUser, useMembers } from "@/hooks";
 import { useProject } from "@/contexts";
@@ -50,14 +50,18 @@ export function ReportListView({ onSelectReport, onCreateNew, memberFilter, onMe
 
   // 필터 상태 - 프로젝트 주차 기반으로 기본값 설정
   const [yearFilter, setYearFilter] = useState<number>(new Date().getFullYear());
-  const [weekFilter, setWeekFilter] = useState<number | "all">("all"); // 초기값은 all, useEffect에서 금주로 설정
+  const [weekFilter, setWeekFilter] = useState<number | "all">("all");
 
-  // 프로젝트 선택 시 금주로 필터 초기화
+  // 프로젝트가 바뀔 때만 금주로 필터 초기화 (사용자가 수동 변경한 값을 덮어쓰지 않음)
+  const prevProjectIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (currentProjectWeek) {
-      setWeekFilter(currentProjectWeek.week);
+    if (selectedProjectId && selectedProjectId !== prevProjectIdRef.current) {
+      prevProjectIdRef.current = selectedProjectId;
+      if (currentProjectWeek) {
+        setWeekFilter(currentProjectWeek.week);
+      }
     }
-  }, [selectedProjectId, currentProjectWeek?.week]);
+  }, [selectedProjectId, currentProjectWeek]);
 
   // 주간보고 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
   const reportFilters = useMemo(
@@ -73,7 +77,7 @@ export function ReportListView({ onSelectReport, onCreateNew, memberFilter, onMe
   // 주간보고 조회 (memberFilter에 따라 userId 필터 적용)
   // "내꺼만" 모드에서 currentUser 로딩 전에는 쿼리 비활성화 (다른 사람 보고서 노출 방지)
   const isFiltersReady = memberFilter === "all" || !!currentUser?.id;
-  const { data: reports, isLoading } = useWeeklyReports(
+  const { data: reports, isLoading, isError, error } = useWeeklyReports(
     isFiltersReady ? reportFilters : undefined
   );
 
@@ -296,10 +300,22 @@ export function ReportListView({ onSelectReport, onCreateNew, memberFilter, onMe
 
       {/* 테이블 */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
-        {isLoading ? (
+        {isLoading || !isFiltersReady ? (
           <div className="flex items-center justify-center py-12">
             <Icon name="sync" className="animate-spin text-muted-foreground mr-2" />
             <span className="text-muted-foreground">로딩 중...</span>
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Icon name="error" size="xl" className="text-red-500 mb-4" />
+            <p className="text-red-500 mb-2">데이터를 불러올 수 없습니다.</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              {error instanceof Error ? error.message : "알 수 없는 오류"}
+            </p>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              <Icon name="refresh" size="sm" className="mr-1" />
+              새로고침
+            </Button>
           </div>
         ) : reports && reports.length > 0 ? (
           <table className="w-full">
