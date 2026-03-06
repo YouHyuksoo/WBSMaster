@@ -115,14 +115,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ showToast, success, error, warning, info }}>
       {children}
 
-      {/* 토스트 컨테이너 */}
-      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
+      {/* 토스트 컨테이너 - 상단 중앙 */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2">
         {toasts.map((toast) => {
           const style = getToastStyle(toast.type);
           return (
             <div
               key={toast.id}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg bg-background-white dark:bg-surface-dark ${style.bgColor} animate-slide-in-right`}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg bg-background-white dark:bg-surface-dark ${style.bgColor} animate-slide-in-down`}
             >
               <Icon name={style.icon} size="sm" className={style.textColor} />
               <span className="text-sm text-text dark:text-white">{toast.message}</span>

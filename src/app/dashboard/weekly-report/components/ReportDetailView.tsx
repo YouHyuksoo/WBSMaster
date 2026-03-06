@@ -14,7 +14,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Icon, Button } from "@/components/ui";
 import {
   useCurrentUser,
@@ -69,12 +69,8 @@ export function ReportDetailView({
   const { selectedProject, selectedProjectId } = useProject();
   const toast = useToast();
 
-  // 다른 사람의 보고서인지 판단
-  // currentUser 로딩 중이면 안전하게 읽기 전용으로 설정 (다른 사람 보고서 수정 방지)
+  // 보고서 조회 대상 사용자 ID
   const viewingUserId = selectedReport?.userId || currentUser?.id;
-  const isReadOnly = selectedReport?.userId
-    ? !currentUser?.id || selectedReport.userId !== currentUser.id
-    : false;
 
   // 주차 상태 초기화
   const [currentWeekInfo, setCurrentWeekInfo] = useState<WeekInfo>(() => {
@@ -149,6 +145,15 @@ export function ReportDetailView({
   // 현재 보고서 (있으면 첫 번째 것 사용)
   const currentReportId = reports && reports.length > 0 ? reports[0].id : null;
   const { data: currentReport, isLoading: isReportLoading } = useWeeklyReport(currentReportId);
+
+  // 다른 사람의 보고서이거나 제출 완료된 보고서는 읽기 전용
+  // currentUser 로딩 중이면 편집 가능으로 두고 API에서 소유권 검증 (읽기전용 오판 방지)
+  const reportOwnerId = currentReport?.userId || selectedReport?.userId;
+  const isOtherUser = currentUser?.id && reportOwnerId
+    ? reportOwnerId !== currentUser.id
+    : false;
+  const isSubmitted = currentReport?.status === "SUBMITTED";
+  const isReadOnly = isOtherUser || isSubmitted;
 
   // 자동 로드 데이터 필터 메모이제이션 (불필요한 쿼리 재실행 방지)
   const autoLoadFilters = useMemo(
@@ -383,6 +388,7 @@ export function ReportDetailView({
           },
         });
       }
+      toast.success(isEditing ? "항목이 수정되었습니다." : "항목이 추가되었습니다.");
       setIsItemModalOpen(false);
       setEditingItem(null);
     } catch (error) {
@@ -412,6 +418,25 @@ export function ReportDetailView({
     }
   };
 
+  // 전주 실적 완료 상태 인라인 토글
+  const handleToggleComplete = async (itemId: string, completed: boolean) => {
+    if (!currentReportId) return;
+
+    try {
+      await updateItem.mutateAsync({
+        reportId: currentReportId,
+        itemId,
+        data: {
+          isCompleted: completed,
+          progress: completed ? 100 : 0,
+        },
+      });
+    } catch (error) {
+      console.error("완료 상태 변경 실패:", error);
+      toast.error("완료 상태 변경에 실패했습니다.");
+    }
+  };
+
   // 전주 실적 항목들
   const previousItems = currentReport?.items?.filter(
     (item) => item.type === "PREVIOUS_RESULT"
@@ -425,6 +450,22 @@ export function ReportDetailView({
   // 자동 로드 데이터
   const autoLoadItems = autoLoadData?.previousPlanItems || [];
   const hasAutoLoadItems = autoLoadItems.length > 0 && previousItems.length === 0;
+
+  // 전주 차주계획을 자동으로 전주 실적에 불러오기 (수동 클릭 불필요)
+  const autoLoadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !isReadOnly &&
+      hasAutoLoadItems &&
+      currentReportId &&
+      !bulkCreateItems.isPending &&
+      autoLoadedRef.current !== currentReportId
+    ) {
+      autoLoadedRef.current = currentReportId;
+      handleLoadPreviousPlan();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAutoLoadItems, currentReportId, isReadOnly]);
 
   const isLoading = isReportsLoading || isReportLoading;
 
@@ -514,23 +555,13 @@ export function ReportDetailView({
       {/* 보고서 존재 시 */}
       {currentReport && (
         <>
-          {/* 자동 로드 안내 (읽기 전용일 때 숨김) */}
-          {!isReadOnly && hasAutoLoadItems && (
-            <div className="bg-sky-50 dark:bg-sky-900/20 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Icon name="auto_fix_high" className="text-sky-500" />
-                <span className="text-sm text-sky-700 dark:text-sky-400">
-                  전주에 작성한 차주계획 {autoLoadItems.length}건을 전주 실적으로 불러올 수 있습니다.
-                </span>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleLoadPreviousPlan}
-                isLoading={bulkCreateItems.isPending}
-              >
-                불러오기
-              </Button>
+          {/* 전주 차주계획 자동 불러오기 중 표시 */}
+          {!isReadOnly && hasAutoLoadItems && bulkCreateItems.isPending && (
+            <div className="bg-sky-50 dark:bg-sky-900/20 rounded-lg p-4 flex items-center gap-2">
+              <Icon name="sync" className="text-sky-500 animate-spin" size="sm" />
+              <span className="text-sm text-sky-700 dark:text-sky-400">
+                전주 차주계획 {autoLoadItems.length}건을 전주 실적으로 불러오는 중...
+              </span>
             </div>
           )}
 
@@ -545,35 +576,28 @@ export function ReportDetailView({
                 </h3>
               </div>
               <div className="divide-y divide-border">
-                {previousItems.length === 0 && !hasAutoLoadItems ? (
-                  <div className="px-4 py-8 text-center text-muted-foreground">
-                    등록된 업무가 없습니다.
-                  </div>
+                {previousItems.length === 0 ? (
+                  bulkCreateItems.isPending ? (
+                    <div className="px-4 py-8 text-center text-muted-foreground">
+                      <Icon name="sync" className="animate-spin text-primary mb-2" />
+                      <p className="text-sm">전주 실적을 불러오는 중...</p>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-8 text-center text-muted-foreground">
+                      등록된 업무가 없습니다.
+                    </div>
+                  )
                 ) : (
-                  <>
-                    {/* 자동 로드 미리보기 */}
-                    {hasAutoLoadItems && autoLoadItems.map((item, idx) => (
-                      <div key={`auto-${idx}`} className="px-4 py-3 bg-sky-50/50 dark:bg-sky-900/10">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${getCategoryInfo(item.category as WorkCategory).color}`}>
-                            {getCategoryInfo(item.category as WorkCategory).label}
-                          </span>
-                          <span className="text-xs text-sky-600 dark:text-sky-400">(자동 로드 대기)</span>
-                        </div>
-                        <div className="text-sm font-medium text-foreground">{item.title}</div>
-                      </div>
-                    ))}
-                    {/* 저장된 항목들 */}
-                    {previousItems.map((item) => (
-                      <ReportItemRow
-                        key={item.id}
-                        item={item}
-                        onEdit={() => openEditItemModal(item)}
-                        onDelete={() => handleDeleteItem(item.id)}
-                        readOnly={isReadOnly}
-                      />
-                    ))}
-                  </>
+                  previousItems.map((item) => (
+                    <ReportItemRow
+                      key={item.id}
+                      item={item}
+                      onEdit={() => openEditItemModal(item)}
+                      onDelete={() => handleDeleteItem(item.id)}
+                      onToggleComplete={(completed) => handleToggleComplete(item.id, completed)}
+                      readOnly={isReadOnly}
+                    />
+                  ))
                 )}
               </div>
               {/* 항목 추가 버튼 (읽기 전용일 때 숨김) */}
@@ -676,8 +700,8 @@ export function ReportDetailView({
             )}
           </div>
 
-          {/* 하단 액션 버튼 (읽기 전용일 때 숨김) */}
-          {!isReadOnly && (
+          {/* 하단 액션 버튼 */}
+          {!isOtherUser && (
             <div className="flex justify-end gap-3">
               {currentReport.status === "DRAFT" ? (
                 <>

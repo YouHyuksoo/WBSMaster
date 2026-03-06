@@ -13,8 +13,8 @@
 
 "use client";
 
-import React from "react";
-import { Icon } from "@/components/ui";
+import React, { useState } from "react";
+import { Icon, ConfirmModal } from "@/components/ui";
 import { WeeklyReportItem } from "@/lib/api";
 import { getCategoryInfo, formatShortDate } from "../constants";
 
@@ -24,7 +24,9 @@ interface ReportItemRowProps {
   /** 편집 버튼 클릭 핸들러 */
   onEdit: () => void;
   /** 삭제 버튼 클릭 핸들러 */
-  onDelete: () => void;
+  onDelete: () => void | Promise<void>;
+  /** 완료 상태 인라인 토글 핸들러 */
+  onToggleComplete?: (completed: boolean) => void;
   /** 진행률 표시 여부 (기본값: true) */
   showProgress?: boolean;
   /** 읽기 전용 모드 (다른 사람의 보고서 열람 시) */
@@ -39,9 +41,12 @@ export function ReportItemRow({
   item,
   onEdit,
   onDelete,
+  onToggleComplete,
   showProgress = true,
   readOnly = false,
 }: ReportItemRowProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   return (
     <div
       className={`px-4 py-3 transition-colors ${readOnly ? "" : "hover:bg-muted/50 cursor-pointer group"}`}
@@ -93,29 +98,76 @@ export function ReportItemRow({
               <span className="text-sm font-medium text-foreground w-10 text-right">
                 {item.progress}%
               </span>
-              {item.isCompleted ? (
-                <Icon name="check_circle" className="text-emerald-500" size="sm" />
+              {!readOnly && onToggleComplete ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleComplete(!item.isCompleted);
+                  }}
+                  className="p-0.5 rounded hover:bg-muted transition-colors"
+                  title={item.isCompleted ? "완료 해제" : "완료 처리"}
+                >
+                  {item.isCompleted ? (
+                    <Icon name="check_circle" className="text-emerald-500" size="sm" />
+                  ) : (
+                    <Icon name="radio_button_unchecked" className="text-muted-foreground hover:text-emerald-400" size="sm" />
+                  )}
+                </button>
               ) : (
-                <Icon
-                  name="radio_button_unchecked"
-                  className="text-muted-foreground"
-                  size="sm"
-                />
+                item.isCompleted ? (
+                  <Icon name="check_circle" className="text-emerald-500" size="sm" />
+                ) : (
+                  <Icon name="radio_button_unchecked" className="text-muted-foreground" size="sm" />
+                )
               )}
             </>
           )}
           {!readOnly && (
             <button
               onClick={(e) => {
-                e.stopPropagation(); // 행 클릭 이벤트 방지
-                onDelete();
+                e.stopPropagation();
+                setShowDeleteConfirm(true);
               }}
-              className="p-1 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded transition-colors"
+              disabled={isDeleting}
+              className={`p-1.5 rounded-md transition-all ${
+                isDeleting
+                  ? "bg-rose-100 dark:bg-rose-900/30"
+                  : "hover:bg-rose-100 dark:hover:bg-rose-900/30 active:scale-90"
+              }`}
+              title="삭제"
             >
-              <Icon name="delete" size="sm" className="text-rose-500" />
+              {isDeleting ? (
+                <Icon name="sync" size="sm" className="text-rose-500 animate-spin" />
+              ) : (
+                <Icon name="delete" size="sm" className="text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors" />
+              )}
             </button>
           )}
         </div>
+      </div>
+
+      {/* 삭제 확인 모달 (클릭 버블링 차단) */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      <div onClick={(e) => e.stopPropagation()}>
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="항목 삭제"
+        message={`"${item.title}" 항목을 삭제하시겠습니까?`}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={async () => {
+          setIsDeleting(true);
+          try {
+            await onDelete();
+          } finally {
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
+          }
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
       </div>
     </div>
   );

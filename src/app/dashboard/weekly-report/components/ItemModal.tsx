@@ -27,14 +27,17 @@ interface ItemModalProps {
   item: WeeklyReportItem | null;
   /** 모달 닫기 핸들러 */
   onClose: () => void;
-  /** 저장 핸들러 */
-  onSave: (item: Partial<WeeklyReportItem>) => void;
+  /** 저장 핸들러 (Promise 반환 시 로딩 상태 표시) */
+  onSave: (item: Partial<WeeklyReportItem>) => void | Promise<void>;
 }
 
 /**
  * 항목 추가/수정 모달 컴포넌트
  */
 export function ItemModal({ isOpen, item, onClose, onSave }: ItemModalProps) {
+  // 저장 중 상태
+  const [isSaving, setIsSaving] = useState(false);
+
   // 폼 상태
   const [formData, setFormData] = useState<ItemFormData>({
     category: "DEVELOPMENT",
@@ -47,9 +50,9 @@ export function ItemModal({ isOpen, item, onClose, onSave }: ItemModalProps) {
     progress: 0,
   });
 
-  // 항목 데이터가 변경되면 폼 초기화
+  // 모달이 열릴 때 항목 데이터로 폼 초기화
   useEffect(() => {
-    if (item) {
+    if (isOpen && item) {
       setFormData({
         category: item.category || "DEVELOPMENT",
         title: item.title || "",
@@ -58,27 +61,32 @@ export function ItemModal({ isOpen, item, onClose, onSave }: ItemModalProps) {
         remarks: item.remarks || "",
         isAdditional: item.isAdditional || false,
         isCompleted: item.isCompleted || false,
-        progress: item.progress || 0,
+        progress: item.progress ?? 0,
       });
     }
-  }, [item]);
+  }, [isOpen, item]);
 
   /** 폼 제출 핸들러 */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim()) return;
+    if (!formData.title.trim() || isSaving) return;
 
-    onSave({
-      type: item?.type,
-      category: formData.category,
-      title: formData.title,
-      description: formData.description || undefined,
-      targetDate: formData.targetDate || undefined,
-      remarks: formData.remarks || undefined,
-      isAdditional: formData.isAdditional,
-      isCompleted: formData.isCompleted,
-      progress: formData.progress,
-    });
+    setIsSaving(true);
+    try {
+      await onSave({
+        type: item?.type,
+        category: formData.category,
+        title: formData.title,
+        description: formData.description || undefined,
+        targetDate: formData.targetDate || undefined,
+        remarks: formData.remarks || undefined,
+        isAdditional: formData.isAdditional,
+        isCompleted: formData.isCompleted,
+        progress: formData.progress,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const isPreviousType = item?.type === "PREVIOUS_RESULT";
@@ -217,10 +225,12 @@ export function ItemModal({ isOpen, item, onClose, onSave }: ItemModalProps) {
 
         {/* 버튼 */}
         <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
             취소
           </Button>
-          <Button type="submit">{isEditing ? "수정" : "저장"}</Button>
+          <Button type="submit" isLoading={isSaving} disabled={isSaving}>
+            {isEditing ? "수정" : "저장"}
+          </Button>
         </div>
       </form>
     </Modal>
