@@ -449,19 +449,20 @@ export function ReportDetailView({
 
   // 자동 로드 데이터
   const autoLoadItems = autoLoadData?.previousPlanItems || [];
-  const hasAutoLoadItems = autoLoadItems.length > 0 && previousItems.length === 0;
+  // 보고서 로딩이 완료된 후에만 판단 (로딩 중 previousItems가 []인 것과 실제로 없는 것 구분)
+  const hasAutoLoadItems = !isReportLoading && autoLoadItems.length > 0 && previousItems.length === 0;
 
   // 전주 차주계획을 자동으로 전주 실적에 불러오기 (수동 클릭 불필요)
-  const autoLoadedRef = useRef<string | null>(null);
+  const autoLoadedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (
       !isReadOnly &&
       hasAutoLoadItems &&
       currentReportId &&
       !bulkCreateItems.isPending &&
-      autoLoadedRef.current !== currentReportId
+      !autoLoadedRef.current.has(currentReportId)
     ) {
-      autoLoadedRef.current = currentReportId;
+      autoLoadedRef.current.add(currentReportId);
       handleLoadPreviousPlan();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
