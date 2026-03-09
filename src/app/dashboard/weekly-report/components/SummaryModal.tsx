@@ -11,15 +11,19 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Icon, Button, useToast } from "@/components/ui";
 import { WeeklySummary, WeeklyReport, MemberSummaryData } from "@/lib/api";
 import {
   useWeeklyReports,
+  useWeeklySummaries,
   useCreateWeeklySummary,
+  useUpdateWeeklySummary,
   useAnalyzeWeeklySummary,
   useCurrentUser,
 } from "@/hooks";
+import { useProject } from "@/contexts";
+import { getProjectWeekDateRange, formatShortDate } from "../constants";
 
 interface SummaryModalProps {
   /** 모달 열림 상태 */
@@ -50,8 +54,29 @@ export function SummaryModal({
   weekInfo,
 }: SummaryModalProps) {
   const { data: user } = useCurrentUser();
+  const { selectedProject } = useProject();
   const toast = useToast();
   const isDetailMode = !!summary;
+
+  // 선택된 주차 상태 (생성 모드에서 변경 가능)
+  const [selectedWeek, setSelectedWeek] = useState(weekInfo.week);
+  const [selectedYear, setSelectedYear] = useState(weekInfo.year);
+
+  // 모달 열릴 때 현재 주차로 초기화
+  useEffect(() => {
+    if (isOpen && !isDetailMode) {
+      setSelectedWeek(weekInfo.week);
+      setSelectedYear(weekInfo.year);
+      setSelectedReportIds([]);
+      setTitle(`${weekInfo.year}년 ${weekInfo.week}주차 주간보고 취합`);
+    }
+  }, [isOpen]);
+
+  // 선택된 주차의 날짜 범위 계산
+  const selectedWeekRange = useMemo(() => {
+    if (!selectedProject?.startDate) return null;
+    return getProjectWeekDateRange(new Date(selectedProject.startDate), selectedWeek);
+  }, [selectedProject?.startDate, selectedWeek]);
 
   // 생성 모드 상태
   const [selectedReportIds, setSelectedReportIds] = useState<string[]>([]);
@@ -59,20 +84,52 @@ export function SummaryModal({
     `${weekInfo.year}년 ${weekInfo.week}주차 주간보고 취합`
   );
 
+  // 주차 변경 핸들러
+  const handlePrevWeek = () => {
+    if (selectedWeek <= 1) return;
+    const newWeek = selectedWeek - 1;
+    setSelectedWeek(newWeek);
+    setSelectedReportIds([]);
+    setTitle(`${selectedYear}년 ${newWeek}주차 주간보고 취합`);
+  };
+
+  const handleNextWeek = () => {
+    if (selectedWeek >= weekInfo.week) return;
+    const newWeek = selectedWeek + 1;
+    setSelectedWeek(newWeek);
+    setSelectedReportIds([]);
+    setTitle(`${selectedYear}년 ${newWeek}주차 주간보고 취합`);
+  };
+
   // 주간보고 필터 메모이제이션 (불필요한 쿼리 재실행 방지)
   const reportFilters = useMemo(
     () => ({
       projectId,
-      year: String(weekInfo.year),
-      weekNumber: String(weekInfo.week),
+      year: String(selectedYear),
+      weekNumber: String(selectedWeek),
     }),
-    [projectId, weekInfo.year, weekInfo.week]
+    [projectId, selectedYear, selectedWeek]
+  );
+
+  // 취합 보고서 필터 (해당 주차 기존 취합 확인용)
+  const summaryFilters = useMemo(
+    () => ({ projectId, year: selectedYear, weekNumber: selectedWeek }),
+    [projectId, selectedYear, selectedWeek]
   );
 
   // API 훅
   const { data: reports = [] } = useWeeklyReports(reportFilters);
+  const { data: existingSummaries = [] } = useWeeklySummaries(summaryFilters);
   const createSummary = useCreateWeeklySummary();
+  const updateSummary = useUpdateWeeklySummary();
   const analyzeSummary = useAnalyzeWeeklySummary();
+
+  // 해당 주차에 이미 취합이 존재하는지 확인
+  const existingSummary = useMemo(
+    () => existingSummaries.length > 0 ? existingSummaries[0] : null,
+    [existingSummaries]
+  );
+  const isReAggregate = !isDetailMode && !!existingSummary;
 
   // 제출된 보고서만 필터링
   const submittedReports = useMemo(
@@ -98,30 +155,47 @@ export function SummaryModal({
     }
   };
 
-  /** 취합 실행 */
+  /** 취합/재취합 실행 */
   const handleCreate = async () => {
     if (!user || selectedReportIds.length === 0) return;
 
     try {
-      const newSummary = await createSummary.mutateAsync({
-        projectId,
-        year: weekInfo.year,
-        weekNumber: weekInfo.week,
-        weekStart: weekInfo.weekStart.toISOString(),
-        weekEnd: weekInfo.weekEnd.toISOString(),
-        title,
-        reportIds: selectedReportIds,
-        createdById: user.id,
-      });
+      let summaryId: string;
 
-      // 생성 후 LLM 분석 실행
-      await analyzeSummary.mutateAsync(newSummary.id);
+      if (isReAggregate && existingSummary) {
+        // 재취합: 기존 취합 보고서 업데이트
+        const updated = await updateSummary.mutateAsync({
+          id: existingSummary.id,
+          data: { title, reportIds: selectedReportIds },
+        });
+        summaryId = updated.id;
+        toast.success("취합 보고서가 재취합되었습니다.");
+      } else {
+        // 신규 취합
+        const weekStart = selectedWeekRange?.start || weekInfo.weekStart;
+        const weekEnd = selectedWeekRange?.end || weekInfo.weekEnd;
+
+        const newSummary = await createSummary.mutateAsync({
+          projectId,
+          year: selectedYear,
+          weekNumber: selectedWeek,
+          weekStart: weekStart.toISOString(),
+          weekEnd: weekEnd.toISOString(),
+          title,
+          reportIds: selectedReportIds,
+          createdById: user.id,
+        });
+        summaryId = newSummary.id;
+      }
+
+      // 취합 후 LLM 분석 실행
+      await analyzeSummary.mutateAsync(summaryId);
 
       setSelectedReportIds([]);
       onClose();
     } catch (error) {
-      console.error("Failed to create summary:", error);
-      toast.error("취합 보고서 생성에 실패했습니다.");
+      console.error("Failed to create/update summary:", error);
+      toast.error(isReAggregate ? "재취합에 실패했습니다." : "취합 보고서 생성에 실패했습니다.");
     }
   };
 
@@ -145,7 +219,7 @@ export function SummaryModal({
         <div className="flex items-center justify-between p-4 border-b border-border dark:border-border-dark">
           <h2 className="text-lg font-semibold text-text dark:text-white flex items-center gap-2">
             <Icon name="summarize" className="text-primary" />
-            {isDetailMode ? "취합 보고서 상세" : "주간보고 취합"}
+            {isDetailMode ? "취합 보고서 상세" : isReAggregate ? "주간보고 재취합" : "주간보고 취합"}
           </h2>
           <button
             onClick={onClose}
@@ -308,6 +382,51 @@ export function SummaryModal({
           ) : (
             // === 생성 모드 ===
             <div className="space-y-4">
+              {/* 주차 선택기 */}
+              <div className="flex items-center justify-center gap-3 p-3 bg-surface dark:bg-background-dark rounded-lg">
+                <button
+                  onClick={handlePrevWeek}
+                  disabled={selectedWeek <= 1}
+                  className="p-1.5 rounded-lg hover:bg-primary/10 text-text-secondary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="이전 주"
+                >
+                  <Icon name="chevron_left" size="sm" />
+                </button>
+                <div className="text-center min-w-[200px]">
+                  <p className="text-sm font-semibold text-text dark:text-white">
+                    {selectedYear}년 {selectedWeek}주차
+                    {selectedWeek === weekInfo.week && (
+                      <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                        이번 주
+                      </span>
+                    )}
+                  </p>
+                  {selectedWeekRange && (
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      {formatShortDate(selectedWeekRange.start)} ~ {formatShortDate(selectedWeekRange.end)}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={handleNextWeek}
+                  disabled={selectedWeek >= weekInfo.week}
+                  className="p-1.5 rounded-lg hover:bg-primary/10 text-text-secondary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="다음 주"
+                >
+                  <Icon name="chevron_right" size="sm" />
+                </button>
+              </div>
+
+              {/* 재취합 안내 배너 */}
+              {isReAggregate && existingSummary && (
+                <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                  <Icon name="info" size="sm" className="text-warning shrink-0" />
+                  <p className="text-sm text-warning">
+                    이 주차에 이미 취합 보고서가 있습니다. 재취합 시 기존 데이터가 업데이트됩니다.
+                  </p>
+                </div>
+              )}
+
               {/* 제목 입력 */}
               <div>
                 <label className="block text-sm font-medium text-text dark:text-white mb-1">
@@ -346,7 +465,7 @@ export function SummaryModal({
                       className="text-text-secondary mb-2 opacity-50"
                     />
                     <p className="text-text-secondary">
-                      {weekInfo.year}년 {weekInfo.week}주차에 제출된 주간보고가 없습니다
+                      {selectedYear}년 {selectedWeek}주차에 제출된 주간보고가 없습니다
                     </p>
                   </div>
                 ) : (
@@ -413,12 +532,15 @@ export function SummaryModal({
                 selectedReportIds.length === 0 ||
                 !title.trim() ||
                 createSummary.isPending ||
+                updateSummary.isPending ||
                 analyzeSummary.isPending
               }
             >
-              {createSummary.isPending || analyzeSummary.isPending
+              {createSummary.isPending || updateSummary.isPending || analyzeSummary.isPending
                 ? "처리 중..."
-                : `${selectedReportIds.length}건 취합 및 분석`}
+                : isReAggregate
+                  ? `${selectedReportIds.length}건 재취합 및 분석`
+                  : `${selectedReportIds.length}건 취합 및 분석`}
             </Button>
           )}
         </div>

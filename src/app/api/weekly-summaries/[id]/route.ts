@@ -71,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     const body = await request.json();
 
-    const { title, llmSummary, llmInsights, llmAnalyzedAt } = body;
+    const { title, llmSummary, llmInsights, llmAnalyzedAt, reportIds } = body;
 
     const updateData: Record<string, unknown> = {};
 
@@ -79,6 +79,48 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (llmSummary !== undefined) updateData.llmSummary = llmSummary;
     if (llmInsights !== undefined) updateData.llmInsights = llmInsights;
     if (llmAnalyzedAt !== undefined) updateData.llmAnalyzedAt = new Date(llmAnalyzedAt);
+
+    // 재취합: reportIds가 전달되면 보고서 데이터를 다시 취합
+    if (reportIds && Array.isArray(reportIds) && reportIds.length > 0) {
+      const reports = await prisma.weeklyReport.findMany({
+        where: { id: { in: reportIds } },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          items: true,
+        },
+      });
+
+      const memberIds = reports.map((r) => r.userId);
+      const memberSummaries = reports.map((report) => {
+        const previousItems = report.items.filter((item) => item.type === "PREVIOUS_RESULT");
+        const nextItems = report.items.filter((item) => item.type === "NEXT_PLAN");
+        return {
+          memberId: report.userId,
+          memberName: report.user?.name || report.user?.email || "Unknown",
+          previousResults: previousItems.map((item) => ({
+            category: item.category,
+            title: item.title,
+            description: item.description,
+            isCompleted: item.isCompleted,
+            progress: item.progress,
+          })),
+          nextPlans: nextItems.map((item) => ({
+            category: item.category,
+            title: item.title,
+            description: item.description,
+            targetDate: item.targetDate,
+          })),
+        };
+      });
+
+      updateData.reportIds = reportIds;
+      updateData.memberIds = memberIds;
+      updateData.memberSummaries = memberSummaries;
+      // 재취합 시 이전 LLM 분석 결과 초기화
+      updateData.llmSummary = null;
+      updateData.llmInsights = null;
+      updateData.llmAnalyzedAt = null;
+    }
 
     const summary = await prisma.weeklySummary.update({
       where: { id },

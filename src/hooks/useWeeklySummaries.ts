@@ -92,6 +92,7 @@ export function useUpdateWeeklySummary() {
         title?: string;
         llmSummary?: string;
         llmInsights?: string;
+        reportIds?: string[];
       };
     }) => api.weeklySummaries.update(id, data),
     onSuccess: (_, variables) => {

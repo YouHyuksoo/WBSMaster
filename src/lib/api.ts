@@ -1432,11 +1432,12 @@ export const api = {
       reportIds: string[];
       createdById: string;
     }) => post<WeeklySummary>("/api/weekly-summaries", data),
-    /** 취합 보고서 수정 */
+    /** 취합 보고서 수정 (reportIds 전달 시 재취합) */
     update: (id: string, data: {
       title?: string;
       llmSummary?: string;
       llmInsights?: string;
+      reportIds?: string[];
     }) => patch<WeeklySummary>(`/api/weekly-summaries/${id}`, data),
     /** 취합 보고서 삭제 */
     delete: (id: string) => del<{ message: string }>(`/api/weekly-summaries/${id}`),
