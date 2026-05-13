@@ -17,6 +17,7 @@ import {
   AddTaskModal,
   TaskGrid,
   FilterBar,
+  KpiRow,
   applyFilters,
   type Filters,
 } from "./components";
@@ -75,6 +76,7 @@ export default function ProgressRiskPage() {
 
       {selectedProject && !isLoading && tasks.length > 0 && (
         <>
+          <KpiRow tasks={tasks} />
           <FilterBar tasks={tasks} filters={filters} onChange={setFilters} />
           <TaskGrid tasks={filteredTasks} projectId={selectedProject.id} />
         </>
