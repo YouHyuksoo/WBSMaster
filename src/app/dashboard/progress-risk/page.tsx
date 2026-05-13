@@ -12,13 +12,28 @@
 import { useState } from "react";
 import { useProject } from "@/contexts";
 import { useProgressTasks } from "@/hooks";
-import { PageHeader, AddTaskModal, TaskGrid } from "./components";
+import {
+  PageHeader,
+  AddTaskModal,
+  TaskGrid,
+  FilterBar,
+  applyFilters,
+  type Filters,
+} from "./components";
 import { Icon } from "@/components/ui";
 
 export default function ProgressRiskPage() {
   const { selectedProject } = useProject();
   const { data: tasks = [], isLoading } = useProgressTasks(selectedProject?.id);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [filters, setFilters] = useState<Filters>({
+    search: "",
+    status: "all",
+    category: "",
+    userId: "",
+  });
+
+  const filteredTasks = applyFilters(tasks, filters);
 
   return (
     <div className="p-6 space-y-6">
@@ -59,7 +74,10 @@ export default function ProgressRiskPage() {
       )}
 
       {selectedProject && !isLoading && tasks.length > 0 && (
-        <TaskGrid tasks={tasks} projectId={selectedProject.id} />
+        <>
+          <FilterBar tasks={tasks} filters={filters} onChange={setFilters} />
+          <TaskGrid tasks={filteredTasks} projectId={selectedProject.id} />
+        </>
       )}
     </div>
   );
