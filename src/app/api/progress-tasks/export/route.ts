@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
   const rows = tasks.map((t) => ({
     코드: t.code ?? "",
     기능명: t.name,
+    사업부: t.businessUnit ?? "",
     카테고리: t.category ?? "",
     설명: t.description ?? "",
     시작일: t.startDate.toISOString().slice(0, 10),
@@ -81,6 +82,7 @@ export async function GET(request: NextRequest) {
   ws["!cols"] = [
     { wch: 8 },
     { wch: 25 },
+    { wch: 10 },
     { wch: 12 },
     { wch: 30 },
     { wch: 12 },

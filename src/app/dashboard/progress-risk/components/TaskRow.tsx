@@ -86,6 +86,14 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighte
       <div className="text-text-secondary">{index}</div>
       <div className="text-text-secondary text-xs">{task.code}</div>
       <div className="flex items-center gap-2 min-w-0">
+        {task.businessUnit && (
+          <span
+            className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-cyan-500/15 border border-cyan-500/40 text-cyan-700 dark:text-cyan-300"
+            title={`사업부: ${task.businessUnit}`}
+          >
+            {task.businessUnit}
+          </span>
+        )}
         <input
           value={name}
           onChange={e => setName(e.target.value)}

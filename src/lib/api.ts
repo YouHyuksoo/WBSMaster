@@ -1688,6 +1688,7 @@ export const api = {
       startDate: string;
       endDate: string;
       category?: string;
+      businessUnit?: string;
       description?: string;
       predecessorId?: string;
       isParallel?: boolean;

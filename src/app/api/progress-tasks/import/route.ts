@@ -236,6 +236,9 @@ export async function POST(request: NextRequest) {
             category: row["카테고리"]
               ? String(row["카테고리"]).trim()
               : null,
+            businessUnit: row["사업부"]
+              ? String(row["사업부"]).trim()
+              : null,
             description: row["설명"]
               ? String(row["설명"]).trim()
               : null,

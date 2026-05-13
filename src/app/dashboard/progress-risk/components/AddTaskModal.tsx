@@ -15,6 +15,7 @@ import { Modal, Button, Input } from "@/components/ui";
 import { useCreateProgressTask, useAddAssignee, useUsers } from "@/hooks";
 import type { ProgressTask } from "@/lib/api";
 import { ROLE_OPTIONS } from "../constants";
+import { BUSINESS_UNITS } from "@/constants/business-units";
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ interface DraftAssignee {
 export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddTaskModalProps) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
+  const [businessUnit, setBusinessUnit] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [predecessorId, setPredecessorId] = useState("");
@@ -76,6 +78,7 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
   const reset = () => {
     setName("");
     setCategory("");
+    setBusinessUnit("");
     setStartDate("");
     setEndDate("");
     setPredecessorId("");
@@ -99,6 +102,7 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
       startDate,
       endDate,
       category: category || undefined,
+      businessUnit: businessUnit || undefined,
       predecessorId: predecessorId || undefined,
       isParallel,
     });
@@ -126,10 +130,25 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 주문등록" autoFocus />
         </div>
 
-        {/* 카테고리 */}
-        <div>
-          <label className="block text-xs font-semibold text-text dark:text-white mb-1">카테고리</label>
-          <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="예: 기준관리" />
+        {/* 사업부 / 카테고리 */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-text dark:text-white mb-1">사업부</label>
+            <select
+              value={businessUnit}
+              onChange={(e) => setBusinessUnit(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">(미지정)</option>
+              {BUSINESS_UNITS.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-text dark:text-white mb-1">카테고리</label>
+            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="예: 기준관리" />
+          </div>
         </div>
 
         {/* 시작일 / 종료일 */}

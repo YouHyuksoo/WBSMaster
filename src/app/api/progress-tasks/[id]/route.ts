@@ -54,6 +54,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
 
   if (body.name !== undefined) data.name = body.name;
   if (body.category !== undefined) data.category = body.category;
+  if (body.businessUnit !== undefined) data.businessUnit = body.businessUnit;
   if (body.description !== undefined) data.description = body.description;
   if (body.startDate !== undefined) data.startDate = new Date(body.startDate);
   if (body.endDate !== undefined) data.endDate = new Date(body.endDate);

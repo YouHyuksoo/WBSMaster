@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { projectId, name, startDate, endDate, category, description, predecessorId, isParallel } = body;
+    const { projectId, name, startDate, endDate, category, businessUnit, description, predecessorId, isParallel } = body;
 
     // 필수 필드 검증
     if (!projectId || !name || !startDate || !endDate) {
@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
         code,
         name,
         category: category ?? null,
+        businessUnit: businessUnit ?? null,
         description: description ?? null,
         startDate: startDt,
         endDate: endDt,

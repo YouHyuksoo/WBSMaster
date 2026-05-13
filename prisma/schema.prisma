@@ -2166,13 +2166,14 @@ enum ProgressStage {
 // 기존 WBS와 독립. predecessor 단일 선행.
 // ============================================
 model ProgressTask {
-  id          String  @id @default(uuid())
-  projectId   String
-  code        String? // T-001 자동 부여
-  name        String // "주문등록" 등 기능명
-  category    String? // 대분류 라벨
-  description String?
-  order       Int     @default(0)
+  id           String  @id @default(uuid())
+  projectId    String
+  code         String? // T-001 자동 부여
+  name         String // "주문등록" 등 기능명
+  category     String? // 대분류 라벨
+  businessUnit String? // 사업부 (V_IVI, V_DISP, V_PCBA, V_HNS) — 사업부별 분석용
+  description  String?
+  order        Int     @default(0)
 
   // 일정
   startDate       DateTime
@@ -2202,6 +2203,7 @@ model ProgressTask {
   @@unique([projectId, code])
   @@index([projectId])
   @@index([predecessorId])
+  @@index([businessUnit])
   @@map("progress_tasks")
 }
 

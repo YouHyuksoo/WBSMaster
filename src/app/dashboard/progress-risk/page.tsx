@@ -45,7 +45,7 @@ export default function ProgressRiskPage() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("list");
   const [filters, setFilters] = useState<Filters>({
-    search: "", status: "all", category: "", userId: "",
+    search: "", status: "all", category: "", userId: "", businessUnit: "",
   });
   const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
 

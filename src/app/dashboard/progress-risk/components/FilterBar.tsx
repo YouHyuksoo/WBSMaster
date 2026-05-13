@@ -18,6 +18,7 @@ export interface Filters {
   status: "all" | "delayed" | "in_progress" | "completed";
   category: string;
   userId: string;
+  businessUnit: string;
 }
 
 interface Props {
@@ -88,6 +89,18 @@ export function FilterBar({ tasks, filters, onChange }: Props) {
         완료 {counts.completed}
       </button>
 
+      {/* 사업부 드롭다운 */}
+      <select
+        value={filters.businessUnit}
+        onChange={e => set({ businessUnit: e.target.value })}
+        className="text-xs px-2 py-1.5 rounded bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white hover:bg-background-white dark:hover:bg-background-dark transition-colors cursor-pointer"
+      >
+        <option value="">사업부 ▾</option>
+        {[...new Set(tasks.map(t => t.businessUnit).filter((b): b is string => !!b))].sort().map(b => (
+          <option key={b} value={b}>{b}</option>
+        ))}
+      </select>
+
       {/* 카테고리 드롭다운 */}
       <select
         value={filters.category}
@@ -141,10 +154,13 @@ export function applyFilters(tasks: ProgressTask[], f: Filters): ProgressTask[] 
     if (f.status === "in_progress" && t.status !== "IN_PROGRESS") return false;
     if (f.status === "completed" && t.status !== "COMPLETED") return false;
 
-    // 3. 카테고리 필터
+    // 3. 사업부 필터
+    if (f.businessUnit && t.businessUnit !== f.businessUnit) return false;
+
+    // 4. 카테고리 필터
     if (f.category && t.category !== f.category) return false;
 
-    // 4. 담당자 필터
+    // 5. 담당자 필터
     if (f.userId && !t.assignees.some(a => a.userId === f.userId)) return false;
 
     return true;

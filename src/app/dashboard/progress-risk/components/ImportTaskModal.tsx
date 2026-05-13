@@ -33,6 +33,7 @@ export function ImportTaskModal({ isOpen, onClose, onSuccess, projectId }: Props
         sheetName: "진도리스크",
         columns: [
           { header: "기능명",         key: "name",          width: 25, example: "주문등록" },
+          { header: "사업부",         key: "businessUnit",  width: 10, example: "V_IVI" },
           { header: "카테고리",       key: "category",      width: 12, example: "기준관리" },
           { header: "설명",           key: "description",   width: 30 },
           { header: "시작일",         key: "startDate",     width: 12, example: "2026-05-01" },
@@ -48,6 +49,7 @@ export function ImportTaskModal({ isOpen, onClose, onSuccess, projectId }: Props
         "첫 번째 행은 헤더입니다 (수정 금지)",
         "기능명/시작일/종료일은 필수",
         "현재 단계는 한글(분석/설계/...) 또는 영문 enum 입력 가능",
+        "사업부: V_IVI / V_DISP / V_PCBA / V_HNS 중 선택 (빈 값=미지정)",
         "선행 task 코드는 같은 프로젝트 또는 같은 import 안의 코드만 매칭",
         "진행 방식: 병렬/순차 (또는 P/S). 비우면 병렬",
         "담당자: 이름 또는 이름(역할) 또는 이름(역할) 50% 형식, 쉼표로 다수 구분",

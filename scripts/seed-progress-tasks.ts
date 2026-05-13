@@ -35,6 +35,7 @@ interface Seed {
   code: string;
   name: string;
   category: string;
+  businessUnit: "V_IVI" | "V_DISP" | "V_PCBA" | "V_HNS";
   startOffset: number;
   endOffset: number;
   actualStartOffset: number | null;
@@ -50,7 +51,7 @@ interface Seed {
 const SEEDS: Seed[] = [
   // 완료 (안정화)
   {
-    code: "T-001", name: "주문등록", category: "기준관리",
+    code: "T-001", name: "주문등록", category: "기준관리", businessUnit: "V_IVI",
     startOffset: -60, endOffset: -30,
     actualStartOffset: -60, actualEndOffset: -28,
     stage: "STABILIZATION", status: "COMPLETED",
@@ -59,7 +60,7 @@ const SEEDS: Seed[] = [
   },
   // 완료 (이행)
   {
-    code: "T-002", name: "고객관리", category: "기준관리",
+    code: "T-002", name: "고객관리", category: "기준관리", businessUnit: "V_IVI",
     startOffset: -50, endOffset: -20,
     actualStartOffset: -50, actualEndOffset: -18,
     stage: "MIGRATION", status: "COMPLETED",
@@ -68,7 +69,7 @@ const SEEDS: Seed[] = [
   },
   // 진행중 (통합테스트) — 박개발 할당 (충돌 시나리오 1)
   {
-    code: "T-003", name: "재고관리", category: "생산관리",
+    code: "T-003", name: "재고관리", category: "생산관리", businessUnit: "V_PCBA",
     startOffset: -25, endOffset: -5,
     actualStartOffset: -25, actualEndOffset: null,
     stage: "INTEGRATION_TEST", status: "IN_PROGRESS",
@@ -77,7 +78,7 @@ const SEEDS: Seed[] = [
   },
   // 진행중 (교육) — 순차 (T-002 선행)
   {
-    code: "T-004", name: "출하관리", category: "출하관리",
+    code: "T-004", name: "출하관리", category: "출하관리", businessUnit: "V_PCBA",
     startOffset: -15, endOffset: 10,
     actualStartOffset: -15, actualEndOffset: null,
     stage: "TRAINING", status: "IN_PROGRESS",
@@ -86,7 +87,7 @@ const SEEDS: Seed[] = [
   },
   // 진행중 (IT 테스트)
   {
-    code: "T-005", name: "품질검사", category: "품질관리",
+    code: "T-005", name: "품질검사", category: "품질관리", businessUnit: "V_DISP",
     startOffset: -10, endOffset: 15,
     actualStartOffset: -10, actualEndOffset: null,
     stage: "IT_TEST", status: "IN_PROGRESS",
@@ -95,7 +96,7 @@ const SEEDS: Seed[] = [
   },
   // 진행중 (단위테스트) — 박개발 할당 (충돌 시나리오 2)
   {
-    code: "T-006", name: "설비점검", category: "설비관리",
+    code: "T-006", name: "설비점검", category: "설비관리", businessUnit: "V_DISP",
     startOffset: -8, endOffset: 18,
     actualStartOffset: -8, actualEndOffset: null,
     stage: "UNIT_TEST", status: "IN_PROGRESS",
@@ -104,7 +105,7 @@ const SEEDS: Seed[] = [
   },
   // 진행중 (구현) — 순차 (T-005 선행)
   {
-    code: "T-007", name: "자재관리", category: "자재관리",
+    code: "T-007", name: "자재관리", category: "자재관리", businessUnit: "V_HNS",
     startOffset: 0, endOffset: 25,
     actualStartOffset: 0, actualEndOffset: null,
     stage: "IMPLEMENTATION", status: "IN_PROGRESS",
@@ -113,7 +114,7 @@ const SEEDS: Seed[] = [
   },
   // 대기 (설계) — 순차 (T-007 선행)
   {
-    code: "T-008", name: "공정관리", category: "생산관리",
+    code: "T-008", name: "공정관리", category: "생산관리", businessUnit: "V_HNS",
     startOffset: 5, endOffset: 30,
     actualStartOffset: null, actualEndOffset: null,
     stage: "DESIGN", status: "PENDING",
@@ -122,7 +123,7 @@ const SEEDS: Seed[] = [
   },
   // 대기 (분석)
   {
-    code: "T-009", name: "보고서/분석", category: "분석",
+    code: "T-009", name: "보고서/분석", category: "분석", businessUnit: "V_IVI",
     startOffset: 10, endOffset: 45,
     actualStartOffset: null, actualEndOffset: null,
     stage: "ANALYSIS", status: "PENDING",
@@ -178,6 +179,7 @@ async function main() {
         code: s.code,
         name: s.name,
         category: s.category,
+        businessUnit: s.businessUnit,
         startDate: dayOffset(s.startOffset),
         endDate: dayOffset(s.endOffset),
         actualStartDate: s.actualStartOffset !== null ? dayOffset(s.actualStartOffset) : null,

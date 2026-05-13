@@ -36,7 +36,7 @@ export function useCreateProgressTask() {
   return useMutation({
     mutationFn: (data: {
       projectId: string; name: string; startDate: string; endDate: string;
-      category?: string; description?: string; predecessorId?: string; isParallel?: boolean;
+      category?: string; businessUnit?: string; description?: string; predecessorId?: string; isParallel?: boolean;
     }) => api.progressTasks.create(data),
     onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: progressTaskKeys.list(vars.projectId) }),
     onError: (err: Error) => showToast(err.message || "task 생성 실패", "error"),
