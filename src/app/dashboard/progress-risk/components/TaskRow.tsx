@@ -85,12 +85,27 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighte
     >
       <div className="text-text-secondary">{index}</div>
       <div className="text-text-secondary text-xs">{task.code}</div>
-      <input
-        value={name}
-        onChange={e => setName(e.target.value)}
-        className="bg-transparent border-0 focus:outline-none focus:bg-white/5 dark:focus:bg-white/5 px-1 py-0.5 rounded font-medium text-text dark:text-white"
-        aria-label="기능명"
-      />
+      <div className="flex items-center gap-2 min-w-0">
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          className="flex-1 min-w-0 bg-transparent border-0 focus:outline-none focus:bg-white/5 dark:focus:bg-white/5 px-1 py-0.5 rounded font-medium text-text dark:text-white"
+          aria-label="기능명"
+        />
+        <button
+          type="button"
+          onClick={() => update.mutate({ id: task.id, data: { isParallel: !task.isParallel } })}
+          className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+            task.isParallel
+              ? "bg-success/15 border-success/40 text-success hover:bg-success/25"
+              : "bg-warning/15 border-warning/40 text-warning hover:bg-warning/25"
+          }`}
+          title={task.isParallel ? "병렬 (클릭하면 순차로 전환)" : "순차 (클릭하면 병렬로 전환)"}
+          aria-label={task.isParallel ? "병렬" : "순차"}
+        >
+          {task.isParallel ? "P" : "S"}
+        </button>
+      </div>
       <input
         type="date"
         value={startDate}

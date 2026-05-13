@@ -1690,6 +1690,7 @@ export const api = {
       category?: string;
       description?: string;
       predecessorId?: string;
+      isParallel?: boolean;
     }) => post<ProgressTask>("/api/progress-tasks", data),
     update: (id: string, data: Partial<ProgressTask>) =>
       patch<ProgressTask>(`/api/progress-tasks/${id}`, data),

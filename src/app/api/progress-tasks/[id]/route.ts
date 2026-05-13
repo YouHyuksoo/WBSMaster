@@ -68,6 +68,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
   if (body.predecessorId !== undefined) data.predecessorId = body.predecessorId;
   if (body.effortMd !== undefined) data.effortMd = body.effortMd;
   if (body.order !== undefined) data.order = body.order;
+  if (body.isParallel !== undefined) data.isParallel = !!body.isParallel;
 
   // currentStage가 바뀌면 progress 자동 재계산
   if (body.currentStage !== undefined) {
