@@ -77,6 +77,51 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
     }
   }
 
+  // predecessorId 변경 시 순환 의존성 검증 (서버 사이드)
+  if (body.predecessorId !== undefined && body.predecessorId !== null) {
+    // 1) 자기 자신 선행 방지
+    if (body.predecessorId === id) {
+      return NextResponse.json(
+        { error: "자기 자신을 선행 task로 지정할 수 없습니다." },
+        { status: 400 }
+      );
+    }
+
+    // 2) 같은 프로젝트의 모든 task를 가져와 순환 탐지
+    const target = await prisma.progressTask.findUnique({
+      where: { id },
+      select: { projectId: true },
+    });
+    if (!target) {
+      return NextResponse.json({ error: "task not found" }, { status: 404 });
+    }
+
+    const all = await prisma.progressTask.findMany({
+      where: { projectId: target.projectId },
+      select: { id: true, predecessorId: true },
+    });
+
+    // 3) BFS로 무효 선행 집합 계산 (PredecessorSelect와 동일 알고리즘)
+    const invalid = new Set<string>([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const t of all) {
+        if (!invalid.has(t.id) && t.predecessorId && invalid.has(t.predecessorId)) {
+          invalid.add(t.id);
+          changed = true;
+        }
+      }
+    }
+
+    if (invalid.has(body.predecessorId)) {
+      return NextResponse.json(
+        { error: "순환 의존성이 발생합니다. 다른 선행 task를 선택하세요." },
+        { status: 400 }
+      );
+    }
+  }
+
   const task = await prisma.progressTask.update({
     where: { id },
     data,
