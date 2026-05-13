@@ -23,6 +23,7 @@ import {
   TabSwitcher,
   ListTab,
   GanttTab,
+  LoadTab,
 } from "./components";
 import { Icon } from "@/components/ui";
 import type { TabKey } from "./types";
@@ -103,10 +104,8 @@ export default function ProgressRiskPage() {
             />
           )}
 
-          {activeTab === "load" && (
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
-              <p className="text-text-secondary">인력부하 탭 — Task 6에서 구현</p>
-            </div>
+          {activeTab === "load" && data && (
+            <LoadTab tasks={tasks} forecast={data.forecast} />
           )}
 
           {activeTab === "diagnosis" && (

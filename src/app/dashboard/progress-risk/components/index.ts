@@ -16,3 +16,4 @@ export { VerdictBanner } from "./VerdictBanner";
 export { TabSwitcher } from "./TabSwitcher";
 export { ListTab } from "./ListTab";
 export { GanttTab } from "./GanttTab";
+export { LoadTab } from "./LoadTab";
