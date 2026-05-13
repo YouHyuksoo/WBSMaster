@@ -1,37 +1,41 @@
 /**
  * @file src/app/dashboard/progress-risk/page.tsx
  * @description
- * 진도 및 리스크 보고서 메인 페이지 (Phase 1: 리스트 탭만)
+ * 진도 및 리스크 보고서 메인 페이지 (Phase 2: 알고리즘 통합)
  *
  * 초보자 가이드:
  * 1. **헤더**: 페이지 타이틀 + 액션 버튼
- * 2. **본문**: 빈 상태 또는 task 그리드 (Task 9~16에서 추가)
+ * 2. **본문**: KpiRow + FilterBar + TaskGrid
+ * 3. **useComputeForecast**: tasks/conflicts/diagnosis를 한 훅에서 derive
  */
 "use client";
 
 import { useState } from "react";
 import { useProject } from "@/contexts";
-import { useProgressTasks } from "@/hooks";
+import { useComputeForecast } from "@/hooks";
 import {
   PageHeader,
   AddTaskModal,
   TaskGrid,
   FilterBar,
-  KpiRow,
   applyFilters,
   type Filters,
+  KpiRow,
 } from "./components";
 import { Icon } from "@/components/ui";
 
 export default function ProgressRiskPage() {
   const { selectedProject } = useProject();
-  const { data: tasks = [], isLoading } = useProgressTasks(selectedProject?.id);
+  const projectEnd = selectedProject?.endDate ? new Date(selectedProject.endDate) : null;
+  const { data, isLoading } = useComputeForecast(selectedProject?.id, projectEnd);
+
+  const tasks = data?.tasks ?? [];
+  const conflicts = data?.conflicts ?? [];
+  const diagnosis = data?.diagnosis;
+
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({
-    search: "",
-    status: "all",
-    category: "",
-    userId: "",
+    search: "", status: "all", category: "", userId: "",
   });
 
   const filteredTasks = applyFilters(tasks, filters);
@@ -65,6 +69,14 @@ export default function ProgressRiskPage() {
         </div>
       )}
 
+      {selectedProject && tasks.length > 0 && (
+        <>
+          <KpiRow tasks={tasks} conflicts={conflicts} diagnosis={diagnosis} />
+          <FilterBar tasks={tasks} filters={filters} onChange={setFilters} />
+          <TaskGrid tasks={filteredTasks} projectId={selectedProject.id} />
+        </>
+      )}
+
       {selectedProject && (
         <AddTaskModal
           isOpen={addModalOpen}
@@ -72,14 +84,6 @@ export default function ProgressRiskPage() {
           projectId={selectedProject.id}
           existingTasks={tasks}
         />
-      )}
-
-      {selectedProject && !isLoading && tasks.length > 0 && (
-        <>
-          <KpiRow tasks={tasks} />
-          <FilterBar tasks={tasks} filters={filters} onChange={setFilters} />
-          <TaskGrid tasks={filteredTasks} projectId={selectedProject.id} />
-        </>
       )}
     </div>
   );
