@@ -189,3 +189,9 @@ export {
   useRemoveAssignee,
   progressTaskKeys,
 } from "./useProgressTasks";
+
+// 진도 계산 통합 훅
+export {
+  useComputeForecast,
+  type ProgressComputeResult,
+} from "./useComputeForecast";
