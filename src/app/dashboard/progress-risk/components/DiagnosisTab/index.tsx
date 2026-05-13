@@ -10,12 +10,13 @@
  */
 "use client";
 
-import type { Diagnosis } from "@/lib/progress-calc/types";
+import type { Diagnosis, Recommendation } from "@/lib/progress-calc/types";
 import { Icon } from "@/components/ui";
 import { RecommendationCard } from "./RecommendationCard";
 
 interface Props {
   diagnosis: Diagnosis | undefined;
+  onCardClick?: (rec: Recommendation) => void;
 }
 
 const VERDICT_LABEL: Record<
@@ -36,7 +37,7 @@ const VERDICT_LABEL: Record<
   BOTH: { label: "복합 위험", icon: "error", color: "text-error" },
 };
 
-export function DiagnosisTab({ diagnosis }: Props) {
+export function DiagnosisTab({ diagnosis, onCardClick }: Props) {
   if (!diagnosis) {
     return (
       <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
@@ -107,7 +108,7 @@ export function DiagnosisTab({ diagnosis }: Props) {
       ) : (
         <div className="space-y-3">
           {diagnosis.recommendations.map((r, i) => (
-            <RecommendationCard key={i} recommendation={r} />
+            <RecommendationCard key={i} recommendation={r} onClick={onCardClick} />
           ))}
         </div>
       )}

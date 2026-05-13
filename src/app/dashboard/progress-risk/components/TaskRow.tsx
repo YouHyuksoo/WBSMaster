@@ -24,6 +24,7 @@ interface Props {
   projectId: string;
   allTasks: ProgressTask[];
   gridCols: string;
+  highlighted?: boolean;
 }
 
 /** 디바운스 자동 저장 훅 */
@@ -39,7 +40,7 @@ function useDebouncedUpdate<T>(value: T, onSave: (v: T) => void, delay = 500) {
   return [local, setLocal] as const;
 }
 
-export function TaskRow({ index, task, projectId, allTasks, gridCols }: Props) {
+export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighted }: Props) {
   const update = useUpdateProgressTask(projectId);
   const remove = useDeleteProgressTask(projectId);
 
@@ -77,7 +78,9 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols }: Props) {
 
   return (
     <div
-      className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1200px] text-sm"
+      className={`grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1200px] text-sm ${
+        highlighted ? "bg-primary/10 ring-2 ring-primary/40 ring-inset" : ""
+      }`}
       style={{ gridTemplateColumns: gridCols }}
     >
       <div className="text-text-secondary">{index}</div>

@@ -18,15 +18,16 @@ interface Props {
   projectId: string;
   filters: Filters;
   onFiltersChange: (f: Filters) => void;
+  highlightTaskId?: string | null;
 }
 
-export function ListTab({ tasks, projectId, filters, onFiltersChange }: Props) {
+export function ListTab({ tasks, projectId, filters, onFiltersChange, highlightTaskId }: Props) {
   const filtered = applyFilters(tasks, filters);
 
   return (
     <div className="space-y-4">
       <FilterBar tasks={tasks} filters={filters} onChange={onFiltersChange} />
-      <TaskGrid tasks={filtered} projectId={projectId} />
+      <TaskGrid tasks={filtered} projectId={projectId} highlightTaskId={highlightTaskId} />
     </div>
   );
 }

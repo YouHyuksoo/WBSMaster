@@ -5,7 +5,7 @@
  * 초보자 가이드:
  * 1. **COLS**: 그리드 컬럼 폭 정의 (TaskRow와 공유)
  * 2. **헤더**: 고정 헤더 행 (배경색 dark:bg-background-dark)
- * 3. **TaskRow**: 각 task를 개별 행으로 렌더 (read-only)
+ * 3. **TaskRow**: 각 task를 개별 행으로 렌더 + highlight 지원
  */
 import type { ProgressTask } from "@/lib/api";
 import { TaskRow } from "./TaskRow";
@@ -13,11 +13,12 @@ import { TaskRow } from "./TaskRow";
 interface Props {
   tasks: ProgressTask[];
   projectId: string;
+  highlightTaskId?: string | null;
 }
 
 const COLS = "46px 70px 1fr 80px 80px 200px 90px 1fr 80px 30px";
 
-export function TaskGrid({ tasks, projectId }: Props) {
+export function TaskGrid({ tasks, projectId, highlightTaskId }: Props) {
   return (
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 헤더 행 */}
@@ -46,6 +47,7 @@ export function TaskGrid({ tasks, projectId }: Props) {
           projectId={projectId}
           allTasks={tasks}
           gridCols={COLS}
+          highlighted={highlightTaskId === task.id}
         />
       ))}
     </div>

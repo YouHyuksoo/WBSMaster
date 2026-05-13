@@ -30,6 +30,7 @@ import {
 } from "./components";
 import { Icon } from "@/components/ui";
 import type { TabKey } from "./types";
+import type { Recommendation } from "@/lib/progress-calc/types";
 
 export default function ProgressRiskPage() {
   const { selectedProject } = useProject();
@@ -46,9 +47,21 @@ export default function ProgressRiskPage() {
   const [filters, setFilters] = useState<Filters>({
     search: "", status: "all", category: "", userId: "",
   });
+  const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
 
   const conflictUserCount = new Set(conflicts.map((c) => c.userId)).size;
   const recCount = diagnosis?.recommendations.length ?? 0;
+
+  const handleCardClick = (rec: Recommendation) => {
+    if (rec.taskId) {
+      setHighlightTaskId(rec.taskId);
+      setActiveTab("list");
+      setTimeout(() => setHighlightTaskId(null), 3000);
+    } else if (rec.userId) {
+      setFilters(f => ({ ...f, userId: rec.userId! }));
+      setActiveTab("list");
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -102,6 +115,7 @@ export default function ProgressRiskPage() {
               projectId={selectedProject.id}
               filters={filters}
               onFiltersChange={setFilters}
+              highlightTaskId={highlightTaskId}
             />
           )}
 
@@ -119,7 +133,7 @@ export default function ProgressRiskPage() {
           )}
 
           {activeTab === "diagnosis" && (
-            <DiagnosisTab diagnosis={diagnosis} />
+            <DiagnosisTab diagnosis={diagnosis} onCardClick={handleCardClick} />
           )}
         </>
       )}
