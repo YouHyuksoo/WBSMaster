@@ -15,6 +15,7 @@ import { useState, useEffect } from "react";
 import type { ProgressTask } from "@/lib/api";
 import { useUpdateProgressTask, useDeleteProgressTask } from "@/hooks";
 import { StageStepper } from "./StageStepper";
+import { PredecessorSelect } from "./PredecessorSelect";
 
 interface Props {
   index: number;
@@ -50,8 +51,6 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols }: Props) {
     task.endDate.slice(0, 10),
     v => update.mutate({ id: task.id, data: { endDate: v } })
   );
-
-  const predecessor = allTasks.find(t => t.id === task.predecessorId);
 
   const handleDelete = () => {
     if (confirm(`${task.code} ${task.name}을(를) 삭제하시겠습니까?`)) {
@@ -92,7 +91,12 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols }: Props) {
           onChange={(stage) => update.mutate({ id: task.id, data: { currentStage: stage } })}
         />
       </div>
-      <div className="text-xs text-text-secondary">{predecessor?.code ?? "-"}</div>
+      <PredecessorSelect
+        value={task.predecessorId}
+        taskId={task.id}
+        allTasks={allTasks}
+        onChange={(pid) => update.mutate({ id: task.id, data: { predecessorId: pid } })}
+      />
       <div className="text-xs text-text dark:text-white">
         {task.assignees.map(a => a.user.name).join(", ") || "-"}
       </div>

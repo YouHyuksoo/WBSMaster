@@ -7,3 +7,4 @@ export { AddTaskModal } from "./AddTaskModal";
 export { TaskGrid } from "./TaskGrid";
 export { TaskRow } from "./TaskRow";
 export { StageStepper } from "./StageStepper";
+export { PredecessorSelect } from "./PredecessorSelect";
