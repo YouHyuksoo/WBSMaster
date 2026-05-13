@@ -52,6 +52,7 @@ const menuItems: MenuItem[] = [
   { label: "대시보드", icon: "dashboard", href: "/dashboard" },
   { label: "WBS 보기", icon: "account_tree", href: "/dashboard/wbs", filled: true },
   { label: "마일스톤", icon: "flag_circle", href: "/dashboard/milestones" },
+  { label: "진도/리스크", icon: "trending_up", href: "/dashboard/progress-risk" },
   { label: "TASK 관리", icon: "view_kanban", href: "/dashboard/kanban" },
   { label: "일정 관리", icon: "event", href: "/dashboard/holidays" },
   { label: "인터뷰 관리", icon: "mic", href: "/dashboard/interviews" },
