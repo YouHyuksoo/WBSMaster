@@ -17,6 +17,7 @@ import type { Forecast } from "@/lib/progress-calc/types";
 import type { ProgressTask } from "@/app/dashboard/progress-risk/types";
 import { GanttChart } from "./GanttChart";
 import { buildTimeScale, type ZoomLevel } from "./timeScale";
+import { ZoomControl } from "./ZoomControl";
 
 interface Props {
   tasks: ProgressTask[];
@@ -32,21 +33,9 @@ export function GanttTab({ tasks, forecast, projectEndDate, criticalPath }: Prop
 
   return (
     <div className="space-y-3">
-      {/* zoom 인라인 토글 (Task 5에서 ZoomControl 컴포넌트로 분리 예정) */}
-      <div className="flex justify-end gap-1 text-xs">
-        {(["day", "week", "month", "quarter"] as ZoomLevel[]).map(z => (
-          <button
-            key={z}
-            onClick={() => setZoom(z)}
-            className={`px-2.5 py-1 rounded border transition-colors ${
-              zoom === z
-                ? "bg-primary/15 border-primary/40 text-primary"
-                : "bg-white/5 dark:bg-white/5 border-white/10 text-text-secondary hover:bg-white/10 dark:hover:bg-white/10"
-            }`}
-          >
-            {z === "day" ? "일" : z === "week" ? "주" : z === "month" ? "월" : "분기"}
-          </button>
-        ))}
+      {/* zoom 토글 */}
+      <div className="flex justify-end">
+        <ZoomControl value={zoom} onChange={setZoom} />
       </div>
 
       <GanttChart tasks={tasks} forecast={forecast} timeScale={timeScale} criticalPathIds={cpSet} projectEndDate={projectEndDate} />
