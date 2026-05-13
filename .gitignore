@@ -63,3 +63,6 @@ backup*.sql
 
 # Supabase temp files
 supabase/.temp/
+
+# Superpowers brainstorming mockups
+.superpowers/
