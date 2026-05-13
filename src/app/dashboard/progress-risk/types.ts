@@ -27,7 +27,7 @@ export interface ProgressTaskAssignee {
   taskId: string;
   userId: string;
   role: string | null;
-  allocationPct: number;
+  allocationPct: number; // 1~100 범위의 정수 (%)
   assignedAt: string;
   user: { id: string; name: string; email: string; profileImage?: string | null };
 }
