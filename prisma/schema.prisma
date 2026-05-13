@@ -3,7 +3,6 @@
  * @description
  * WBS Master 프로젝트의 데이터베이스 스키마 정의 파일입니다.
  * Prisma ORM을 사용하여 Supabase PostgreSQL과 연동합니다.
- *
  * 주요 모델:
  * - User: 사용자 정보 (Supabase Auth 연동)
  * - Project: 프로젝트 정보
@@ -30,34 +29,35 @@ model User {
   email       String       @unique
   password    String       @default("admin123") // 비밀번호 (기본값: admin123)
   name        String?
-  avatar      String?      // 프로필 이미지 URL
-  role        UserRole     @default(USER)  // 시스템 역할 (기본: 사용자)
+  avatar      String? // 프로필 이미지 URL
+  role        UserRole     @default(USER) // 시스템 역할 (기본: 사용자)
   affiliation Affiliation? // 소속 (고객사, 개발사, 컨설팅, 외주 등)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   // 관계
-  ownedProjects Project[]    @relation("ProjectOwner")
-  teamMembers   TeamMember[]
-  assignedTasks Task[]       @relation("TaskAssignee") // 내가 주 담당자인 태스크들
-  taskAssignments TaskAssignee[] // 태스크 부 담당자 (다대다)
-  createdTasks  Task[]       @relation("TaskCreator")
-  requestedRequirements Requirement[] @relation("RequirementRequester") // 내가 요청한 요구사항
-  assignedRequirements  Requirement[] @relation("RequirementAssignee")  // 나에게 할당된 요구사항
-  wbsAssignments WbsAssignee[] // WBS 담당자 (다대다)
-  reportedIssues Issue[] @relation("IssueReporter") // 내가 보고한 이슈
-  assignedIssues Issue[] @relation("IssueAssignee") // 나에게 할당된 이슈
-  aiSetting     AiSetting?   // AI 설정 (1:1)
-  chatHistories ChatHistory[] // 채팅 기록
-  holidays      Holiday[] @relation("HolidayUser") // 개인 일정
-  taskNudges    TaskNudge[] @relation("TaskNudger") // 내가 보낸 재촉
-  weeklyReports WeeklyReport[] @relation("UserWeeklyReports") // 주간보고
-  weeklySummaries WeeklySummary[] @relation("SummaryCreator") // 내가 생성한 취합보고
-  workloadAnalyses WorkloadAnalysis[] @relation("WorkloadAnalysisCreator") // 내가 생성한 부하분석
-  documents     Document[] @relation("DocumentCreator") // 내가 등록한 문서
-  notifications Notification[] @relation("UserNotifications") // 내 알림
-  reportedDiscussions DiscussionItem[] @relation("DiscussionReporter") // 내가 보고한 협의요청
-  assignedDiscussions DiscussionItem[] @relation("DiscussionAssignee") // 나에게 할당된 협의요청
+  ownedProjects         Project[]              @relation("ProjectOwner")
+  teamMembers           TeamMember[]
+  assignedTasks         Task[]                 @relation("TaskAssignee") // 내가 주 담당자인 태스크들
+  taskAssignments       TaskAssignee[] // 태스크 부 담당자 (다대다)
+  createdTasks          Task[]                 @relation("TaskCreator")
+  requestedRequirements Requirement[]          @relation("RequirementRequester") // 내가 요청한 요구사항
+  assignedRequirements  Requirement[]          @relation("RequirementAssignee") // 나에게 할당된 요구사항
+  wbsAssignments        WbsAssignee[] // WBS 담당자 (다대다)
+  reportedIssues        Issue[]                @relation("IssueReporter") // 내가 보고한 이슈
+  assignedIssues        Issue[]                @relation("IssueAssignee") // 나에게 할당된 이슈
+  aiSetting             AiSetting? // AI 설정 (1:1)
+  chatHistories         ChatHistory[] // 채팅 기록
+  holidays              Holiday[]              @relation("HolidayUser") // 개인 일정
+  taskNudges            TaskNudge[]            @relation("TaskNudger") // 내가 보낸 재촉
+  weeklyReports         WeeklyReport[]         @relation("UserWeeklyReports") // 주간보고
+  weeklySummaries       WeeklySummary[]        @relation("SummaryCreator") // 내가 생성한 취합보고
+  workloadAnalyses      WorkloadAnalysis[]     @relation("WorkloadAnalysisCreator") // 내가 생성한 부하분석
+  documents             Document[]             @relation("DocumentCreator") // 내가 등록한 문서
+  notifications         Notification[]         @relation("UserNotifications") // 내 알림
+  reportedDiscussions   DiscussionItem[]       @relation("DiscussionReporter") // 내가 보고한 협의요청
+  assignedDiscussions   DiscussionItem[]       @relation("DiscussionAssignee") // 나에게 할당된 협의요청
+  progressAssignments   ProgressTaskAssignee[] // 진도 task 담당자 할당
 
   @@map("users")
 }
@@ -70,9 +70,9 @@ model User {
  * - GUEST: 손님 (읽기 전용)
  */
 enum UserRole {
-  ADMIN   // 관리자
-  USER    // 사용자
-  GUEST   // 손님
+  ADMIN // 관리자
+  USER // 사용자
+  GUEST // 손님
 }
 
 /**
@@ -85,12 +85,12 @@ enum UserRole {
  * - OTHER: 기타
  */
 enum Affiliation {
-  CLIENT       // 고객사
-  DEVELOPER    // 개발사
-  CONSULTING   // 컨설팅
-  OUTSOURCING  // 외주
-  HAENGSUNG    // 행성사
-  OTHER        // 기타
+  CLIENT // 고객사
+  DEVELOPER // 개발사
+  CONSULTING // 컨설팅
+  OUTSOURCING // 외주
+  HAENGSUNG // 행성사
+  OTHER // 기타
 }
 
 // ============================================
@@ -109,47 +109,48 @@ model Project {
   updatedAt   DateTime      @updatedAt
 
   // 프로젝트 개요 정보
-  purpose           String?   // 프로젝트 목적
-  organizationChart Json?     // 프로젝트 조직도 (JSON 구조: {role, name, department}[])
-  successIndicators String[]  // 성공지표 (문자열 배열)
-  futureVision      String?   // 추구하는 미래모습
-  visionImage       String?   // 미래 비전 이미지 URL
+  purpose           String? // 프로젝트 목적
+  organizationChart Json? // 프로젝트 조직도 (JSON 구조: {role, name, department}[])
+  successIndicators String[] // 성공지표 (문자열 배열)
+  futureVision      String? // 추구하는 미래모습
+  visionImage       String? // 미래 비전 이미지 URL
 
   // 관계
-  ownerId      String
-  owner        User          @relation("ProjectOwner", fields: [ownerId], references: [id])
-  tasks        Task[]
-  requirements Requirement[]
-  issues       Issue[]       // 이슈 목록
-  teamMembers  TeamMember[]
-  holidays     Holiday[]
-  wbsItems     WbsItem[]     // WBS 항목
-  chatHistories ChatHistory[] // AI 채팅 기록
-  milestones   Milestone[]   // 마일스톤 목록
-  timelineRows TimelineRow[] // 타임라인 행 목록
-  pinpoints    Pinpoint[]    // 핀포인트 목록
-  weeklyReports WeeklyReport[] @relation("ProjectWeeklyReports") // 주간보고
-  weeklySummaries WeeklySummary[] // 주간보고 취합
-  workloadAnalyses WorkloadAnalysis[] // 부하분석 결과
+  ownerId                       String
+  owner                         User                          @relation("ProjectOwner", fields: [ownerId], references: [id])
+  tasks                         Task[]
+  requirements                  Requirement[]
+  issues                        Issue[] // 이슈 목록
+  teamMembers                   TeamMember[]
+  holidays                      Holiday[]
+  wbsItems                      WbsItem[] // WBS 항목
+  chatHistories                 ChatHistory[] // AI 채팅 기록
+  milestones                    Milestone[] // 마일스톤 목록
+  timelineRows                  TimelineRow[] // 타임라인 행 목록
+  pinpoints                     Pinpoint[] // 핀포인트 목록
+  weeklyReports                 WeeklyReport[]                @relation("ProjectWeeklyReports") // 주간보고
+  weeklySummaries               WeeklySummary[] // 주간보고 취합
+  workloadAnalyses              WorkloadAnalysis[] // 부하분석 결과
   processVerificationCategories ProcessVerificationCategory[] // 기능추적표 카테고리
-  customerRequirements CustomerRequirement[] // 고객요구사항
-  documents Document[] // 문서함
-  equipments Equipment[] // 설비 목록
-  fieldIssues FieldIssue[] // 현업이슈 목록
-  taskConnections TaskConnection[] // 태스크 연결 (플로우 차트용)
-  asIsOverviews AsIsOverview[] // AS-IS 현행 분석 (사업부별 1:N)
-  discussionItems DiscussionItem[] // 협의요청 목록
-  interviews Interview[] // 인터뷰 관리 목록
+  customerRequirements          CustomerRequirement[] // 고객요구사항
+  documents                     Document[] // 문서함
+  equipments                    Equipment[] // 설비 목록
+  fieldIssues                   FieldIssue[] // 현업이슈 목록
+  taskConnections               TaskConnection[] // 태스크 연결 (플로우 차트용)
+  asIsOverviews                 AsIsOverview[] // AS-IS 현행 분석 (사업부별 1:N)
+  discussionItems               DiscussionItem[] // 협의요청 목록
+  interviews                    Interview[] // 인터뷰 관리 목록
+  progressTasks                 ProgressTask[] // 진도 task 목록
 
   @@map("projects")
 }
 
 enum ProjectStatus {
-  PLANNING   // 계획 중
-  ACTIVE     // 진행 중
-  ON_HOLD    // 보류
-  COMPLETED  // 완료
-  CANCELLED  // 취소
+  PLANNING // 계획 중
+  ACTIVE // 진행 중
+  ON_HOLD // 보류
+  COMPLETED // 완료
+  CANCELLED // 취소
 }
 
 // ============================================
@@ -157,40 +158,40 @@ enum ProjectStatus {
 // 칸반 보드용 태스크/할일
 // ============================================
 model Task {
-  id          String       @id @default(uuid())
-  title       String
-  description String?
-  status      TaskStatus   @default(PENDING)
-  priority    TaskPriority @default(MEDIUM)
-  progress    Int          @default(0) // 진행률 0-100
-  startDate   DateTime?    // 계획 시작일
-  dueDate     DateTime?    // 계획 마감일
+  id              String       @id @default(uuid())
+  title           String
+  description     String?
+  status          TaskStatus   @default(PENDING)
+  priority        TaskPriority @default(MEDIUM)
+  progress        Int          @default(0) // 진행률 0-100
+  startDate       DateTime? // 계획 시작일
+  dueDate         DateTime? // 계획 마감일
   actualStartDate DateTime? // 실제 시작일
   actualEndDate   DateTime? // 실제 마감일
-  order       Int          @default(0) // 칸반 보드 내 순서
-  isAiGenerated Boolean    @default(false) // AI가 생성한 태스크 여부
-  flowX       Float        @default(0) // 플로우 캔버스 X 좌표
-  flowY       Float        @default(0) // 플로우 캔버스 Y 좌표
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  order           Int          @default(0) // 칸반 보드 내 순서
+  isAiGenerated   Boolean      @default(false) // AI가 생성한 태스크 여부
+  flowX           Float        @default(0) // 플로우 캔버스 X 좌표
+  flowY           Float        @default(0) // 플로우 캔버스 Y 좌표
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   // 관계
-  projectId     String
-  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assigneeId    String?        // 주 담당자 (1:N 관계로 누구의 태스크인지 명확히)
-  assignee      User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  assignees     TaskAssignee[] // 부 담당자들 (다대다, 협업자)
-  creatorId     String
-  creator       User    @relation("TaskCreator", fields: [creatorId], references: [id])
-  requirementId String?        // 연결된 요구사항 (선택)
-  requirement   Requirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
-  wbsItemId     String?        // 연결된 WBS 항목 (선택)
-  wbsItem       WbsItem?     @relation(fields: [wbsItemId], references: [id], onDelete: SetNull)
-  nudges        TaskNudge[]    // 재촉 목록
-  completedAt   DateTime?      // 완료 일시 (주간보고 연동용)
-  weeklyItems   WeeklyReportItem[] @relation("TaskWeeklyItems") // 주간보고 항목 연결
-  fromConnections TaskConnection[] @relation("TaskConnectionFrom") // 이 태스크에서 나가는 연결
-  toConnections   TaskConnection[] @relation("TaskConnectionTo")   // 이 태스크로 들어오는 연결
+  projectId       String
+  project         Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId      String? // 주 담당자 (1:N 관계로 누구의 태스크인지 명확히)
+  assignee        User?              @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignees       TaskAssignee[] // 부 담당자들 (다대다, 협업자)
+  creatorId       String
+  creator         User               @relation("TaskCreator", fields: [creatorId], references: [id])
+  requirementId   String? // 연결된 요구사항 (선택)
+  requirement     Requirement?       @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  wbsItemId       String? // 연결된 WBS 항목 (선택)
+  wbsItem         WbsItem?           @relation(fields: [wbsItemId], references: [id], onDelete: SetNull)
+  nudges          TaskNudge[] // 재촉 목록
+  completedAt     DateTime? // 완료 일시 (주간보고 연동용)
+  weeklyItems     WeeklyReportItem[] @relation("TaskWeeklyItems") // 주간보고 항목 연결
+  fromConnections TaskConnection[]   @relation("TaskConnectionFrom") // 이 태스크에서 나가는 연결
+  toConnections   TaskConnection[]   @relation("TaskConnectionTo") // 이 태스크로 들어오는 연결
 
   @@map("tasks")
 }
@@ -201,22 +202,22 @@ model Task {
 // ============================================
 model TaskConnection {
   id           String   @id @default(uuid())
-  label        String?  // 연결선 라벨 (선택)
+  label        String? // 연결선 라벨 (선택)
   type         String   @default("FLOW") // 연결 타입 (FLOW, DEPENDENCY 등)
-  color        String?  // 연결선 색상
+  color        String? // 연결선 색상
   animated     Boolean  @default(false) // 애니메이션 여부
-  sourceHandle String?  // 출발 핸들 (top, right, bottom, left)
-  targetHandle String?  // 도착 핸들
+  sourceHandle String? // 출발 핸들 (top, right, bottom, left)
+  targetHandle String? // 도착 핸들
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   // 관계
-  fromTaskId   String
-  fromTask     Task     @relation("TaskConnectionFrom", fields: [fromTaskId], references: [id], onDelete: Cascade)
-  toTaskId     String
-  toTask       Task     @relation("TaskConnectionTo", fields: [toTaskId], references: [id], onDelete: Cascade)
-  projectId    String
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromTaskId String
+  fromTask   Task    @relation("TaskConnectionFrom", fields: [fromTaskId], references: [id], onDelete: Cascade)
+  toTaskId   String
+  toTask     Task    @relation("TaskConnectionTo", fields: [toTaskId], references: [id], onDelete: Cascade)
+  projectId  String
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([fromTaskId, toTaskId]) // 같은 연결은 한 번만
   @@index([projectId])
@@ -247,14 +248,14 @@ model TaskAssignee {
 // ============================================
 model TaskNudge {
   id        String   @id @default(uuid())
-  message   String?  // 재촉 메시지 (선택)
+  message   String? // 재촉 메시지 (선택)
   createdAt DateTime @default(now())
 
   // 관계
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  nudgerId  String   // 재촉한 사람
-  nudger    User     @relation("TaskNudger", fields: [nudgerId], references: [id], onDelete: Cascade)
+  taskId   String
+  task     Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  nudgerId String // 재촉한 사람
+  nudger   User   @relation("TaskNudger", fields: [nudgerId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
   @@index([nudgerId])
@@ -262,12 +263,12 @@ model TaskNudge {
 }
 
 enum TaskStatus {
-  PENDING     // 대기중
+  PENDING // 대기중
   IN_PROGRESS // 진행중
-  HOLDING     // 홀딩
-  DELAYED     // 지연 (마감일 초과)
-  COMPLETED   // 완료
-  CANCELLED   // 취소
+  HOLDING // 홀딩
+  DELAYED // 지연 (마감일 초과)
+  COMPLETED // 완료
+  CANCELLED // 취소
 }
 
 enum TaskPriority {
@@ -281,45 +282,45 @@ enum TaskPriority {
 // 요구사항 점검표용
 // ============================================
 model Requirement {
-  id          String              @id @default(uuid())
-  code        String?             // 요구사항 코드 (REQ-001 등)
-  title       String
-  description String?
-  status      RequirementStatus   @default(DRAFT)
-  priority    RequirementPriority @default(SHOULD)
-  category    String?             // 카테고리 (인증, UI/UX, API 등)
-  oneDriveLink String?            // OneDrive 문서 링크
-  requestDate DateTime            @default(now())  // 요청일
-  dueDate     DateTime?           // 마감일
-  isDelayed   Boolean             @default(false)  // 지연 여부
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id           String              @id @default(uuid())
+  code         String? // 요구사항 코드 (REQ-001 등)
+  title        String
+  description  String?
+  status       RequirementStatus   @default(DRAFT)
+  priority     RequirementPriority @default(SHOULD)
+  category     String? // 카테고리 (인증, UI/UX, API 등)
+  oneDriveLink String? // OneDrive 문서 링크
+  requestDate  DateTime            @default(now()) // 요청일
+  dueDate      DateTime? // 마감일
+  isDelayed    Boolean             @default(false) // 지연 여부
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
   // 관계
   projectId   String
   project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  requesterId String?             // 요청자 (누가 요청했는지)
+  requesterId String? // 요청자 (누가 요청했는지)
   requester   User?   @relation("RequirementRequester", fields: [requesterId], references: [id])
-  assigneeId  String?             // 담당자 (누구에게 요청했는지)
+  assigneeId  String? // 담당자 (누구에게 요청했는지)
   assignee    User?   @relation("RequirementAssignee", fields: [assigneeId], references: [id])
-  tasks       Task[]              // 연결된 태스크들
+  tasks       Task[] // 연결된 태스크들
 
   @@map("requirements")
 }
 
 enum RequirementStatus {
-  DRAFT       // 초안
-  REVIEW      // 검토중
-  APPROVED    // 승인
-  REJECTED    // 반려
+  DRAFT // 초안
+  REVIEW // 검토중
+  APPROVED // 승인
+  REJECTED // 반려
   IMPLEMENTED // 구현완료
 }
 
 enum RequirementPriority {
-  MUST   // 필수
+  MUST // 필수
   SHOULD // 중요
-  COULD  // 선택
-  WONT   // 보류
+  COULD // 선택
+  WONT // 보류
 }
 
 // ============================================
@@ -329,34 +330,34 @@ enum RequirementPriority {
 model Holiday {
   id          String      @id @default(uuid())
   title       String
-  description String?     // 일정 상세 설명
+  description String? // 일정 상세 설명
   date        DateTime
-  endDate     DateTime?   // 종료일 (기간 일정용)
+  endDate     DateTime? // 종료일 (기간 일정용)
   type        HolidayType
-  isAllDay    Boolean     @default(true)  // 종일 일정 여부
-  startTime   String?     // 시작 시간 (HH:mm 형식)
-  endTime     String?     // 종료 시간 (HH:mm 형식)
+  isAllDay    Boolean     @default(true) // 종일 일정 여부
+  startTime   String? // 시작 시간 (HH:mm 형식)
+  endTime     String? // 종료 시간 (HH:mm 형식)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   // 관계
-  projectId   String
-  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  userId      String?     // 개인 일정인 경우 사용자 ID
-  user        User?   @relation("HolidayUser", fields: [userId], references: [id], onDelete: SetNull)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String? // 개인 일정인 경우 사용자 ID
+  user      User?   @relation("HolidayUser", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@map("holidays")
 }
 
 enum HolidayType {
-  COMPANY_HOLIDAY  // 회사 휴일
-  TEAM_OFFSITE     // 팀 오프사이트
-  PERSONAL_LEAVE   // 개인 휴가
+  COMPANY_HOLIDAY // 회사 휴일
+  TEAM_OFFSITE // 팀 오프사이트
+  PERSONAL_LEAVE // 개인 휴가
   PERSONAL_SCHEDULE // 개인 일정
-  MEETING          // 회의
-  DEADLINE         // 마감일
-  OTHER            // 기타
+  MEETING // 회의
+  DEADLINE // 마감일
+  OTHER // 기타
 }
 
 // ============================================
@@ -366,9 +367,9 @@ enum HolidayType {
 model TeamMember {
   id         String         @id @default(uuid())
   role       TeamMemberRole @default(MEMBER)
-  customRole String?        // 커스텀 역할명 (예: PMO, 프로젝트 총괄, PL 등)
-  department String?        // 부서 (예: 개발팀, 기획팀, 디자인팀 등)
-  position   String?        // 직급 (예: 사원, 대리, 과장, 차장, 부장 등)
+  customRole String? // 커스텀 역할명 (예: PMO, 프로젝트 총괄, PL 등)
+  department String? // 부서 (예: 개발팀, 기획팀, 디자인팀 등)
+  position   String? // 직급 (예: 사원, 대리, 과장, 차장, 부장 등)
   joinedAt   DateTime       @default(now())
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
@@ -384,9 +385,9 @@ model TeamMember {
 }
 
 enum TeamMemberRole {
-  OWNER   // 프로젝트 소유자
+  OWNER // 프로젝트 소유자
   MANAGER // 관리자
-  MEMBER  // 일반 멤버
+  MEMBER // 일반 멤버
 }
 
 // ============================================
@@ -394,37 +395,37 @@ enum TeamMemberRole {
 // 계층형 WBS 구조 (대분류 > 중분류 > 소분류 > 단위업무)
 // ============================================
 model WbsItem {
-  id          String        @id @default(uuid())
-  code        String        // WBS 코드 (예: 1, 1.1, 1.1.1, 1.1.1.1)
-  name        String        // 항목명
-  description String?       // 설명
-  level       WbsLevel      // 계층 레벨 (1~4)
-  order       Int           @default(0) // 같은 레벨 내 순서
-  status      TaskStatus    @default(PENDING) // 진행 상태
-  progress    Int           @default(0) // 진행률 0-100
-  startDate   DateTime?     // 계획 시작일
-  endDate     DateTime?     // 계획 종료일
+  id              String     @id @default(uuid())
+  code            String // WBS 코드 (예: 1, 1.1, 1.1.1, 1.1.1.1)
+  name            String // 항목명
+  description     String? // 설명
+  level           WbsLevel // 계층 레벨 (1~4)
+  order           Int        @default(0) // 같은 레벨 내 순서
+  status          TaskStatus @default(PENDING) // 진행 상태
+  progress        Int        @default(0) // 진행률 0-100
+  startDate       DateTime? // 계획 시작일
+  endDate         DateTime? // 계획 종료일
   actualStartDate DateTime? // 실제 시작일
   actualEndDate   DateTime? // 실제 종료일
-  weight      Int           @default(1) // 가중치 (진행률 계산용)
-  deliverableName String?   // 산출물명
-  deliverableLink String?   // 산출물 링크 (URL)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  weight          Int        @default(1) // 가중치 (진행률 계산용)
+  deliverableName String? // 산출물명
+  deliverableLink String? // 산출물 링크 (URL)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   // 계층 관계 (자기 참조)
-  parentId    String?
-  parent      WbsItem?      @relation("WbsHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children    WbsItem[]     @relation("WbsHierarchy")
+  parentId String?
+  parent   WbsItem?  @relation("WbsHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children WbsItem[] @relation("WbsHierarchy")
 
   // 프로젝트 관계
-  projectId   String
-  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // 담당자 (다대다)
   assignees   WbsAssignee[]
   weeklyItems WeeklyReportItem[] @relation("WbsWeeklyItems") // 주간보고 항목 연결
-  tasks       Task[]             // 연결된 태스크들
+  tasks       Task[] // 연결된 태스크들
 
   @@unique([projectId, code]) // 프로젝트 내 WBS 코드 유일성
   @@map("wbs_items")
@@ -435,10 +436,10 @@ model WbsItem {
 // 4단계 계층 구조
 // ============================================
 enum WbsLevel {
-  LEVEL1  // 대분류 (분석, 설계, 개발, 테스트, 이행)
-  LEVEL2  // 중분류
-  LEVEL3  // 소분류
-  LEVEL4  // 단위업무
+  LEVEL1 // 대분류 (분석, 설계, 개발, 테스트, 이행)
+  LEVEL2 // 중분류
+  LEVEL3 // 소분류
+  LEVEL4 // 단위업무
 }
 
 // ============================================
@@ -450,10 +451,10 @@ model WbsAssignee {
   assignedAt DateTime @default(now())
 
   // 관계
-  wbsItemId  String
-  wbsItem    WbsItem  @relation(fields: [wbsItemId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wbsItemId String
+  wbsItem   WbsItem @relation(fields: [wbsItemId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([wbsItemId, userId])
   @@map("wbs_assignees")
@@ -464,60 +465,60 @@ model WbsAssignee {
 // 이슈사항 점검표용
 // ============================================
 model Issue {
-  id          String         @id @default(uuid())
-  code        String?        // 이슈 코드 (ISS-001 등)
-  title       String
-  description String?
-  status      IssueStatus    @default(OPEN)
-  priority    IssuePriority  @default(MEDIUM)
-  category    IssueCategory  @default(BUG)
-  type        IssueType      @default(FUNCTIONAL)  // 유형 (기능/비기능)
-  resolution  String?        // 처리내용 (해결 방법이나 조치 사항)
-  reportDate  DateTime       @default(now())  // 보고일
-  dueDate     DateTime?      // 목표 해결일
-  resolvedDate DateTime?     // 실제 해결일
-  isDelayed   Boolean        @default(false)  // 지연 여부
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id           String        @id @default(uuid())
+  code         String? // 이슈 코드 (ISS-001 등)
+  title        String
+  description  String?
+  status       IssueStatus   @default(OPEN)
+  priority     IssuePriority @default(MEDIUM)
+  category     IssueCategory @default(BUG)
+  type         IssueType     @default(FUNCTIONAL) // 유형 (기능/비기능)
+  resolution   String? // 처리내용 (해결 방법이나 조치 사항)
+  reportDate   DateTime      @default(now()) // 보고일
+  dueDate      DateTime? // 목표 해결일
+  resolvedDate DateTime? // 실제 해결일
+  isDelayed    Boolean       @default(false) // 지연 여부
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   // 관계
-  projectId   String
-  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  reporterId  String?        // 보고자 (누가 보고했는지)
-  reporter    User?   @relation("IssueReporter", fields: [reporterId], references: [id])
-  assigneeId  String?        // 담당자 (누가 처리할지)
-  assignee    User?   @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  projectId  String
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporterId String? // 보고자 (누가 보고했는지)
+  reporter   User?   @relation("IssueReporter", fields: [reporterId], references: [id])
+  assigneeId String? // 담당자 (누가 처리할지)
+  assignee   User?   @relation("IssueAssignee", fields: [assigneeId], references: [id])
 
   @@map("issues")
 }
 
 enum IssueStatus {
-  OPEN        // 열림
+  OPEN // 열림
   IN_PROGRESS // 진행중
-  RESOLVED    // 해결됨
-  CLOSED      // 종료
-  WONT_FIX    // 수정안함
+  RESOLVED // 해결됨
+  CLOSED // 종료
+  WONT_FIX // 수정안함
 }
 
 enum IssuePriority {
-  CRITICAL  // 긴급
-  HIGH      // 높음
-  MEDIUM    // 보통
-  LOW       // 낮음
+  CRITICAL // 긴급
+  HIGH // 높음
+  MEDIUM // 보통
+  LOW // 낮음
 }
 
 enum IssueCategory {
-  BUG           // 버그
-  IMPROVEMENT   // 개선
-  QUESTION      // 문의
-  FEATURE       // 신규기능
+  BUG // 버그
+  IMPROVEMENT // 개선
+  QUESTION // 문의
+  FEATURE // 신규기능
   DOCUMENTATION // 문서
-  OTHER         // 기타
+  OTHER // 기타
 }
 
 enum IssueType {
-  FUNCTIONAL      // 기능
-  NON_FUNCTIONAL  // 비기능
+  FUNCTIONAL // 기능
+  NON_FUNCTIONAL // 비기능
 }
 
 // ============================================
@@ -525,27 +526,27 @@ enum IssueType {
 // LLM API 키 및 모델 설정
 // ============================================
 model AiSetting {
-  id            String   @id @default(uuid())
-  userId        String   @unique
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  provider      String   @default("gemini")  // "gemini" | "mistral" | "kimi"
-  geminiApiKey  String?  // Google AI Studio API 키
-  geminiModel   String   @default("gemini-1.5-flash")
-  mistralApiKey String?  // Mistral API 키
-  mistralModel  String   @default("mistral-small-latest")
-  kimiApiKey    String?  // Kimi (Moonshot) API 키
-  kimiModel     String   @default("moonshot-v1-8k")
+  provider      String  @default("gemini") // "gemini" | "mistral" | "kimi"
+  geminiApiKey  String? // Google AI Studio API 키
+  geminiModel   String  @default("gemini-1.5-flash")
+  mistralApiKey String? // Mistral API 키
+  mistralModel  String  @default("mistral-small-latest")
+  kimiApiKey    String? // Kimi (Moonshot) API 키
+  kimiModel     String  @default("moonshot-v1-8k")
 
   // 현재 선택된 페르소나
   activePersonaId String?
 
   // 시스템 프롬프트 (커스터마이징 가능)
-  sqlSystemPrompt      String?  // SQL 생성용 시스템 프롬프트
-  analysisSystemPrompt String?  // 결과 분석용 시스템 프롬프트
+  sqlSystemPrompt      String? // SQL 생성용 시스템 프롬프트
+  analysisSystemPrompt String? // 결과 분석용 시스템 프롬프트
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("ai_settings")
 }
@@ -555,18 +556,18 @@ model AiSetting {
 // 커스텀 시스템 프롬프트 및 페르소나 관리
 // ============================================
 model AiPersona {
-  id            String   @id @default(uuid())
-  userId        String
+  id     String @id @default(uuid())
+  userId String
 
-  name          String          // 페르소나 이름 (예: "PM 어시스턴트", "코드 리뷰어")
-  description   String?         // 페르소나 설명
-  icon          String?         // 아이콘 (Material Icons 이름)
-  systemPrompt  String          // 시스템 프롬프트 (LLM에 전달)
-  isDefault     Boolean @default(false) // 기본 페르소나 여부
-  isActive      Boolean @default(true)  // 활성화 여부
+  name         String // 페르소나 이름 (예: "PM 어시스턴트", "코드 리뷰어")
+  description  String? // 페르소나 설명
+  icon         String? // 아이콘 (Material Icons 이름)
+  systemPrompt String // 시스템 프롬프트 (LLM에 전달)
+  isDefault    Boolean @default(false) // 기본 페르소나 여부
+  isActive     Boolean @default(true) // 활성화 여부
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@map("ai_personas")
@@ -577,27 +578,27 @@ model AiPersona {
 // Slack 웹훅 연동 설정
 // ============================================
 model SlackSettings {
-  id              String   @id @default(uuid())
-  webhookUrl      String   // Slack 웹훅 URL
-  channelName     String?  // 채널 이름 (표시용)
-  isEnabled       Boolean  @default(true) // 전체 알림 활성화
+  id          String  @id @default(uuid())
+  webhookUrl  String // Slack 웹훅 URL
+  channelName String? // 채널 이름 (표시용)
+  isEnabled   Boolean @default(true) // 전체 알림 활성화
 
   // 알림 조건
-  notifyTaskCompleted       Boolean @default(true)  // Task 완료 시
-  notifyTaskCreated         Boolean @default(false) // Task 생성 시
-  notifyTaskDelayed         Boolean @default(true)  // Task 지연 시
-  notifyIssueCreated        Boolean @default(true)  // 이슈 등록 시
-  notifyIssueResolved       Boolean @default(false) // 이슈 해결 시
-  notifyRequirementCreated  Boolean @default(false) // 고객요구사항 등록 시
+  notifyTaskCompleted             Boolean @default(true) // Task 완료 시
+  notifyTaskCreated               Boolean @default(false) // Task 생성 시
+  notifyTaskDelayed               Boolean @default(true) // Task 지연 시
+  notifyIssueCreated              Boolean @default(true) // 이슈 등록 시
+  notifyIssueResolved             Boolean @default(false) // 이슈 해결 시
+  notifyRequirementCreated        Boolean @default(false) // 고객요구사항 등록 시
   notifyCooperationRequestCreated Boolean @default(false) // 업무협조요청 등록 시
-  notifyProjectProgress     Boolean @default(false) // 프로젝트 진행률 변경 시
+  notifyProjectProgress           Boolean @default(false) // 프로젝트 진행률 변경 시
 
   // 추가 옵션
   mentionOnUrgent Boolean @default(false) // 긴급 시 @channel 멘션
   dailyReportTime String? // 일일 리포트 시간 (HH:mm 형식, null이면 비활성화)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("slack_settings")
 }
@@ -607,31 +608,31 @@ model SlackSettings {
 // AI 어시스턴트 대화 기록
 // ============================================
 model ChatHistory {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId   String?
-  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
-  role        String   // "user" | "assistant"
-  content     String   // 메시지 내용 (마크다운)
-  sqlQuery    String?  // 실행된 SQL 쿼리
-  chartData   Json?    // 차트 데이터 (JSON)
-  chartType   String?  // 차트 타입 (bar, line, pie, mindmap 등)
-  mindmapData Json?    // 마인드맵 데이터 (JSON 트리 구조)
+  role        String // "user" | "assistant"
+  content     String // 메시지 내용 (마크다운)
+  sqlQuery    String? // 실행된 SQL 쿼리
+  chartData   Json? // 차트 데이터 (JSON)
+  chartType   String? // 차트 타입 (bar, line, pie, mindmap 등)
+  mindmapData Json? // 마인드맵 데이터 (JSON 트리 구조)
 
   // 분석용 추가 필드
-  userQuery        String?  // 원본 사용자 질문 (assistant 메시지에 저장)
-  processingTimeMs Int?     // 전체 처리 시간 (ms)
-  sqlGenTimeMs     Int?     // SQL 생성 시간 (ms)
-  sqlExecTimeMs    Int?     // SQL 실행 시간 (ms)
-  personaId        String?  // 사용된 페르소나 ID
-  errorMessage     String?  // 에러 발생 시 메시지
+  userQuery        String? // 원본 사용자 질문 (assistant 메시지에 저장)
+  processingTimeMs Int? // 전체 처리 시간 (ms)
+  sqlGenTimeMs     Int? // SQL 생성 시간 (ms)
+  sqlExecTimeMs    Int? // SQL 실행 시간 (ms)
+  personaId        String? // 사용된 페르소나 ID
+  errorMessage     String? // 에러 발생 시 메시지
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   // 피드백 관계 (1:1)
-  feedback    ChatFeedback?
+  feedback ChatFeedback?
 
   @@index([userId, projectId])
   @@index([createdAt])
@@ -644,51 +645,51 @@ model ChatHistory {
 // 분석용으로 모든 관련 데이터를 독립적으로 저장
 // ============================================
 model ChatFeedback {
-  id              String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // 연결 (1:1) - 참조용, ChatHistory 삭제되어도 피드백 데이터는 유지
-  chatHistoryId   String?  @unique
-  chatHistory     ChatHistory? @relation(fields: [chatHistoryId], references: [id], onDelete: SetNull)
+  chatHistoryId String?      @unique
+  chatHistory   ChatHistory? @relation(fields: [chatHistoryId], references: [id], onDelete: SetNull)
 
   // 피드백 정보
-  rating          FeedbackRating  // POSITIVE, NEGATIVE, NEUTRAL
-  comment         String?         // 상세 피드백 (선택)
+  rating  FeedbackRating // POSITIVE, NEGATIVE, NEUTRAL
+  comment String? // 상세 피드백 (선택)
 
   // ===== 분석용 데이터 (ChatHistory에서 복사) =====
   // 사용자 질의
-  userQuery       String?         // 사용자가 입력한 원본 질문
+  userQuery String? // 사용자가 입력한 원본 질문
 
   // LLM 응답
-  llmResponse     String?         // LLM이 생성한 전체 응답 (마크다운)
+  llmResponse String? // LLM이 생성한 전체 응답 (마크다운)
 
   // SQL 관련
-  sqlQuery        String?         // 생성된 SQL 쿼리
+  sqlQuery String? // 생성된 SQL 쿼리
 
   // 차트/시각화 관련
-  chartType       String?         // 차트 타입 (bar, line, pie, mindmap 등)
-  chartData       Json?           // 차트 데이터 (JSON)
-  mindmapData     Json?           // 마인드맵 데이터 (JSON)
+  chartType   String? // 차트 타입 (bar, line, pie, mindmap 등)
+  chartData   Json? // 차트 데이터 (JSON)
+  mindmapData Json? // 마인드맵 데이터 (JSON)
 
   // 성능 측정
-  processingTimeMs Int?           // 전체 처리 시간 (ms)
-  sqlGenTimeMs    Int?            // SQL 생성 시간 (ms)
-  sqlExecTimeMs   Int?            // SQL 실행 시간 (ms)
+  processingTimeMs Int? // 전체 처리 시간 (ms)
+  sqlGenTimeMs     Int? // SQL 생성 시간 (ms)
+  sqlExecTimeMs    Int? // SQL 실행 시간 (ms)
 
   // 컨텍스트 정보
-  projectId       String?         // 프로젝트 ID
-  projectName     String?         // 프로젝트 이름 (삭제되어도 남음)
-  personaId       String?         // 사용된 페르소나 ID
-  personaName     String?         // 페르소나 이름 (삭제되어도 남음)
+  projectId   String? // 프로젝트 ID
+  projectName String? // 프로젝트 이름 (삭제되어도 남음)
+  personaId   String? // 사용된 페르소나 ID
+  personaName String? // 페르소나 이름 (삭제되어도 남음)
 
   // 세부 평가 항목 (선택)
-  isSqlCorrect    Boolean?        // SQL이 올바르게 생성되었는가
-  isResponseHelpful Boolean?      // 응답이 도움이 되었는가
-  isChartUseful   Boolean?        // 차트/시각화가 유용했는가
+  isSqlCorrect      Boolean? // SQL이 올바르게 생성되었는가
+  isResponseHelpful Boolean? // 응답이 도움이 되었는가
+  isChartUseful     Boolean? // 차트/시각화가 유용했는가
 
   // 분류 태그 (분석용)
-  tags            String[]        // 예: ["SQL오류", "응답부정확", "속도느림"]
+  tags String[] // 예: ["SQL오류", "응답부정확", "속도느림"]
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([rating])
   @@index([createdAt])
@@ -697,9 +698,9 @@ model ChatFeedback {
 }
 
 enum FeedbackRating {
-  POSITIVE  // 좋아요 (도움됨)
-  NEGATIVE  // 싫어요 (도움안됨)
-  NEUTRAL   // 보통
+  POSITIVE // 좋아요 (도움됨)
+  NEGATIVE // 싫어요 (도움안됨)
+  NEUTRAL // 보통
 }
 
 // ============================================
@@ -708,25 +709,25 @@ enum FeedbackRating {
 // 부모-자식 계층 관계 지원 (같은 범주의 마일스톤들을 그룹화)
 // ============================================
 model TimelineRow {
-  id          String   @id @default(uuid())
-  name        String                    // 행 이름 (예: "태스크", "인프라")
-  color       String   @default("#94A3B8") // 행 색상 (좌측 라벨 배경)
-  order       Int      @default(0)        // 행 정렬 순서
-  isDefault   Boolean  @default(false)    // 기본 행 여부 (삭제 불가)
+  id        String  @id @default(uuid())
+  name      String // 행 이름 (예: "태스크", "인프라")
+  color     String  @default("#94A3B8") // 행 색상 (좌측 라벨 배경)
+  order     Int     @default(0) // 행 정렬 순서
+  isDefault Boolean @default(false) // 기본 행 여부 (삭제 불가)
 
   // 부모-자식 관계 (자기 참조)
-  parentId    String?                   // 부모 행 ID (null이면 최상위 행)
-  parent      TimelineRow?  @relation("ChildRows", fields: [parentId], references: [id], onDelete: Cascade)
-  children    TimelineRow[] @relation("ChildRows")
+  parentId String? // 부모 행 ID (null이면 최상위 행)
+  parent   TimelineRow?  @relation("ChildRows", fields: [parentId], references: [id], onDelete: Cascade)
+  children TimelineRow[] @relation("ChildRows")
 
   // 관계
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  milestones  Milestone[]
-  pinpoints   Pinpoint[] // 핀포인트 목록
+  projectId  String
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestones Milestone[]
+  pinpoints  Pinpoint[] // 핀포인트 목록
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([projectId])
   @@index([parentId])
@@ -739,22 +740,22 @@ model TimelineRow {
 // ============================================
 model Milestone {
   id          String          @id @default(uuid())
-  name        String          // 마일스톤 이름 (예: "API 개발")
-  description String?         // 상세 설명
-  startDate   DateTime        // 시작일
-  endDate     DateTime        // 종료일
+  name        String // 마일스톤 이름 (예: "API 개발")
+  description String? // 상세 설명
+  startDate   DateTime // 시작일
+  endDate     DateTime // 종료일
   status      MilestoneStatus @default(PENDING)
   color       String          @default("#3B82F6") // 막대 색상 (HEX)
-  order       Int             @default(0)         // 정렬 순서
+  order       Int             @default(0) // 정렬 순서
 
   // 관계
-  projectId   String
-  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  rowId       String?         // 타임라인 행 연결
-  row         TimelineRow? @relation(fields: [rowId], references: [id], onDelete: SetNull)
+  projectId String
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rowId     String? // 타임라인 행 연결
+  row       TimelineRow? @relation(fields: [rowId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([projectId])
   @@index([rowId])
@@ -763,10 +764,10 @@ model Milestone {
 }
 
 enum MilestoneStatus {
-  PENDING     // 대기중
+  PENDING // 대기중
   IN_PROGRESS // 진행중
-  COMPLETED   // 완료
-  DELAYED     // 지연
+  COMPLETED // 완료
+  DELAYED // 지연
 }
 
 // ============================================
@@ -776,19 +777,19 @@ enum MilestoneStatus {
 // ============================================
 model Pinpoint {
   id          String   @id @default(uuid())
-  name        String   // 핀포인트 이름 (예: "오픈", "베타", "런칭")
-  description String?  // 상세 설명 (선택)
+  name        String // 핀포인트 이름 (예: "오픈", "베타", "런칭")
+  description String? // 상세 설명 (선택)
   date        DateTime // 핀포인트 날짜
   color       String   @default("#EF4444") // 삼각형 색상 (HEX)
 
   // 관계
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  rowId       String   // 타임라인 행 연결
-  row         TimelineRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rowId     String // 타임라인 행 연결
+  row       TimelineRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([projectId])
   @@index([rowId])
@@ -801,30 +802,30 @@ model Pinpoint {
 // 주간보고 업무 유형 분류
 // ============================================
 enum WorkCategory {
-  DOCUMENT      // 문서작업
-  ANALYSIS      // 분석
-  DEVELOPMENT   // 개발
-  DESIGN        // 설계
-  SUPPORT       // 지원
-  MEETING       // 회의
-  REVIEW        // 검토
-  OTHER         // 기타
+  DOCUMENT // 문서작업
+  ANALYSIS // 분석
+  DEVELOPMENT // 개발
+  DESIGN // 설계
+  SUPPORT // 지원
+  MEETING // 회의
+  REVIEW // 검토
+  OTHER // 기타
 }
 
 // ============================================
 // 주간보고 상태 Enum
 // ============================================
 enum ReportStatus {
-  DRAFT       // 작성 중
-  SUBMITTED   // 제출 완료
+  DRAFT // 작성 중
+  SUBMITTED // 제출 완료
 }
 
 // ============================================
 // 주간보고 항목 타입 Enum
 // ============================================
 enum ReportItemType {
-  PREVIOUS_RESULT   // 전주 실적
-  NEXT_PLAN         // 차주 계획
+  PREVIOUS_RESULT // 전주 실적
+  NEXT_PLAN // 차주 계획
 }
 
 // ============================================
@@ -832,31 +833,31 @@ enum ReportItemType {
 // 사용자별 주간 업무보고 관리
 // ============================================
 model WeeklyReport {
-  id            String       @id @default(uuid())
+  id String @id @default(uuid())
 
   // 주차 정보 (ISO 주차 기준)
-  year          Int                    // 연도 (예: 2026)
-  weekNumber    Int                    // 주차 (1~53)
-  weekStart     DateTime               // 해당 주 시작일 (월요일)
-  weekEnd       DateTime               // 해당 주 종료일 (일요일)
+  year       Int // 연도 (예: 2026)
+  weekNumber Int // 주차 (1~53)
+  weekStart  DateTime // 해당 주 시작일 (월요일)
+  weekEnd    DateTime // 해당 주 종료일 (일요일)
 
   // 이슈 섹션 (리치텍스트 HTML)
-  issueContent  String?                // 이슈 내용 (HTML 형식, React-Quill)
+  issueContent String? // 이슈 내용 (HTML 형식, React-Quill)
 
   // 메타데이터
-  status        ReportStatus @default(DRAFT)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  submittedAt   DateTime?              // 제출 완료 시간
+  status      ReportStatus @default(DRAFT)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  submittedAt DateTime? // 제출 완료 시간
 
   // 관계
-  userId        String
-  user          User         @relation("UserWeeklyReports", fields: [userId], references: [id], onDelete: Cascade)
-  projectId     String
-  project       Project      @relation("ProjectWeeklyReports", fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation("UserWeeklyReports", fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation("ProjectWeeklyReports", fields: [projectId], references: [id], onDelete: Cascade)
 
   // 업무 항목들 (1:N)
-  items         WeeklyReportItem[]
+  items WeeklyReportItem[]
 
   // 복합 유니크 제약 (같은 프로젝트, 같은 사용자, 같은 주차에 하나의 보고서만)
   @@unique([projectId, userId, year, weekNumber])
@@ -871,40 +872,40 @@ model WeeklyReport {
 // 개별 업무 항목 (전주실적/차주계획)
 // ============================================
 model WeeklyReportItem {
-  id            String         @id @default(uuid())
+  id String @id @default(uuid())
 
   // 업무 정보
-  type          ReportItemType         // PREVIOUS_RESULT(전주실적) or NEXT_PLAN(차주계획)
-  category      WorkCategory           // 업무 카테고리
-  title         String                 // 업무 제목
-  description   String?                // 업무 상세 설명
-  targetDate    DateTime?              // 목표일
-  remarks       String?                // 기타/비고
+  type        ReportItemType // PREVIOUS_RESULT(전주실적) or NEXT_PLAN(차주계획)
+  category    WorkCategory // 업무 카테고리
+  title       String // 업무 제목
+  description String? // 업무 상세 설명
+  targetDate  DateTime? // 목표일
+  remarks     String? // 기타/비고
 
   // 계획에 없던 추가 업무인지 여부
-  isAdditional  Boolean @default(false)
+  isAdditional Boolean @default(false)
 
   // 완료 여부 (전주 실적용)
-  isCompleted   Boolean @default(false)
+  isCompleted Boolean @default(false)
 
   // 진행률 (0-100)
-  progress      Int     @default(0)
+  progress Int @default(0)
 
   // Task/WBS 연동 (선택)
-  linkedTaskId  String?                // 연결된 Task ID (nullable)
-  linkedTask    Task?   @relation("TaskWeeklyItems", fields: [linkedTaskId], references: [id], onDelete: SetNull)
-  linkedWbsId   String?                // 연결된 WBS 항목 ID (nullable)
-  linkedWbs     WbsItem? @relation("WbsWeeklyItems", fields: [linkedWbsId], references: [id], onDelete: SetNull)
+  linkedTaskId String? // 연결된 Task ID (nullable)
+  linkedTask   Task?    @relation("TaskWeeklyItems", fields: [linkedTaskId], references: [id], onDelete: SetNull)
+  linkedWbsId  String? // 연결된 WBS 항목 ID (nullable)
+  linkedWbs    WbsItem? @relation("WbsWeeklyItems", fields: [linkedWbsId], references: [id], onDelete: SetNull)
 
   // 순서
-  order         Int     @default(0)
+  order Int @default(0)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
-  reportId      String
-  report        WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId String
+  report   WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
   @@index([type])
@@ -918,20 +919,20 @@ model WeeklyReportItem {
 // 기능추적표의 대분류 (재료관리, SMD공정관리 등)
 // ============================================
 model ProcessVerificationCategory {
-  id          String   @id @default(uuid())
-  name        String   // 카테고리명 (예: 재료관리, SMD공정관리)
-  code        String   // 영문 코드 (예: MATERIAL, SMD_PROCESS)
-  order       Int      @default(0) // 정렬 순서
-  description String?  // 설명
+  id          String  @id @default(uuid())
+  name        String // 카테고리명 (예: 재료관리, SMD공정관리)
+  code        String // 영문 코드 (예: MATERIAL, SMD_PROCESS)
+  order       Int     @default(0) // 정렬 순서
+  description String? // 설명
 
   // 관계
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  items       ProcessVerificationItem[] // 기존 관계 (백업용 유지)
-  masters     ProcessVerificationMaster[] // 새 마스터 관계
+  projectId String
+  project   Project                     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items     ProcessVerificationItem[] // 기존 관계 (백업용 유지)
+  masters   ProcessVerificationMaster[] // 새 마스터 관계
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([projectId, code])
   @@index([projectId])
@@ -944,33 +945,33 @@ model ProcessVerificationCategory {
 // 사업부별로 중복되던 데이터를 하나로 통합
 // ============================================
 model ProcessVerificationMaster {
-  id                  String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // 마스터 정보 (관리코드당 1개)
-  managementCode      String   // 관리코드 (M-1-01, P-1-01 등) - 유일키
-  productType         String   @default("SMD") // 제품유형 (SMD, HANES 등)
-  category            String   // 구분 (재료관리, SMD공정관리 등)
-  managementArea      String   // (L1) 관리 영역
-  detailItem          String   // (L2) 세부 관리 항목
-  mesMapping          String?  // (L3) MES/IT 매핑 기능명
-  verificationDetail  String?  // 세부 검증 내용 및 점검 기준
-  acceptanceStatus    String?  // 수용 여부
-  existingMes         Boolean  @default(false) // 기존MES유무(Y/N)
-  customerRequest     String?  // 고객요청여부
-  asIsCode            String?  // AS-IS 관리번호
-  toBeCode            String?  // TO-BE 관리번호
-  order               Int      @default(0) // 정렬 순서
-  remarks             String?  // 비고
+  managementCode     String // 관리코드 (M-1-01, P-1-01 등) - 유일키
+  productType        String  @default("SMD") // 제품유형 (SMD, HANES 등)
+  category           String // 구분 (재료관리, SMD공정관리 등)
+  managementArea     String // (L1) 관리 영역
+  detailItem         String // (L2) 세부 관리 항목
+  mesMapping         String? // (L3) MES/IT 매핑 기능명
+  verificationDetail String? // 세부 검증 내용 및 점검 기준
+  acceptanceStatus   String? // 수용 여부
+  existingMes        Boolean @default(false) // 기존MES유무(Y/N)
+  customerRequest    String? // 고객요청여부
+  asIsCode           String? // AS-IS 관리번호
+  toBeCode           String? // TO-BE 관리번호
+  order              Int     @default(0) // 정렬 순서
+  remarks            String? // 비고
 
   // 관계
-  categoryId          String
-  categoryRef         ProcessVerificationCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId  String
+  categoryRef ProcessVerificationCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   // 사업부별 적용 현황 (1:N)
   businessUnitApplies ProcessVerificationBusinessUnit[]
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([productType, managementCode]) // 제품유형 + 관리코드 복합 유일키
   @@index([categoryId])
@@ -983,19 +984,19 @@ model ProcessVerificationMaster {
 // 마스터 + 사업부 조합으로 적용 여부 및 검증 상태 관리
 // ============================================
 model ProcessVerificationBusinessUnit {
-  id                  String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // 적용 정보
-  businessUnit        String   // 사업부 코드 (SMD: V_IVI, V_DISP, V_PCBA / HANES: V_HMS)
-  isApplied           Boolean  @default(false) // 적용여부 (Y/N)
-  status              VerificationStatus @default(PENDING) // 검증 상태 (사업부별 독립 관리)
+  businessUnit String // 사업부 코드 (SMD: V_IVI, V_DISP, V_PCBA / HANES: V_HMS)
+  isApplied    Boolean            @default(false) // 적용여부 (Y/N)
+  status       VerificationStatus @default(PENDING) // 검증 상태 (사업부별 독립 관리)
 
   // 관계
-  masterId            String
-  master              ProcessVerificationMaster @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  masterId String
+  master   ProcessVerificationMaster @relation(fields: [masterId], references: [id], onDelete: Cascade)
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([masterId, businessUnit]) // 마스터+사업부 조합은 유일
   @@index([businessUnit])
@@ -1009,34 +1010,34 @@ model ProcessVerificationBusinessUnit {
 // @deprecated ProcessVerificationMaster + ProcessVerificationBusinessUnit으로 대체
 // ============================================
 model ProcessVerificationItem {
-  id                  String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Excel 컬럼 매핑
-  category            String           // 구분 (재료, 공정, 검사 등)
-  isApplied           Boolean @default(false) // 적용(Y/N)
-  managementArea      String           // (L1) 관리 영역
-  detailItem          String           // (L2) 세부 관리 항목
-  mesMapping          String?          // (L3) MES/IT 매핑 기능명
-  verificationDetail  String?          // 세부 검증 내용 및 점검 기준
-  managementCode      String           // 관리코드 (M-1-01, P-1-01 등)
-  acceptanceStatus    String?          // 수용 여부
-  existingMes         Boolean @default(false) // 기존MES유무(Y/N)
-  customerRequest     String?          // 고객요청여부
+  category           String // 구분 (재료, 공정, 검사 등)
+  isApplied          Boolean @default(false) // 적용(Y/N)
+  managementArea     String // (L1) 관리 영역
+  detailItem         String // (L2) 세부 관리 항목
+  mesMapping         String? // (L3) MES/IT 매핑 기능명
+  verificationDetail String? // 세부 검증 내용 및 점검 기준
+  managementCode     String // 관리코드 (M-1-01, P-1-01 등)
+  acceptanceStatus   String? // 수용 여부
+  existingMes        Boolean @default(false) // 기존MES유무(Y/N)
+  customerRequest    String? // 고객요청여부
 
   // 추가 필드
-  order               Int     @default(0) // 정렬 순서
-  remarks             String?          // 비고
-  status              VerificationStatus @default(PENDING) // 검증 상태
-  businessUnit        String  @default("V_IVI") // 사업부 구분 코드
-  asIsCode            String?          // AS-IS 관리번호
-  toBeCode            String?          // TO-BE 관리번호
+  order        Int                @default(0) // 정렬 순서
+  remarks      String? // 비고
+  status       VerificationStatus @default(PENDING) // 검증 상태
+  businessUnit String             @default("V_IVI") // 사업부 구분 코드
+  asIsCode     String? // AS-IS 관리번호
+  toBeCode     String? // TO-BE 관리번호
 
   // 관계
-  categoryId          String
-  categoryRef         ProcessVerificationCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId  String
+  categoryRef ProcessVerificationCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([businessUnit, managementCode]) // 사업부별로 관리코드가 유일
   @@index([categoryId])
@@ -1047,9 +1048,9 @@ model ProcessVerificationItem {
 // 공정검증 상태 Enum
 // ============================================
 enum VerificationStatus {
-  PENDING      // 대기
-  IN_PROGRESS  // 진행중
-  VERIFIED     // 검증완료
+  PENDING // 대기
+  IN_PROGRESS // 진행중
+  VERIFIED // 검증완료
   NOT_APPLICABLE // 해당없음
 }
 
@@ -1059,37 +1060,37 @@ enum VerificationStatus {
 // LLM 분석을 통한 인사이트 제공
 // ============================================
 model WeeklySummary {
-  id            String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // 주차 정보 (ISO 주차 기준)
-  year          Int                  // 연도 (예: 2026)
-  weekNumber    Int                  // 주차 (1~53)
-  weekStart     DateTime             // 해당 주 시작일 (월요일)
-  weekEnd       DateTime             // 해당 주 종료일 (일요일)
+  year       Int // 연도 (예: 2026)
+  weekNumber Int // 주차 (1~53)
+  weekStart  DateTime // 해당 주 시작일 (월요일)
+  weekEnd    DateTime // 해당 주 종료일 (일요일)
 
   // 취합 정보
-  title         String               // 취합 보고서 제목
-  memberIds     String[]             // 포함된 멤버 ID 목록
-  reportIds     String[]             // 포함된 주간보고 ID 목록
+  title     String // 취합 보고서 제목
+  memberIds String[] // 포함된 멤버 ID 목록
+  reportIds String[] // 포함된 주간보고 ID 목록
 
   // 멤버별 요약 (JSON 구조)
   // [{ memberId, memberName, previousResults: string, nextPlans: string }]
   memberSummaries Json?
 
   // LLM 분석 결과
-  llmSummary    String?              // LLM 요약 (전주실적/차주계획 통합 요약)
-  llmInsights   String?              // LLM 인사이트 (리스크, 개선점, 제안 등)
-  llmAnalyzedAt DateTime?            // LLM 분석 완료 시간
+  llmSummary    String? // LLM 요약 (전주실적/차주계획 통합 요약)
+  llmInsights   String? // LLM 인사이트 (리스크, 개선점, 제안 등)
+  llmAnalyzedAt DateTime? // LLM 분석 완료 시간
 
   // 메타데이터
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
-  projectId     String
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdById   String
-  createdBy     User     @relation("SummaryCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User    @relation("SummaryCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([year, weekNumber])
@@ -1102,29 +1103,29 @@ model WeeklySummary {
 // AI 부하분석 결과를 저장하여 재열람 가능
 // ============================================
 model WorkloadAnalysis {
-  id            String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // 분석 기간
-  dateStart     DateTime             // 분석 시작일
-  dateEnd       DateTime             // 분석 종료일
+  dateStart DateTime // 분석 시작일
+  dateEnd   DateTime // 분석 종료일
 
   // 분석 결과
-  analysis      String               // AI 분석 결과 (마크다운)
-  memberCount   Int                  // 분석 대상 멤버 수
+  analysis    String // AI 분석 결과 (마크다운)
+  memberCount Int // 분석 대상 멤버 수
 
   // 분석 시점의 스냅샷 데이터 (JSON)
   // [{ memberId, memberName, pendingTasks, inProgressTasks, totalTasks }]
   memberSnapshot Json?
 
   // 메타데이터
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
-  projectId     String
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdById   String
-  createdBy     User     @relation("WorkloadAnalysisCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User    @relation("WorkloadAnalysisCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([createdById])
@@ -1137,27 +1138,27 @@ model WorkloadAnalysis {
 // 사업부별 고객 요구사항 관리
 // ============================================
 model CustomerRequirement {
-  id            String   @id @default(uuid())
-  sequence      Int      // 순번 (자동 부여)
-  code          String   // 관리번호 (RQIT_00001 형식)
-  businessUnit  String   // 사업부 (IT, 생산, 품질 등)
-  category      String?  // 업무구분 (공통, 프로세스 등)
-  functionName  String   // 기능명
-  content       String   // 요구사항 내용
-  requestDate   DateTime? // 요청일자
-  requester     String?  // 요청자 이름
-  solution      String?  // 적용방안
-  applyStatus   ApplyStatus @default(REVIEWING) // 적용여부 상태
-  remarks       String?  // 비고
-  toBeCode      String?  // To-Be 관리번호 (연결용, 텍스트 입력)
-  completeDate  DateTime? // 요청처리완료 일자
+  id           String      @id @default(uuid())
+  sequence     Int // 순번 (자동 부여)
+  code         String // 관리번호 (RQIT_00001 형식)
+  businessUnit String // 사업부 (IT, 생산, 품질 등)
+  category     String? // 업무구분 (공통, 프로세스 등)
+  functionName String // 기능명
+  content      String // 요구사항 내용
+  requestDate  DateTime? // 요청일자
+  requester    String? // 요청자 이름
+  solution     String? // 적용방안
+  applyStatus  ApplyStatus @default(REVIEWING) // 적용여부 상태
+  remarks      String? // 비고
+  toBeCode     String? // To-Be 관리번호 (연결용, 텍스트 입력)
+  completeDate DateTime? // 요청처리완료 일자
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 프로젝트 관계
-  projectId     String
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, code])
   @@index([projectId])
@@ -1169,12 +1170,12 @@ model CustomerRequirement {
 // 고객요구사항 적용 상태 Enum
 // ============================================
 enum ApplyStatus {
-  REVIEWING       // 검토중 (초기 상태)
-  APPROVED        // 승인 (PM 검토 후 승인)
-  REJECTED        // 거절/미적용
-  IN_DEVELOPMENT  // 개발중
-  APPLIED         // 적용 완료
-  HOLD            // 보류
+  REVIEWING // 검토중 (초기 상태)
+  APPROVED // 승인 (PM 검토 후 승인)
+  REJECTED // 거절/미적용
+  IN_DEVELOPMENT // 개발중
+  APPLIED // 적용 완료
+  HOLD // 보류
 }
 
 // ============================================
@@ -1182,30 +1183,30 @@ enum ApplyStatus {
 // 프로젝트 문서 관리 (OneDrive, Google, 서버 업로드, 로컬 링크)
 // ============================================
 model Document {
-  id            String   @id @default(uuid())
-  name          String   // 문서명
-  description   String?  // 설명
-  category      DocumentCategory // 문서 종류
-  version       String?  @default("1.0") // 버전
-  sourceType    DocumentSourceType // 소스 타입
-  url           String?  // 외부 링크 (OneDrive, Google, SharePoint 등)
-  filePath      String?  // 서버 업로드 파일 경로
-  fileName      String?  // 원본 파일명
-  fileSize      Int?     // 파일 크기 (bytes)
-  mimeType      String?  // MIME 타입
-  tags          String[] // 태그
-  isFavorite    Boolean  @default(false) // 즐겨찾기
-  isPersonal    Boolean  @default(false) // 개인문서함 여부 (true: 개인, false: 공용)
-  order         Int      @default(0) // 정렬 순서
+  id          String             @id @default(uuid())
+  name        String // 문서명
+  description String? // 설명
+  category    DocumentCategory // 문서 종류
+  version     String?            @default("1.0") // 버전
+  sourceType  DocumentSourceType // 소스 타입
+  url         String? // 외부 링크 (OneDrive, Google, SharePoint 등)
+  filePath    String? // 서버 업로드 파일 경로
+  fileName    String? // 원본 파일명
+  fileSize    Int? // 파일 크기 (bytes)
+  mimeType    String? // MIME 타입
+  tags        String[] // 태그
+  isFavorite  Boolean            @default(false) // 즐겨찾기
+  isPersonal  Boolean            @default(false) // 개인문서함 여부 (true: 개인, false: 공용)
+  order       Int                @default(0) // 정렬 순서
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
-  projectId     String   // 프로젝트 필수 (공용/개인 모두)
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdById   String
-  createdBy     User     @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  projectId   String // 프로젝트 필수 (공용/개인 모두)
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User    @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([category])
@@ -1218,24 +1219,24 @@ model Document {
 // 문서 종류 Enum
 // ============================================
 enum DocumentCategory {
-  SPECIFICATION    // 설계서/명세서
-  MANUAL           // 매뉴얼/가이드
-  MEETING          // 회의록
-  REPORT           // 보고서
-  CONTRACT         // 계약서
-  TEMPLATE         // 템플릿
-  REFERENCE        // 참고자료
-  OTHER            // 기타
+  SPECIFICATION // 설계서/명세서
+  MANUAL // 매뉴얼/가이드
+  MEETING // 회의록
+  REPORT // 보고서
+  CONTRACT // 계약서
+  TEMPLATE // 템플릿
+  REFERENCE // 참고자료
+  OTHER // 기타
 }
 
 // ============================================
 // 문서 소스 타입 Enum
 // ============================================
 enum DocumentSourceType {
-  ONEDRIVE         // OneDrive/SharePoint
-  GOOGLE           // Google Drive/Docs
-  SERVER_UPLOAD    // 서버 직접 업로드
-  EXTERNAL_LINK    // 기타 외부 링크
+  ONEDRIVE // OneDrive/SharePoint
+  GOOGLE // Google Drive/Docs
+  SERVER_UPLOAD // 서버 직접 업로드
+  EXTERNAL_LINK // 기타 외부 링크
 }
 
 // ============================================
@@ -1243,46 +1244,46 @@ enum DocumentSourceType {
 // MES 설비 관리 - 노드 기반 시각화
 // ============================================
 model Equipment {
-  id          String   @id @default(uuid())
-  code        String   // 설비 코드 (예: EQ-001)
-  name        String   // 설비명
-  type        EquipmentType // 설비 타입
-  status      EquipmentStatus @default(ACTIVE) // 상태
+  id     String          @id @default(uuid())
+  code   String // 설비 코드 (예: EQ-001)
+  name   String // 설비명
+  type   EquipmentType // 설비 타입
+  status EquipmentStatus @default(ACTIVE) // 상태
 
   // React Flow 위치
-  positionX   Float    @default(0) // X 좌표
-  positionY   Float    @default(0) // Y 좌표
+  positionX Float @default(0) // X 좌표
+  positionY Float @default(0) // Y 좌표
 
   // 기본 정보
-  description String?  // 설명
-  location    String?  // 물리적 위치 (예: A동 2층)
-  lineCode    String?  // 라인코드 (예: L1, L2, LINE-A)
-  divisionCode String? // 사업부 코드 (예: DIV-A, 사업부1)
-  imageUrl    String?  // 설비 이미지 URL
-  manufacturer String? // 제조사
-  modelNumber String?  // 모델번호
-  serialNumber String? // 시리얼번호
-  purchaseDate DateTime? // 구매일
+  description     String? // 설명
+  location        String? // 물리적 위치 (예: A동 2층)
+  lineCode        String? // 라인코드 (예: L1, L2, LINE-A)
+  divisionCode    String? // 사업부 코드 (예: DIV-A, 사업부1)
+  imageUrl        String? // 설비 이미지 URL
+  manufacturer    String? // 제조사
+  modelNumber     String? // 모델번호
+  serialNumber    String? // 시리얼번호
+  purchaseDate    DateTime? // 구매일
   warrantyEndDate DateTime? // 보증기한
 
   // 네트워크 및 연동 정보
-  ipAddress   String?  // IP 주소 (예: 192.168.1.100)
-  portNumber  Int?     // PORT 번호 (예: 8080)
-  isLogTarget Boolean  @default(false) // 로그수집대상 여부
-  isInterlockTarget Boolean @default(false) // 인터락대상 여부
-  isBarcodeEnabled Boolean @default(false) // 바코드 식별가능 여부
+  ipAddress         String? // IP 주소 (예: 192.168.1.100)
+  portNumber        Int? // PORT 번호 (예: 8080)
+  isLogTarget       Boolean     @default(false) // 로그수집대상 여부
+  isInterlockTarget Boolean     @default(false) // 인터락대상 여부
+  isBarcodeEnabled  Boolean     @default(false) // 바코드 식별가능 여부
   logCollectionPath String? // 로그수집위치 (예: C:\Logs, /var/log)
-  systemType  SystemType? // 시스템 종류 (Windows XP, Windows 10, Windows 11, Linux, 기타)
+  systemType        SystemType? // 시스템 종류 (Windows XP, Windows 10, Windows 11, Linux, 기타)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // 동적 속성 (1:N)
-  properties  EquipmentProperty[]
+  properties EquipmentProperty[]
 
   // 설비 간 연결 (다대다, 양방향)
   connectionsFrom EquipmentConnection[] @relation("ConnectionFrom")
@@ -1299,83 +1300,83 @@ model Equipment {
 // 설비 타입 Enum
 // ============================================
 enum EquipmentType {
-  MACHINE    // 기계 (예: 사출기, CNC)
-  TOOL       // 공구/도구
-  DEVICE     // 장치 (예: 센서, 컨트롤러)
-  CONVEYOR   // 컨베이어/운반장치
-  STORAGE    // 보관/저장설비
+  MACHINE // 기계 (예: 사출기, CNC)
+  TOOL // 공구/도구
+  DEVICE // 장치 (예: 센서, 컨트롤러)
+  CONVEYOR // 컨베이어/운반장치
+  STORAGE // 보관/저장설비
   INSPECTION // 검사장비
-  PC         // PC/컴퓨터
-  PRINTER    // 프린터
-  SCANNER    // 스캐너
-  DIO        // DIO (Digital Input/Output)
+  PC // PC/컴퓨터
+  PRINTER // 프린터
+  SCANNER // 스캐너
+  DIO // DIO (Digital Input/Output)
 
   // 자동창고/물류
-  AUTO_RACK_IN          // 자동렉 입고
+  AUTO_RACK_IN // 자동렉 입고
   AUTO_RACK_OUT_REQUEST // 자동렉 출고요청
-  AUTO_RACK_OUT         // 자동렉 출고
+  AUTO_RACK_OUT // 자동렉 출고
 
   // 마킹/부착/투입
-  PID_MARKING  // PID 마킹
-  PID_ATTACH   // PID 부착
-  PCB_INPUT    // PCB 투입
-  TAPE_ATTACH  // 테이프 부착
+  PID_MARKING // PID 마킹
+  PID_ATTACH // PID 부착
+  PCB_INPUT // PCB 투입
+  TAPE_ATTACH // 테이프 부착
 
   // SMD 제조 설비
-  SCREEN_PRINTER  // 스크린 프린터 (솔더 페이스트 도포)
-  SPI            // SPI (Solder Paste Inspection)
-  CHIP_MOUNTER   // 칩 마운터/픽앤플레이스 (SMT)
-  MOI            // MOI (Mount Optical Inspection)
-  REFLOW_OVEN    // 리플로우 오븐
-  AOI            // AOI (Automated Optical Inspection)
-  ICT            // ICT (In-Circuit Test)
-  FCT            // FCT (Functional Circuit Test)
-  CURING         // 경화기
-  ROUTER         // 라우터
+  SCREEN_PRINTER // 스크린 프린터 (솔더 페이스트 도포)
+  SPI // SPI (Solder Paste Inspection)
+  CHIP_MOUNTER // 칩 마운터/픽앤플레이스 (SMT)
+  MOI // MOI (Mount Optical Inspection)
+  REFLOW_OVEN // 리플로우 오븐
+  AOI // AOI (Automated Optical Inspection)
+  ICT // ICT (In-Circuit Test)
+  FCT // FCT (Functional Circuit Test)
+  CURING // 경화기
+  ROUTER // 라우터
 
   // HANES (와이어 하네스) 제조 설비
-  WIRE_CUTTING      // 전선 절단기
-  WIRE_STRIPPING    // 피복 제거기
-  CRIMPING          // 압착기 (터미널 압착)
-  TWIST_MACHINE     // 트위스트 머신 (전선 꼬기)
-  HARNESS_ASSEMBLY  // 하네스 조립대/지그
-  TAPING_MACHINE    // 테이핑 머신
-  CONNECTOR_INSERT  // 커넥터 삽입기
-  HARNESS_TESTER    // 하네스 테스터 (도통 검사)
-  SOLDERING         // 솔더링 장비
-  SEALING           // 실링 장비
+  WIRE_CUTTING // 전선 절단기
+  WIRE_STRIPPING // 피복 제거기
+  CRIMPING // 압착기 (터미널 압착)
+  TWIST_MACHINE // 트위스트 머신 (전선 꼬기)
+  HARNESS_ASSEMBLY // 하네스 조립대/지그
+  TAPING_MACHINE // 테이핑 머신
+  CONNECTOR_INSERT // 커넥터 삽입기
+  HARNESS_TESTER // 하네스 테스터 (도통 검사)
+  SOLDERING // 솔더링 장비
+  SEALING // 실링 장비
 
   // X-RAY
   XRAY_INSPECTOR // X-Ray Inspector
-  XRAY_COUNTER   // X-Ray Counter
+  XRAY_COUNTER // X-Ray Counter
 
   // ODC/IC
-  ODC_WRITE       // ODC-Write
-  ODC_VERIFY      // ODC-Verify
-  TEMP_IC         // Temp IC
-  VERIFY_TEMP_IC  // Verify Temp IC
+  ODC_WRITE // ODC-Write
+  ODC_VERIFY // ODC-Verify
+  TEMP_IC // Temp IC
+  VERIFY_TEMP_IC // Verify Temp IC
 
   // 검사/측정
   CONFORMAL_COATING_INSPECTION // 컨포멀 코팅검사
-  TENSION_METER       // 텐션측정기
-  VISCOSITY_METER     // 점도측정기
-  THERMO_HYGROMETER   // 온습도계
+  TENSION_METER // 텐션측정기
+  VISCOSITY_METER // 점도측정기
+  THERMO_HYGROMETER // 온습도계
 
   // 기타
-  ESG_GATE  // ESG GATE
-  LOADER    // 로더/언로더
-  OTHER     // 기타
+  ESG_GATE // ESG GATE
+  LOADER // 로더/언로더
+  OTHER // 기타
 }
 
 // ============================================
 // 설비 상태 Enum
 // ============================================
 enum EquipmentStatus {
-  ACTIVE      // 가동중
+  ACTIVE // 가동중
   MAINTENANCE // 정비중
-  INACTIVE    // 휴지
-  BROKEN      // 고장
-  RESERVED    // 예약됨
+  INACTIVE // 휴지
+  BROKEN // 고장
+  RESERVED // 예약됨
 }
 
 // ============================================
@@ -1383,11 +1384,11 @@ enum EquipmentStatus {
 // 설비에서 사용하는 운영체제/시스템 종류
 // ============================================
 enum SystemType {
-  WINDOWS_XP   // 윈도우 XP
-  WINDOWS_10   // 윈도우 10
-  WINDOWS_11   // 윈도우 11
-  LINUX        // 리눅스
-  OTHER        // 기타
+  WINDOWS_XP // 윈도우 XP
+  WINDOWS_10 // 윈도우 10
+  WINDOWS_11 // 윈도우 11
+  LINUX // 리눅스
+  OTHER // 기타
 }
 
 // ============================================
@@ -1395,15 +1396,15 @@ enum SystemType {
 // 사용자가 설비별로 커스텀 속성 추가 가능
 // ============================================
 model EquipmentProperty {
-  id          String   @id @default(uuid())
-  key         String   // 속성명 (예: "온도", "압력", "용량")
-  value       String   // 속성값 (문자열로 저장)
-  valueType   PropertyValueType @default(TEXT) // 값 타입
-  unit        String?  // 단위 (예: "℃", "MPa", "ton")
-  order       Int      @default(0) // 표시 순서
+  id        String            @id @default(uuid())
+  key       String // 속성명 (예: "온도", "압력", "용량")
+  value     String // 속성값 (문자열로 저장)
+  valueType PropertyValueType @default(TEXT) // 값 타입
+  unit      String? // 단위 (예: "℃", "MPa", "ton")
+  order     Int               @default(0) // 표시 순서
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   equipmentId String
@@ -1417,10 +1418,10 @@ model EquipmentProperty {
 // 속성 값 타입 Enum
 // ============================================
 enum PropertyValueType {
-  TEXT     // 텍스트
-  NUMBER   // 숫자
-  DATE     // 날짜
-  BOOLEAN  // 참/거짓
+  TEXT // 텍스트
+  NUMBER // 숫자
+  DATE // 날짜
+  BOOLEAN // 참/거짓
 }
 
 // ============================================
@@ -1428,28 +1429,28 @@ enum PropertyValueType {
 // 설비 간의 흐름/연결 관계 표시 (React Flow Edge용)
 // ============================================
 model EquipmentConnection {
-  id          String   @id @default(uuid())
-  label       String?  // 연결 라벨 (예: "원료공급", "제품이동")
-  type        ConnectionType @default(FLOW) // 연결 타입
-  order       Int      @default(0) // 여러 연결이 있을 때 우선순위
+  id    String         @id @default(uuid())
+  label String? // 연결 라벨 (예: "원료공급", "제품이동")
+  type  ConnectionType @default(FLOW) // 연결 타입
+  order Int            @default(0) // 여러 연결이 있을 때 우선순위
 
   // React Flow 스타일
-  color       String?  @default("#94A3B8") // 선 색상
-  animated    Boolean  @default(false) // 애니메이션 효과
+  color    String? @default("#94A3B8") // 선 색상
+  animated Boolean @default(false) // 애니메이션 효과
 
   // React Flow 핸들 정보 (어느 방향에서 연결되었는지)
-  sourceHandle String?  @default("right") // 출발 핸들 (top, right, bottom, left)
-  targetHandle String?  @default("left")  // 도착 핸들 (top, right, bottom, left)
+  sourceHandle String? @default("right") // 출발 핸들 (top, right, bottom, left)
+  targetHandle String? @default("left") // 도착 핸들 (top, right, bottom, left)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계 (다대다)
   fromEquipmentId String
   fromEquipment   Equipment @relation("ConnectionFrom", fields: [fromEquipmentId], references: [id], onDelete: Cascade)
 
-  toEquipmentId   String
-  toEquipment     Equipment @relation("ConnectionTo", fields: [toEquipmentId], references: [id], onDelete: Cascade)
+  toEquipmentId String
+  toEquipment   Equipment @relation("ConnectionTo", fields: [toEquipmentId], references: [id], onDelete: Cascade)
 
   @@index([fromEquipmentId])
   @@index([toEquipmentId])
@@ -1460,11 +1461,11 @@ model EquipmentConnection {
 // 연결 타입 Enum
 // ============================================
 enum ConnectionType {
-  FLOW       // 흐름 (재료, 제품)
-  SIGNAL     // 신호 (데이터, 제어)
-  POWER      // 전력
+  FLOW // 흐름 (재료, 제품)
+  SIGNAL // 신호 (데이터, 제어)
+  POWER // 전력
   DEPENDENCY // 의존성
-  OTHER      // 기타
+  OTHER // 기타
 }
 
 // ============================================
@@ -1472,23 +1473,23 @@ enum ConnectionType {
 // 사용자별 알림 관리 (Task 할당, 마일스톤 임박, 긴급 이슈)
 // ============================================
 model Notification {
-  id          String           @id @default(uuid())
-  type        NotificationType // 알림 타입
-  title       String           // 알림 제목
-  message     String           // 알림 내용
-  link        String?          // 클릭 시 이동 경로 (예: /dashboard/kanban)
-  isRead      Boolean          @default(false) // 읽음 여부
+  id      String           @id @default(uuid())
+  type    NotificationType // 알림 타입
+  title   String // 알림 제목
+  message String // 알림 내용
+  link    String? // 클릭 시 이동 경로 (예: /dashboard/kanban)
+  isRead  Boolean          @default(false) // 읽음 여부
 
   // 관련 엔티티 ID (참조용, 삭제되어도 알림은 유지)
-  relatedId   String?          // Task ID, Milestone ID, Issue ID 등
-  projectId   String?          // 관련 프로젝트 ID
-  projectName String?          // 프로젝트명 (삭제되어도 남음)
+  relatedId   String? // Task ID, Milestone ID, Issue ID 등
+  projectId   String? // 관련 프로젝트 ID
+  projectName String? // 프로젝트명 (삭제되어도 남음)
 
-  createdAt   DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   // 관계
-  userId      String
-  user        User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isRead])
@@ -1500,12 +1501,12 @@ model Notification {
 // 알림 타입 Enum
 // ============================================
 enum NotificationType {
-  TASK_ASSIGNED         // Task 할당됨
-  MILESTONE_DUE_SOON    // 마일스톤 기한 임박 (D-3, D-1)
-  ISSUE_URGENT          // 긴급 이슈 발생
-  FIELD_ISSUE_CREATED   // 고객이슈 등록됨
-  CUSTOMER_REQ_CREATED  // 고객요구사항 등록됨
-  DISCUSSION_CREATED    // 협의요청 등록됨
+  TASK_ASSIGNED // Task 할당됨
+  MILESTONE_DUE_SOON // 마일스톤 기한 임박 (D-3, D-1)
+  ISSUE_URGENT // 긴급 이슈 발생
+  FIELD_ISSUE_CREATED // 고객이슈 등록됨
+  CUSTOMER_REQ_CREATED // 고객요구사항 등록됨
+  DISCUSSION_CREATED // 협의요청 등록됨
 }
 
 // ============================================
@@ -1514,36 +1515,36 @@ enum NotificationType {
 // 이후 고객요구사항/이슈/협의요청으로 이관 가능
 // ============================================
 model Interview {
-  id                  String   @id @default(uuid())
-  sequence            Int      // 순번 (자동 부여)
-  code                String   // 인터뷰 코드 (IV0001 형식)
-  title               String   // 인터뷰 제목
-  interviewDate       DateTime @default(now()) // 인터뷰 일자
-  interviewer         String?  // 인터뷰 진행자 (이름)
-  interviewee         String?  // 인터뷰 대상자 (현업 담당자)
-  businessUnit        String   // 사업부 (V_IVI, V_DISP, V_PCBA 등)
-  category            String?  // 업무영역 (생산, 구매, 자재, 품질 등)
+  id            String   @id @default(uuid())
+  sequence      Int // 순번 (자동 부여)
+  code          String // 인터뷰 코드 (IV0001 형식)
+  title         String // 인터뷰 제목
+  interviewDate DateTime @default(now()) // 인터뷰 일자
+  interviewer   String? // 인터뷰 진행자 (이름)
+  interviewee   String? // 인터뷰 대상자 (현업 담당자)
+  businessUnit  String // 사업부 (V_IVI, V_DISP, V_PCBA 등)
+  category      String? // 업무영역 (생산, 구매, 자재, 품질 등)
 
   // 5가지 카테고리 (가이드 기준)
-  currentProcess      String?  // 1. 현재 운영 방식 (AS-IS)
-  painPoints          String?  // 2. 문제점 (Pain Points)
-  desiredResults      String?  // 3. 원하는 결과 (TO-BE)
+  currentProcess       String? // 1. 현재 운영 방식 (AS-IS)
+  painPoints           String? // 2. 문제점 (Pain Points)
+  desiredResults       String? // 3. 원하는 결과 (TO-BE)
   technicalConstraints String? // 4. 기술적 제약 (Technical Limits)
-  questions           String?  // 5. 궁금한 점 (Questions)
+  questions            String? // 5. 궁금한 점 (Questions)
 
   // 이관 정보
-  transferStatus      InterviewTransferStatus @default(NOT_TRANSFERRED) // 이관 상태
-  transferredTo       String?  // 이관된 항목 코드 (REQ-XXX, IS-XXX, DIS-XXX)
-  transferredType     InterviewTransferType?  // 이관 유형
-  transferredAt       DateTime? // 이관 일시
+  transferStatus  InterviewTransferStatus @default(NOT_TRANSFERRED) // 이관 상태
+  transferredTo   String? // 이관된 항목 코드 (REQ-XXX, IS-XXX, DIS-XXX)
+  transferredType InterviewTransferType? // 이관 유형
+  transferredAt   DateTime? // 이관 일시
 
-  remarks             String?  // 참고/비고
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  remarks   String? // 참고/비고
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 프로젝트 관계
-  projectId           String
-  project             Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, code])
   @@index([projectId])
@@ -1556,17 +1557,17 @@ model Interview {
 // 인터뷰 이관 상태 Enum
 // ============================================
 enum InterviewTransferStatus {
-  NOT_TRANSFERRED  // 미이관
-  TRANSFERRED      // 이관 완료
+  NOT_TRANSFERRED // 미이관
+  TRANSFERRED // 이관 완료
 }
 
 // ============================================
 // 인터뷰 이관 유형 Enum
 // ============================================
 enum InterviewTransferType {
-  CUSTOMER_REQUIREMENT  // 고객요구사항
-  FIELD_ISSUE           // 현업이슈
-  DISCUSSION_ITEM       // 협의요청
+  CUSTOMER_REQUIREMENT // 고객요구사항
+  FIELD_ISSUE // 현업이슈
+  DISCUSSION_ITEM // 협의요청
 }
 
 // ============================================
@@ -1574,30 +1575,30 @@ enum InterviewTransferType {
 // 현장에서 발생하는 이슈 관리 (고객요구사항 연계)
 // ============================================
 model FieldIssue {
-  id              String   @id @default(uuid())
-  sequence        Int      // 순번 (자동 부여)
-  code            String   // 이슈번호 (IS0001 형식)
-  businessUnit    String   // 사업부 (V_IVI, V_DISP, V_PCBA 등)
-  category        String?  // 업무구분 (자재, 생산, 품질 등)
-  title           String   // 이슈관리명 (제목)
-  description     String?  // 이슈 설명 (상세 내용)
-  registeredDate  DateTime? // 등록일
-  issuer          String?  // 이슈어 (보고자 이름)
-  requirementCode String?  // 요구사항 번호 (연결용, 텍스트 입력)
-  assignee        String?  // 담당자 이름
-  status          FieldIssueStatus @default(OPEN) // 상태
-  targetDate      DateTime? // 타겟일 (목표일)
-  completedDate   DateTime? // 완료일
+  id               String           @id @default(uuid())
+  sequence         Int // 순번 (자동 부여)
+  code             String // 이슈번호 (IS0001 형식)
+  businessUnit     String // 사업부 (V_IVI, V_DISP, V_PCBA 등)
+  category         String? // 업무구분 (자재, 생산, 품질 등)
+  title            String // 이슈관리명 (제목)
+  description      String? // 이슈 설명 (상세 내용)
+  registeredDate   DateTime? // 등록일
+  issuer           String? // 이슈어 (보고자 이름)
+  requirementCode  String? // 요구사항 번호 (연결용, 텍스트 입력)
+  assignee         String? // 담당자 이름
+  status           FieldIssueStatus @default(OPEN) // 상태
+  targetDate       DateTime? // 타겟일 (목표일)
+  completedDate    DateTime? // 완료일
   proposedSolution String? // 제안된 해결 방안
-  finalSolution   String?  // 최종 적용된 방안
-  remarks         String?  // 참고/비고
+  finalSolution    String? // 최종 적용된 방안
+  remarks          String? // 참고/비고
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 프로젝트 관계
-  projectId       String
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, code])
   @@index([projectId])
@@ -1611,14 +1612,14 @@ model FieldIssue {
 // 상태 흐름: OPEN → IN_PROGRESS → RESOLVED/WONT_FIX → CLOSED
 // ============================================
 enum FieldIssueStatus {
-  OPEN         // 발견 (초기 상태)
-  IN_PROGRESS  // 수정 중
-  RESOLVED     // 해결
-  WONT_FIX     // 수정 안함
-  CLOSED       // 완료
+  OPEN // 발견 (초기 상태)
+  IN_PROGRESS // 수정 중
+  RESOLVED // 해결
+  WONT_FIX // 수정 안함
+  CLOSED // 완료
   // 레거시 (기존 데이터 호환용 - 새로운 데이터에는 사용하지 않음)
-  PENDING      // [레거시] 대기 → IN_PROGRESS 사용 권장
-  COMPLETED    // [레거시] 완료 → CLOSED 사용 권장
+  PENDING // [레거시] 대기 → IN_PROGRESS 사용 권장
+  COMPLETED // [레거시] 완료 → CLOSED 사용 권장
 }
 
 // ============================================
@@ -1626,42 +1627,42 @@ enum FieldIssueStatus {
 // 버그도 아니고 새 기능도 아닌데, 어떻게 할지 결정이 필요한 사항
 // ============================================
 model DiscussionItem {
-  id            String   @id @default(uuid())
-  code          String   // 협의요청 코드 (DIS-001 등)
-  businessUnit  String   // 사업부구분 (IT, 생산, 품질 등)
-  title         String   // 협의 주제
-  description   String?  // 상세 내용
-  status        DiscussionStatus @default(DISCUSSING) // 상태
-  stage         DiscussionStage // 발생 단계 (분석/설계/구현/테스트/운영)
-  priority      DiscussionPriority @default(MEDIUM) // 우선순위
+  id           String             @id @default(uuid())
+  code         String // 협의요청 코드 (DIS-001 등)
+  businessUnit String // 사업부구분 (IT, 생산, 품질 등)
+  title        String // 협의 주제
+  description  String? // 상세 내용
+  status       DiscussionStatus   @default(DISCUSSING) // 상태
+  stage        DiscussionStage // 발생 단계 (분석/설계/구현/테스트/운영)
+  priority     DiscussionPriority @default(MEDIUM) // 우선순위
 
   // 협의 선택지 및 결정
-  options       Json?    // 선택지 배열 [{label, description, cost, duration}]
-  decision      String?  // 최종 결정 내용
+  options  Json? // 선택지 배열 [{label, description, cost, duration}]
+  decision String? // 최종 결정 내용
 
   // 변환 정보
   convertedToType DiscussionConvertType? // 변환 유형
-  convertedToCode String?  // 변환된 항목 코드 (REQ-XXX, COOP-XXX 등)
-  referenceNote   String?  // 참고사항 (변환 시 원래 협의요청 번호 기록)
+  convertedToCode String? // 변환된 항목 코드 (REQ-XXX, COOP-XXX 등)
+  referenceNote   String? // 참고사항 (변환 시 원래 협의요청 번호 기록)
 
   // 일정
-  reportDate    DateTime @default(now())  // 보고일
-  dueDate       DateTime? // 협의 기한 (기본 3~7일)
-  resolvedDate  DateTime? // 결정 완료일
+  reportDate   DateTime  @default(now()) // 보고일
+  dueDate      DateTime? // 협의 기한 (기본 3~7일)
+  resolvedDate DateTime? // 결정 완료일
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 요청자 정보 (텍스트 - 이관 시 원본 이슈어 등)
   requesterName String?
 
   // 관계
-  projectId     String
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  reporterId    String?  // 보고자 (발견자)
-  reporter      User?    @relation("DiscussionReporter", fields: [reporterId], references: [id])
-  assigneeId    String?  // 담당자 (PM)
-  assignee      User?    @relation("DiscussionAssignee", fields: [assigneeId], references: [id])
+  projectId  String
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporterId String? // 보고자 (발견자)
+  reporter   User?   @relation("DiscussionReporter", fields: [reporterId], references: [id])
+  assigneeId String? // 담당자 (PM)
+  assignee   User?   @relation("DiscussionAssignee", fields: [assigneeId], references: [id])
 
   @@unique([projectId, code])
   @@index([projectId])
@@ -1673,35 +1674,35 @@ model DiscussionItem {
 
 // 협의요청 상태 Enum
 enum DiscussionStatus {
-  DISCUSSING                 // 협의 중
-  CONVERTED_TO_REQUEST       // 고객요청으로 변환
-  CONVERTED_TO_COOPERATION   // 업무협조로 변환
-  BLOCKED                    // 보류/지연
-  COMPLETED                  // 종료 (결정완료)
+  DISCUSSING // 협의 중
+  CONVERTED_TO_REQUEST // 고객요청으로 변환
+  CONVERTED_TO_COOPERATION // 업무협조로 변환
+  BLOCKED // 보류/지연
+  COMPLETED // 종료 (결정완료)
 }
 
 // 발생 단계 Enum
 enum DiscussionStage {
-  ANALYSIS        // 분석
-  DESIGN          // 설계
-  IMPLEMENTATION  // 구현
-  TESTING         // 테스트
-  OPERATION       // 운영
+  ANALYSIS // 분석
+  DESIGN // 설계
+  IMPLEMENTATION // 구현
+  TESTING // 테스트
+  OPERATION // 운영
 }
 
 // 우선순위 Enum
 enum DiscussionPriority {
-  HIGH    // 높음 (긴급)
-  MEDIUM  // 보통
-  LOW     // 낮음
+  HIGH // 높음 (긴급)
+  MEDIUM // 보통
+  LOW // 낮음
 }
 
 // 변환 타입 Enum
 enum DiscussionConvertType {
-  CUSTOMER_REQUEST  // 고객요청 (REQ-XXXX)
-  COOPERATION       // 업무협조 (COOP-XXXX)
-  BLOCKED           // 보류
-  COMPLETED         // 종료
+  CUSTOMER_REQUEST // 고객요청 (REQ-XXXX)
+  COOPERATION // 업무협조 (COOP-XXXX)
+  BLOCKED // 보류
+  COMPLETED // 종료
 }
 
 // ============================================
@@ -1714,14 +1715,14 @@ enum DiscussionConvertType {
  * 업무 분류 체계의 대분류 항목
  */
 enum AsIsMajorCategory {
-  MASTER      // 기준관리
-  MATERIAL    // 자재관리
-  PRODUCTION  // 생산관리
-  QUALITY     // 품질관리
-  EQUIPMENT   // 설비관리
-  INVENTORY   // 재고관리
-  SHIPMENT    // 출하관리
-  OTHER       // 기타
+  MASTER // 기준관리
+  MATERIAL // 자재관리
+  PRODUCTION // 생산관리
+  QUALITY // 품질관리
+  EQUIPMENT // 설비관리
+  INVENTORY // 재고관리
+  SHIPMENT // 출하관리
+  OTHER // 기타
 }
 
 /**
@@ -1729,10 +1730,10 @@ enum AsIsMajorCategory {
  * 현재 업무 처리 방식
  */
 enum AsIsCurrentMethod {
-  MANUAL    // 수기
-  EXCEL     // 엑셀
-  SYSTEM    // 시스템
-  MIXED     // 혼합
+  MANUAL // 수기
+  EXCEL // 엑셀
+  SYSTEM // 시스템
+  MIXED // 혼합
 }
 
 // ============================================
@@ -1740,19 +1741,19 @@ enum AsIsCurrentMethod {
 // 프로젝트별 현행 분석 총괄 정보
 // ============================================
 model AsIsOverview {
-  id            String   @id @default(uuid())
-  businessUnit  String   @default("V_IVI") // 사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HMS)
-  customerName  String?  // 고객사명
-  author        String?  // 작성자
-  createdDate   DateTime @default(now()) // 작성일
+  id           String   @id @default(uuid())
+  businessUnit String   @default("V_IVI") // 사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HMS)
+  customerName String? // 고객사명
+  author       String? // 작성자
+  createdDate  DateTime @default(now()) // 작성일
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
-  projectId     String   // 프로젝트 ID
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  items         AsIsOverviewItem[] // 업무 항목 목록
+  projectId String // 프로젝트 ID
+  project   Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items     AsIsOverviewItem[] // 업무 항목 목록
 
   @@unique([projectId, businessUnit]) // 프로젝트+사업부 조합은 유일
   @@index([projectId])
@@ -1765,24 +1766,24 @@ model AsIsOverview {
 // 업무 분류 체계 (대분류 > 중분류 > 업무명)
 // ============================================
 model AsIsOverviewItem {
-  id               String              @id @default(uuid())
-  asIsManagementNo String?             // AS-IS 관리번호 (예: AS-001)
-  majorCategory    AsIsMajorCategory   // 대분류 (자재/생산/품질/설비/재고/출하/기타)
-  middleCategory   String              // 중분류 (텍스트 입력)
-  taskName         String              // 업무명 (단위업무)
-  currentMethod    AsIsCurrentMethod   @default(MANUAL) // 현행방식
-  issueSummary     String?             // 이슈 요약
-  details          String?             // 세부내용
-  remarks          String?             // 비고
-  order            Int                 @default(0) // 정렬 순서
+  id               String            @id @default(uuid())
+  asIsManagementNo String? // AS-IS 관리번호 (예: AS-001)
+  majorCategory    AsIsMajorCategory // 대분류 (자재/생산/품질/설비/재고/출하/기타)
+  middleCategory   String // 중분류 (텍스트 입력)
+  taskName         String // 업무명 (단위업무)
+  currentMethod    AsIsCurrentMethod @default(MANUAL) // 현행방식
+  issueSummary     String? // 이슈 요약
+  details          String? // 세부내용
+  remarks          String? // 비고
+  order            Int               @default(0) // 정렬 순서
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
-  overviewId       String
-  overview         AsIsOverview @relation(fields: [overviewId], references: [id], onDelete: Cascade)
-  unitAnalysis     AsIsUnitAnalysis? // 단위업무 상세 분석 (1:1)
+  overviewId   String
+  overview     AsIsOverview      @relation(fields: [overviewId], references: [id], onDelete: Cascade)
+  unitAnalysis AsIsUnitAnalysis? // 단위업무 상세 분석 (1:1)
 
   @@index([overviewId])
   @@index([majorCategory])
@@ -1794,36 +1795,36 @@ model AsIsOverviewItem {
 // 중분류 단위 상세 분석 (Flow Chart, Swimlane 포함)
 // ============================================
 model AsIsUnitAnalysis {
-  id               String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // 다이어그램 데이터 (JSON으로 저장)
-  flowChartData    Json?    // React Flow 노드/엣지 데이터
-  swimlaneData     Json?    // Swimlane 노드/엣지 데이터
+  flowChartData Json? // React Flow 노드/엣지 데이터
+  swimlaneData  Json? // Swimlane 노드/엣지 데이터
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계 (1:1)
-  overviewItemId   String   @unique
-  overviewItem     AsIsOverviewItem @relation(fields: [overviewItemId], references: [id], onDelete: Cascade)
+  overviewItemId String           @unique
+  overviewItem   AsIsOverviewItem @relation(fields: [overviewItemId], references: [id], onDelete: Cascade)
 
   // 하위 테이블들 (1:N)
-  processDefinitions  AsIsProcessDefinition[]   // 업무 프로세스 정의서
-  flowChartDetails    AsIsFlowChartDetail[]     // Flow Chart 상세
-  responsibilities    AsIsResponsibility[]       // R&R 정의
-  interviews          AsIsInterview[]            // 현업 인터뷰 결과
-  issues              AsIsIssue[]                // 이슈/Pain Point
+  processDefinitions AsIsProcessDefinition[] // 업무 프로세스 정의서
+  flowChartDetails   AsIsFlowChartDetail[] // Flow Chart 상세
+  responsibilities   AsIsResponsibility[] // R&R 정의
+  interviews         AsIsInterview[] // 현업 인터뷰 결과
+  issues             AsIsIssue[] // 이슈/Pain Point
 
   // 조건부 섹션 (A: 수기/엑셀용)
-  documents           AsIsDocument[]             // 문서 목록
-  documentAnalyses    AsIsDocumentAnalysis[]     // 문서 구조 분석
+  documents        AsIsDocument[] // 문서 목록
+  documentAnalyses AsIsDocumentAnalysis[] // 문서 구조 분석
 
   // 조건부 섹션 (B: 시스템용)
-  functions           AsIsFunction[]             // 기능 목록
-  screens             AsIsScreen[]               // 화면 목록
-  interfaces          AsIsInterface[]            // 인터페이스 목록
-  dataModels          AsIsDataModel[]            // 데이터 모델
-  codeDefinitions     AsIsCodeDefinition[]       // 코드 정의서
+  functions       AsIsFunction[] // 기능 목록
+  screens         AsIsScreen[] // 화면 목록
+  interfaces      AsIsInterface[] // 인터페이스 목록
+  dataModels      AsIsDataModel[] // 데이터 모델
+  codeDefinitions AsIsCodeDefinition[] // 코드 정의서
 
   @@index([overviewItemId])
   @@map("as_is_unit_analyses")
@@ -1833,18 +1834,18 @@ model AsIsUnitAnalysis {
 // 업무 프로세스 정의서
 // ============================================
 model AsIsProcessDefinition {
-  id            String   @id @default(uuid())
-  stepNumber    Int      @default(1)    // 순서
-  processName   String                  // 프로세스명
-  description   String?                 // 설명
-  input         String?                 // 입력
-  output        String?                 // 출력
-  relatedSystem String?                 // 관련 시스템
-  remarks       String?                 // 비고
-  order         Int      @default(0)
+  id            String  @id @default(uuid())
+  stepNumber    Int     @default(1) // 순서
+  processName   String // 프로세스명
+  description   String? // 설명
+  input         String? // 입력
+  output        String? // 출력
+  relatedSystem String? // 관련 시스템
+  remarks       String? // 비고
+  order         Int     @default(0)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -1859,20 +1860,20 @@ model AsIsProcessDefinition {
 // 다이어그램과 연동되는 상세 정보
 // ============================================
 model AsIsFlowChartDetail {
-  id            String   @id @default(uuid())
-  nodeId        String?  // React Flow 노드 ID (연동용)
-  stepNumber    Int      @default(1)    // 순서
-  processName   String                  // 프로세스명
-  description   String?                 // 설명
-  responsible   String?                 // 담당자/부서
-  systemUsed    String?                 // 사용 시스템
-  inputData     String?                 // 입력 데이터
-  outputData    String?                 // 출력 데이터
-  remarks       String?                 // 비고
-  order         Int      @default(0)
+  id          String  @id @default(uuid())
+  nodeId      String? // React Flow 노드 ID (연동용)
+  stepNumber  Int     @default(1) // 순서
+  processName String // 프로세스명
+  description String? // 설명
+  responsible String? // 담당자/부서
+  systemUsed  String? // 사용 시스템
+  inputData   String? // 입력 데이터
+  outputData  String? // 출력 데이터
+  remarks     String? // 비고
+  order       Int     @default(0)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -1887,16 +1888,16 @@ model AsIsFlowChartDetail {
 // R&R 정의 (역할과 책임)
 // ============================================
 model AsIsResponsibility {
-  id            String   @id @default(uuid())
-  role          String                  // 역할/담당자
-  department    String?                 // 부서
-  responsibility String                 // 책임/업무
-  authority     String?                 // 권한
-  remarks       String?                 // 비고
-  order         Int      @default(0)
+  id             String  @id @default(uuid())
+  role           String // 역할/담당자
+  department     String? // 부서
+  responsibility String // 책임/업무
+  authority      String? // 권한
+  remarks        String? // 비고
+  order          Int     @default(0)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -1910,20 +1911,20 @@ model AsIsResponsibility {
 // 현업 인터뷰 결과
 // ============================================
 model AsIsInterview {
-  id             String   @id @default(uuid())
-  interviewee    String                  // 인터뷰 대상자
-  department     String?                 // 부서
-  position       String?                 // 직책
-  interviewDate  DateTime?               // 인터뷰 일자
-  topic          String?                 // 인터뷰 주제
-  content        String                  // 인터뷰 내용
-  keyFindings    String?                 // 주요 발견사항
-  suggestions    String?                 // 개선 제안
-  remarks        String?                 // 비고
-  order          Int      @default(0)
+  id            String    @id @default(uuid())
+  interviewee   String // 인터뷰 대상자
+  department    String? // 부서
+  position      String? // 직책
+  interviewDate DateTime? // 인터뷰 일자
+  topic         String? // 인터뷰 주제
+  content       String // 인터뷰 내용
+  keyFindings   String? // 주요 발견사항
+  suggestions   String? // 개선 제안
+  remarks       String? // 비고
+  order         Int       @default(0)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -1937,19 +1938,19 @@ model AsIsInterview {
 // 이슈/Pain Point
 // ============================================
 model AsIsIssue {
-  id             String   @id @default(uuid())
-  issueType      String   @default("PAIN_POINT") // PAIN_POINT, BOTTLENECK, GAP, OTHER
-  title          String                  // 이슈 제목
-  description    String?                 // 상세 설명
-  impact         String?                 // 영향도
-  frequency      String?                 // 발생 빈도
-  priority       String?                 // 우선순위 (HIGH, MEDIUM, LOW)
-  suggestedFix   String?                 // 개선 제안
-  remarks        String?                 // 비고
-  order          Int      @default(0)
+  id           String  @id @default(uuid())
+  issueType    String  @default("PAIN_POINT") // PAIN_POINT, BOTTLENECK, GAP, OTHER
+  title        String // 이슈 제목
+  description  String? // 상세 설명
+  impact       String? // 영향도
+  frequency    String? // 발생 빈도
+  priority     String? // 우선순위 (HIGH, MEDIUM, LOW)
+  suggestedFix String? // 개선 제안
+  remarks      String? // 비고
+  order        Int     @default(0)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -1963,19 +1964,19 @@ model AsIsIssue {
 // 문서 목록 (조건부 A: 수기/엑셀)
 // ============================================
 model AsIsDocument {
-  id             String   @id @default(uuid())
-  documentName   String                  // 문서명
-  documentType   String?                 // 문서 유형 (양식, 보고서, 대장 등)
-  purpose        String?                 // 용도
-  creator        String?                 // 작성 주체
-  frequency      String?                 // 작성 빈도
-  storageLocation String?                // 보관 위치
-  retentionPeriod String?                // 보관 기간
-  remarks        String?                 // 비고
-  order          Int      @default(0)
+  id              String  @id @default(uuid())
+  documentName    String // 문서명
+  documentType    String? // 문서 유형 (양식, 보고서, 대장 등)
+  purpose         String? // 용도
+  creator         String? // 작성 주체
+  frequency       String? // 작성 빈도
+  storageLocation String? // 보관 위치
+  retentionPeriod String? // 보관 기간
+  remarks         String? // 비고
+  order           Int     @default(0)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -1989,18 +1990,18 @@ model AsIsDocument {
 // 문서 구조 분석 (조건부 A: 수기/엑셀)
 // ============================================
 model AsIsDocumentAnalysis {
-  id             String   @id @default(uuid())
-  documentName   String                  // 분석 대상 문서명
-  fieldName      String                  // 필드/항목명
-  dataType       String?                 // 데이터 타입
-  sampleData     String?                 // 샘플 데이터
-  isMandatory    Boolean  @default(false) // 필수 여부
-  validationRule String?                 // 검증 규칙
-  remarks        String?                 // 비고
-  order          Int      @default(0)
+  id             String  @id @default(uuid())
+  documentName   String // 분석 대상 문서명
+  fieldName      String // 필드/항목명
+  dataType       String? // 데이터 타입
+  sampleData     String? // 샘플 데이터
+  isMandatory    Boolean @default(false) // 필수 여부
+  validationRule String? // 검증 규칙
+  remarks        String? // 비고
+  order          Int     @default(0)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -2014,19 +2015,19 @@ model AsIsDocumentAnalysis {
 // 기능 목록 (조건부 B: 시스템)
 // ============================================
 model AsIsFunction {
-  id             String   @id @default(uuid())
-  functionId     String?                 // 기능 ID
-  functionName   String                  // 기능명
-  description    String?                 // 기능 설명
-  module         String?                 // 모듈명
-  usageFrequency String?                 // 사용 빈도
-  userCount      String?                 // 사용자 수
-  importance     String?                 // 중요도 (HIGH, MEDIUM, LOW)
-  remarks        String?                 // 비고
-  order          Int      @default(0)
+  id             String  @id @default(uuid())
+  functionId     String? // 기능 ID
+  functionName   String // 기능명
+  description    String? // 기능 설명
+  module         String? // 모듈명
+  usageFrequency String? // 사용 빈도
+  userCount      String? // 사용자 수
+  importance     String? // 중요도 (HIGH, MEDIUM, LOW)
+  remarks        String? // 비고
+  order          Int     @default(0)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -2040,18 +2041,18 @@ model AsIsFunction {
 // 화면 목록 (조건부 B: 시스템)
 // ============================================
 model AsIsScreen {
-  id             String   @id @default(uuid())
-  screenId       String?                 // 화면 ID
-  screenName     String                  // 화면명
-  description    String?                 // 화면 설명
-  menuPath       String?                 // 메뉴 경로
-  screenType     String?                 // 화면 유형 (조회, 등록, 수정, 리포트 등)
-  relatedFunction String?                // 연관 기능
-  remarks        String?                 // 비고
-  order          Int      @default(0)
+  id              String  @id @default(uuid())
+  screenId        String? // 화면 ID
+  screenName      String // 화면명
+  description     String? // 화면 설명
+  menuPath        String? // 메뉴 경로
+  screenType      String? // 화면 유형 (조회, 등록, 수정, 리포트 등)
+  relatedFunction String? // 연관 기능
+  remarks         String? // 비고
+  order           Int     @default(0)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -2065,21 +2066,21 @@ model AsIsScreen {
 // 인터페이스 목록 (조건부 B: 시스템)
 // ============================================
 model AsIsInterface {
-  id             String   @id @default(uuid())
-  interfaceId    String?                 // 인터페이스 ID
-  interfaceName  String                  // 인터페이스명
-  description    String?                 // 설명
-  sourceSystem   String?                 // 송신 시스템
-  targetSystem   String?                 // 수신 시스템
-  interfaceType  String?                 // 유형 (실시간, 배치, 파일 등)
-  protocol       String?                 // 프로토콜 (REST, SOAP, FILE 등)
-  frequency      String?                 // 연동 빈도
-  dataVolume     String?                 // 데이터 건수
-  remarks        String?                 // 비고
-  order          Int      @default(0)
+  id            String  @id @default(uuid())
+  interfaceId   String? // 인터페이스 ID
+  interfaceName String // 인터페이스명
+  description   String? // 설명
+  sourceSystem  String? // 송신 시스템
+  targetSystem  String? // 수신 시스템
+  interfaceType String? // 유형 (실시간, 배치, 파일 등)
+  protocol      String? // 프로토콜 (REST, SOAP, FILE 등)
+  frequency     String? // 연동 빈도
+  dataVolume    String? // 데이터 건수
+  remarks       String? // 비고
+  order         Int     @default(0)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -2093,23 +2094,23 @@ model AsIsInterface {
 // 데이터 모델 (조건부 B: 시스템)
 // ============================================
 model AsIsDataModel {
-  id             String   @id @default(uuid())
-  tableName      String                  // 테이블명
-  tableNameKr    String?                 // 테이블 한글명
-  description    String?                 // 설명
-  columnName     String?                 // 컬럼명
-  columnNameKr   String?                 // 컬럼 한글명
-  dataType       String?                 // 데이터 타입
-  length         String?                 // 길이
-  isPrimaryKey   Boolean  @default(false) // PK 여부
-  isForeignKey   Boolean  @default(false) // FK 여부
-  isNullable     Boolean  @default(true)  // NULL 허용
-  defaultValue   String?                 // 기본값
-  remarks        String?                 // 비고
-  order          Int      @default(0)
+  id           String  @id @default(uuid())
+  tableName    String // 테이블명
+  tableNameKr  String? // 테이블 한글명
+  description  String? // 설명
+  columnName   String? // 컬럼명
+  columnNameKr String? // 컬럼 한글명
+  dataType     String? // 데이터 타입
+  length       String? // 길이
+  isPrimaryKey Boolean @default(false) // PK 여부
+  isForeignKey Boolean @default(false) // FK 여부
+  isNullable   Boolean @default(true) // NULL 허용
+  defaultValue String? // 기본값
+  remarks      String? // 비고
+  order        Int     @default(0)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -2123,18 +2124,18 @@ model AsIsDataModel {
 // 코드 정의서 (조건부 B: 시스템)
 // ============================================
 model AsIsCodeDefinition {
-  id             String   @id @default(uuid())
-  codeGroup      String                  // 코드 그룹
-  codeGroupName  String?                 // 코드 그룹명
-  codeValue      String                  // 코드 값
-  codeName       String                  // 코드명
-  description    String?                 // 설명
-  isActive       Boolean  @default(true) // 사용 여부
-  remarks        String?                 // 비고
-  order          Int      @default(0)
+  id            String  @id @default(uuid())
+  codeGroup     String // 코드 그룹
+  codeGroupName String? // 코드 그룹명
+  codeValue     String // 코드 값
+  codeName      String // 코드명
+  description   String? // 설명
+  isActive      Boolean @default(true) // 사용 여부
+  remarks       String? // 비고
+  order         Int     @default(0)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // 관계
   unitAnalysisId String
@@ -2143,4 +2144,82 @@ model AsIsCodeDefinition {
   @@index([unitAnalysisId])
   @@index([codeGroup])
   @@map("as_is_code_definitions")
+}
+
+// ============================================
+// 진도 리스크 — 단계 enum (9개 고정 흐름)
+// ============================================
+enum ProgressStage {
+  ANALYSIS // ① 분석
+  DESIGN // ② 설계
+  IMPLEMENTATION // ③ 구현
+  UNIT_TEST // ④ 단위테스트
+  IT_TEST // ⑤ IT 테스트
+  TRAINING // ⑥ 교육
+  INTEGRATION_TEST // ⑦ 통합테스트
+  MIGRATION // ⑧ 이행
+  STABILIZATION // ⑨ 안정화
+}
+
+// ============================================
+// 진도 task — 평면 (task 1개 = 기능 1개)
+// 기존 WBS와 독립. predecessor 단일 선행.
+// ============================================
+model ProgressTask {
+  id          String  @id @default(uuid())
+  projectId   String
+  code        String? // T-001 자동 부여
+  name        String // "주문등록" 등 기능명
+  category    String? // 대분류 라벨
+  description String?
+  order       Int     @default(0)
+
+  // 일정
+  startDate       DateTime
+  endDate         DateTime
+  actualStartDate DateTime?
+  actualEndDate   DateTime?
+
+  // 진행
+  currentStage ProgressStage @default(ANALYSIS)
+  status       TaskStatus    @default(PENDING)
+  progress     Int           @default(0)
+  effortMd     Float?
+
+  // 의존성 (단일 선행)
+  predecessorId String?
+  isParallel    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 관계
+  project     Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  predecessor ProgressTask?          @relation("ProgressTaskDeps", fields: [predecessorId], references: [id], onDelete: SetNull)
+  successors  ProgressTask[]         @relation("ProgressTaskDeps")
+  assignees   ProgressTaskAssignee[]
+
+  @@unique([projectId, code])
+  @@index([projectId])
+  @@index([predecessorId])
+  @@map("progress_tasks")
+}
+
+// ============================================
+// 진도 task 담당자 (다대다 + 역할 + 참여율)
+// ============================================
+model ProgressTaskAssignee {
+  id            String   @id @default(uuid())
+  taskId        String
+  userId        String
+  role          String? // "설계자" "개발자" "테스터" 등 자유 텍스트
+  allocationPct Int      @default(100) // 1~100
+  assignedAt    DateTime @default(now())
+
+  task ProgressTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+  @@map("progress_task_assignees")
 }
