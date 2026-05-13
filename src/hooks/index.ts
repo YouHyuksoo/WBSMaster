@@ -177,3 +177,15 @@ export {
   useDeleteInterview,
   interviewKeys,
 } from "./useInterviews";
+
+// 진도 task hooks
+export {
+  useProgressTasks,
+  useCreateProgressTask,
+  useUpdateProgressTask,
+  useDeleteProgressTask,
+  useAddAssignee,
+  useUpdateAssignee,
+  useRemoveAssignee,
+  progressTaskKeys,
+} from "./useProgressTasks";
