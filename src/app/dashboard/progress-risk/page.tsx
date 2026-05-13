@@ -9,18 +9,24 @@
  */
 "use client";
 
+import { useState } from "react";
 import { useProject } from "@/contexts";
 import { useProgressTasks } from "@/hooks";
-import { PageHeader } from "./components";
+import { PageHeader, AddTaskModal } from "./components";
 import { Icon } from "@/components/ui";
 
 export default function ProgressRiskPage() {
   const { selectedProject } = useProject();
   const { data: tasks = [], isLoading } = useProgressTasks(selectedProject?.id);
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   return (
     <div className="p-6 space-y-6">
-      <PageHeader project={selectedProject} taskCount={tasks.length} />
+      <PageHeader
+        project={selectedProject}
+        taskCount={tasks.length}
+        onAddTask={() => setAddModalOpen(true)}
+      />
 
       {!selectedProject && (
         <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
@@ -43,7 +49,16 @@ export default function ProgressRiskPage() {
         </div>
       )}
 
-      {/* TaskGrid는 Task 9~16에서 추가 */}
+      {selectedProject && (
+        <AddTaskModal
+          isOpen={addModalOpen}
+          onClose={() => setAddModalOpen(false)}
+          projectId={selectedProject.id}
+          existingTasks={tasks}
+        />
+      )}
+
+      {/* TaskGrid는 Task 10~16에서 추가 */}
     </div>
   );
 }
