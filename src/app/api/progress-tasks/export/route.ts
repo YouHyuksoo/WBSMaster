@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
     "선행 task 코드": t.predecessorId
       ? tasks.find((x) => x.id === t.predecessorId)?.code ?? ""
       : "",
+    "진행 방식": t.isParallel ? "병렬" : "순차",
     담당자: t.assignees
       .map((a) => {
         let assigneeStr = a.user.name;
@@ -91,6 +92,7 @@ export async function GET(request: NextRequest) {
     { wch: 9 },
     { wch: 9 },
     { wch: 12 },
+    { wch: 10 },
     { wch: 30 },
   ];
 

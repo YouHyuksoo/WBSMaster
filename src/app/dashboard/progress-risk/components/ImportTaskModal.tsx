@@ -40,6 +40,8 @@ export function ImportTaskModal({ isOpen, onClose, onSuccess, projectId }: Props
           { header: "현재 단계",      key: "currentStage",  width: 10, example: "분석" },
           { header: "공수(MD)",       key: "effortMd",      width: 9,  example: 7.5 },
           { header: "선행 task 코드", key: "predecessorCode", width: 12, example: "T-001" },
+          { header: "진행 방식",      key: "isParallel",    width: 10, example: "병렬" },
+          { header: "담당자",         key: "assignees",     width: 30, example: "김설계(설계자), 박개발(개발자) 50%" },
         ],
       }}
       hints={[
@@ -47,6 +49,8 @@ export function ImportTaskModal({ isOpen, onClose, onSuccess, projectId }: Props
         "기능명/시작일/종료일은 필수",
         "현재 단계는 한글(분석/설계/...) 또는 영문 enum 입력 가능",
         "선행 task 코드는 같은 프로젝트 또는 같은 import 안의 코드만 매칭",
+        "진행 방식: 병렬/순차 (또는 P/S). 비우면 병렬",
+        "담당자: 이름 또는 이름(역할) 또는 이름(역할) 50% 형식, 쉼표로 다수 구분",
         "코드(T-001 등)는 자동 부여됩니다 — 시트에 입력하지 마세요",
       ]}
     />

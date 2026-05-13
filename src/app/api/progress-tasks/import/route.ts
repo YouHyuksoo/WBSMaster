@@ -211,6 +211,22 @@ export async function POST(request: NextRequest) {
         const effortMd =
           typeof effortRaw === "number" ? effortRaw : null;
 
+        // 진행 방식 파싱 (병렬/순차/P/S, 빈 값은 기본 true=병렬)
+        const parallelRaw = row["진행 방식"]
+          ? String(row["진행 방식"]).trim()
+          : "";
+        const isParallel =
+          parallelRaw === "" ||
+          parallelRaw === "병렬" ||
+          parallelRaw.toUpperCase() === "P" ||
+          parallelRaw.toUpperCase() === "PARALLEL"
+            ? true
+            : parallelRaw === "순차" ||
+                parallelRaw.toUpperCase() === "S" ||
+                parallelRaw.toUpperCase() === "SEQUENTIAL"
+              ? false
+              : true;
+
         // Task 생성
         const created = await prisma.progressTask.create({
           data: {
@@ -228,11 +244,48 @@ export async function POST(request: NextRequest) {
             currentStage: stage as never,
             effortMd,
             predecessorId,
+            isParallel,
             order: counter - 1,
           },
         });
 
         codeMap.set(code, created.id);
+
+        // 담당자 파싱 — "이름1, 이름2(역할) 50%, ..." 형식
+        const assigneeRaw = row["담당자"]
+          ? String(row["담당자"]).trim()
+          : "";
+        if (assigneeRaw) {
+          const parts = assigneeRaw.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+          for (const part of parts) {
+            // "이름(역할) 50%" 패턴 파싱
+            const match = part.match(/^([^(]+?)(?:\(([^)]+)\))?(?:\s+(\d+)\s*%)?$/);
+            if (!match) continue;
+            const userName = match[1].trim();
+            const role = match[2]?.trim() ?? null;
+            const pct = match[3] ? Math.max(1, Math.min(100, Number(match[3]))) : 100;
+
+            // 이름으로 사용자 찾기 (대소문자 무시, 첫 매치)
+            const user = await prisma.user.findFirst({
+              where: { name: { equals: userName, mode: "insensitive" } },
+              select: { id: true },
+            });
+            if (!user) continue;
+
+            // 중복 방지 (같은 user는 한 번만)
+            await prisma.progressTaskAssignee.upsert({
+              where: { taskId_userId: { taskId: created.id, userId: user.id } },
+              create: {
+                taskId: created.id,
+                userId: user.id,
+                role,
+                allocationPct: pct,
+              },
+              update: { role, allocationPct: pct },
+            });
+          }
+        }
+
         stats.created++;
       } catch (e) {
         stats.skipped++;
