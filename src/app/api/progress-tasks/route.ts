@@ -5,18 +5,17 @@
  *
  * 초보자 가이드:
  * 1. **GET /api/progress-tasks**: 프로젝트별 진도 task 목록 조회
- *    - ?projectId=xxx: 특정 프로젝트의 task만 조회
- *    - ?status=PENDING: 특정 상태의 task만 조회
+ *    - ?projectId=xxx: 특정 프로젝트의 task만 조회 (필수)
  * 2. **POST /api/progress-tasks**: 새 진도 task 생성
  *
  * 수정 방법:
  * - 정렬 추가: orderBy 조건 수정
- * - 필터링 추가: where 조건 추가
+ * - 추가 필터링: 필요 시 where 조건 확장 (단, 상태/우선순위 등 표시 필터는 클라이언트에서 처리)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { TaskStatus, Prisma } from "@prisma/client";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * 담당자 정보 포함 객체
@@ -42,21 +41,21 @@ const ASSIGNEE_INCLUDE = {
  * GET /api/progress-tasks
  */
 export async function GET(request: NextRequest) {
+  const { error: authError } = await requireAuth();
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
-    const status = searchParams.get("status") as TaskStatus | null;
 
-    // 필터 조건 구성
-    const where: Prisma.ProgressTaskWhereInput = {};
-
-    if (projectId) where.projectId = projectId;
-    if (status && Object.values(TaskStatus).includes(status)) where.status = status;
+    if (!projectId) {
+      return NextResponse.json({ error: "projectId required" }, { status: 400 });
+    }
 
     const tasks = await prisma.progressTask.findMany({
-      where,
+      where: { projectId },
+      orderBy: { order: "asc" },
       include: ASSIGNEE_INCLUDE,
-      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     });
 
     return NextResponse.json(tasks);
@@ -74,6 +73,9 @@ export async function GET(request: NextRequest) {
  * POST /api/progress-tasks
  */
 export async function POST(request: NextRequest) {
+  const { error: authError } = await requireAuth();
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { projectId, name, startDate, endDate, category, description, predecessorId } = body;
