@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { STAGE_ORDER } from "@/lib/progress-stages";
 
 const ASSIGNEE_INCLUDE = {
   assignees: {
@@ -70,17 +71,6 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
 
   // currentStage가 바뀌면 progress 자동 재계산
   if (body.currentStage !== undefined) {
-    const STAGE_ORDER = [
-      "ANALYSIS",
-      "DESIGN",
-      "IMPLEMENTATION",
-      "UNIT_TEST",
-      "IT_TEST",
-      "TRAINING",
-      "INTEGRATION_TEST",
-      "MIGRATION",
-      "STABILIZATION",
-    ];
     const idx = STAGE_ORDER.indexOf(body.currentStage);
     if (idx >= 0) {
       data.progress = Math.round(((idx + 1) / 9) * 100);
