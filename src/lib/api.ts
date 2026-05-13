@@ -1053,6 +1053,21 @@ export interface TaskConnection {
 }
 
 // ============================================
+// 진도 리스크 타입 import & 재export
+// ============================================
+import type {
+  ProgressTask,
+  ProgressTaskAssignee,
+  ProgressStage,
+} from "@/app/dashboard/progress-risk/types";
+
+export type {
+  ProgressTask,
+  ProgressTaskAssignee,
+  ProgressStage,
+};
+
+// ============================================
 // API 클라이언트
 // ============================================
 
@@ -1657,5 +1672,34 @@ export const api = {
       patch<Interview>(`/api/interviews/${id}`, data),
     /** 삭제 */
     delete: (id: string) => del<{ message: string }>(`/api/interviews/${id}`),
+  },
+
+  // ============================================
+  // 진도 리스크 Task API
+  // ============================================
+  /** 진도 리스크 task API */
+  progressTasks: {
+    list: (params: { projectId: string }) =>
+      get<ProgressTask[]>("/api/progress-tasks", params),
+    get: (id: string) => get<ProgressTask>(`/api/progress-tasks/${id}`),
+    create: (data: {
+      projectId: string;
+      name: string;
+      startDate: string;
+      endDate: string;
+      category?: string;
+      description?: string;
+      predecessorId?: string;
+    }) => post<ProgressTask>("/api/progress-tasks", data),
+    update: (id: string, data: Partial<ProgressTask>) =>
+      patch<ProgressTask>(`/api/progress-tasks/${id}`, data),
+    delete: (id: string) => del<{ message: string }>(`/api/progress-tasks/${id}`),
+
+    addAssignee: (taskId: string, data: { userId: string; role?: string; allocationPct?: number }) =>
+      post<ProgressTaskAssignee>(`/api/progress-tasks/${taskId}/assignees`, data),
+    updateAssignee: (taskId: string, userId: string, data: { role?: string; allocationPct?: number }) =>
+      patch<ProgressTaskAssignee>(`/api/progress-tasks/${taskId}/assignees/${userId}`, data),
+    removeAssignee: (taskId: string, userId: string) =>
+      del<{ message: string }>(`/api/progress-tasks/${taskId}/assignees/${userId}`),
   },
 };
