@@ -1,12 +1,13 @@
 /**
  * @file src/app/dashboard/progress-risk/page.tsx
  * @description
- * 진도 및 리스크 보고서 메인 페이지 (Phase 2: 알고리즘 통합)
+ * 진도 및 리스크 보고서 메인 페이지 (Phase 3: 탭 전환)
  *
  * 초보자 가이드:
  * 1. **헤더**: 페이지 타이틀 + 액션 버튼
- * 2. **본문**: KpiRow + FilterBar + TaskGrid
- * 3. **useComputeForecast**: tasks/conflicts/diagnosis를 한 훅에서 derive
+ * 2. **TabSwitcher**: 4개 탭 (리스트 / Gantt / 인력부하 / 진단)
+ * 3. **각 탭**: 독립적인 컴포넌트로 구성
+ * 4. **Placeholder**: Gantt/인력부하/진단은 후속 task에서 구현
  */
 "use client";
 
@@ -16,14 +17,14 @@ import { useComputeForecast } from "@/hooks";
 import {
   PageHeader,
   AddTaskModal,
-  TaskGrid,
-  FilterBar,
-  applyFilters,
   type Filters,
   KpiRow,
   VerdictBanner,
+  TabSwitcher,
+  ListTab,
 } from "./components";
 import { Icon } from "@/components/ui";
+import type { TabKey } from "./types";
 
 export default function ProgressRiskPage() {
   const { selectedProject } = useProject();
@@ -35,11 +36,13 @@ export default function ProgressRiskPage() {
   const diagnosis = data?.diagnosis;
 
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("list");
   const [filters, setFilters] = useState<Filters>({
     search: "", status: "all", category: "", userId: "",
   });
 
-  const filteredTasks = applyFilters(tasks, filters);
+  const conflictUserCount = new Set(conflicts.map((c) => c.userId)).size;
+  const recCount = diagnosis?.recommendations.length ?? 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -74,8 +77,39 @@ export default function ProgressRiskPage() {
         <>
           <VerdictBanner diagnosis={diagnosis} tasks={tasks} projectEndDate={projectEnd} />
           <KpiRow tasks={tasks} conflicts={conflicts} diagnosis={diagnosis} />
-          <FilterBar tasks={tasks} filters={filters} onChange={setFilters} />
-          <TaskGrid tasks={filteredTasks} projectId={selectedProject.id} />
+          <TabSwitcher
+            activeTab={activeTab}
+            onChange={setActiveTab}
+            conflictCount={conflictUserCount}
+            recommendationCount={recCount}
+          />
+
+          {activeTab === "list" && (
+            <ListTab
+              tasks={tasks}
+              projectId={selectedProject.id}
+              filters={filters}
+              onFiltersChange={setFilters}
+            />
+          )}
+
+          {activeTab === "gantt" && (
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
+              <p className="text-text-secondary">Gantt 탭 — Task 2에서 구현</p>
+            </div>
+          )}
+
+          {activeTab === "load" && (
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
+              <p className="text-text-secondary">인력부하 탭 — Task 6에서 구현</p>
+            </div>
+          )}
+
+          {activeTab === "diagnosis" && (
+            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
+              <p className="text-text-secondary">진단 탭 — Task 7에서 구현</p>
+            </div>
+          )}
         </>
       )}
 

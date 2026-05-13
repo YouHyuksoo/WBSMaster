@@ -13,3 +13,5 @@ export { AssigneeModal } from "./AssigneeModal";
 export { FilterBar, applyFilters, type Filters } from "./FilterBar";
 export { KpiRow } from "./KpiRow";
 export { VerdictBanner } from "./VerdictBanner";
+export { TabSwitcher } from "./TabSwitcher";
+export { ListTab } from "./ListTab";
