@@ -4,3 +4,5 @@
  */
 export { PageHeader } from "./PageHeader";
 export { AddTaskModal } from "./AddTaskModal";
+export { TaskGrid } from "./TaskGrid";
+export { TaskRow } from "./TaskRow";

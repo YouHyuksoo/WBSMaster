@@ -12,7 +12,7 @@
 import { useState } from "react";
 import { useProject } from "@/contexts";
 import { useProgressTasks } from "@/hooks";
-import { PageHeader, AddTaskModal } from "./components";
+import { PageHeader, AddTaskModal, TaskGrid } from "./components";
 import { Icon } from "@/components/ui";
 
 export default function ProgressRiskPage() {
@@ -58,7 +58,9 @@ export default function ProgressRiskPage() {
         />
       )}
 
-      {/* TaskGrid는 Task 10~16에서 추가 */}
+      {selectedProject && !isLoading && tasks.length > 0 && (
+        <TaskGrid tasks={tasks} projectId={selectedProject.id} />
+      )}
     </div>
   );
 }
