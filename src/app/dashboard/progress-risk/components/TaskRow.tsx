@@ -16,6 +16,7 @@ import type { ProgressTask } from "@/lib/api";
 import { useUpdateProgressTask, useDeleteProgressTask } from "@/hooks";
 import { StageStepper } from "./StageStepper";
 import { PredecessorSelect } from "./PredecessorSelect";
+import { AssigneeChips } from "./AssigneeChips";
 
 interface Props {
   index: number;
@@ -97,9 +98,7 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols }: Props) {
         allTasks={allTasks}
         onChange={(pid) => update.mutate({ id: task.id, data: { predecessorId: pid } })}
       />
-      <div className="text-xs text-text dark:text-white">
-        {task.assignees.map(a => a.user.name).join(", ") || "-"}
-      </div>
+      <AssigneeChips task={task} projectId={projectId} />
       <div className="text-xs text-text-secondary">{task.status}</div>
       <button
         onClick={handleDelete}

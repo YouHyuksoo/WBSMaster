@@ -8,3 +8,5 @@ export { TaskGrid } from "./TaskGrid";
 export { TaskRow } from "./TaskRow";
 export { StageStepper } from "./StageStepper";
 export { PredecessorSelect } from "./PredecessorSelect";
+export { AssigneeChips } from "./AssigneeChips";
+export { AssigneeModal } from "./AssigneeModal";
