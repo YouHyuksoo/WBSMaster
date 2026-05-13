@@ -12,3 +12,4 @@ export { AssigneeChips } from "./AssigneeChips";
 export { AssigneeModal } from "./AssigneeModal";
 export { FilterBar, applyFilters, type Filters } from "./FilterBar";
 export { KpiRow } from "./KpiRow";
+export { VerdictBanner } from "./VerdictBanner";

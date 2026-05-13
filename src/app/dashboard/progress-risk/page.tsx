@@ -21,6 +21,7 @@ import {
   applyFilters,
   type Filters,
   KpiRow,
+  VerdictBanner,
 } from "./components";
 import { Icon } from "@/components/ui";
 
@@ -71,6 +72,7 @@ export default function ProgressRiskPage() {
 
       {selectedProject && tasks.length > 0 && (
         <>
+          <VerdictBanner diagnosis={diagnosis} tasks={tasks} projectEndDate={projectEnd} />
           <KpiRow tasks={tasks} conflicts={conflicts} diagnosis={diagnosis} />
           <FilterBar tasks={tasks} filters={filters} onChange={setFilters} />
           <TaskGrid tasks={filteredTasks} projectId={selectedProject.id} />
