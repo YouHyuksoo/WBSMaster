@@ -15,3 +15,4 @@ export { KpiRow } from "./KpiRow";
 export { VerdictBanner } from "./VerdictBanner";
 export { TabSwitcher } from "./TabSwitcher";
 export { ListTab } from "./ListTab";
+export { GanttTab } from "./GanttTab";
