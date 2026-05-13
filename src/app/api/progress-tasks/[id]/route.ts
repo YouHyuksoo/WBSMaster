@@ -122,6 +122,26 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
     }
   }
 
+  // 날짜 변경 시 startDate ≤ endDate 검증
+  const willUpdateStart = body.startDate !== undefined;
+  const willUpdateEnd = body.endDate !== undefined;
+  if (willUpdateStart || willUpdateEnd) {
+    const existing = await prisma.progressTask.findUnique({
+      where: { id },
+      select: { startDate: true, endDate: true },
+    });
+    if (existing) {
+      const newStart = willUpdateStart ? new Date(body.startDate) : existing.startDate;
+      const newEnd = willUpdateEnd ? new Date(body.endDate) : existing.endDate;
+      if (newEnd < newStart) {
+        return NextResponse.json(
+          { error: "종료일이 시작일보다 빠를 수 없습니다." },
+          { status: 400 }
+        );
+      }
+    }
+  }
+
   const task = await prisma.progressTask.update({
     where: { id },
     data,

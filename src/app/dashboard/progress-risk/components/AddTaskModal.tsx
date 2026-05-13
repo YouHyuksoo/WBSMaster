@@ -35,6 +35,11 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
   const handleSubmit = async () => {
     if (!isFormValid) return;
 
+    if (new Date(endDate) < new Date(startDate)) {
+      alert("종료일이 시작일보다 빠를 수 없습니다.");
+      return;
+    }
+
     await create.mutateAsync({
       projectId,
       name,

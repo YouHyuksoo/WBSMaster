@@ -46,11 +46,27 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols }: Props) {
   const [name, setName] = useDebouncedUpdate(task.name, v => update.mutate({ id: task.id, data: { name: v } }));
   const [startDate, setStartDate] = useDebouncedUpdate(
     task.startDate.slice(0, 10),
-    v => update.mutate({ id: task.id, data: { startDate: v } })
+    v => {
+      const end = task.endDate.slice(0, 10);
+      if (new Date(end) < new Date(v)) {
+        alert("종료일보다 늦은 시작일은 지정할 수 없습니다.");
+        setStartDate(task.startDate.slice(0, 10));  // 롤백
+        return;
+      }
+      update.mutate({ id: task.id, data: { startDate: v } });
+    }
   );
   const [endDate, setEndDate] = useDebouncedUpdate(
     task.endDate.slice(0, 10),
-    v => update.mutate({ id: task.id, data: { endDate: v } })
+    v => {
+      const start = task.startDate.slice(0, 10);
+      if (new Date(v) < new Date(start)) {
+        alert("시작일보다 빠른 종료일은 지정할 수 없습니다.");
+        setEndDate(task.endDate.slice(0, 10));  // 롤백
+        return;
+      }
+      update.mutate({ id: task.id, data: { endDate: v } });
+    }
   );
 
   const handleDelete = () => {

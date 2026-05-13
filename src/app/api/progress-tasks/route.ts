@@ -88,6 +88,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 날짜 범위 검증
+    const startDt = new Date(startDate);
+    const endDt = new Date(endDate);
+    if (endDt < startDt) {
+      return NextResponse.json(
+        { error: "종료일이 시작일보다 빠를 수 없습니다." },
+        { status: 400 }
+      );
+    }
+
     // 프로젝트 존재 확인
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project) {
@@ -118,8 +128,8 @@ export async function POST(request: NextRequest) {
         name,
         category: category ?? null,
         description: description ?? null,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: startDt,
+        endDate: endDt,
         predecessorId: predecessorId ?? null,
         order: existingCount,
       },
