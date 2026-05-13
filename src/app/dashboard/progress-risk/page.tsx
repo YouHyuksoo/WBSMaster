@@ -18,6 +18,7 @@ import { api } from "@/lib/api";
 import {
   PageHeader,
   AddTaskModal,
+  ImportTaskModal,
   type Filters,
   KpiRow,
   VerdictBanner,
@@ -40,6 +41,7 @@ export default function ProgressRiskPage() {
   const diagnosis = data?.diagnosis;
 
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("list");
   const [filters, setFilters] = useState<Filters>({
     search: "", status: "all", category: "", userId: "",
@@ -59,6 +61,7 @@ export default function ProgressRiskPage() {
             window.location.href = api.progressTasks.exportUrl(selectedProject.id);
           }
         }}
+        onImportExcel={() => setImportModalOpen(true)}
       />
 
       {!selectedProject && (
@@ -122,12 +125,20 @@ export default function ProgressRiskPage() {
       )}
 
       {selectedProject && (
-        <AddTaskModal
-          isOpen={addModalOpen}
-          onClose={() => setAddModalOpen(false)}
-          projectId={selectedProject.id}
-          existingTasks={tasks}
-        />
+        <>
+          <AddTaskModal
+            isOpen={addModalOpen}
+            onClose={() => setAddModalOpen(false)}
+            projectId={selectedProject.id}
+            existingTasks={tasks}
+          />
+          <ImportTaskModal
+            isOpen={importModalOpen}
+            onClose={() => setImportModalOpen(false)}
+            onSuccess={() => setImportModalOpen(false)}
+            projectId={selectedProject.id}
+          />
+        </>
       )}
     </div>
   );
