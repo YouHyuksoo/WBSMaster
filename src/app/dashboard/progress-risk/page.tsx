@@ -99,6 +99,7 @@ export default function ProgressRiskPage() {
               tasks={tasks}
               forecast={data?.forecast ?? new Map()}
               projectEndDate={projectEnd}
+              criticalPath={diagnosis?.criticalPath}
             />
           )}
 
