@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { useProject } from "@/contexts";
 import { useComputeForecast } from "@/hooks";
+import { api } from "@/lib/api";
 import {
   PageHeader,
   AddTaskModal,
@@ -53,6 +54,11 @@ export default function ProgressRiskPage() {
         project={selectedProject}
         taskCount={tasks.length}
         onAddTask={() => setAddModalOpen(true)}
+        onExportExcel={() => {
+          if (selectedProject) {
+            window.location.href = api.progressTasks.exportUrl(selectedProject.id);
+          }
+        }}
       />
 
       {!selectedProject && (

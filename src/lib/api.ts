@@ -1701,5 +1701,8 @@ export const api = {
       patch<ProgressTaskAssignee>(`/api/progress-tasks/${taskId}/assignees/${userId}`, data),
     removeAssignee: (taskId: string, userId: string) =>
       del<{ message: string }>(`/api/progress-tasks/${taskId}/assignees/${userId}`),
+    /** 엑셀 다운로드 URL 생성 (window.location.href에 할당) */
+    exportUrl: (projectId: string) =>
+      `/api/progress-tasks/export?projectId=${encodeURIComponent(projectId)}`,
   },
 };
