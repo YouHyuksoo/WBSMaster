@@ -1,12 +1,13 @@
 /**
  * @file src/app/dashboard/progress-risk/components/GanttTab/GanttChart.tsx
- * @description Gantt 차트 컨테이너 — 시간축 + 행 목록 (GanttRow 컴포넌트)
+ * @description Gantt 차트 컨테이너 — 시간축 + 목표/예측 종료일 마커 + 행 목록 (GanttRow 컴포넌트)
  *
  * 초보자 가이드:
  * 1. **헤더**: 시간축 눈금 표시
- * 2. **행**: GanttRow 컴포넌트 — 각 task별 index + name + mini-stepper + 막대
- * 3. **그리드 레이아웃**: 고정 너비(36px, 1fr, 130px) + 스크롤 가능한 타임라인
- * 4. **Critical Path**: 옵션 Set으로 받아서 GanttRow에 전달
+ * 2. **마커**: 목표/예측 종료일 라벨 (시간축 컬럼 영역에 정렬)
+ * 3. **행**: GanttRow 컴포넌트 — 각 task별 index + name + mini-stepper + 막대
+ * 4. **그리드 레이아웃**: 고정 너비(36px, 1fr, 130px) + 스크롤 가능한 타임라인
+ * 5. **Critical Path**: 옵션 Set으로 받아서 GanttRow에 전달
  */
 "use client";
 
@@ -14,17 +15,19 @@ import type { Forecast } from "@/lib/progress-calc/types";
 import type { TimeScale } from "./timeScale";
 import type { ProgressTask } from "@/app/dashboard/progress-risk/types";
 import { GanttRow } from "./GanttRow";
+import { DeadlineMarkers } from "./DeadlineMarkers";
 
 interface Props {
   tasks: ProgressTask[];
   forecast: Map<string, Forecast>;
   timeScale: TimeScale;
   criticalPathIds?: Set<string>;
+  projectEndDate?: Date | null;
 }
 
 const GRID_COLS = "36px 1fr 130px 1fr";
 
-export function GanttChart({ tasks, forecast, timeScale, criticalPathIds }: Props) {
+export function GanttChart({ tasks, forecast, timeScale, criticalPathIds, projectEndDate }: Props) {
   return (
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 overflow-x-auto">
       {/* 헤더: 시간축 눈금 */}
@@ -43,6 +46,18 @@ export function GanttChart({ tasks, forecast, timeScale, criticalPathIds }: Prop
             </span>
           ))}
         </div>
+      </div>
+
+      {/* 목표/예측 종료일 마커 — 시간축 컬럼 영역에 정렬 */}
+      <div className="grid gap-2" style={{ gridTemplateColumns: GRID_COLS }}>
+        <div></div>
+        <div></div>
+        <div></div>
+        <DeadlineMarkers
+          projectEndDate={projectEndDate ?? null}
+          forecast={forecast}
+          timeScale={timeScale}
+        />
       </div>
 
       {/* 행 목록 */}

@@ -49,7 +49,7 @@ export function GanttTab({ tasks, forecast, projectEndDate, criticalPath }: Prop
         ))}
       </div>
 
-      <GanttChart tasks={tasks} forecast={forecast} timeScale={timeScale} criticalPathIds={cpSet} />
+      <GanttChart tasks={tasks} forecast={forecast} timeScale={timeScale} criticalPathIds={cpSet} projectEndDate={projectEndDate} />
     </div>
   );
 }
