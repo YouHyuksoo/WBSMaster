@@ -4,22 +4,13 @@
  * 진도 및 리스크 보고서 페이지의 로컬 타입 정의
  *
  * 초보자 가이드:
- * 1. **ProgressStage**: 10단계 enum (분석 ~ 안정화)
- * 2. **ProgressTask**: 페이지에서 사용하는 task 형태 (담당자 포함)
- * 3. **Verdict**: 진단 결과 (Phase 2에서 본격 활용)
+ * 1. **ProgressTask**: 페이지에서 사용하는 task 형태 (담당자 포함)
+ * 2. **Verdict**: 진단 결과 (Phase 2에서 본격 활용)
+ * 3. **stageCategory**: 카테고리별 단계 관리 (StageDef 모델 연동)
  */
 
-export type ProgressStage =
-  | "ANALYSIS"
-  | "DESIGN"
-  | "IMPLEMENTATION"
-  | "UNIT_TEST"
-  | "IT_TEST"
-  | "TRAINING"
-  | "INTEGRATION_TEST"
-  | "OPEN"
-  | "MIGRATION"
-  | "STABILIZATION";
+import type { StageCategory } from "@/lib/stage-categories";
+import type { ProgressStageDef } from "@/lib/api";
 
 export type TaskStatus = "PENDING" | "IN_PROGRESS" | "HOLDING" | "DELAYED" | "COMPLETED" | "CANCELLED";
 
@@ -46,7 +37,9 @@ export interface ProgressTask {
   endDate: string;
   actualStartDate: string | null;
   actualEndDate: string | null;
-  currentStage: ProgressStage;
+  stageCategory: StageCategory;
+  currentStageId: string | null;
+  currentStageDef?: ProgressStageDef | null;
   status: TaskStatus;
   progress: number;
   effortMd: number | null;

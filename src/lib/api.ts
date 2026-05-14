@@ -1058,14 +1058,26 @@ export interface TaskConnection {
 import type {
   ProgressTask,
   ProgressTaskAssignee,
-  ProgressStage,
 } from "@/app/dashboard/progress-risk/types";
 
 export type {
   ProgressTask,
   ProgressTaskAssignee,
-  ProgressStage,
 };
+
+import type { StageCategory } from "@/lib/stage-categories";
+export type { StageCategory };
+
+/** 프로젝트별 단계 정의 타입 (DB의 StageDef 모델) */
+export interface ProgressStageDef {
+  id: string;
+  projectId: string;
+  category: StageCategory;
+  name: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 // ============================================
 // API 클라이언트
@@ -1676,6 +1688,25 @@ export const api = {
       patch<Interview>(`/api/interviews/${id}`, data),
     /** 삭제 */
     delete: (id: string) => del<{ message: string }>(`/api/interviews/${id}`),
+  },
+
+  // ============================================
+  // 단계 정의(StageDef) API
+  // ============================================
+  /** 프로젝트별 카테고리 단계 정의 API */
+  stageDefs: {
+    list: (projectId: string, category?: StageCategory) =>
+      get<ProgressStageDef[]>(
+        `/api/projects/${projectId}/stage-defs`,
+        category ? { category } : undefined
+      ),
+    create: (projectId: string, data: { category: StageCategory; name: string; order?: number }) =>
+      post<ProgressStageDef>(`/api/projects/${projectId}/stage-defs`, data),
+    update: (id: string, data: { name?: string; order?: number }) =>
+      patch<ProgressStageDef>(`/api/stage-defs/${id}`, data),
+    delete: (id: string) => del<{ message: string }>(`/api/stage-defs/${id}`),
+    mergeInto: (sourceId: string, targetStageId: string) =>
+      post<{ movedTaskCount: number }>(`/api/stage-defs/${sourceId}/merge-into`, { targetStageId }),
   },
 
   // ============================================
