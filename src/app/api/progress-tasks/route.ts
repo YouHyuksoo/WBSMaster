@@ -16,6 +16,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { computeStageProgress } from "@/lib/stage-categories";
+import { StageCategory } from "@prisma/client";
 
 /**
  * 담당자 정보 포함 객체
@@ -81,7 +83,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { projectId, name, startDate, endDate, category, businessUnit, description, predecessorId, isParallel } = body;
+    const { projectId, name, startDate, endDate, category, businessUnit, description, predecessorId, isParallel, stageCategory, currentStageId } = body;
 
     // 필수 필드 검증
     if (!projectId || !name || !startDate || !endDate) {
@@ -127,6 +129,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // stageCategory / currentStageId 처리 및 초기 progress 계산
+    const resolvedStageCategory: StageCategory = (stageCategory as StageCategory) ?? StageCategory.ETC;
+    const resolvedStageId: string | null = currentStageId ?? null;
+
+    let progress = 0;
+    if (resolvedStageId) {
+      const stages = await prisma.progressStageDef.findMany({
+        where: { projectId, category: resolvedStageCategory },
+        select: { id: true, order: true },
+        orderBy: { order: "asc" },
+      });
+      progress = computeStageProgress(stages, resolvedStageId);
+    }
+
     const task = await prisma.progressTask.create({
       data: {
         projectId,
@@ -140,6 +156,9 @@ export async function POST(request: NextRequest) {
         predecessorId: predecessorId ?? null,
         isParallel: typeof isParallel === "boolean" ? isParallel : true,
         order: existingCount,
+        stageCategory: resolvedStageCategory as StageCategory,
+        currentStageId: resolvedStageId,
+        progress,
       },
       include: ASSIGNEE_INCLUDE,
     });
