@@ -195,3 +195,13 @@ export {
   useComputeForecast,
   type ProgressComputeResult,
 } from "./useComputeForecast";
+
+// 진도 단계 정의 hooks
+export {
+  useStageDefs,
+  useCreateStageDef,
+  useUpdateStageDef,
+  useDeleteStageDef,
+  useMergeStageDef,
+  stageDefKeys,
+} from "./useStageDefs";
