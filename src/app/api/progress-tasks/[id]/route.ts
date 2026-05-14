@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, { params }: Ctx) {
   });
 
   if (!task) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "task를 찾을 수 없습니다." }, { status: 404 });
   }
 
   const accessError = await assertProjectAccess(task.projectId, user!);
@@ -58,7 +58,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
     select: { projectId: true },
   });
   if (!existing) {
-    return NextResponse.json({ error: "task not found" }, { status: 404 });
+    return NextResponse.json({ error: "task를 찾을 수 없습니다." }, { status: 404 });
   }
   const patchAccessError = await assertProjectAccess(existing.projectId, user!);
   if (patchAccessError) return patchAccessError;
@@ -135,13 +135,13 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
   const willUpdateStart = body.startDate !== undefined;
   const willUpdateEnd = body.endDate !== undefined;
   if (willUpdateStart || willUpdateEnd) {
-    const existing = await prisma.progressTask.findUnique({
+    const dateCheck = await prisma.progressTask.findUnique({
       where: { id },
       select: { startDate: true, endDate: true },
     });
-    if (existing) {
-      const newStart = willUpdateStart ? new Date(body.startDate) : existing.startDate;
-      const newEnd = willUpdateEnd ? new Date(body.endDate) : existing.endDate;
+    if (dateCheck) {
+      const newStart = willUpdateStart ? new Date(body.startDate) : dateCheck.startDate;
+      const newEnd = willUpdateEnd ? new Date(body.endDate) : dateCheck.endDate;
       if (newEnd < newStart) {
         return NextResponse.json(
           { error: "종료일이 시작일보다 빠를 수 없습니다." },
@@ -173,7 +173,7 @@ export async function DELETE(request: NextRequest, { params }: Ctx) {
     select: { projectId: true },
   });
   if (!target) {
-    return NextResponse.json({ error: "task not found" }, { status: 404 });
+    return NextResponse.json({ error: "task를 찾을 수 없습니다." }, { status: 404 });
   }
 
   const accessError = await assertProjectAccess(target.projectId, user!);
