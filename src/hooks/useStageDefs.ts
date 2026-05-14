@@ -9,6 +9,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type ProgressStageDef, type StageCategory } from "@/lib/api";
+import { progressTaskKeys } from "./useProgressTasks";
 
 export const stageDefKeys = {
   all: ["stageDefs"] as const,
@@ -27,8 +28,9 @@ export function useStageDefs(projectId: string | undefined, category?: StageCate
 
 function invalidateStageAndTaskCaches(qc: ReturnType<typeof useQueryClient>, projectId: string) {
   qc.invalidateQueries({ queryKey: stageDefKeys.all });
-  qc.invalidateQueries({ queryKey: ["progressTasks", projectId] });
-  qc.invalidateQueries({ queryKey: ["progressTasks", "compute", projectId] });
+  // progressTaskKeys.list(projectId) = ["progress-tasks", "list", projectId]
+  // 같은 키를 useComputeForecast가 select로 공유하므로 한 번만 invalidate하면 됨
+  qc.invalidateQueries({ queryKey: progressTaskKeys.list(projectId) });
 }
 
 export function useCreateStageDef(projectId: string) {

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { computeStageProgress } from "@/lib/stage-categories";
 
 interface Ctx {
   params: Promise<{ id: string }>;
@@ -63,10 +64,21 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    // 1. source를 currentStageId로 가진 task들 target으로 이동
+    // 0. target 단계 위치 기준 progress 미리 계산
+    //    (source는 곧 삭제되지만 target은 그대로이므로 source 삭제 전 stages 목록 사용해도 target의 상대 위치 동일)
+    const stagesPreDelete = await tx.progressStageDef.findMany({
+      where: { projectId: source.projectId, category: source.category },
+      select: { id: true, order: true },
+      orderBy: { order: "asc" },
+    });
+    // source를 제외한 단계 목록으로 target의 새 진척률 계산
+    const stagesAfterMerge = stagesPreDelete.filter((s) => s.id !== sourceId);
+    const newProgress = computeStageProgress(stagesAfterMerge, targetStageId);
+
+    // 1. source를 currentStageId로 가진 task들 target으로 이동 + progress 재계산
     const updated = await tx.progressTask.updateMany({
       where: { currentStageId: sourceId },
-      data: { currentStageId: targetStageId },
+      data: { currentStageId: targetStageId, progress: newProgress },
     });
 
     // 2. source 삭제
@@ -83,6 +95,22 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     }
     for (const s of toShift) {
       await tx.progressStageDef.update({ where: { id: s.id }, data: { order: s.order - 1 } });
+    }
+
+    // 4. shift 후 남은 단계 목록으로 같은 카테고리의 모든 task progress 일괄 재계산
+    //    (target 이외 단계의 task들도 shift로 인해 단계 순서 변경 → 진척률 영향)
+    const finalStages = await tx.progressStageDef.findMany({
+      where: { projectId: source.projectId, category: source.category },
+      select: { id: true, order: true },
+      orderBy: { order: "asc" },
+    });
+    const tasksInCategory = await tx.progressTask.findMany({
+      where: { projectId: source.projectId, stageCategory: source.category, currentStageId: { not: null } },
+      select: { id: true, currentStageId: true },
+    });
+    for (const t of tasksInCategory) {
+      const p = computeStageProgress(finalStages, t.currentStageId);
+      await tx.progressTask.update({ where: { id: t.id }, data: { progress: p } });
     }
 
     return { movedTaskCount: updated.count };

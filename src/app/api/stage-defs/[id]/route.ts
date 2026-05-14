@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, type AuthUser } from "@/lib/auth";
+import { computeStageProgress } from "@/lib/stage-categories";
 
 interface Ctx {
   params: Promise<{ id: string }>;
@@ -85,6 +86,21 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
 
       // 2) 현재 단계를 새 order로 옮김
       await tx.progressStageDef.update({ where: { id }, data: { order } });
+
+      // 3) 순서 변경으로 같은 카테고리 task progress 재계산
+      const finalStages = await tx.progressStageDef.findMany({
+        where: { projectId: stage!.projectId, category: stage!.category },
+        select: { id: true, order: true },
+        orderBy: { order: "asc" },
+      });
+      const tasksInCategory = await tx.progressTask.findMany({
+        where: { projectId: stage!.projectId, stageCategory: stage!.category, currentStageId: { not: null } },
+        select: { id: true, currentStageId: true },
+      });
+      for (const t of tasksInCategory) {
+        const p = computeStageProgress(finalStages, t.currentStageId);
+        await tx.progressTask.update({ where: { id: t.id }, data: { progress: p } });
+      }
     });
   }
 
@@ -115,8 +131,9 @@ export async function DELETE(request: NextRequest, { params }: Ctx) {
   const { stage, error: accessError } = await requireStageManageAccess(id, user!);
   if (accessError) return accessError;
 
-  // 삭제 + 뒤 항목 order -1 (트랜잭션)
+  // 삭제 + 뒤 항목 order -1 (트랜잭션) + 같은 카테고리 task progress 재계산
   await prisma.$transaction(async (tx) => {
+    // 삭제 (onDelete: SetNull → 쓰던 task의 currentStageId는 자동 null)
     await tx.progressStageDef.delete({ where: { id } });
     // 뒤 항목들을 임시로 음수로 옮긴 뒤 -1 (unique 충돌 회피)
     const toShift = await tx.progressStageDef.findMany({
@@ -129,6 +146,23 @@ export async function DELETE(request: NextRequest, { params }: Ctx) {
     }
     for (const s of toShift) {
       await tx.progressStageDef.update({ where: { id: s.id }, data: { order: s.order - 1 } });
+    }
+
+    // 같은 카테고리의 모든 task progress 재계산
+    //  - currentStageId=null 된 task(삭제된 단계 사용자): progress=0
+    //  - 단계 순서 변경된 task: 새 진척률
+    const finalStages = await tx.progressStageDef.findMany({
+      where: { projectId: stage!.projectId, category: stage!.category },
+      select: { id: true, order: true },
+      orderBy: { order: "asc" },
+    });
+    const tasksInCategory = await tx.progressTask.findMany({
+      where: { projectId: stage!.projectId, stageCategory: stage!.category },
+      select: { id: true, currentStageId: true },
+    });
+    for (const t of tasksInCategory) {
+      const p = computeStageProgress(finalStages, t.currentStageId);
+      await tx.progressTask.update({ where: { id: t.id }, data: { progress: p } });
     }
   });
 
