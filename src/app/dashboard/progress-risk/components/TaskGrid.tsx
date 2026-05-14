@@ -16,18 +16,28 @@ interface Props {
   highlightTaskId?: string | null;
 }
 
-const COLS = "46px 70px 1fr 80px 80px 460px 90px 1fr 80px 30px";
+const COLS = "46px 70px 70px 110px 1fr 80px 80px 460px 90px 1fr 80px 30px";
+
+/** 대분류 자동완성 옵션 — TaskRow의 input list 속성과 매칭 */
+const CATEGORY_OPTIONS = ["자재관리", "생산관리", "품질관리", "공정관리", "설비관리", "기준관리", "출하관리", "재고관리"];
 
 export function TaskGrid({ tasks, projectId, highlightTaskId }: Props) {
   return (
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
+      <datalist id="progress-task-category-options">
+        {CATEGORY_OPTIONS.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
       {/* 헤더 행 */}
       <div
-        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1480px]"
+        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1700px]"
         style={{ gridTemplateColumns: COLS }}
       >
         <div>#</div>
         <div>코드</div>
+        <div>사업부</div>
+        <div>대분류</div>
         <div>기능명</div>
         <div>시작</div>
         <div>종료</div>

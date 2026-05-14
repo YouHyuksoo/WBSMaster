@@ -45,6 +45,7 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighte
   const remove = useDeleteProgressTask(projectId);
 
   const [name, setName] = useDebouncedUpdate(task.name, v => update.mutate({ id: task.id, data: { name: v } }));
+  const [category, setCategory] = useDebouncedUpdate(task.category ?? "", v => update.mutate({ id: task.id, data: { category: v || null } }));
   const [startDate, setStartDate] = useDebouncedUpdate(
     task.startDate.slice(0, 10),
     v => {
@@ -85,15 +86,18 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighte
     >
       <div className="text-text-secondary">{index}</div>
       <div className="text-text-secondary text-xs">{task.code}</div>
+      <div className="text-text-secondary text-xs truncate" title={task.businessUnit ?? ""}>
+        {task.businessUnit ?? "-"}
+      </div>
+      <input
+        list="progress-task-category-options"
+        value={category}
+        onChange={e => setCategory(e.target.value)}
+        placeholder="대분류"
+        className="min-w-0 bg-transparent border-0 focus:outline-none focus:bg-white/5 dark:focus:bg-white/5 px-1 py-0.5 rounded text-xs text-text-secondary"
+        aria-label="대분류"
+      />
       <div className="flex items-center gap-2 min-w-0">
-        {task.businessUnit && (
-          <span
-            className="shrink-0 text-[11px] text-text-secondary"
-            title={`사업부: ${task.businessUnit}`}
-          >
-            {task.businessUnit}
-          </span>
-        )}
         <input
           value={name}
           onChange={e => setName(e.target.value)}
