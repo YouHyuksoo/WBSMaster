@@ -109,3 +109,31 @@ export async function signOut() {
   const cookieStore = await cookies();
   cookieStore.delete("userId");
 }
+
+/**
+ * 프로젝트 접근 권한 검사
+ * ADMIN이거나 해당 프로젝트의 TeamMember이면 통과, 아니면 403 반환
+ *
+ * @example
+ * const guard = await assertProjectAccess(projectId, user);
+ * if (guard) return guard;
+ */
+export async function assertProjectAccess(
+  projectId: string,
+  user: AuthUser
+): Promise<NextResponse | null> {
+  if (user.role === "ADMIN") return null;
+
+  const membership = await prisma.teamMember.findUnique({
+    where: { projectId_userId: { projectId, userId: user.id } },
+    select: { id: true },
+  });
+
+  if (!membership) {
+    return NextResponse.json(
+      { error: "프로젝트에 접근할 권한이 없습니다." },
+      { status: 403 }
+    );
+  }
+  return null;
+}
