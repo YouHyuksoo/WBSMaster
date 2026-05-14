@@ -1,7 +1,7 @@
 /**
  * @file scripts/seed-progress-tasks.ts
  * @description
- * 진도 및 리스크 보고서 — 9단계 모두 커버하는 시드 task 9개 생성
+ * 진도 및 리스크 보고서 — 10단계 모두 커버하는 시드 task 9개 생성
  *
  * 시나리오:
  * - T-001~T-002: 완료 (안정화/이행)
@@ -25,10 +25,12 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-type Stage =
-  | "ANALYSIS" | "DESIGN" | "IMPLEMENTATION"
-  | "UNIT_TEST" | "IT_TEST" | "TRAINING"
-  | "INTEGRATION_TEST" | "OPEN" | "MIGRATION" | "STABILIZATION";
+/** 시드 데이터에서 사용할 단계명 (ETC 카테고리 기본 단계와 동일) */
+type StageName =
+  | "분석" | "설계" | "구현"
+  | "단위테스트" | "IT 테스트" | "교육"
+  | "통합테스트" | "오픈" | "이행" | "안정화";
+
 type Status = "PENDING" | "IN_PROGRESS" | "COMPLETED";
 
 interface Seed {
@@ -40,7 +42,8 @@ interface Seed {
   endOffset: number;
   actualStartOffset: number | null;
   actualEndOffset: number | null;
-  stage: Stage;
+  /** ETC 카테고리 기본 단계명 */
+  stageName: StageName;
   status: Status;
   isParallel: boolean;
   predecessor: string | null;
@@ -54,7 +57,7 @@ const SEEDS: Seed[] = [
     code: "T-001", name: "주문등록", category: "기준관리", businessUnit: "V_IVI",
     startOffset: -60, endOffset: -30,
     actualStartOffset: -60, actualEndOffset: -28,
-    stage: "STABILIZATION", status: "COMPLETED",
+    stageName: "안정화", status: "COMPLETED",
     isParallel: true, predecessor: null,
     assignees: [[0, "설계자", 50], [1, "개발자", 80]],
   },
@@ -63,7 +66,7 @@ const SEEDS: Seed[] = [
     code: "T-002", name: "고객관리", category: "기준관리", businessUnit: "V_IVI",
     startOffset: -50, endOffset: -20,
     actualStartOffset: -50, actualEndOffset: -18,
-    stage: "MIGRATION", status: "COMPLETED",
+    stageName: "이행", status: "COMPLETED",
     isParallel: true, predecessor: null,
     assignees: [[0, "분석자", 50]],
   },
@@ -72,7 +75,7 @@ const SEEDS: Seed[] = [
     code: "T-003", name: "재고관리", category: "생산관리", businessUnit: "V_PCBA",
     startOffset: -25, endOffset: -5,
     actualStartOffset: -25, actualEndOffset: null,
-    stage: "INTEGRATION_TEST", status: "IN_PROGRESS",
+    stageName: "통합테스트", status: "IN_PROGRESS",
     isParallel: true, predecessor: null,
     assignees: [[1, "개발자", 80], [2, "테스터", 60]],
   },
@@ -81,7 +84,7 @@ const SEEDS: Seed[] = [
     code: "T-004", name: "출하관리", category: "출하관리", businessUnit: "V_PCBA",
     startOffset: -15, endOffset: 10,
     actualStartOffset: -15, actualEndOffset: null,
-    stage: "TRAINING", status: "IN_PROGRESS",
+    stageName: "교육", status: "IN_PROGRESS",
     isParallel: false, predecessor: "T-002",
     assignees: [[3, "교육담당", 100]],
   },
@@ -90,7 +93,7 @@ const SEEDS: Seed[] = [
     code: "T-005", name: "품질검사", category: "품질관리", businessUnit: "V_DISP",
     startOffset: -10, endOffset: 15,
     actualStartOffset: -10, actualEndOffset: null,
-    stage: "IT_TEST", status: "IN_PROGRESS",
+    stageName: "IT 테스트", status: "IN_PROGRESS",
     isParallel: true, predecessor: null,
     assignees: [[2, "테스터", 70]],
   },
@@ -99,7 +102,7 @@ const SEEDS: Seed[] = [
     code: "T-006", name: "설비점검", category: "설비관리", businessUnit: "V_DISP",
     startOffset: -8, endOffset: 18,
     actualStartOffset: -8, actualEndOffset: null,
-    stage: "UNIT_TEST", status: "IN_PROGRESS",
+    stageName: "단위테스트", status: "IN_PROGRESS",
     isParallel: true, predecessor: null,
     assignees: [[1, "개발자", 80]],
   },
@@ -108,7 +111,7 @@ const SEEDS: Seed[] = [
     code: "T-007", name: "자재관리", category: "자재관리", businessUnit: "V_HNS",
     startOffset: 0, endOffset: 25,
     actualStartOffset: 0, actualEndOffset: null,
-    stage: "IMPLEMENTATION", status: "IN_PROGRESS",
+    stageName: "구현", status: "IN_PROGRESS",
     isParallel: false, predecessor: "T-005",
     assignees: [[4 % 5, "개발자", 100]],  // 5번째 user (없으면 1번째로 fallback)
   },
@@ -117,7 +120,7 @@ const SEEDS: Seed[] = [
     code: "T-008", name: "공정관리", category: "생산관리", businessUnit: "V_HNS",
     startOffset: 5, endOffset: 30,
     actualStartOffset: null, actualEndOffset: null,
-    stage: "DESIGN", status: "PENDING",
+    stageName: "설계", status: "PENDING",
     isParallel: false, predecessor: "T-007",
     assignees: [[0, "설계자", 80]],
   },
@@ -126,7 +129,7 @@ const SEEDS: Seed[] = [
     code: "T-009", name: "보고서/분석", category: "분석", businessUnit: "V_IVI",
     startOffset: 10, endOffset: 45,
     actualStartOffset: null, actualEndOffset: null,
-    stage: "ANALYSIS", status: "PENDING",
+    stageName: "분석", status: "PENDING",
     isParallel: true, predecessor: null,
     assignees: [[0, "분석자", 30]],
   },
@@ -145,6 +148,30 @@ async function main() {
     return;
   }
   console.log(`📂 프로젝트: ${project.name} (${project.id})`);
+
+  // ETC 카테고리 단계 목록 조회 (단계명 → ID 매핑용)
+  const etcStageDefs = await prisma.progressStageDef.findMany({
+    where: { projectId: project.id, category: "ETC" },
+    orderBy: { order: "asc" },
+    select: { id: true, name: true, order: true },
+  });
+  console.log(`📋 ETC 카테고리 단계 ${etcStageDefs.length}개 로드: ${etcStageDefs.map(s => s.name).join(", ")}\n`);
+
+  if (etcStageDefs.length === 0) {
+    console.error("❌ ETC 카테고리 단계가 없습니다. 프로젝트 생성 시 자동 시드가 실행되지 않았거나 해당 프로젝트에 단계가 없습니다.");
+    console.error("   → /api/projects POST 로 새 프로젝트를 생성하거나, npx prisma studio 에서 ProgressStageDef 확인");
+    return;
+  }
+
+  const stageNameToId = new Map<string, string>(etcStageDefs.map(s => [s.name, s.id]));
+  const stageNameToOrder = new Map<string, number>(etcStageDefs.map(s => [s.name, s.order]));
+
+  /** 단계명 → progress % 계산 */
+  function stageToPct(name: StageName): number {
+    const order = stageNameToOrder.get(name);
+    if (order === undefined) return 0;
+    return Math.round(((order + 1) / etcStageDefs.length) * 100);
+  }
 
   // 기존 진도 task 삭제
   const deleted = await prisma.progressTask.deleteMany({ where: { projectId: project.id } });
@@ -173,6 +200,11 @@ async function main() {
   const codeToId = new Map<string, string>();
 
   for (const [idx, s] of SEEDS.entries()) {
+    const stageId = stageNameToId.get(s.stageName) ?? null;
+    if (!stageId) {
+      console.warn(`⚠ ${s.code}: 단계명 "${s.stageName}"을 찾지 못했습니다 — currentStageId=null 로 생성`);
+    }
+
     const created = await prisma.progressTask.create({
       data: {
         projectId: project.id,
@@ -184,11 +216,12 @@ async function main() {
         endDate: dayOffset(s.endOffset),
         actualStartDate: s.actualStartOffset !== null ? dayOffset(s.actualStartOffset) : null,
         actualEndDate: s.actualEndOffset !== null ? dayOffset(s.actualEndOffset) : null,
-        currentStage: s.stage,
+        stageCategory: "ETC",
+        currentStageId: stageId,
         status: s.status,
         isParallel: s.isParallel,
         predecessorId: s.predecessor ? codeToId.get(s.predecessor) ?? null : null,
-        progress: stageToPct(s.stage),
+        progress: stageToPct(s.stageName),
         order: idx,
       },
     });
@@ -210,36 +243,12 @@ async function main() {
       }
     }
 
-    const stageLabel = STAGE_LABEL[s.stage];
     const flowMark = s.isParallel ? "🟢병렬" : "🟠순차";
     const predMark = s.predecessor ? ` (선행: ${s.predecessor})` : "";
-    console.log(`✅ ${s.code} ${s.name.padEnd(12)} ${stageLabel.padEnd(8)} ${flowMark}${predMark} 담당자 ${assigneeAdded}명`);
+    console.log(`✅ ${s.code} ${s.name.padEnd(12)} ${s.stageName.padEnd(8)} ${flowMark}${predMark} 담당자 ${assigneeAdded}명`);
   }
 
   console.log(`\n🎉 총 ${SEEDS.length}개 task 생성 완료 — 10단계 모두 커버, 박개발 충돌 시나리오 포함`);
-}
-
-const STAGE_LABEL: Record<Stage, string> = {
-  ANALYSIS: "분석",
-  DESIGN: "설계",
-  IMPLEMENTATION: "구현",
-  UNIT_TEST: "단위테스트",
-  IT_TEST: "IT 테스트",
-  TRAINING: "교육",
-  INTEGRATION_TEST: "통합테스트",
-  OPEN: "오픈",
-  MIGRATION: "이행",
-  STABILIZATION: "안정화",
-};
-
-const STAGE_ORDER: Stage[] = [
-  "ANALYSIS", "DESIGN", "IMPLEMENTATION",
-  "UNIT_TEST", "IT_TEST", "TRAINING",
-  "INTEGRATION_TEST", "OPEN", "MIGRATION", "STABILIZATION",
-];
-
-function stageToPct(stage: Stage): number {
-  return Math.round(((STAGE_ORDER.indexOf(stage) + 1) / STAGE_ORDER.length) * 100);
 }
 
 main()
