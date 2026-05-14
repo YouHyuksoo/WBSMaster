@@ -55,10 +55,15 @@ export function StageListRow({ projectId, stage, onRequestMerge }: Props) {
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               (e.target as HTMLInputElement).blur();
+            } else if (e.key === "Escape") {
+              setName(stage.name);
+              (e.target as HTMLInputElement).blur();
             }
           }}
-          className="flex-1 min-w-0 bg-transparent border-0 focus:outline-none focus:bg-white/5 px-2 py-1 rounded text-sm text-text dark:text-white"
+          disabled={update.isPending}
+          className="flex-1 min-w-0 bg-surface/50 dark:bg-background-dark/50 border border-border dark:border-border-dark focus:border-primary focus:bg-white dark:focus:bg-surface-dark hover:border-primary/50 px-2 py-1 rounded text-sm text-text dark:text-white transition-colors disabled:opacity-50"
           aria-label={`${stage.name} 이름 편집`}
+          placeholder="단계명"
         />
         <button
           type="button"
