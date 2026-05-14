@@ -15,6 +15,7 @@ import { useStageDefs } from "@/hooks";
 import { type StageCategory } from "@/lib/stage-categories";
 import { CategoryTabs } from "./CategoryTabs";
 import { StageList } from "./StageList";
+import { MergePanel } from "./MergePanel";
 
 interface Props {
   isOpen: boolean;
@@ -48,7 +49,22 @@ export function StageManagerModal({ isOpen, onClose, projectId }: Props) {
           )}
         </div>
       </div>
-      {/* MergePanel은 Task 23에서 추가 */}
+      {(() => {
+        const sourceStage = mergeSourceId
+          ? allStages.find((s) => s.id === mergeSourceId) ?? null
+          : null;
+        const mergeCandidates = sourceStage
+          ? allStages.filter((s) => s.category === sourceStage.category && s.id !== sourceStage.id)
+          : [];
+        return sourceStage ? (
+          <MergePanel
+            projectId={projectId}
+            sourceStage={sourceStage}
+            candidates={mergeCandidates}
+            onClose={() => setMergeSourceId(null)}
+          />
+        ) : null;
+      })()}
     </Modal>
   );
 }
