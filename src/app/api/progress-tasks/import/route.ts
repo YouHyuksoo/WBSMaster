@@ -238,6 +238,9 @@ export async function POST(request: NextRequest) {
             name,
             stageCategory,
             currentStageId,
+            category: row["대분류"]
+              ? String(row["대분류"]).trim()
+              : null,
             businessUnit: row["사업부"]
               ? String(row["사업부"]).trim()
               : null,

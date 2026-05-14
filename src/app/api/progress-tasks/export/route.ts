@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     기능명: t.name,
     사업부: t.businessUnit ?? "",
     카테고리: t.stageCategory ? (STAGE_CATEGORY_LABEL[t.stageCategory as keyof typeof STAGE_CATEGORY_LABEL] ?? t.stageCategory) : "",
+    대분류: t.category ?? "",
     설명: t.description ?? "",
     시작일: t.startDate.toISOString().slice(0, 10),
     종료일: t.endDate.toISOString().slice(0, 10),
