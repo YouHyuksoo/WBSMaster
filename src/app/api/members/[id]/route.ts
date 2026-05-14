@@ -6,8 +6,11 @@
  *
  * 초보자 가이드:
  * 1. **GET /api/members/:id**: 팀 멤버 상세 정보 조회
+ *    - 해당 멤버의 프로젝트에 접근 권한이 있어야 조회 가능
  * 2. **PATCH /api/members/:id**: 팀 멤버 역할 수정
+ *    - 해당 멤버의 프로젝트에 접근 권한이 있어야 수정 가능
  * 3. **DELETE /api/members/:id**: 프로젝트에서 멤버 제거
+ *    - 해당 멤버의 프로젝트에 접근 권한이 있어야 제거 가능
  *
  * 수정 방법:
  * - 반환 필드 추가: include에 관계 추가
@@ -16,6 +19,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -27,7 +31,25 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
+
     const { id } = await params;
+
+    // 멤버 레코드의 projectId를 먼저 조회해 접근 권한 검사
+    const existing = await prisma.teamMember.findUnique({
+      where: { id },
+      select: { projectId: true },
+    });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "팀 멤버를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     const member = await prisma.teamMember.findUnique({
       where: { id },
@@ -49,13 +71,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
 
-    if (!member) {
-      return NextResponse.json(
-        { error: "팀 멤버를 찾을 수 없습니다." },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json(member);
   } catch (error) {
     console.error("팀 멤버 조회 실패:", error);
@@ -76,18 +91,27 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
+
     const { id } = await params;
     const body = await request.json();
     const { role, customRole, department, position } = body;
 
-    // 멤버 존재 확인
-    const existing = await prisma.teamMember.findUnique({ where: { id } });
+    // 멤버 존재 확인 + projectId 조회
+    const existing = await prisma.teamMember.findUnique({
+      where: { id },
+      select: { projectId: true },
+    });
     if (!existing) {
       return NextResponse.json(
         { error: "팀 멤버를 찾을 수 없습니다." },
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     const member = await prisma.teamMember.update({
       where: { id },
@@ -131,16 +155,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
+
     const { id } = await params;
 
-    // 멤버 존재 확인
-    const existing = await prisma.teamMember.findUnique({ where: { id } });
+    // 멤버 존재 확인 + projectId 조회
+    const existing = await prisma.teamMember.findUnique({
+      where: { id },
+      select: { projectId: true },
+    });
     if (!existing) {
       return NextResponse.json(
         { error: "팀 멤버를 찾을 수 없습니다." },
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     await prisma.teamMember.delete({ where: { id } });
 

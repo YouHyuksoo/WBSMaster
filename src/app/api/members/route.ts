@@ -7,7 +7,9 @@
  * 초보자 가이드:
  * 1. **GET /api/members**: 프로젝트별 팀 멤버 목록 조회
  *    - ?projectId=xxx: 특정 프로젝트의 멤버만 조회
+ *    - projectId 없이 전체 조회는 ADMIN만 가능
  * 2. **POST /api/members**: 프로젝트에 멤버 추가
+ *    - ADMIN 또는 해당 프로젝트의 OWNER/MANAGER만 가능
  *
  * 수정 방법:
  * - 필터링 추가: where 조건 추가
@@ -16,6 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 팀 멤버 목록 조회
@@ -23,8 +26,20 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
+
+    // projectId가 지정된 경우 그 프로젝트 접근 권한 검사
+    if (projectId) {
+      const accessError = await assertProjectAccess(projectId, user!);
+      if (accessError) return accessError;
+    } else if (user!.role !== "ADMIN") {
+      // projectId 없이 전체 멤버 조회는 ADMIN만 가능
+      return NextResponse.json({ error: "프로젝트 ID가 필요합니다." }, { status: 400 });
+    }
 
     // 필터 조건 구성
     const where: {
@@ -79,6 +94,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
+
     const body = await request.json();
     const { projectId, userId, role, customRole, department, position } = body;
 
@@ -88,6 +106,17 @@ export async function POST(request: NextRequest) {
         { error: "프로젝트 ID와 사용자 ID는 필수입니다." },
         { status: 400 }
       );
+    }
+
+    // 멤버 추가는 ADMIN 또는 해당 프로젝트의 OWNER/MANAGER만 가능
+    if (user!.role !== "ADMIN") {
+      const myMembership = await prisma.teamMember.findUnique({
+        where: { projectId_userId: { projectId, userId: user!.id } },
+        select: { role: true },
+      });
+      if (!myMembership || (myMembership.role !== "OWNER" && myMembership.role !== "MANAGER")) {
+        return NextResponse.json({ error: "멤버를 추가할 권한이 없습니다." }, { status: 403 });
+      }
     }
 
     // 프로젝트 존재 확인
@@ -100,8 +129,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 사용자 존재 확인
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
+    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!targetUser) {
       return NextResponse.json(
         { error: "사용자를 찾을 수 없습니다." },
         { status: 404 }
