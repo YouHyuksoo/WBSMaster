@@ -6,19 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
-
-const STAGE_LABEL: Record<string, string> = {
-  ANALYSIS: "분석",
-  DESIGN: "설계",
-  IMPLEMENTATION: "구현",
-  UNIT_TEST: "단위테스트",
-  IT_TEST: "IT 테스트",
-  TRAINING: "교육",
-  INTEGRATION_TEST: "통합테스트",
-  OPEN: "오픈",
-  MIGRATION: "이행",
-  STABILIZATION: "안정화",
-};
+import { STAGE_CATEGORY_LABEL } from "@/lib/stage-categories";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "대기",
@@ -48,6 +36,7 @@ export async function GET(request: NextRequest) {
       assignees: {
         include: { user: { select: { name: true } } },
       },
+      currentStageDef: { select: { name: true } },
     },
   });
 
@@ -55,13 +44,13 @@ export async function GET(request: NextRequest) {
     코드: t.code ?? "",
     기능명: t.name,
     사업부: t.businessUnit ?? "",
-    카테고리: t.category ?? "",
+    카테고리: t.stageCategory ? (STAGE_CATEGORY_LABEL[t.stageCategory as keyof typeof STAGE_CATEGORY_LABEL] ?? t.stageCategory) : "",
     설명: t.description ?? "",
     시작일: t.startDate.toISOString().slice(0, 10),
     종료일: t.endDate.toISOString().slice(0, 10),
     "실제 시작일": t.actualStartDate?.toISOString().slice(0, 10) ?? "",
     "실제 종료일": t.actualEndDate?.toISOString().slice(0, 10) ?? "",
-    "현재 단계": STAGE_LABEL[t.currentStage] ?? t.currentStage,
+    "현재 단계": t.currentStageDef?.name ?? "",
     상태: STATUS_LABEL[t.status] ?? t.status,
     "진행률(%)": t.progress,
     "공수(MD)": t.effortMd ?? "",
