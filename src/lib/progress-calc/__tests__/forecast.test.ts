@@ -64,7 +64,7 @@ describe("computeForecast", () => {
   it("진행 중 task는 currentStage로 진척률을 결정", () => {
     const t = task("T1", today(-5), today(5), {
       actualStartDate: today(-5),
-      currentStage: "DESIGN", // 2/9 ≈ 22%
+      currentStage: "DESIGN", // 2/10 = 20%
     });
     const result = computeForecast([t], today(0));
     // 진척률 22%이므로 남은 78%는 미래에. 종료일은 today 이후여야 함.
