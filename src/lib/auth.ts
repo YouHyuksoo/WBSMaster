@@ -114,6 +114,17 @@ export async function signOut() {
  * 프로젝트 접근 권한 검사
  * ADMIN이거나 해당 프로젝트의 TeamMember이면 통과, 아니면 403 반환
  *
+ * 권한 정책 (디자인 문서 4-1 기준):
+ * - ADMIN: 모든 프로젝트 접근 가능 (DB 조회 없이 즉시 통과)
+ * - USER/GUEST: 자신이 TeamMember로 등록된 프로젝트만 통과
+ *
+ * GUEST가 멤버로 등록되어 있으면 통과한다 (의도된 동작). 읽기/쓰기
+ * 권한 구분은 본 헬퍼 범위 밖이며 각 API 라우트에서 처리한다.
+ *
+ * @param projectId 검사할 프로젝트 ID (호출자가 유효성 보장)
+ * @param user requireAuth()로 인증된 사용자
+ * @returns 권한 있으면 null, 없으면 403 NextResponse
+ *
  * @example
  * const guard = await assertProjectAccess(projectId, user);
  * if (guard) return guard;
