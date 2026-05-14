@@ -10,7 +10,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface Ctx {
   params: Promise<{ id: string; userId: string }>;
@@ -21,10 +21,22 @@ interface Ctx {
  * 진도 task 담당자 정보 수정
  */
 export async function PATCH(request: NextRequest, { params }: Ctx) {
-  const { error: authError } = await requireAuth();
+  const { user, error: authError } = await requireAuth();
   if (authError) return authError;
 
   const { id: taskId, userId } = await params;
+
+  // 권한 가드: task의 projectId로 멤버십 확인
+  const task = await prisma.progressTask.findUnique({
+    where: { id: taskId },
+    select: { projectId: true },
+  });
+  if (!task) {
+    return NextResponse.json({ error: "task를 찾을 수 없습니다." }, { status: 404 });
+  }
+  const accessError = await assertProjectAccess(task.projectId, user!);
+  if (accessError) return accessError;
+
   const { role, allocationPct } = await request.json();
 
   const data: Record<string, unknown> = {};
@@ -56,10 +68,21 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
  * 진도 task 담당자 제거
  */
 export async function DELETE(request: NextRequest, { params }: Ctx) {
-  const { error: authError } = await requireAuth();
+  const { user, error: authError } = await requireAuth();
   if (authError) return authError;
 
   const { id: taskId, userId } = await params;
+
+  // 권한 가드: task의 projectId로 멤버십 확인
+  const task = await prisma.progressTask.findUnique({
+    where: { id: taskId },
+    select: { projectId: true },
+  });
+  if (!task) {
+    return NextResponse.json({ error: "task를 찾을 수 없습니다." }, { status: 404 });
+  }
+  const accessError = await assertProjectAccess(task.projectId, user!);
+  if (accessError) return accessError;
 
   await prisma.progressTaskAssignee.delete({
     where: { taskId_userId: { taskId, userId } },

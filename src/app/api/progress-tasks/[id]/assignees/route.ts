@@ -9,7 +9,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface Ctx {
   params: Promise<{ id: string }>;
@@ -20,14 +20,26 @@ interface Ctx {
  * 진도 task에 담당자 추가
  */
 export async function POST(request: NextRequest, { params }: Ctx) {
-  const { error: authError } = await requireAuth();
+  const { user, error: authError } = await requireAuth();
   if (authError) return authError;
 
   const { id: taskId } = await params;
+
+  // 권한 가드: task의 projectId로 멤버십 확인
+  const task = await prisma.progressTask.findUnique({
+    where: { id: taskId },
+    select: { projectId: true },
+  });
+  if (!task) {
+    return NextResponse.json({ error: "task를 찾을 수 없습니다." }, { status: 404 });
+  }
+  const accessError = await assertProjectAccess(task.projectId, user!);
+  if (accessError) return accessError;
+
   const { userId, role, allocationPct } = await request.json();
 
   if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
+    return NextResponse.json({ error: "userId가 필요합니다." }, { status: 400 });
   }
 
   const pct = Math.max(1, Math.min(100, Number(allocationPct ?? 100)));
