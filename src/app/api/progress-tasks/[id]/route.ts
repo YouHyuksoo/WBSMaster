@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
-import { STAGE_ORDER } from "@/lib/progress-stages";
+import { computeStageProgress } from "@/lib/stage-categories";
 
 const ASSIGNEE_INCLUDE = {
   assignees: {
@@ -55,7 +55,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
   // 권한 가드: task의 projectId를 먼저 조회해 멤버십 확인
   const existing = await prisma.progressTask.findUnique({
     where: { id },
-    select: { projectId: true },
+    select: { projectId: true, stageCategory: true, currentStageId: true },
   });
   if (!existing) {
     return NextResponse.json({ error: "task를 찾을 수 없습니다." }, { status: 404 });
@@ -79,19 +79,39 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
       : null;
   if (body.actualEndDate !== undefined)
     data.actualEndDate = body.actualEndDate ? new Date(body.actualEndDate) : null;
-  if (body.currentStage !== undefined) data.currentStage = body.currentStage;
+  if (body.stageCategory !== undefined) data.stageCategory = body.stageCategory;
+  if (body.currentStageId !== undefined) data.currentStageId = body.currentStageId;
   if (body.status !== undefined) data.status = body.status;
   if (body.predecessorId !== undefined) data.predecessorId = body.predecessorId;
   if (body.effortMd !== undefined) data.effortMd = body.effortMd;
   if (body.order !== undefined) data.order = body.order;
   if (body.isParallel !== undefined) data.isParallel = !!body.isParallel;
 
-  // currentStage가 바뀌면 progress 자동 재계산
-  if (body.currentStage !== undefined) {
-    const idx = STAGE_ORDER.indexOf(body.currentStage);
-    if (idx >= 0) {
-      data.progress = Math.round(((idx + 1) / STAGE_ORDER.length) * 100);
+  // stageCategory 또는 currentStageId 변경 시 progress 재계산
+  if (body.stageCategory !== undefined || body.currentStageId !== undefined) {
+    const finalCategory = (body.stageCategory ?? existing!.stageCategory) as never;
+    let finalStageId: string | null =
+      body.currentStageId !== undefined ? (body.currentStageId as string | null) : existing!.currentStageId;
+
+    // 카테고리가 바뀐 경우 currentStageId가 새 카테고리에 속하는지 검증
+    if (body.stageCategory !== undefined && finalStageId) {
+      const stage = await prisma.progressStageDef.findUnique({
+        where: { id: finalStageId },
+        select: { category: true },
+      });
+      if (!stage || stage.category !== finalCategory) {
+        finalStageId = null;
+        data.currentStageId = null;
+      }
     }
+
+    // 해당 카테고리의 단계 목록으로 progress 계산
+    const stages = await prisma.progressStageDef.findMany({
+      where: { projectId: existing!.projectId, category: finalCategory },
+      select: { id: true, order: true },
+      orderBy: { order: "asc" },
+    });
+    data.progress = computeStageProgress(stages, finalStageId);
   }
 
   // predecessorId 변경 시 순환 의존성 검증 (서버 사이드)
