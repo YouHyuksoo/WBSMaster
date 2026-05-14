@@ -21,7 +21,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Icon, Button, Card, Input, useToast, ConfirmModal } from "@/components/ui";
+import { Icon, Button, useToast, ConfirmModal } from "@/components/ui";
 import { useProjects, useTasks, useUpdateProject, useDeleteProject, useWbsStats, useWbsScheduleStats, useIssueStats, useRequirementStats, useTodaySchedules, useIssues, useRequirements } from "@/hooks";
 import { useProject } from "@/contexts/ProjectContext";
 import { useQueryClient } from "@tanstack/react-query";
