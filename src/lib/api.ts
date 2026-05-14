@@ -1074,8 +1074,12 @@ export type {
 export const api = {
   /** 프로젝트 API */
   projects: {
-    list: (params?: { status?: string; ownerId?: string }) =>
-      get<Project[]>("/api/projects", params),
+    list: (params?: { status?: string; ownerId?: string; accessibleOnly?: boolean }) =>
+      get<Project[]>("/api/projects", params ? {
+        ...(params.status !== undefined ? { status: params.status } : {}),
+        ...(params.ownerId !== undefined ? { ownerId: params.ownerId } : {}),
+        ...(params.accessibleOnly !== undefined ? { accessibleOnly: String(params.accessibleOnly) } : {}),
+      } : undefined),
     get: (id: string) => get<Project>(`/api/projects/${id}`),
     create: (data: { name: string; description?: string; startDate?: string; endDate?: string }) =>
       post<Project>("/api/projects", data),

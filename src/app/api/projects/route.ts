@@ -34,22 +34,24 @@ import { requireAuth } from "@/lib/auth";
  */
 export async function GET(request: NextRequest) {
   try {
-    // ========== 디버깅 로그 시작 ==========
-    console.log("===== [DEBUG] /api/projects GET 시작 =====");
-    console.log("[DEBUG] DATABASE_URL 존재:", !!process.env.DATABASE_URL);
-    console.log("[DEBUG] DATABASE_URL 앞 50자:", process.env.DATABASE_URL?.substring(0, 50) + "...");
-    console.log("[DEBUG] NODE_ENV:", process.env.NODE_ENV);
-    // ========== 디버깅 로그 끝 ==========
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") as ProjectStatus | null;
     const ownerId = searchParams.get("ownerId");
+    const accessibleOnly = searchParams.get("accessibleOnly") !== "false"; // 기본 true
 
     // 필터 조건 구성
     const where: Prisma.ProjectWhereInput = {};
 
     if (status && Object.values(ProjectStatus).includes(status)) where.status = status;
     if (ownerId) where.ownerId = ownerId;
+
+    // accessibleOnly: ADMIN은 전체, 그 외는 멤버십 보유 프로젝트만
+    if (accessibleOnly && user!.role !== "ADMIN") {
+      where.teamMembers = { some: { userId: user!.id } };
+    }
 
     const projects = await prisma.project.findMany({
       where,
@@ -95,11 +97,6 @@ export async function GET(request: NextRequest) {
         updatedAt: "desc",
       },
     });
-
-    // ========== 디버깅 로그 ==========
-    console.log("[DEBUG] 프로젝트 조회 결과 개수:", projects.length);
-    console.log("[DEBUG] 프로젝트 목록:", projects.map(p => ({ id: p.id, name: p.name })));
-    // ========== 디버깅 로그 끝 ==========
 
     /**
      * 각 프로젝트의 WBS 기반 진행율 계산 (WBS 엑셀 산식과 동일)
@@ -227,16 +224,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(projectsWithCalculatedProgress);
   } catch (error) {
-    // ========== 디버깅 에러 로그 ==========
-    console.error("===== [DEBUG] /api/projects 에러 발생 =====");
-    console.error("[DEBUG] 에러 타입:", error instanceof Error ? error.constructor.name : typeof error);
-    console.error("[DEBUG] 에러 메시지:", error instanceof Error ? error.message : String(error));
-    console.error("[DEBUG] 에러 스택:", error instanceof Error ? error.stack : "N/A");
-    // ========== 디버깅 에러 로그 끝 ==========
-
     console.error("프로젝트 목록 조회 실패:", error);
     return NextResponse.json(
-      { error: "프로젝트 목록을 조회할 수 없습니다.", debug: error instanceof Error ? error.message : String(error) },
+      { error: "프로젝트 목록을 조회할 수 없습니다." },
       { status: 500 }
     );
   }

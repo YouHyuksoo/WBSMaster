@@ -24,7 +24,7 @@ import { api, type Project } from "@/lib/api";
 export const projectKeys = {
   all: ["projects"] as const,
   lists: () => [...projectKeys.all, "list"] as const,
-  list: (filters?: Record<string, string>) => [...projectKeys.lists(), filters] as const,
+  list: (filters?: Record<string, unknown>) => [...projectKeys.lists(), filters] as const,
   details: () => [...projectKeys.all, "detail"] as const,
   detail: (id: string) => [...projectKeys.details(), id] as const,
 };
@@ -34,7 +34,7 @@ export const projectKeys = {
  * staleTime: Infinity (프로젝트 생성/수정/삭제 시에만 invalidate)
  * 페이지 이동 시에도 캐시된 데이터 사용 (새로 로딩하지 않음)
  */
-export function useProjects(filters?: { status?: string; ownerId?: string }) {
+export function useProjects(filters?: { status?: string; ownerId?: string; accessibleOnly?: boolean }) {
   return useQuery({
     queryKey: projectKeys.list(filters),
     queryFn: () => api.projects.list(filters),
