@@ -98,7 +98,7 @@ export {
 } from "./useIssues";
 
 // 현재 사용자 hook
-export { useCurrentUser, currentUserKeys } from "./useCurrentUser";
+export { useCurrentUser, currentUserKeys, type CurrentUser } from "./useCurrentUser";
 
 // 주간보고 hooks
 export {
