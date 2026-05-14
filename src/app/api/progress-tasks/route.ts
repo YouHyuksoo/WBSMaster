@@ -15,7 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 담당자 정보 포함 객체
@@ -41,7 +41,7 @@ const ASSIGNEE_INCLUDE = {
  * GET /api/progress-tasks
  */
 export async function GET(request: NextRequest) {
-  const { error: authError } = await requireAuth();
+  const { user, error: authError } = await requireAuth();
   if (authError) return authError;
 
   try {
@@ -49,8 +49,11 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get("projectId");
 
     if (!projectId) {
-      return NextResponse.json({ error: "projectId required" }, { status: 400 });
+      return NextResponse.json({ error: "projectId가 필요합니다." }, { status: 400 });
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     const tasks = await prisma.progressTask.findMany({
       where: { projectId },
@@ -73,7 +76,7 @@ export async function GET(request: NextRequest) {
  * POST /api/progress-tasks
  */
 export async function POST(request: NextRequest) {
-  const { error: authError } = await requireAuth();
+  const { user, error: authError } = await requireAuth();
   if (authError) return authError;
 
   try {
@@ -87,6 +90,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     // 날짜 범위 검증
     const startDt = new Date(startDate);

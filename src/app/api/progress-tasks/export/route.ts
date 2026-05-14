@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 const STAGE_LABEL: Record<string, string> = {
   ANALYSIS: "분석",
@@ -15,6 +15,7 @@ const STAGE_LABEL: Record<string, string> = {
   IT_TEST: "IT 테스트",
   TRAINING: "교육",
   INTEGRATION_TEST: "통합테스트",
+  OPEN: "오픈",
   MIGRATION: "이행",
   STABILIZATION: "안정화",
 };
@@ -29,13 +30,16 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export async function GET(request: NextRequest) {
-  const { error: authError } = await requireAuth();
+  const { user, error: authError } = await requireAuth();
   if (authError) return authError;
 
   const projectId = request.nextUrl.searchParams.get("projectId");
   if (!projectId) {
-    return NextResponse.json({ error: "projectId required" }, { status: 400 });
+    return NextResponse.json({ error: "projectId가 필요합니다." }, { status: 400 });
   }
+
+  const accessError = await assertProjectAccess(projectId, user!);
+  if (accessError) return accessError;
 
   const tasks = await prisma.progressTask.findMany({
     where: { projectId },

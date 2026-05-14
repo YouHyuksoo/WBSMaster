@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { STAGE_ORDER } from "@/lib/progress-stages";
 
 const ASSIGNEE_INCLUDE = {
@@ -26,7 +26,7 @@ interface Ctx {
 
 /** GET /api/progress-tasks/[id] */
 export async function GET(request: NextRequest, { params }: Ctx) {
-  const { error: authError } = await requireAuth();
+  const { user, error: authError } = await requireAuth();
   if (authError) return authError;
 
   const { id } = await params;
@@ -39,15 +39,30 @@ export async function GET(request: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const accessError = await assertProjectAccess(task.projectId, user!);
+  if (accessError) return accessError;
+
   return NextResponse.json(task);
 }
 
 /** PATCH /api/progress-tasks/[id] */
 export async function PATCH(request: NextRequest, { params }: Ctx) {
-  const { error: authError } = await requireAuth();
+  const { user, error: authError } = await requireAuth();
   if (authError) return authError;
 
   const { id } = await params;
+
+  // 권한 가드: task의 projectId를 먼저 조회해 멤버십 확인
+  const existing = await prisma.progressTask.findUnique({
+    where: { id },
+    select: { projectId: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "task not found" }, { status: 404 });
+  }
+  const patchAccessError = await assertProjectAccess(existing.projectId, user!);
+  if (patchAccessError) return patchAccessError;
+
   const body = await request.json();
 
   const data: Record<string, unknown> = {};
@@ -75,7 +90,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
   if (body.currentStage !== undefined) {
     const idx = STAGE_ORDER.indexOf(body.currentStage);
     if (idx >= 0) {
-      data.progress = Math.round(((idx + 1) / 9) * 100);
+      data.progress = Math.round(((idx + 1) / STAGE_ORDER.length) * 100);
     }
   }
 
@@ -89,17 +104,9 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
       );
     }
 
-    // 2) 같은 프로젝트의 모든 task를 가져와 순환 탐지
-    const target = await prisma.progressTask.findUnique({
-      where: { id },
-      select: { projectId: true },
-    });
-    if (!target) {
-      return NextResponse.json({ error: "task not found" }, { status: 404 });
-    }
-
+    // 2) 같은 프로젝트의 모든 task를 가져와 순환 탐지 (projectId는 상단 existing에서 확보)
     const all = await prisma.progressTask.findMany({
-      where: { projectId: target.projectId },
+      where: { projectId: existing.projectId },
       select: { id: true, predecessorId: true },
     });
 
@@ -155,10 +162,23 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
 
 /** DELETE /api/progress-tasks/[id] */
 export async function DELETE(request: NextRequest, { params }: Ctx) {
-  const { error: authError } = await requireAuth();
+  const { user, error: authError } = await requireAuth();
   if (authError) return authError;
 
   const { id } = await params;
+
+  // 권한 가드: task의 projectId로 멤버십 확인
+  const target = await prisma.progressTask.findUnique({
+    where: { id },
+    select: { projectId: true },
+  });
+  if (!target) {
+    return NextResponse.json({ error: "task not found" }, { status: 404 });
+  }
+
+  const accessError = await assertProjectAccess(target.projectId, user!);
+  if (accessError) return accessError;
+
   await prisma.progressTask.delete({
     where: { id },
   });

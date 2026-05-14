@@ -22,7 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 const STAGE_REVERSE: Record<string, string> = {
   "분석": "ANALYSIS",
@@ -32,6 +32,7 @@ const STAGE_REVERSE: Record<string, string> = {
   "IT 테스트": "IT_TEST",
   "교육": "TRAINING",
   "통합테스트": "INTEGRATION_TEST",
+  "오픈": "OPEN",
   "이행": "MIGRATION",
   "안정화": "STABILIZATION",
 };
@@ -44,6 +45,7 @@ const VALID_STAGES = new Set([
   "IT_TEST",
   "TRAINING",
   "INTEGRATION_TEST",
+  "OPEN",
   "MIGRATION",
   "STABILIZATION",
 ]);
@@ -74,7 +76,7 @@ function parseExcelDate(value: unknown): Date | null {
 export async function POST(request: NextRequest) {
   try {
     // 인증 확인
-    const { error: authError } = await requireAuth();
+    const { user, error: authError } = await requireAuth();
     if (authError) return authError;
 
     // FormData 파싱
@@ -97,6 +99,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // 프로젝트 접근 권한 확인
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     // 파일 확장자 검증
     const fileName = file.name.toLowerCase();
