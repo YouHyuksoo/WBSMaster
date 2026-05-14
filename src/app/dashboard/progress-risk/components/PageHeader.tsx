@@ -16,9 +16,10 @@ interface PageHeaderProps {
   onAddTask?: () => void;
   onImportExcel?: () => void;
   onExportExcel?: () => void;
+  onOpenStageManager?: () => void;
 }
 
-export function PageHeader({ project, taskCount, onAddTask, onImportExcel, onExportExcel }: PageHeaderProps) {
+export function PageHeader({ project, taskCount, onAddTask, onImportExcel, onExportExcel, onOpenStageManager }: PageHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
@@ -38,6 +39,7 @@ export function PageHeader({ project, taskCount, onAddTask, onImportExcel, onExp
             <span className="text-sm font-medium text-primary">{project.name}</span>
           </div>
         )}
+        <Button variant="outline" leftIcon="layers" onClick={onOpenStageManager}>단계 관리</Button>
         <Button variant="outline" leftIcon="download" onClick={onExportExcel}>엑셀 다운로드</Button>
         <Button variant="outline" leftIcon="upload" onClick={onImportExcel}>엑셀 가져오기</Button>
         <Button variant="primary" leftIcon="add" onClick={onAddTask}>task 추가</Button>

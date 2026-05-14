@@ -27,6 +27,7 @@ import {
   GanttTab,
   LoadTab,
   DiagnosisTab,
+  StageManagerModal,
 } from "./components";
 import { Icon } from "@/components/ui";
 import type { TabKey } from "./types";
@@ -43,6 +44,7 @@ export default function ProgressRiskPage() {
 
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [stageManagerOpen, setStageManagerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("list");
   const [filters, setFilters] = useState<Filters>({
     search: "", status: "all", category: "", userId: "", businessUnit: "",
@@ -75,6 +77,7 @@ export default function ProgressRiskPage() {
           }
         }}
         onImportExcel={() => setImportModalOpen(true)}
+        onOpenStageManager={() => setStageManagerOpen(true)}
       />
 
       {!selectedProject && (
@@ -150,6 +153,11 @@ export default function ProgressRiskPage() {
             isOpen={importModalOpen}
             onClose={() => setImportModalOpen(false)}
             onSuccess={() => setImportModalOpen(false)}
+            projectId={selectedProject.id}
+          />
+          <StageManagerModal
+            isOpen={stageManagerOpen}
+            onClose={() => setStageManagerOpen(false)}
             projectId={selectedProject.id}
           />
         </>
