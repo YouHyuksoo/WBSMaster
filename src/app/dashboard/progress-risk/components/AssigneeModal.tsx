@@ -48,12 +48,12 @@ export function AssigneeModal({ isOpen, onClose, task, projectId }: Props) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`담당자 — ${task.code} ${task.name}`} size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={`담당자 — ${task.code} ${task.name}`} size="xl">
       <div className="space-y-2">
         {task.assignees.map(a => (
           <div
             key={a.id}
-            className="grid grid-cols-[1.4fr_0.9fr_60px_30px] gap-2 items-center p-2 bg-surface dark:bg-background-dark rounded"
+            className="grid grid-cols-[1.3fr_1fr_80px_32px] gap-2 items-center p-2 bg-surface dark:bg-background-dark rounded"
           >
             <div className="text-sm text-text dark:text-white">{a.user.name}</div>
             <select
@@ -92,7 +92,7 @@ export function AssigneeModal({ isOpen, onClose, task, projectId }: Props) {
           </div>
         ))}
 
-        <div className="grid grid-cols-[1.4fr_0.9fr_60px_30px] gap-2 items-center p-2 bg-white/5 dark:bg-white/5 rounded border border-dashed border-white/10">
+        <div className="grid grid-cols-[1.3fr_1fr_80px_32px] gap-2 items-center p-2 bg-white/5 dark:bg-white/5 rounded border border-dashed border-white/10">
           <select
             value={newUserId}
             onChange={e => setNewUserId(e.target.value)}
