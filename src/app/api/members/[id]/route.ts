@@ -113,6 +113,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const accessError = await assertProjectAccess(existing.projectId, user!);
     if (accessError) return accessError;
 
+    // ADMIN이거나 해당 프로젝트의 OWNER/MANAGER만 수정/제거 가능
+    if (user!.role !== "ADMIN") {
+      const myMembership = await prisma.teamMember.findUnique({
+        where: { projectId_userId: { projectId: existing.projectId, userId: user!.id } },
+        select: { role: true },
+      });
+      if (!myMembership || (myMembership.role !== "OWNER" && myMembership.role !== "MANAGER")) {
+        return NextResponse.json({ error: "멤버를 수정할 권한이 없습니다." }, { status: 403 });
+      }
+    }
+
     const member = await prisma.teamMember.update({
       where: { id },
       data: {
@@ -174,6 +185,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const accessError = await assertProjectAccess(existing.projectId, user!);
     if (accessError) return accessError;
+
+    // ADMIN이거나 해당 프로젝트의 OWNER/MANAGER만 수정/제거 가능
+    if (user!.role !== "ADMIN") {
+      const myMembership = await prisma.teamMember.findUnique({
+        where: { projectId_userId: { projectId: existing.projectId, userId: user!.id } },
+        select: { role: true },
+      });
+      if (!myMembership || (myMembership.role !== "OWNER" && myMembership.role !== "MANAGER")) {
+        return NextResponse.json({ error: "멤버를 제거할 권한이 없습니다." }, { status: 403 });
+      }
+    }
 
     await prisma.teamMember.delete({ where: { id } });
 
