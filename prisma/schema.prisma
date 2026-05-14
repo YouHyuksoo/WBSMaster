@@ -141,6 +141,7 @@ model Project {
   discussionItems               DiscussionItem[] // 협의요청 목록
   interviews                    Interview[] // 인터뷰 관리 목록
   progressTasks                 ProgressTask[] // 진도 task 목록
+  stageDefs                     ProgressStageDef[] // 진도 단계 정의
 
   @@map("projects")
 }
@@ -2147,6 +2148,22 @@ model AsIsCodeDefinition {
 }
 
 // ============================================
+// 진도 카테고리 — task의 단계 그룹 식별
+// ============================================
+enum StageCategory {
+  MES_SYSTEM
+  EQUIPMENT
+  TERMINAL
+  MASTER_DATA
+  ERP_IF
+  SLMS_IF
+  CUT_OFF
+  OPERATION
+  INFRA
+  ETC
+}
+
+// ============================================
 // 진도 리스크 — 단계 enum (10개 고정 흐름)
 // ============================================
 enum ProgressStage {
@@ -2160,6 +2177,28 @@ enum ProgressStage {
   OPEN // ⑧ 오픈
   MIGRATION // ⑨ 이행
   STABILIZATION // ⑩ 안정화
+}
+
+// ============================================
+// 진도 단계 정의 — 프로젝트별 + 카테고리별
+// ============================================
+model ProgressStageDef {
+  id        String        @id @default(uuid())
+  projectId String
+  category  StageCategory
+  name      String
+  order     Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   ProgressTask[] @relation("CurrentStageDef")
+
+  @@unique([projectId, category, name])
+  @@unique([projectId, category, order])
+  @@index([projectId, category])
+  @@map("progress_stage_defs")
 }
 
 // ============================================
@@ -2184,6 +2223,10 @@ model ProgressTask {
 
   // 진행
   currentStage ProgressStage @default(ANALYSIS)
+  // 새 단계 시스템 (Task 4에서 currentStage 폐기 예정)
+  stageCategory   StageCategory     @default(ETC)
+  currentStageId  String?
+  currentStageDef ProgressStageDef? @relation("CurrentStageDef", fields: [currentStageId], references: [id], onDelete: SetNull)
   status       TaskStatus    @default(PENDING)
   progress     Int           @default(0)
   effortMd     Float?
