@@ -23,39 +23,12 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { STAGE_CATEGORY_REVERSE, type StageCategory } from "@/lib/stage-categories";
 
-const STAGE_REVERSE: Record<string, string> = {
-  "분석": "ANALYSIS",
-  "설계": "DESIGN",
-  "구현": "IMPLEMENTATION",
-  "단위테스트": "UNIT_TEST",
-  "IT 테스트": "IT_TEST",
-  "교육": "TRAINING",
-  "통합테스트": "INTEGRATION_TEST",
-  "오픈": "OPEN",
-  "이행": "MIGRATION",
-  "안정화": "STABILIZATION",
-};
-
-const VALID_STAGES = new Set([
-  "ANALYSIS",
-  "DESIGN",
-  "IMPLEMENTATION",
-  "UNIT_TEST",
-  "IT_TEST",
-  "TRAINING",
-  "INTEGRATION_TEST",
-  "OPEN",
-  "MIGRATION",
-  "STABILIZATION",
-]);
-
-function parseStage(value: string | undefined | null): string {
-  if (!value) return "ANALYSIS";
+function parseCategory(value: unknown): StageCategory {
+  if (!value) return "ETC";
   const s = String(value).trim();
-  if (VALID_STAGES.has(s)) return s;
-  if (STAGE_REVERSE[s]) return STAGE_REVERSE[s];
-  return "ANALYSIS";
+  return STAGE_CATEGORY_REVERSE[s] ?? "ETC";
 }
 
 function parseExcelDate(value: unknown): Date | null {
@@ -132,6 +105,22 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // 단계명 → id 매핑 캐시 (카테고리별)
+    const stageDefs = await prisma.progressStageDef.findMany({
+      where: { projectId },
+      select: { id: true, name: true, category: true },
+    });
+    const stageMapByCategory = new Map<StageCategory, Map<string, string>>();
+    for (const sd of stageDefs) {
+      const cat = sd.category as StageCategory;
+      let inner = stageMapByCategory.get(cat);
+      if (!inner) {
+        inner = new Map();
+        stageMapByCategory.set(cat, inner);
+      }
+      inner.set(sd.name, sd.id);
+    }
+
     // 파일을 ArrayBuffer로 변환 후 XLSX 파싱
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
@@ -190,8 +179,16 @@ export async function POST(request: NextRequest) {
         counter++;
         const code = `T-${String(counter).padStart(3, "0")}`;
 
-        // 단계 변환
-        const stage = parseStage(row["현재 단계"] as string);
+        // 카테고리 + 단계명 → stageCategory / currentStageId
+        const stageCategory = parseCategory(row["카테고리"]);
+        const stageName = row["현재 단계"] ? String(row["현재 단계"]).trim() : "";
+        let currentStageId: string | null = null;
+        if (stageName) {
+          currentStageId = stageMapByCategory.get(stageCategory)?.get(stageName) ?? null;
+          if (!currentStageId) {
+            stats.errors.push(`행 ${idx + 2}: 단계 '${stageName}'을(를) ${stageCategory}에서 찾을 수 없습니다.`);
+          }
+        }
 
         // 선행 task 매칭 (같은 프로젝트 내)
         let predecessorId: string | null = null;
@@ -239,9 +236,8 @@ export async function POST(request: NextRequest) {
             projectId,
             code,
             name,
-            category: row["카테고리"]
-              ? String(row["카테고리"]).trim()
-              : null,
+            stageCategory,
+            currentStageId,
             businessUnit: row["사업부"]
               ? String(row["사업부"]).trim()
               : null,
@@ -250,7 +246,6 @@ export async function POST(request: NextRequest) {
               : null,
             startDate,
             endDate,
-            currentStage: stage as never,
             effortMd,
             predecessorId,
             isParallel,
