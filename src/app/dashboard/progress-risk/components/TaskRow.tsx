@@ -82,7 +82,7 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighte
 
   return (
     <div
-      className={`grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1480px] text-sm ${
+      className={`grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1810px] text-sm ${
         highlighted ? "bg-primary/10 ring-2 ring-primary/40 ring-inset" : ""
       }`}
       style={{ gridTemplateColumns: gridCols }}
