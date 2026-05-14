@@ -9,7 +9,7 @@
  */
 "use client";
 
-import { Icon } from "@/components/ui";
+import { Icon, useToast } from "@/components/ui";
 import { useUpdateMember } from "@/hooks";
 import type { TeamMember } from "@/lib/api";
 import { MEMBER_ROLE_CONFIG } from "../constants";
@@ -21,6 +21,7 @@ interface Props {
 }
 
 export function MemberRow({ member, currentUserId, onRequestRemove }: Props) {
+  const toast = useToast();
   const update = useUpdateMember();
   const roleConfig = MEMBER_ROLE_CONFIG[member.role] || MEMBER_ROLE_CONFIG.MEMBER;
   const isSelfOwner = member.userId === currentUserId && member.role === "OWNER";
@@ -42,7 +43,13 @@ export function MemberRow({ member, currentUserId, onRequestRemove }: Props) {
       </div>
       <select
         value={member.role}
-        onChange={(e) => update.mutate({ id: member.id, data: { role: e.target.value } })}
+        onChange={async (e) => {
+          try {
+            await update.mutateAsync({ id: member.id, data: { role: e.target.value } });
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "역할 변경 실패");
+          }
+        }}
         className={`px-2 py-1 rounded text-xs font-medium ${roleConfig.bgColor} ${roleConfig.color} border-0 cursor-pointer`}
       >
         {Object.entries(MEMBER_ROLE_CONFIG).map(([key, c]) => (
