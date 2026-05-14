@@ -28,16 +28,17 @@ export const currentUserKeys = {
 export function useCurrentUser() {
   return useQuery<CurrentUser | null>({
     queryKey: currentUserKeys.all,
-    queryFn: async () => {
-      const res = await fetch("/api/auth/me", { credentials: "include" });
-      if (!res.ok) return null;
+    queryFn: async (): Promise<CurrentUser | null> => {
+      const res = await fetch("/api/auth/me");
+      if (res.status === 401) return null;
+      if (!res.ok) throw new Error(`사용자 정보 조회 실패 (${res.status})`);
       const data = await res.json();
-      // /api/auth/me는 user 객체를 직접 반환
       return data ?? null;
     },
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    retry: false,
   });
 }
