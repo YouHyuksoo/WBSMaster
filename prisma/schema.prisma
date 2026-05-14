@@ -2164,22 +2164,6 @@ enum StageCategory {
 }
 
 // ============================================
-// 진도 리스크 — 단계 enum (10개 고정 흐름)
-// ============================================
-enum ProgressStage {
-  ANALYSIS // ① 분석
-  DESIGN // ② 설계
-  IMPLEMENTATION // ③ 구현
-  UNIT_TEST // ④ 단위테스트
-  IT_TEST // ⑤ IT 테스트
-  TRAINING // ⑥ 교육
-  INTEGRATION_TEST // ⑦ 통합테스트
-  OPEN // ⑧ 오픈
-  MIGRATION // ⑨ 이행
-  STABILIZATION // ⑩ 안정화
-}
-
-// ============================================
 // 진도 단계 정의 — 프로젝트별 + 카테고리별
 // ============================================
 model ProgressStageDef {
@@ -2222,8 +2206,7 @@ model ProgressTask {
   actualEndDate   DateTime?
 
   // 진행
-  currentStage ProgressStage @default(ANALYSIS)
-  // 새 단계 시스템 (Task 4에서 currentStage 폐기 예정)
+  // 새 단계 시스템
   stageCategory   StageCategory     @default(ETC)
   currentStageId  String?
   currentStageDef ProgressStageDef? @relation("CurrentStageDef", fields: [currentStageId], references: [id], onDelete: SetNull)
