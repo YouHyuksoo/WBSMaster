@@ -23,6 +23,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
+import { useCurrentUser } from "@/hooks";
 
 interface DashboardSidebarProps {
   /** 사이드바 열림 상태 (모바일용) */
@@ -45,6 +46,8 @@ interface MenuItem {
   href: string;
   /** 아이콘 채움 여부 (활성화 시) */
   filled?: boolean;
+  /** ADMIN 전용 메뉴 여부 */
+  adminOnly?: boolean;
 }
 
 /** 주요 메뉴 항목 */
@@ -70,8 +73,7 @@ const menuItems: MenuItem[] = [
 /** 관리 메뉴 항목 */
 const managementItems: MenuItem[] = [
   { label: "기준 설정", icon: "tune", href: "/dashboard/settings" },
-  { label: "유저 관리", icon: "manage_accounts", href: "/dashboard/users" },
-  { label: "프로젝트 멤버", icon: "person_add", href: "/dashboard/members" },
+  { label: "사용자/프로젝트 관리", icon: "manage_accounts", href: "/dashboard/users", adminOnly: true },
   { label: "채팅 분석", icon: "analytics", href: "/dashboard/chat/history" },
   { label: "업무협조 점검표", icon: "checklist", href: "/dashboard/requirements" },
   { label: "이슈사항 점검표", icon: "bug_report", href: "/dashboard/issues" },
@@ -91,6 +93,12 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { data: currentUser } = useCurrentUser();
+  const isAdmin = currentUser?.role === "ADMIN";
+
+  const visibleManagementItems = managementItems.filter(
+    (item) => !item.adminOnly || isAdmin
+  );
 
   /**
    * 로그아웃 핸들러
@@ -192,7 +200,7 @@ export function DashboardSidebar({
             Management
           </p>
 
-          {managementItems.map((item) => (
+          {visibleManagementItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
