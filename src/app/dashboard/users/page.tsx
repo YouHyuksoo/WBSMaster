@@ -15,7 +15,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Icon, Button, ConfirmModal, useToast } from "@/components/ui";
 import {
-  useUsers, useDeleteUser, useCurrentUser, useMembers, useProjects,
+  useDeleteUser, useCurrentUser, useMembers, useProjects, useDeleteProject,
 } from "@/hooks";
 import type { User, Project } from "@/lib/api";
 import {
@@ -39,8 +39,10 @@ export default function UsersPage() {
   >(null);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
 
   const deleteUser = useDeleteUser();
+  const deleteProject = useDeleteProject();
   const bulkInvite = useBulkInviteMembers();
 
   const { data: selectedProjectMembers = [] } = useMembers(
@@ -125,6 +127,21 @@ export default function UsersPage() {
     }
   };
 
+  const handleConfirmDeleteProject = async () => {
+    if (!deletingProject) return;
+    try {
+      await deleteProject.mutateAsync(deletingProject.id);
+      toast.success(`"${deletingProject.name}" 프로젝트가 삭제되었습니다.`);
+      if (selectedProjectId === deletingProject.id) {
+        setSelectedProjectId(null);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "프로젝트 삭제 실패");
+    } finally {
+      setDeletingProject(null);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -154,6 +171,7 @@ export default function UsersPage() {
             selectedProjectId={selectedProjectId}
             onSelectProject={setSelectedProjectId}
             onCreateProject={() => setProjectModalOpen(true)}
+            onDeleteProject={(project) => setDeletingProject(project)}
           />
           <MemberSection project={selectedProject} />
         </div>
@@ -183,6 +201,18 @@ export default function UsersPage() {
         cancelText="취소"
         variant="danger"
         isLoading={deleteUser.isPending}
+      />
+
+      <ConfirmModal
+        isOpen={!!deletingProject}
+        title="프로젝트 삭제"
+        message={`"${deletingProject?.name || "프로젝트"}"를 삭제하시겠습니까?\n\n프로젝트에 속한 WBS, 진도 task, 멤버, 요구사항, 이슈 등 모든 관련 데이터가 함께 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.`}
+        onConfirm={handleConfirmDeleteProject}
+        onCancel={() => setDeletingProject(null)}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+        isLoading={deleteProject.isPending}
       />
     </div>
   );

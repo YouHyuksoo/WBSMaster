@@ -11,15 +11,17 @@
 import { useState, useMemo } from "react";
 import { Icon, Button, Input } from "@/components/ui";
 import { useProjects } from "@/hooks";
+import type { Project } from "@/lib/api";
 import { ProjectListRow } from "./ProjectListRow";
 
 interface Props {
   selectedProjectId: string | null;
   onSelectProject: (projectId: string) => void;
   onCreateProject: () => void;
+  onDeleteProject: (project: Project) => void;
 }
 
-export function ProjectListPanel({ selectedProjectId, onSelectProject, onCreateProject }: Props) {
+export function ProjectListPanel({ selectedProjectId, onSelectProject, onCreateProject, onDeleteProject }: Props) {
   const { data: projects = [], isLoading } = useProjects({ accessibleOnly: false });
   const [search, setSearch] = useState("");
 
@@ -62,6 +64,7 @@ export function ProjectListPanel({ selectedProjectId, onSelectProject, onCreateP
               project={p}
               selected={p.id === selectedProjectId}
               onSelect={() => onSelectProject(p.id)}
+              onDelete={() => onDeleteProject(p)}
             />
           ))
         )}
