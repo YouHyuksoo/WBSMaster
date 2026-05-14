@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ProjectStatus, Prisma } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
+import { DEFAULT_ETC_STAGES } from "@/lib/stage-categories";
 
 /**
  * 프로젝트 목록 조회
@@ -298,6 +299,16 @@ export async function POST(request: NextRequest) {
         userId: ownerId,
         role: "OWNER",
       },
+    });
+
+    // ETC 카테고리에 기본 10단계 자동 시드
+    await prisma.progressStageDef.createMany({
+      data: DEFAULT_ETC_STAGES.map((name, idx) => ({
+        projectId: project.id,
+        category: "ETC" as const,
+        name,
+        order: idx,
+      })),
     });
 
     return NextResponse.json(project, { status: 201 });
