@@ -22,7 +22,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon, Button, Card, Input, useToast, ConfirmModal } from "@/components/ui";
-import { useProjects, useTasks, useCreateProject, useUpdateProject, useDeleteProject, useWbsStats, useWbsScheduleStats, useIssueStats, useRequirementStats, useTodaySchedules, useIssues, useRequirements } from "@/hooks";
+import { useProjects, useTasks, useUpdateProject, useDeleteProject, useWbsStats, useWbsScheduleStats, useIssueStats, useRequirementStats, useTodaySchedules, useIssues, useRequirements } from "@/hooks";
 import { useProject } from "@/contexts/ProjectContext";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Project } from "@/lib/api";
@@ -57,7 +57,6 @@ interface LocalUser {
  */
 export default function DashboardPage() {
   const [user, setUser] = useState<LocalUser | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showQuickScheduleModal, setShowQuickScheduleModal] = useState(false);
   const [showOverviewModal, setShowOverviewModal] = useState(false);
@@ -72,12 +71,6 @@ export default function DashboardPage() {
   const [isMyDashboard, setIsMyDashboard] = useState(false);
   /** 새로고침 중 상태 */
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [newProject, setNewProject] = useState({
-    name: "",
-    description: "",
-    startDate: "",
-    endDate: "",
-  });
   const [editProject, setEditProject] = useState({
     name: "",
     description: "",
@@ -140,9 +133,6 @@ export default function DashboardPage() {
 
   /** 오늘의 일정 조회 (전체 인원) */
   const { data: todaySchedules = [], isLoading: schedulesLoading } = useTodaySchedules(projectFilters);
-
-  /** 프로젝트 생성 */
-  const createProject = useCreateProject();
 
   /** 프로젝트 수정 */
   const updateProject = useUpdateProject();
@@ -426,31 +416,6 @@ export default function DashboardPage() {
   };
 
   /**
-   * 프로젝트 생성 핸들러
-   */
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newProject.name.trim()) return;
-
-    try {
-      await createProject.mutateAsync({
-        name: newProject.name,
-        description: newProject.description,
-        startDate: newProject.startDate || undefined,
-        endDate: newProject.endDate || undefined,
-      });
-      toast.success("프로젝트가 생성되었습니다.");
-      setNewProject({ name: "", description: "", startDate: "", endDate: "" });
-      setShowCreateModal(false);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "프로젝트 생성에 실패했습니다.",
-        "생성 실패"
-      );
-    }
-  };
-
-  /**
    * 프로젝트 편집 모달 열기
    */
   const handleOpenEditModal = (project: ProjectWithWbs, e: React.MouseEvent) => {
@@ -706,10 +671,6 @@ export default function DashboardPage() {
             >
               MY
             </Button>
-            {/* 새 프로젝트 */}
-            <Button variant="primary" size="sm" leftIcon="add" onClick={() => setShowCreateModal(true)}>
-              새 프로젝트
-            </Button>
           </div>
         </div>
       </div>
@@ -787,11 +748,8 @@ export default function DashboardPage() {
               프로젝트가 없습니다
             </h3>
             <p className="text-text-secondary mb-4">
-              새 프로젝트를 생성하여 작업을 시작해보세요.
+              사용자/프로젝트 관리 페이지에서 프로젝트를 생성해주세요.
             </p>
-            <Button variant="primary" leftIcon="add" onClick={() => setShowCreateModal(true)}>
-              프로젝트 생성
-            </Button>
           </div>
         ) : filteredProjects.length === 0 ? (
           <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center animate-fadeIn">
@@ -924,93 +882,6 @@ export default function DashboardPage() {
         {/* 담당자별 작업 현황 차트 */}
         <AssigneeTaskChart projectId={selectedProjectId || projects?.[0]?.id || ""} />
       </div>
-
-      {/* 프로젝트 생성 모달 */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between p-5 border-b border-border dark:border-border-dark">
-              <h2 className="text-lg font-bold text-text dark:text-white">
-                새 프로젝트 생성
-              </h2>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-text-secondary hover:text-text dark:hover:text-white"
-              >
-                <Icon name="close" size="md" />
-              </button>
-            </div>
-            <form onSubmit={handleCreateProject} className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                  프로젝트 이름 *
-                </label>
-                <input
-                  type="text"
-                  value={newProject.name}
-                  onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                  placeholder="프로젝트 이름을 입력하세요"
-                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                  설명
-                </label>
-                <textarea
-                  value={newProject.description}
-                  onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                  placeholder="프로젝트 설명을 입력하세요"
-                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text resize-none h-20 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    시작일
-                  </label>
-                  <input
-                    type="date"
-                    value={newProject.startDate}
-                    onChange={(e) => setNewProject({ ...newProject, startDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    종료일
-                  </label>
-                  <input
-                    type="date"
-                    value={newProject.endDate}
-                    onChange={(e) => setNewProject({ ...newProject, endDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  fullWidth
-                  onClick={() => setShowCreateModal(false)}
-                >
-                  취소
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  fullWidth
-                  disabled={createProject.isPending}
-                >
-                  {createProject.isPending ? "생성 중..." : "생성"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* 프로젝트 수정 모달 */}
       {showEditModal && editingProject && (
