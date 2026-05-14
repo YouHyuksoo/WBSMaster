@@ -1,34 +1,41 @@
 /**
  * @file src/app/dashboard/progress-risk/components/StageStepper.tsx
- * @description 9 단계 진행 바 — 클릭으로 currentStage 변경
+ * @description 카테고리별 동적 단계 진행 바
  *
  * 초보자 가이드:
- * 1. **색상 로직**: 완료(idx < currentIdx) = 초록, 현재 = 청록 발광, 미진행 = 회색
- * 2. **variant**: "full"(기본)이면 전체 단계 라벨 펼쳐서 표시, "dot"이면 3x3 dot
- * 3. **클릭**: disabled 아니면 onChange(stage) 호출
- * 4. **접근성**: aria-label, role="group", title 속성 포함
+ * 1. **stages**: 그 task가 속한 카테고리의 단계 목록 (order asc 정렬 권장)
+ * 2. **currentStageId**: 현재 단계 ID. null이면 진척률 0%
+ * 3. **variant**: "dot"(작은 점) / "full"(라벨 표시)
+ * 4. **stages.length === 0**: "단계 미정의" 안내 표시
  */
 "use client";
 
-import type { ProgressStage } from "../types";
-import { STAGE_ORDER, STAGE_LABEL } from "../constants";
+import type { ProgressStageDef } from "@/lib/api";
 
 interface Props {
-  currentStage: ProgressStage;
-  onChange: (stage: ProgressStage) => void;
-  /** "dot" = 점 3x3, "full" = 전체 라벨 펼쳐서 표시 */
+  stages: ProgressStageDef[];
+  currentStageId: string | null;
+  onChange: (stageId: string) => void;
   variant?: "dot" | "full";
   disabled?: boolean;
 }
 
-export function StageStepper({ currentStage, onChange, variant = "full", disabled = false }: Props) {
-  const currentIdx = STAGE_ORDER.indexOf(currentStage);
+export function StageStepper({ stages, currentStageId, onChange, variant = "full", disabled = false }: Props) {
   const isDot = variant === "dot";
+
+  if (stages.length === 0) {
+    return (
+      <span className="text-[10px] text-text-secondary italic">단계 미정의</span>
+    );
+  }
+
+  const sorted = [...stages].sort((a, b) => a.order - b.order);
+  const currentIdx = sorted.findIndex((s) => s.id === currentStageId);
 
   return (
     <div className="flex items-center gap-1 flex-nowrap" role="group" aria-label="단계 진행 바">
-      {STAGE_ORDER.map((stage, idx) => {
-        const isDone = idx < currentIdx;
+      {sorted.map((stage, idx) => {
+        const isDone = currentIdx >= 0 && idx < currentIdx;
         const isCurrent = idx === currentIdx;
 
         const bg = isDot
@@ -45,18 +52,18 @@ export function StageStepper({ currentStage, onChange, variant = "full", disable
 
         return (
           <button
-            key={stage}
+            key={stage.id}
             type="button"
             disabled={disabled}
-            onClick={() => !disabled && onChange(stage)}
-            title={`${STAGE_LABEL[stage]} (${idx + 1}/${STAGE_ORDER.length})`}
+            onClick={() => !disabled && onChange(stage.id)}
+            title={`${stage.name} (${idx + 1}/${sorted.length})`}
             className={`${bg} rounded transition-all hover:scale-105 whitespace-nowrap ${
               isDot ? "w-3 h-3" : "px-2 py-1 text-[11px]"
             } ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
-            aria-label={STAGE_LABEL[stage]}
+            aria-label={stage.name}
             aria-current={isCurrent ? "step" : undefined}
           >
-            {!isDot && STAGE_LABEL[stage]}
+            {!isDot && stage.name}
           </button>
         );
       })}
