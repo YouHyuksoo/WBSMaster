@@ -1,12 +1,12 @@
 /**
  * @file src/app/dashboard/progress-risk/components/GanttTab/GanttRow.tsx
- * @description Gantt 1행 — 인덱스 + 기능명 + mini-stepper(9 dots) + 막대
+ * @description Gantt 1행 — 인덱스 + 기능명 + mini-stepper(10 dots) + 막대
  *
  * 초보자 가이드:
  * 1. **인덱스**: 1번부터 시작하는 행 번호
  * 2. **기능명**: task.code + task.name (title으로 전체 표시)
  * 3. **Critical Path**: onCriticalPath true면 옆에 ⚡ 아이콘
- * 4. **mini-stepper**: STAGE_ORDER 9개 단계 중 현재 단계는 밝고(cyan), 완료는 초록, 미완은 어두움
+ * 4. **mini-stepper**: STAGE_ORDER 10개 단계 중 현재 단계는 밝고(cyan), 완료는 초록, 미완은 어두움
  * 5. **막대**: GanttBars 컴포넌트에서 계획/실제/예측 3종 표시
  */
 
@@ -45,7 +45,7 @@ export function GanttRow({ index, task, forecast, timeScale, onCriticalPath, gri
         )}
       </div>
 
-      {/* mini-stepper: 9개 dot */}
+      {/* mini-stepper: 10개 dot */}
       <div className="flex items-center gap-0.5">
         {STAGE_ORDER.map((_, i) => {
           const bg = i === currentIdx

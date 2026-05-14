@@ -28,7 +28,7 @@ const prisma = new PrismaClient({ adapter });
 type Stage =
   | "ANALYSIS" | "DESIGN" | "IMPLEMENTATION"
   | "UNIT_TEST" | "IT_TEST" | "TRAINING"
-  | "INTEGRATION_TEST" | "MIGRATION" | "STABILIZATION";
+  | "INTEGRATION_TEST" | "OPEN" | "MIGRATION" | "STABILIZATION";
 type Status = "PENDING" | "IN_PROGRESS" | "COMPLETED";
 
 interface Seed {
@@ -216,7 +216,7 @@ async function main() {
     console.log(`✅ ${s.code} ${s.name.padEnd(12)} ${stageLabel.padEnd(8)} ${flowMark}${predMark} 담당자 ${assigneeAdded}명`);
   }
 
-  console.log(`\n🎉 총 ${SEEDS.length}개 task 생성 완료 — 9단계 모두 커버, 박개발 충돌 시나리오 포함`);
+  console.log(`\n🎉 총 ${SEEDS.length}개 task 생성 완료 — 10단계 모두 커버, 박개발 충돌 시나리오 포함`);
 }
 
 const STAGE_LABEL: Record<Stage, string> = {
@@ -227,6 +227,7 @@ const STAGE_LABEL: Record<Stage, string> = {
   IT_TEST: "IT 테스트",
   TRAINING: "교육",
   INTEGRATION_TEST: "통합테스트",
+  OPEN: "오픈",
   MIGRATION: "이행",
   STABILIZATION: "안정화",
 };
@@ -234,7 +235,7 @@ const STAGE_LABEL: Record<Stage, string> = {
 const STAGE_ORDER: Stage[] = [
   "ANALYSIS", "DESIGN", "IMPLEMENTATION",
   "UNIT_TEST", "IT_TEST", "TRAINING",
-  "INTEGRATION_TEST", "MIGRATION", "STABILIZATION",
+  "INTEGRATION_TEST", "OPEN", "MIGRATION", "STABILIZATION",
 ];
 
 function stageToPct(stage: Stage): number {

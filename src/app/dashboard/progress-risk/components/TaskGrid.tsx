@@ -16,14 +16,14 @@ interface Props {
   highlightTaskId?: string | null;
 }
 
-const COLS = "46px 70px 1fr 80px 80px 200px 90px 1fr 80px 30px";
+const COLS = "46px 70px 1fr 80px 80px 460px 90px 1fr 80px 30px";
 
 export function TaskGrid({ tasks, projectId, highlightTaskId }: Props) {
   return (
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 헤더 행 */}
       <div
-        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1200px]"
+        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1480px]"
         style={{ gridTemplateColumns: COLS }}
       >
         <div>#</div>

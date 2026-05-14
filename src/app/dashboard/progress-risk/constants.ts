@@ -21,6 +21,7 @@ export const STAGE_LABEL: Record<ProgressStage, string> = {
   IT_TEST: "IT 테스트",
   TRAINING: "교육",
   INTEGRATION_TEST: "통합테스트",
+  OPEN: "오픈",
   MIGRATION: "이행",
   STABILIZATION: "안정화",
 };
@@ -28,7 +29,7 @@ export const STAGE_LABEL: Record<ProgressStage, string> = {
 export const STAGE_SHORT: Record<ProgressStage, string> = {
   ANALYSIS: "분석", DESIGN: "설계", IMPLEMENTATION: "구현",
   UNIT_TEST: "단위", IT_TEST: "IT", TRAINING: "교육",
-  INTEGRATION_TEST: "통합", MIGRATION: "이행", STABILIZATION: "안정",
+  INTEGRATION_TEST: "통합", OPEN: "오픈", MIGRATION: "이행", STABILIZATION: "안정",
 };
 
 /** 자주 쓰는 역할 옵션 */

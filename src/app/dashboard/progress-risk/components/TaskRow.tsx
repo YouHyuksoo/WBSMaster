@@ -78,7 +78,7 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighte
 
   return (
     <div
-      className={`grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1200px] text-sm ${
+      className={`grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1480px] text-sm ${
         highlighted ? "bg-primary/10 ring-2 ring-primary/40 ring-inset" : ""
       }`}
       style={{ gridTemplateColumns: gridCols }}
@@ -88,7 +88,7 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighte
       <div className="flex items-center gap-2 min-w-0">
         {task.businessUnit && (
           <span
-            className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-cyan-500/15 border border-cyan-500/40 text-cyan-700 dark:text-cyan-300"
+            className="shrink-0 text-[11px] text-text-secondary"
             title={`사업부: ${task.businessUnit}`}
           >
             {task.businessUnit}

@@ -4,7 +4,7 @@
  * 진도 및 리스크 보고서 페이지의 로컬 타입 정의
  *
  * 초보자 가이드:
- * 1. **ProgressStage**: 9단계 enum (분석 ~ 안정화)
+ * 1. **ProgressStage**: 10단계 enum (분석 ~ 안정화)
  * 2. **ProgressTask**: 페이지에서 사용하는 task 형태 (담당자 포함)
  * 3. **Verdict**: 진단 결과 (Phase 2에서 본격 활용)
  */
@@ -17,6 +17,7 @@ export type ProgressStage =
   | "IT_TEST"
   | "TRAINING"
   | "INTEGRATION_TEST"
+  | "OPEN"
   | "MIGRATION"
   | "STABILIZATION";
 

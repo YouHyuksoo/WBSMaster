@@ -2147,7 +2147,7 @@ model AsIsCodeDefinition {
 }
 
 // ============================================
-// 진도 리스크 — 단계 enum (9개 고정 흐름)
+// 진도 리스크 — 단계 enum (10개 고정 흐름)
 // ============================================
 enum ProgressStage {
   ANALYSIS // ① 분석
@@ -2157,8 +2157,9 @@ enum ProgressStage {
   IT_TEST // ⑤ IT 테스트
   TRAINING // ⑥ 교육
   INTEGRATION_TEST // ⑦ 통합테스트
-  MIGRATION // ⑧ 이행
-  STABILIZATION // ⑨ 안정화
+  OPEN // ⑧ 오픈
+  MIGRATION // ⑨ 이행
+  STABILIZATION // ⑩ 안정화
 }
 
 // ============================================
