@@ -13,8 +13,15 @@
  *    - 선행 지연: forecastStart = max(startDate, predecessor.forecastEnd + 1)
  */
 import { addDays, differenceInBusinessDays, isAfter, max as maxDate } from "date-fns";
-import { STAGE_ORDER } from "@/lib/progress-stages";
+import { computeStageProgress, type StageCategory } from "@/lib/stage-categories";
 import type { ForecastInput, Forecast } from "./types";
+
+/**
+ * computeForecast 옵션 — 카테고리별 단계 목록
+ */
+export interface ComputeForecastOptions {
+  stagesByCategory: Map<StageCategory, { id: string; order: number }[]>;
+}
 
 /**
  * 토폴로지 정렬 — 의존성 순서로 task 정렬
@@ -57,12 +64,14 @@ export function topologicalSort(tasks: ForecastInput[]): ForecastInput[] {
  *
  * @param tasks ForecastInput 배열
  * @param today 현재 날짜 (진행 중 task의 remaining 계산 기준)
+ * @param options 카테고리별 단계 목록 (진척률 계산용)
  * @returns Map<taskId, Forecast>
  * @throws Error 순환 의존성 발견 시
  */
 export function computeForecast(
   tasks: ForecastInput[],
-  today: Date
+  today: Date,
+  options: ComputeForecastOptions
 ): Map<string, Forecast> {
   const sorted = topologicalSort(tasks);
   const result = new Map<string, Forecast>();
@@ -86,9 +95,9 @@ export function computeForecast(
       // 1. 완료됨: actualEnd가 forecastEnd
       forecastEnd = t.actualEndDate;
     } else if (t.actualStartDate) {
-      // 2. 진행 중: currentStage 기반으로 남은 기간 계산
-      const stageIdx = STAGE_ORDER.indexOf(t.currentStage);
-      const progressPct = (stageIdx + 1) / STAGE_ORDER.length;
+      // 2. 진행 중: stageCategory + currentStageId 기반으로 진척률 계산
+      const stages = options.stagesByCategory.get(t.stageCategory) ?? [];
+      const progressPct = computeStageProgress(stages, t.currentStageId) / 100;
       const remaining = Math.max(1, duration * (1 - progressPct));
       forecastEnd = addDays(today, Math.ceil(remaining));
 

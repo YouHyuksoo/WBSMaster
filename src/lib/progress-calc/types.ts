@@ -8,7 +8,7 @@
  * 3. **Conflict**: 리소스 충돌 데이터 (주차별 할당 초과)
  * 4. **Diagnosis**: 최종 진단 결과 (판정, 권장사항 포함)
  */
-import type { ProgressStage } from "@/app/dashboard/progress-risk/types";
+import type { StageCategory } from "@/lib/stage-categories";
 
 export interface ForecastInput {
   id: string;
@@ -16,7 +16,8 @@ export interface ForecastInput {
   endDate: Date;
   actualStartDate: Date | null;
   actualEndDate: Date | null;
-  currentStage: ProgressStage;
+  stageCategory: StageCategory;
+  currentStageId: string | null;
   predecessorId: string | null;
 }
 

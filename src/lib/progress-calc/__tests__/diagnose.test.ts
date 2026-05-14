@@ -30,7 +30,8 @@ const task1: ForecastInput = {
   endDate: d(10),
   actualStartDate: null,
   actualEndDate: null,
-  currentStage: "ANALYSIS",
+  stageCategory: "ETC",
+  currentStageId: null,
   predecessorId: null,
 };
 

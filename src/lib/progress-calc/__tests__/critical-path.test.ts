@@ -26,7 +26,8 @@ describe("findCriticalPath", () => {
         endDate: d(4),
         actualStartDate: null,
         actualEndDate: null,
-        currentStage: "ANALYSIS",
+        stageCategory: "ETC",
+        currentStageId: null,
         predecessorId: null,
       },
     ];
@@ -44,7 +45,8 @@ describe("findCriticalPath", () => {
         endDate: d(4),
         actualStartDate: null,
         actualEndDate: null,
-        currentStage: "ANALYSIS",
+        stageCategory: "ETC",
+        currentStageId: null,
         predecessorId: null,
       },
       {
@@ -53,7 +55,8 @@ describe("findCriticalPath", () => {
         endDate: d(9),
         actualStartDate: null,
         actualEndDate: null,
-        currentStage: "ANALYSIS",
+        stageCategory: "ETC",
+        currentStageId: null,
         predecessorId: "T1",
       },
       {
@@ -62,7 +65,8 @@ describe("findCriticalPath", () => {
         endDate: d(14),
         actualStartDate: null,
         actualEndDate: null,
-        currentStage: "ANALYSIS",
+        stageCategory: "ETC",
+        currentStageId: null,
         predecessorId: "T2",
       },
     ];
@@ -82,7 +86,8 @@ describe("findCriticalPath", () => {
         endDate: d(2),
         actualStartDate: null,
         actualEndDate: null,
-        currentStage: "ANALYSIS",
+        stageCategory: "ETC",
+        currentStageId: null,
         predecessorId: null,
       },
       {
@@ -91,7 +96,8 @@ describe("findCriticalPath", () => {
         endDate: d(5),
         actualStartDate: null,
         actualEndDate: null,
-        currentStage: "ANALYSIS",
+        stageCategory: "ETC",
+        currentStageId: null,
         predecessorId: null,
       },
     ];

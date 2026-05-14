@@ -23,7 +23,8 @@ const T1: ForecastInput = {
   endDate: d(10),
   actualStartDate: null,
   actualEndDate: null,
-  currentStage: "ANALYSIS",
+  stageCategory: "ETC",
+  currentStageId: null,
   predecessorId: null,
 };
 
@@ -33,7 +34,8 @@ const T2: ForecastInput = {
   endDate: d(10),
   actualStartDate: null,
   actualEndDate: null,
-  currentStage: "ANALYSIS",
+  stageCategory: "ETC",
+  currentStageId: null,
   predecessorId: null,
 };
 
