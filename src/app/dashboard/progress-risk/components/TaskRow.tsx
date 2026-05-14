@@ -13,7 +13,8 @@
 
 import { useState, useEffect } from "react";
 import type { ProgressTask } from "@/lib/api";
-import { useUpdateProgressTask, useDeleteProgressTask } from "@/hooks";
+import { useUpdateProgressTask, useDeleteProgressTask, useStageDefs } from "@/hooks";
+import { STAGE_CATEGORY_LABEL, STAGE_CATEGORY_ORDER, type StageCategory } from "@/lib/stage-categories";
 import { StageStepper } from "./StageStepper";
 import { PredecessorSelect } from "./PredecessorSelect";
 import { AssigneeChips } from "./AssigneeChips";
@@ -43,6 +44,8 @@ function useDebouncedUpdate<T>(value: T, onSave: (v: T) => void, delay = 500) {
 export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighted }: Props) {
   const update = useUpdateProgressTask(projectId);
   const remove = useDeleteProgressTask(projectId);
+  const { data: allStages = [] } = useStageDefs(projectId);
+  const stagesOfCategory = allStages.filter((s) => s.category === task.stageCategory);
 
   const [name, setName] = useDebouncedUpdate(task.name, v => update.mutate({ id: task.id, data: { name: v } }));
   const [category, setCategory] = useDebouncedUpdate(task.category ?? "", v => update.mutate({ id: task.id, data: { category: v || null } }));
@@ -89,6 +92,16 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighte
       <div className="text-text-secondary text-xs truncate" title={task.businessUnit ?? ""}>
         {task.businessUnit ?? "-"}
       </div>
+      <select
+        value={task.stageCategory}
+        onChange={(e) => update.mutate({ id: task.id, data: { stageCategory: e.target.value as StageCategory } })}
+        className="bg-transparent border-0 focus:outline-none focus:bg-white/5 dark:focus:bg-white/5 px-1 py-0.5 rounded text-xs text-text dark:text-white"
+        aria-label="카테고리"
+      >
+        {STAGE_CATEGORY_ORDER.map((c) => (
+          <option key={c} value={c}>{STAGE_CATEGORY_LABEL[c]}</option>
+        ))}
+      </select>
       <input
         list="progress-task-category-options"
         value={category}
@@ -134,8 +147,9 @@ export function TaskRow({ index, task, projectId, allTasks, gridCols, highlighte
       />
       <div>
         <StageStepper
-          currentStage={task.currentStage}
-          onChange={(stage) => update.mutate({ id: task.id, data: { currentStage: stage } })}
+          stages={stagesOfCategory}
+          currentStageId={task.currentStageId}
+          onChange={(stageId) => update.mutate({ id: task.id, data: { currentStageId: stageId } })}
         />
       </div>
       <PredecessorSelect
