@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -27,7 +28,13 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
+
     const { id } = await params;
+
+    const accessError = await assertProjectAccess(id, user!);
+    if (accessError) return accessError;
 
     const project = await prisma.project.findUnique({
       where: { id },
@@ -94,7 +101,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
+
     const { id } = await params;
+
+    const accessError = await assertProjectAccess(id, user!);
+    if (accessError) return accessError;
+
     const body = await request.json();
     const { name, description, status, startDate, endDate, progress } = body;
 
@@ -145,7 +159,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
+
     const { id } = await params;
+
+    const accessError = await assertProjectAccess(id, user!);
+    if (accessError) return accessError;
 
     // 프로젝트 존재 확인
     const existing = await prisma.project.findUnique({ where: { id } });
