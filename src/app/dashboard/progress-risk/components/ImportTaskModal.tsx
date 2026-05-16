@@ -37,8 +37,7 @@ export function ImportTaskModal({ isOpen, onClose, onSuccess, projectId }: Props
           { header: "카테고리",       key: "stageCategory",   width: 12, example: "MES시스템" },
           { header: "대분류",         key: "category",        width: 15, example: "기준관리" },
           { header: "설명",           key: "description",     width: 30 },
-          { header: "시작일",         key: "startDate",       width: 12, example: "2026-05-01" },
-          { header: "종료일",         key: "endDate",         width: 12, example: "2026-05-30" },
+          { header: "목표일자",       key: "targetDate",      width: 12, example: "2026-05-30" },
           { header: "현재 단계",      key: "currentStage",    width: 12, example: "분석" },
           { header: "공수(MD)",       key: "effortMd",        width: 9,  example: 7.5 },
           { header: "선행 task 코드", key: "predecessorCode", width: 12, example: "T-001" },
@@ -48,7 +47,7 @@ export function ImportTaskModal({ isOpen, onClose, onSuccess, projectId }: Props
       }}
       hints={[
         "첫 번째 행은 헤더입니다 (수정 금지)",
-        "기능명/시작일/종료일은 필수",
+        "기능명/목표일자는 필수",
         "카테고리(단계 그룹): MES시스템/설비연동/단말기/기준정보/ERP I/F/SLMS I/F/CUT OFF/운영/인프라/기타 — 빈 값은 기타",
         "대분류는 자유 텍스트 (그룹핑/필터 용도)",
         "현재 단계는 해당 카테고리에 정의된 단계 이름과 정확히 일치해야 합니다 (매칭 실패 시 빈 단계로 import)",

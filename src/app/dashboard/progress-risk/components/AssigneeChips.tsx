@@ -26,7 +26,7 @@ export function AssigneeChips({ task, projectId }: Props) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex flex-wrap gap-1 items-center text-left hover:bg-white/5 dark:hover:bg-white/5 rounded px-1 py-0.5 w-full"
+        className="flex w-full min-w-0 flex-nowrap gap-1 overflow-hidden items-center text-left hover:bg-white/5 dark:hover:bg-white/5 rounded px-1 py-0.5"
         aria-label="담당자 관리"
       >
         {task.assignees.length === 0 ? (
@@ -35,7 +35,7 @@ export function AssigneeChips({ task, projectId }: Props) {
           task.assignees.map(a => (
             <span
               key={a.id}
-              className="px-2 py-0.5 bg-purple-500/15 border border-purple-500/30 rounded-full text-[10px] text-purple-700 dark:text-purple-300"
+              className="shrink-0 px-2 py-0.5 bg-purple-500/15 border border-purple-500/30 rounded-full text-[10px] text-purple-700 dark:text-purple-300"
               title={`${a.role ?? "역할 미지정"} · ${a.allocationPct}%`}
             >
               {a.user.name}

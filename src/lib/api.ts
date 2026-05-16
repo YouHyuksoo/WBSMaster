@@ -1079,6 +1079,61 @@ export interface ProgressStageDef {
   updatedAt: string;
 }
 
+export interface ProgressCategoryPlan {
+  id: string;
+  projectId: string;
+  category: StageCategory;
+  openDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProgressRiskIssueStatus =
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "WAITING_DECISION"
+  | "RESOLVED"
+  | "CLOSED";
+
+export interface ProgressRiskIssue {
+  id: string;
+  projectId: string;
+  stageCategory: StageCategory;
+  majorCategory: string;
+  title: string;
+  description: string | null;
+  isScheduleRisk: boolean;
+  targetDate: string | null;
+  status: ProgressRiskIssueStatus;
+  needsEscalation: boolean;
+  assignee: string | null;
+  decisionMaker: string | null;
+  submittedDate: string;
+  resolvedDate: string | null;
+  remarks: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProgressTaskStageDetail {
+  id: string;
+  taskId: string;
+  stageId: string;
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+  description: string | null;
+  issue: string | null;
+  assigneeUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  stage?: ProgressStageDef;
+  assigneeUser?: {
+    id: string;
+    name: string | null;
+    email: string;
+    avatar?: string | null;
+  } | null;
+}
+
 // ============================================
 // API 클라이언트
 // ============================================
@@ -1709,6 +1764,43 @@ export const api = {
       post<{ movedTaskCount: number }>(`/api/stage-defs/${sourceId}/merge-into`, { targetStageId }),
   },
 
+  /** 프로젝트별 진도 카테고리 오픈 기준일 API */
+  categoryPlans: {
+    list: (projectId: string) =>
+      get<ProgressCategoryPlan[]>(`/api/projects/${projectId}/category-plans`),
+    update: (projectId: string, category: StageCategory, data: { openDate: string | null }) =>
+      patch<ProgressCategoryPlan>(`/api/projects/${projectId}/category-plans/${category}`, data),
+  },
+
+  progressRiskIssues: {
+    list: (params: { projectId: string; stageCategory?: StageCategory; majorCategory?: string; status?: string }) =>
+      get<ProgressRiskIssue[]>("/api/progress-risk-issues", {
+        projectId: params.projectId,
+        stageCategory: params.stageCategory,
+        majorCategory: params.majorCategory,
+        status: params.status,
+      }),
+    create: (data: {
+      projectId: string;
+      stageCategory: StageCategory;
+      majorCategory: string;
+      title: string;
+      description?: string;
+      isScheduleRisk?: boolean;
+      targetDate?: string;
+      status?: ProgressRiskIssueStatus;
+      needsEscalation?: boolean;
+      assignee?: string;
+      decisionMaker?: string;
+      submittedDate?: string;
+      resolvedDate?: string;
+      remarks?: string;
+    }) => post<ProgressRiskIssue>("/api/progress-risk-issues", data),
+    update: (id: string, data: Partial<ProgressRiskIssue>) =>
+      patch<ProgressRiskIssue>(`/api/progress-risk-issues/${id}`, data),
+    delete: (id: string) => del<{ message: string }>(`/api/progress-risk-issues/${id}`),
+  },
+
   // ============================================
   // 진도 리스크 Task API
   // ============================================
@@ -1740,6 +1832,16 @@ export const api = {
       patch<ProgressTaskAssignee>(`/api/progress-tasks/${taskId}/assignees/${userId}`, data),
     removeAssignee: (taskId: string, userId: string) =>
       del<{ message: string }>(`/api/progress-tasks/${taskId}/assignees/${userId}`),
+    stageDetails: {
+      list: (taskId: string) =>
+        get<ProgressTaskStageDetail[]>(`/api/progress-tasks/${taskId}/stage-details`),
+      update: (taskId: string, stageId: string, data: {
+        description?: string | null;
+        issue?: string | null;
+        assigneeUserId?: string | null;
+        status?: ProgressTaskStageDetail["status"];
+      }) => patch<ProgressTaskStageDetail>(`/api/progress-tasks/${taskId}/stage-details/${stageId}`, data),
+    },
     /** 엑셀 다운로드 URL 생성 (window.location.href에 할당) */
     exportUrl: (projectId: string) =>
       `/api/progress-tasks/export?projectId=${encodeURIComponent(projectId)}`,

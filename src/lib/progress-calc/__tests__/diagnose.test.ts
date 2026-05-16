@@ -72,6 +72,32 @@ describe("diagnose", () => {
     expect(result.overrunDays).toBeGreaterThan(0);
   });
 
+  it("카테고리 오픈일자가 있으면 프로젝트 종료일보다 카테고리 오픈일자를 우선 기준으로 쓴다", () => {
+    const forecast = new Map<string, Forecast>([
+      [
+        "T1",
+        {
+          forecastStart: d(0),
+          forecastEnd: d(15),
+          duration: 15,
+        },
+      ],
+    ]);
+    const result = diagnose([task1], forecast, [], d(30), new Map([["ETC", d(10)]]));
+
+    expect(result.verdict).toBe("SCHEDULE_OVERRUN");
+    expect(result.overrunDays).toBeGreaterThan(0);
+    expect(result.categoryOverruns).toEqual([
+      {
+        category: "ETC",
+        openDate: d(10),
+        forecastEnd: d(15),
+        overrunDays: expect.any(Number),
+        taskIds: ["T1"],
+      },
+    ]);
+  });
+
   it("충돌만 있으면 RESOURCE_SHORTAGE", () => {
     const forecast = new Map<string, Forecast>([
       [

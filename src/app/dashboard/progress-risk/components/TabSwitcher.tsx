@@ -36,6 +36,7 @@ export function TabSwitcher({
     { key: "list", icon: "list_alt", label: "리스트" },
     { key: "gantt", icon: "timeline", label: "Gantt" },
     { key: "load", icon: "groups", label: "인력부하", count: conflictCount },
+    { key: "riskIssues", icon: "report_problem", label: "리스크관리" },
     { key: "diagnosis", icon: "diagnosis", label: "진단", count: recommendationCount },
   ];
 

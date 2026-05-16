@@ -12,6 +12,7 @@
 
 import type { Diagnosis, Recommendation } from "@/lib/progress-calc/types";
 import { Icon } from "@/components/ui";
+import { STAGE_CATEGORY_LABEL } from "@/lib/stage-categories";
 import { RecommendationCard } from "./RecommendationCard";
 
 interface Props {
@@ -86,11 +87,32 @@ export function DiagnosisTab({ diagnosis, onCardClick }: Props) {
             value={`${diagnosis.criticalPath.length}개`}
           />
           <Metric
-            label="권장 조치"
-            value={`${diagnosis.recommendations.length}건`}
+            label="오픈 초과 카테고리"
+            value={`${diagnosis.categoryOverruns.length}개`}
           />
         </div>
       </div>
+
+      {diagnosis.categoryOverruns.length > 0 && (
+        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
+          <p className="text-sm font-semibold text-text dark:text-white mb-3">카테고리 오픈일자 초과</p>
+          <div className="space-y-2">
+            {diagnosis.categoryOverruns.map((overrun) => (
+              <div
+                key={overrun.category}
+                className="flex flex-col gap-1 rounded-lg bg-surface dark:bg-background-dark px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="text-sm font-medium text-text dark:text-white">
+                  {STAGE_CATEGORY_LABEL[overrun.category]}
+                </span>
+                <span className="text-xs text-error">
+                  최종 오픈 {overrun.openDate.toISOString().slice(0, 10)} 기준 +{overrun.overrunDays}일
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 권장 조치 목록 */}
       {diagnosis.recommendations.length === 0 ? (

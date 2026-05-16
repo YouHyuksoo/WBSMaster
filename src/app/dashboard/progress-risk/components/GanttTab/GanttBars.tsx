@@ -1,13 +1,11 @@
 /**
  * @file src/app/dashboard/progress-risk/components/GanttTab/GanttBars.tsx
- * @description 한 행의 3종 막대 (계획/실제/예측) + Critical Path 발광
+ * @description 한 행의 계획/실제/예측 막대
  *
  * 초보자 가이드:
- * 1. **계획 막대**: 파랑(blue-500/40) — task.startDate ~ task.endDate
- * 2. **실제 막대**: 초록(success) 또는 빨강(error) — actualStart ~ actualEnd or today
- * 3. **예측 막대**: 주황(orange-500/40, 점선) — forecast 데이터가 계획과 다를 때만 표시
- * 4. **Critical Path**: box-shadow 발광 효과
- * 5. **스택**: 계획(top:0) → 실제(top:12px) → 예측(top:12px)
+ * 1. **계획 막대**: 낮은 채도의 파랑 — task.startDate ~ task.endDate
+ * 2. **실제 막대**: 계획 막대 안쪽의 얇은 진행 표시
+ * 3. **예측 막대**: 계획 대비 늘어난 구간만 연한 amber로 표시
  */
 
 import type { ProgressTask } from "@/app/dashboard/progress-risk/types";
@@ -55,34 +53,43 @@ export function GanttBars({ task, forecast, timeScale, onCriticalPath }: Props) 
     }
   }
 
-  // Critical Path 발광 효과
-  const cpClass = onCriticalPath ? "shadow-[0_0_6px_rgba(239,68,68,0.5)]" : "";
-
   return (
-    <div className="relative h-5">
-      {/* 계획 막대 — 파랑, top:0 */}
+    <div className="relative h-8 overflow-hidden rounded-md bg-slate-100/70 ring-1 ring-border/50 dark:bg-background-dark/70 dark:ring-border-dark/60">
+      {timeScale.ticks.map((t, i) => (
+        <span
+          key={i}
+          className="absolute top-0 h-full border-l border-white/80 dark:border-white/10"
+          style={{ left: `${t.ratio * 100}%` }}
+        />
+      ))}
+
+      {/* 계획 막대 */}
       <div
-        className={`absolute top-0 h-2 rounded-sm bg-blue-500/40 border border-blue-500/60 ${cpClass}`}
+        className={`absolute top-2 h-4 rounded border shadow-sm ${
+          onCriticalPath
+            ? "bg-sky-200 border-sky-400"
+            : "bg-slate-200 border-slate-300 dark:bg-slate-700 dark:border-slate-600"
+        }`}
         style={{ left: planLeft, width: planWidth }}
         title={`계획: ${task.startDate.slice(0, 10)} ~ ${task.endDate.slice(0, 10)}`}
       />
 
-      {/* 실제 막대 — 초록/빨강, top:12px */}
+      {/* 실제 막대 */}
       {actualBar && (
         <div
-          className={`absolute h-1 rounded-sm ${
-            actualBar.delayed ? "bg-error" : "bg-success"
-          } ${cpClass}`}
-          style={{ top: "12px", left: actualBar.left, width: actualBar.width }}
+          className={`absolute top-[15px] h-1.5 rounded-full shadow-sm ${
+            actualBar.delayed ? "bg-rose-400" : "bg-emerald-500"
+          }`}
+          style={{ left: actualBar.left, width: actualBar.width }}
           title={`실제: ${actualStart?.toISOString().slice(0, 10)} ~ ${actualEnd?.toISOString().slice(0, 10) ?? "진행 중"}`}
         />
       )}
 
-      {/* 예측 막대 — 주황, 점선, top:12px */}
+      {/* 예측 막대 */}
       {forecastBar && (
         <div
-          className={`absolute h-1 rounded-sm border border-dashed border-orange-500 bg-orange-500/40 ${cpClass}`}
-          style={{ top: "12px", left: forecastBar.left, width: forecastBar.width }}
+          className="absolute top-[5px] h-1.5 rounded-full bg-amber-300 shadow-sm"
+          style={{ left: forecastBar.left, width: forecastBar.width }}
           title="예측 일정"
         />
       )}

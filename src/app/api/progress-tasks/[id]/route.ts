@@ -162,9 +162,11 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
     if (dateCheck) {
       const newStart = willUpdateStart ? new Date(body.startDate) : dateCheck.startDate;
       const newEnd = willUpdateEnd ? new Date(body.endDate) : dateCheck.endDate;
-      if (newEnd < newStart) {
+      if (willUpdateEnd && !willUpdateStart && newEnd < newStart) {
+        data.startDate = newEnd;
+      } else if (newEnd < newStart) {
         return NextResponse.json(
-          { error: "종료일이 시작일보다 빠를 수 없습니다." },
+          { error: "목표일자가 내부 시작일보다 빠를 수 없습니다." },
           { status: 400 }
         );
       }

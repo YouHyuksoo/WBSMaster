@@ -31,24 +31,24 @@ export function DeadlineMarkers({ projectEndDate, forecast, timeScale }: Props) 
   if (!projectEndDate && !showForecast) return null;
 
   return (
-    <div className="relative h-7 mt-1 mb-2">
+    <div className="relative h-6 mt-1 mb-1">
       {projectEndDate && (
         <div
-          className="absolute -translate-x-1/2 text-[10px] text-pink-500 font-semibold whitespace-nowrap"
+          className="absolute -translate-x-1/2 rounded-full bg-background-white/90 px-2 py-0.5 text-[10px] font-medium text-text-secondary shadow-sm ring-1 ring-border dark:bg-surface-dark/90 dark:ring-border-dark whitespace-nowrap"
           style={{ left: `${timeScale.toRatio(projectEndDate) * 100}%` }}
         >
-          ▼ 목표 {projectEndDate.toISOString().slice(0, 10)}
+          목표 {projectEndDate.toISOString().slice(0, 10)}
         </div>
       )}
       {showForecast && (
         <div
-          className="absolute -translate-x-1/2 text-[10px] text-red-500 font-semibold whitespace-nowrap"
+          className="absolute -translate-x-1/2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-200 whitespace-nowrap"
           style={{
             left: `${timeScale.toRatio(maxForecast) * 100}%`,
-            top: "14px",
+            top: "16px",
           }}
         >
-          ▼ 예측 {maxForecast.toISOString().slice(0, 10)}
+          예측 {maxForecast.toISOString().slice(0, 10)}
         </div>
       )}
     </div>

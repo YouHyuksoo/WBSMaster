@@ -43,10 +43,19 @@ export interface Recommendation {
   userId?: string;
 }
 
+export interface CategoryOverrun {
+  category: StageCategory;
+  openDate: Date;
+  forecastEnd: Date;
+  overrunDays: number;
+  taskIds: string[];
+}
+
 export interface Diagnosis {
   verdict: Verdict;
   overrunDays: number;
   shortageMd: number;
   criticalPath: string[];
   recommendations: Recommendation[];
+  categoryOverruns: CategoryOverrun[];
 }

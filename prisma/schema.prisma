@@ -58,6 +58,7 @@ model User {
   reportedDiscussions   DiscussionItem[]       @relation("DiscussionReporter") // 내가 보고한 협의요청
   assignedDiscussions   DiscussionItem[]       @relation("DiscussionAssignee") // 나에게 할당된 협의요청
   progressAssignments   ProgressTaskAssignee[] // 진도 task 담당자 할당
+  progressStageDetails  ProgressTaskStageDetail[] // 진도 task 단계별 담당 상세
 
   @@map("users")
 }
@@ -142,6 +143,8 @@ model Project {
   interviews                    Interview[] // 인터뷰 관리 목록
   progressTasks                 ProgressTask[] // 진도 task 목록
   stageDefs                     ProgressStageDef[] // 진도 단계 정의
+  categoryPlans                 ProgressCategoryPlan[] // 진도 카테고리별 오픈 기준일
+  progressRiskIssues            ProgressRiskIssue[] // 진도 리스크 이슈
 
   @@map("projects")
 }
@@ -2178,11 +2181,65 @@ model ProgressStageDef {
 
   project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   tasks   ProgressTask[] @relation("CurrentStageDef")
+  taskDetails ProgressTaskStageDetail[]
 
   @@unique([projectId, category, name])
   @@unique([projectId, category, order])
   @@index([projectId, category])
   @@map("progress_stage_defs")
+}
+
+model ProgressCategoryPlan {
+  id        String        @id @default(uuid())
+  projectId String
+  category  StageCategory
+  openDate  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, category])
+  @@index([projectId])
+  @@map("progress_category_plans")
+}
+
+enum ProgressRiskIssueStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_DECISION
+  RESOLVED
+  CLOSED
+}
+
+model ProgressRiskIssue {
+  id              String                  @id @default(uuid())
+  projectId       String
+  stageCategory   StageCategory
+  majorCategory   String
+  title           String
+  description     String?
+  isScheduleRisk  Boolean                 @default(true)
+  targetDate      DateTime?
+  status          ProgressRiskIssueStatus @default(OPEN)
+  needsEscalation Boolean                 @default(false)
+  assignee        String?
+  decisionMaker   String?
+  submittedDate   DateTime                @default(now())
+  resolvedDate    DateTime?
+  remarks         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([projectId, stageCategory, majorCategory])
+  @@index([status])
+  @@index([isScheduleRisk])
+  @@map("progress_risk_issues")
 }
 
 // ============================================
@@ -2226,6 +2283,7 @@ model ProgressTask {
   predecessor ProgressTask?          @relation("ProgressTaskDeps", fields: [predecessorId], references: [id], onDelete: SetNull)
   successors  ProgressTask[]         @relation("ProgressTaskDeps")
   assignees   ProgressTaskAssignee[]
+  stageDetails ProgressTaskStageDetail[]
 
   @@unique([projectId, code])
   @@index([projectId])
@@ -2251,4 +2309,32 @@ model ProgressTaskAssignee {
   @@unique([taskId, userId])
   @@index([userId])
   @@map("progress_task_assignees")
+}
+
+model ProgressTaskStageDetail {
+  id             String  @id @default(uuid())
+  taskId         String
+  stageId        String
+  status         ProgressTaskStageDetailStatus @default(PENDING)
+  description    String?
+  issue          String?
+  assigneeUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task         ProgressTask     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  stage        ProgressStageDef @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  assigneeUser User?            @relation(fields: [assigneeUserId], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, stageId])
+  @@index([stageId])
+  @@index([assigneeUserId])
+  @@map("progress_task_stage_details")
+}
+
+enum ProgressTaskStageDetailStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
 }

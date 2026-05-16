@@ -33,7 +33,7 @@ export function StageStepper({ stages, currentStageId, onChange, variant = "full
   const currentIdx = sorted.findIndex((s) => s.id === currentStageId);
 
   return (
-    <div className="flex items-center gap-1 flex-nowrap" role="group" aria-label="단계 진행 바">
+    <div className="flex max-w-full min-w-0 items-center gap-1 overflow-hidden" role="group" aria-label="단계 진행 바">
       {sorted.map((stage, idx) => {
         const isDone = currentIdx >= 0 && idx < currentIdx;
         const isCurrent = idx === currentIdx;

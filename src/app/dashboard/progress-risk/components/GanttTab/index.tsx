@@ -33,8 +33,16 @@ export function GanttTab({ tasks, forecast, projectEndDate, criticalPath }: Prop
 
   return (
     <div className="space-y-3">
-      {/* zoom 토글 */}
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3 text-[11px] text-text-secondary">
+          <span className="font-semibold text-text dark:text-white">Gantt 범례</span>
+          <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-6 rounded-full border border-slate-300 bg-slate-200 dark:border-slate-600 dark:bg-slate-700" />계획</span>
+          <span className="inline-flex items-center gap-1.5"><i className="h-1.5 w-6 rounded-full bg-emerald-500" />실제</span>
+          <span className="inline-flex items-center gap-1.5"><i className="h-1.5 w-6 rounded-full bg-rose-400" />지연</span>
+          <span className="inline-flex items-center gap-1.5"><i className="h-1.5 w-6 rounded-full bg-amber-300" />예측</span>
+          <span className="rounded bg-warning/15 px-1.5 py-0.5 font-semibold text-warning">CP</span>
+          <span>목표/예측 종료일은 상단 마커로 표시</span>
+        </div>
         <ZoomControl value={zoom} onChange={setZoom} />
       </div>
 

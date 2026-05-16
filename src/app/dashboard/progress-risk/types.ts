@@ -52,4 +52,4 @@ export interface ProgressTask {
 
 export type Verdict = "NORMAL" | "RESOURCE_SHORTAGE" | "SCHEDULE_OVERRUN" | "BOTH";
 
-export type TabKey = "list" | "gantt" | "load" | "diagnosis";
+export type TabKey = "list" | "gantt" | "load" | "riskIssues" | "diagnosis";

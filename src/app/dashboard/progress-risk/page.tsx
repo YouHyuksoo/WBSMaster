@@ -20,23 +20,25 @@ import {
   AddTaskModal,
   ImportTaskModal,
   type Filters,
+  FilterBar,
   KpiRow,
-  VerdictBanner,
   TabSwitcher,
   ListTab,
   GanttTab,
   LoadTab,
+  RiskIssueTab,
   DiagnosisTab,
   StageManagerModal,
 } from "./components";
 import { Icon } from "@/components/ui";
 import type { TabKey } from "./types";
 import type { Recommendation } from "@/lib/progress-calc/types";
+import type { ListViewMode } from "./components/ListTab/listViewMode";
 
 export default function ProgressRiskPage() {
   const { selectedProject } = useProject();
   const projectEnd = selectedProject?.endDate ? new Date(selectedProject.endDate) : null;
-  const { data, isLoading } = useComputeForecast(selectedProject?.id, projectEnd);
+  const { data, isLoading, isFetching, refetch } = useComputeForecast(selectedProject?.id, projectEnd);
 
   const tasks = data?.tasks ?? [];
   const conflicts = data?.conflicts ?? [];
@@ -46,8 +48,9 @@ export default function ProgressRiskPage() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [stageManagerOpen, setStageManagerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("list");
+  const [listViewMode, setListViewMode] = useState<ListViewMode>("pagination");
   const [filters, setFilters] = useState<Filters>({
-    search: "", status: "all", category: "", userId: "", businessUnit: "",
+    search: "", status: "all", businessUnit: "", category: "", majorCategory: "",
   });
   const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
 
@@ -60,15 +63,13 @@ export default function ProgressRiskPage() {
       setActiveTab("list");
       setTimeout(() => setHighlightTaskId(null), 3000);
     } else if (rec.userId) {
-      setFilters(f => ({ ...f, userId: rec.userId! }));
-      setActiveTab("list");
+      setActiveTab("load");
     }
   };
 
   return (
     <div className="p-6 space-y-6">
       <PageHeader
-        project={selectedProject}
         taskCount={tasks.length}
         onAddTask={() => setAddModalOpen(true)}
         onExportExcel={() => {
@@ -78,6 +79,8 @@ export default function ProgressRiskPage() {
         }}
         onImportExcel={() => setImportModalOpen(true)}
         onOpenStageManager={() => setStageManagerOpen(true)}
+        onRefresh={() => refetch()}
+        isRefreshing={isFetching && !isLoading}
       />
 
       {!selectedProject && (
@@ -97,27 +100,34 @@ export default function ProgressRiskPage() {
         <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-12 text-center">
           <Icon name="inbox" size="xl" className="text-text-secondary mb-4" />
           <p className="text-text-secondary mb-2">등록된 task가 없습니다.</p>
-          <p className="text-xs text-text-secondary opacity-60">우측 상단의 "+ task 추가"로 시작하세요.</p>
+          <p className="text-xs text-text-secondary opacity-60">우측 상단의 &quot;DATA 추가&quot;로 시작하세요.</p>
         </div>
       )}
 
       {selectedProject && tasks.length > 0 && (
         <>
-          <VerdictBanner diagnosis={diagnosis} tasks={tasks} projectEndDate={projectEnd} />
-          <KpiRow tasks={tasks} conflicts={conflicts} diagnosis={diagnosis} />
-          <TabSwitcher
-            activeTab={activeTab}
-            onChange={setActiveTab}
-            conflictCount={conflictUserCount}
-            recommendationCount={recCount}
-          />
+          <KpiRow tasks={tasks} conflicts={conflicts} diagnosis={diagnosis} projectEndDate={projectEnd} />
+          <div className="flex flex-wrap items-center gap-3">
+            <TabSwitcher
+              activeTab={activeTab}
+              onChange={setActiveTab}
+              conflictCount={conflictUserCount}
+              recommendationCount={recCount}
+            />
+            {activeTab === "list" && (
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+                <FilterBar tasks={tasks} filters={filters} onChange={setFilters} />
+              </div>
+            )}
+          </div>
 
           {activeTab === "list" && (
             <ListTab
               tasks={tasks}
               projectId={selectedProject.id}
               filters={filters}
-              onFiltersChange={setFilters}
+              viewMode={listViewMode}
+              onViewModeChange={setListViewMode}
               highlightTaskId={highlightTaskId}
             />
           )}
@@ -133,6 +143,10 @@ export default function ProgressRiskPage() {
 
           {activeTab === "load" && data && (
             <LoadTab tasks={tasks} forecast={data.forecast} />
+          )}
+
+          {activeTab === "riskIssues" && (
+            <RiskIssueTab projectId={selectedProject.id} tasks={tasks} />
           )}
 
           {activeTab === "diagnosis" && (

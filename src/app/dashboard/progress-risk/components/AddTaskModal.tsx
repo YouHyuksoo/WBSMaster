@@ -3,7 +3,7 @@
  * @description task 추가 모달 — 기능명/일정/선행/병렬·순차/담당자 입력
  *
  * 초보자 가이드:
- * 1. **폼 필드**: 기능명(필수), 카테고리(선택), 시작일/종료일(필수), 선행 task(선택)
+ * 1. **폼 필드**: 기능명(필수), 카테고리(선택), 목표일자(필수), 선행 task(선택)
  * 2. **병렬/순차**: isParallel 토글 — 다른 task와 동시 진행 가능 여부
  * 3. **담당자**: 사용자 + 역할 + 참여율을 칩으로 누적, 저장 시 일괄 추가
  * 4. **저장 흐름**: 1) task 생성 → 2) 각 담당자 순차 추가 API 호출
@@ -13,9 +13,11 @@
 import { useState } from "react";
 import { Modal, Button, Input } from "@/components/ui";
 import { useCreateProgressTask, useAddAssignee, useUsers } from "@/hooks";
-import type { ProgressTask } from "@/lib/api";
+import type { ProgressTask, StageCategory } from "@/lib/api";
+import { STAGE_CATEGORY_LABEL, STAGE_CATEGORY_ORDER } from "@/lib/stage-categories";
 import { ROLE_OPTIONS } from "../constants";
 import { BUSINESS_UNITS } from "@/constants/business-units";
+import { toProgressTaskDateRange } from "./taskDateFields";
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -33,10 +35,9 @@ interface DraftAssignee {
 
 export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddTaskModalProps) {
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
+  const [stageCategory, setStageCategory] = useState<StageCategory>("MES_SYSTEM");
   const [businessUnit, setBusinessUnit] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [targetDate, setTargetDate] = useState("");
   const [predecessorId, setPredecessorId] = useState("");
   const [isParallel, setIsParallel] = useState(true);
   const [assignees, setAssignees] = useState<DraftAssignee[]>([]);
@@ -50,7 +51,7 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
   const create = useCreateProgressTask();
   const addAssignee = useAddAssignee(projectId);
 
-  const isFormValid = !!name && !!startDate && !!endDate;
+  const isFormValid = !!name && !!targetDate;
   const availableUsers = users.filter(u => !assignees.some(a => a.userId === u.id));
 
   const handleAddAssignee = () => {
@@ -77,10 +78,9 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
 
   const reset = () => {
     setName("");
-    setCategory("");
+    setStageCategory("MES_SYSTEM");
     setBusinessUnit("");
-    setStartDate("");
-    setEndDate("");
+    setTargetDate("");
     setPredecessorId("");
     setIsParallel(true);
     setAssignees([]);
@@ -91,17 +91,14 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
 
   const handleSubmit = async () => {
     if (!isFormValid) return;
-    if (new Date(endDate) < new Date(startDate)) {
-      alert("종료일이 시작일보다 빠를 수 없습니다.");
-      return;
-    }
+    const { startDate, endDate } = toProgressTaskDateRange(targetDate);
 
     const created = await create.mutateAsync({
       projectId,
       name,
       startDate,
       endDate,
-      category: category || undefined,
+      stageCategory,
       businessUnit: businessUnit || undefined,
       predecessorId: predecessorId || undefined,
       isParallel,
@@ -120,7 +117,7 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="새 task 추가" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title="DATA 추가" size="md">
       <div className="space-y-3">
         {/* 기능명 */}
         <div>
@@ -147,24 +144,26 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
           </div>
           <div>
             <label className="block text-xs font-semibold text-text dark:text-white mb-1">카테고리</label>
-            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="예: 기준관리" />
+            <select
+              value={stageCategory}
+              onChange={(e) => setStageCategory(e.target.value as StageCategory)}
+              className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {STAGE_CATEGORY_ORDER.map((category) => (
+                <option key={category} value={category}>
+                  {STAGE_CATEGORY_LABEL[category]}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* 시작일 / 종료일 */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-text dark:text-white mb-1">
-              시작일 <span className="text-error">*</span>
-            </label>
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-text dark:text-white mb-1">
-              종료일 <span className="text-error">*</span>
-            </label>
-            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          </div>
+        {/* 목표일자 */}
+        <div>
+          <label className="block text-xs font-semibold text-text dark:text-white mb-1">
+            목표일자 <span className="text-error">*</span>
+          </label>
+          <Input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
         </div>
 
         {/* 선행 task */}
@@ -208,7 +207,7 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
                   : "bg-background-white dark:bg-surface-dark border-border dark:border-border-dark text-text-secondary"
               }`}
             >
-              🟠 순차 (선행 끝나야 시작)
+              🟠 순차 (선행 완료 후 진행)
             </button>
           </div>
         </div>

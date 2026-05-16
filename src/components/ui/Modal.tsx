@@ -50,7 +50,7 @@ const sizeClasses: Record<ModalSize, string> = {
   md: "max-w-md",
   lg: "max-w-lg",
   xl: "max-w-xl",
-  full: "max-w-4xl",
+  full: "max-w-[min(1280px,calc(100vw-2rem))]",
 };
 
 /**

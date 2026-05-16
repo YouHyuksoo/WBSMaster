@@ -11,7 +11,7 @@
  * 5. **useAddAssignee / useUpdateAssignee / useRemoveAssignee**: 담당자 관리
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type ProgressTask } from "@/lib/api";
+import { api, type ProgressTask, type StageCategory } from "@/lib/api";
 import { useToast } from "@/contexts";
 
 export const progressTaskKeys = {
@@ -37,6 +37,7 @@ export function useCreateProgressTask() {
     mutationFn: (data: {
       projectId: string; name: string; startDate: string; endDate: string;
       category?: string; businessUnit?: string; description?: string; predecessorId?: string; isParallel?: boolean;
+      stageCategory?: StageCategory; currentStageId?: string | null;
     }) => api.progressTasks.create(data),
     onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: progressTaskKeys.list(vars.projectId) }),
     onError: (err: Error) => showToast(err.message || "task 생성 실패", "error"),

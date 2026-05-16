@@ -12,8 +12,7 @@
  * - 기능명 (필수)
  * - 카테고리 (선택)
  * - 설명 (선택)
- * - 시작일 (필수, YYYY-MM-DD 또는 Excel 시리얼)
- * - 종료일 (필수)
+ * - 목표일자 (필수, YYYY-MM-DD 또는 Excel 시리얼)
  * - 현재 단계 (선택, 한글 라벨 또는 enum)
  * - 공수(MD) (선택)
  * - 선행 task 코드 (선택, 같은 프로젝트 안에서 매칭)
@@ -44,6 +43,12 @@ function parseExcelDate(value: unknown): Date | null {
   }
   if (value instanceof Date) return value;
   return null;
+}
+
+function internalStartDate(targetDate: Date): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return targetDate < today ? targetDate : today;
 }
 
 export async function POST(request: NextRequest) {
@@ -158,20 +163,14 @@ export async function POST(request: NextRequest) {
     for (const [idx, row] of data.entries()) {
       try {
         const name = String(row["기능명"] ?? "").trim();
-        const startDate = parseExcelDate(row["시작일"]);
-        const endDate = parseExcelDate(row["종료일"]);
+        const targetDate = parseExcelDate(row["목표일자"] ?? row["종료일"]);
+        const startDate = targetDate ? internalStartDate(targetDate) : null;
+        const endDate = targetDate;
 
         // 필수 필드 검증
         if (!name || !startDate || !endDate) {
           stats.skipped++;
-          stats.errors.push(`행 ${idx + 2}: 필수 필드 누락 (기능명/시작일/종료일)`);
-          continue;
-        }
-
-        // 날짜 범위 검증
-        if (endDate < startDate) {
-          stats.skipped++;
-          stats.errors.push(`행 ${idx + 2}: 종료일이 시작일보다 빠름`);
+          stats.errors.push(`행 ${idx + 2}: 필수 필드 누락 (기능명/목표일자)`);
           continue;
         }
 

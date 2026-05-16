@@ -69,7 +69,9 @@ export function buildTimeScale(
     }
   } else {
     // 일/주 단위 눈금 (자동 간격)
-    const stepDays = zoom === "day" ? Math.max(1, Math.ceil(totalDays / 10)) : 7;
+    const stepDays = zoom === "day"
+      ? Math.max(1, Math.ceil(totalDays / 8))
+      : Math.max(7, Math.ceil(totalDays / 8 / 7) * 7);
     let cur = new Date(start);
     while (cur <= end) {
       ticks.push({
