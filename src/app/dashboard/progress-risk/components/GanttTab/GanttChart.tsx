@@ -30,51 +30,57 @@ const GRID_COLS = "36px 92px 92px 1fr 70px 1fr";
 
 export function GanttChart({ tasks, forecast, timeScale, criticalPathIds, projectEndDate }: Props) {
   return (
-    <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
+    <div className="h-full min-h-0 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-x-auto overflow-y-auto">
       <div className="min-w-[980px]">
-        {/* 헤더: 시간축 눈금 */}
-        <div
-          className="grid gap-2 border-b border-border dark:border-border-dark bg-surface/70 px-3 py-2 text-xs text-text-secondary dark:bg-background-dark/70"
-          style={{ gridTemplateColumns: GRID_COLS }}
-        >
-          <div className="font-semibold text-center">#</div>
-          <div className="font-semibold uppercase">카테고리</div>
-          <div className="font-semibold uppercase">대분류</div>
-          <div className="font-semibold uppercase">기능</div>
-          <div className="font-semibold uppercase">단계</div>
-          <div className="relative h-6 rounded bg-background-white/70 ring-1 ring-border/60 dark:bg-surface-dark/70 dark:ring-border-dark/60">
-            {timeScale.ticks.map((t, i) => (
-              <span
-                key={`line-${i}`}
-                className="absolute top-0 h-full border-l border-border/50 dark:border-border-dark/50"
-                style={{ left: `${t.ratio * 100}%` }}
-              />
-            ))}
-            {timeScale.ticks.map((t, i) => (
-              <span
-                key={i}
-                className="absolute top-1 -translate-x-1/2 rounded bg-background-white px-1 text-[10px] shadow-sm ring-1 ring-border/60 dark:bg-surface-dark dark:ring-border-dark"
-                style={{ left: `${t.ratio * 100}%` }}
-              >
-                {t.label}
-              </span>
-            ))}
+        {/* sticky: 시간축 헤더 + 마커 행 — 세로 스크롤 시 고정 */}
+        <div className="sticky top-0 z-10">
+          {/* 시간축 눈금 */}
+          <div
+            className="grid gap-2 border-b border-border dark:border-border-dark bg-surface dark:bg-background-dark px-3 py-2 text-xs text-text-secondary"
+            style={{ gridTemplateColumns: GRID_COLS }}
+          >
+            <div className="font-semibold text-center">#</div>
+            <div className="font-semibold uppercase">카테고리</div>
+            <div className="font-semibold uppercase">대분류</div>
+            <div className="font-semibold uppercase">기능</div>
+            <div className="font-semibold uppercase">단계</div>
+            <div className="relative h-6 rounded bg-background-white/70 ring-1 ring-border/60 dark:bg-surface-dark/70 dark:ring-border-dark/60">
+              {timeScale.ticks.map((t, i) => (
+                <span
+                  key={`line-${i}`}
+                  className="absolute top-0 h-full border-l border-border/50 dark:border-border-dark/50"
+                  style={{ left: `${t.ratio * 100}%` }}
+                />
+              ))}
+              {timeScale.ticks.map((t, i) => (
+                <span
+                  key={i}
+                  className="absolute top-1 -translate-x-1/2 rounded bg-background-white px-1 text-[10px] shadow-sm ring-1 ring-border/60 dark:bg-surface-dark dark:ring-border-dark"
+                  style={{ left: `${t.ratio * 100}%` }}
+                >
+                  {t.label}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* 목표/예측 종료일 마커 — 시간축 컬럼 영역에 정렬 */}
-        <div className="grid gap-2 border-b border-border/60 px-3 dark:border-border-dark/60" style={{ gridTemplateColumns: GRID_COLS }}>
-          <div></div>
-          <div></div>
-          <div></div>
-          <div></div>
-          <div></div>
-          <DeadlineMarkers
-            projectEndDate={projectEndDate ?? null}
-            forecast={forecast}
-            timeScale={timeScale}
-          />
-        </div>
+          {/* 목표/예측 종료일 마커 */}
+          <div
+            className="grid gap-2 border-b border-border/60 px-3 bg-background-white dark:bg-surface-dark dark:border-border-dark/60"
+            style={{ gridTemplateColumns: GRID_COLS }}
+          >
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <DeadlineMarkers
+              projectEndDate={projectEndDate ?? null}
+              forecast={forecast}
+              timeScale={timeScale}
+            />
+          </div>
+        </div>{/* /sticky top-0 */}
 
         {/* 행 영역 */}
         <div className="relative">

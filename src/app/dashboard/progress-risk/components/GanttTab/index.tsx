@@ -47,8 +47,8 @@ export function GanttTab({ tasks, forecast, projectEndDate, criticalPath }: Prop
         <ZoomControl value={zoom} onChange={setZoom} />
       </div>
 
-      {/* 스크롤 영역 */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      {/* GanttChart가 자체 Y/X 스크롤을 모두 담당 */}
+      <div className="flex-1 min-h-0">
         <GanttChart tasks={tasks} forecast={forecast} timeScale={timeScale} criticalPathIds={cpSet} projectEndDate={projectEndDate} />
       </div>
     </div>
