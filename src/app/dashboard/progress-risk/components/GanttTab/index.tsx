@@ -32,8 +32,9 @@ export function GanttTab({ tasks, forecast, projectEndDate, criticalPath }: Prop
   const cpSet = new Set(criticalPath ?? []);
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col flex-1 min-h-0 gap-3">
+      {/* 고정 헤더: 범례 + 줌 컨트롤 */}
+      <div className="flex-none flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-text-secondary">
           <span className="font-semibold text-text dark:text-white">Gantt 범례</span>
           <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-6 rounded-full border border-slate-300 bg-slate-200 dark:border-slate-600 dark:bg-slate-700" />계획</span>
@@ -46,7 +47,10 @@ export function GanttTab({ tasks, forecast, projectEndDate, criticalPath }: Prop
         <ZoomControl value={zoom} onChange={setZoom} />
       </div>
 
-      <GanttChart tasks={tasks} forecast={forecast} timeScale={timeScale} criticalPathIds={cpSet} projectEndDate={projectEndDate} />
+      {/* 스크롤 영역 */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <GanttChart tasks={tasks} forecast={forecast} timeScale={timeScale} criticalPathIds={cpSet} projectEndDate={projectEndDate} />
+      </div>
     </div>
   );
 }

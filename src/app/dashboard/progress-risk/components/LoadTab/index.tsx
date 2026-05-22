@@ -35,6 +35,10 @@ export function LoadTab({ tasks, forecast }: Props) {
   // Step 2: assignee 배열 + forecast으로부터 user별 부하 계산
   const loads = buildLoadBuckets(flatAssignees, forecast);
 
-  // Step 3: 히트맵으로 렌더링
-  return <LoadHeatmap loads={loads} />;
+  // Step 3: 히트맵으로 렌더링 (flex-1 min-h-0으로 탭 높이 채우기 + 자체 스크롤)
+  return (
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      <LoadHeatmap loads={loads} />
+    </div>
+  );
 }

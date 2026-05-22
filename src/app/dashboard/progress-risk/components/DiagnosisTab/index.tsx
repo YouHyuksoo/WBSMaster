@@ -41,8 +41,10 @@ const VERDICT_LABEL: Record<
 export function DiagnosisTab({ diagnosis, onCardClick }: Props) {
   if (!diagnosis) {
     return (
-      <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
-        <p className="text-text-secondary">계산 중...</p>
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
+          <p className="text-text-secondary">계산 중...</p>
+        </div>
       </div>
     );
   }
@@ -50,6 +52,7 @@ export function DiagnosisTab({ diagnosis, onCardClick }: Props) {
   const verdictMeta = VERDICT_LABEL[diagnosis.verdict];
 
   return (
+    <div className="flex-1 min-h-0 overflow-y-auto">
     <div className="space-y-4">
       {/* Verdict 요약 카드 */}
       <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-5">
@@ -134,6 +137,7 @@ export function DiagnosisTab({ diagnosis, onCardClick }: Props) {
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }

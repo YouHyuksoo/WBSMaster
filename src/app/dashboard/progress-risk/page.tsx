@@ -105,8 +105,8 @@ export default function ProgressRiskPage() {
         )}
       </div>
 
-      {/* 콘텐츠 영역 — list 탭은 그리드가 내부 스크롤을 가지므로 flex 전파, 나머지는 페이지 스크롤 */}
-      <div className={`flex-1 min-h-0 px-6 pb-6 pt-4 ${selectedProject && tasks.length > 0 && activeTab === "list" ? "flex flex-col" : "overflow-y-auto"}`}>
+      {/* 콘텐츠 영역 — 모든 탭이 자체 스크롤을 가지므로 flex 전파만 담당 */}
+      <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 pt-4">
         {!selectedProject && (
           <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
             <Icon name="folder_off" size="xl" className="text-text-secondary mb-4" />

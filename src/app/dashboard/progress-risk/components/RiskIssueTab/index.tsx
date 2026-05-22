@@ -90,46 +90,51 @@ export function RiskIssueTab({ projectId, tasks }: Props) {
   };
 
   return (
-    <div className="space-y-4">
-      <RiskIssueKpiCards issues={issues} />
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+      {/* 고정 헤더: KPI 카드 + 필터 바 */}
+      <div className="flex-none space-y-4">
+        <RiskIssueKpiCards issues={issues} />
+        <RiskIssueFilters
+          stageCategory={stageCategory}
+          onStageCategoryChange={(value) => {
+            setStageCategory(value);
+            setMajorCategory(ALL_MAJOR);
+          }}
+          majorCategory={majorCategory}
+          majorCategories={majorCategories}
+          onMajorCategoryChange={setMajorCategory}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          searchKeyword={searchKeyword}
+          onSearchKeywordChange={setSearchKeyword}
+          filteredCount={filteredIssues.length}
+          totalCount={issues.length}
+          onCreateClick={() => setCreateModalOpen(true)}
+        />
+      </div>
 
-      <RiskIssueFilters
-        stageCategory={stageCategory}
-        onStageCategoryChange={(value) => {
-          setStageCategory(value);
-          setMajorCategory(ALL_MAJOR);
-        }}
-        majorCategory={majorCategory}
-        majorCategories={majorCategories}
-        onMajorCategoryChange={setMajorCategory}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        searchKeyword={searchKeyword}
-        onSearchKeywordChange={setSearchKeyword}
-        filteredCount={filteredIssues.length}
-        totalCount={issues.length}
-        onCreateClick={() => setCreateModalOpen(true)}
-      />
-
-      {isLoading ? (
-        <div className="rounded-xl border border-border bg-background-white p-12 text-center shadow-sm dark:border-border-dark dark:bg-surface-dark">
-          <Icon name="progress_activity" size="lg" className="animate-spin text-primary mb-3" />
-          <p className="text-sm text-text-secondary">불러오는 중...</p>
-        </div>
-      ) : filteredIssues.length === 0 ? (
-        <EmptyState hasAnyIssue={issues.length > 0} />
-      ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          {filteredIssues.map((issue) => (
-            <RiskIssueCard
-              key={issue.id}
-              issue={issue}
-              onPatch={(data) => patchIssue(issue, data)}
-              onDelete={() => handleDelete(issue)}
-            />
-          ))}
-        </div>
-      )}
+      {/* 스크롤 영역: 카드 그리드 */}
+      <div className="flex-1 min-h-0 overflow-y-auto pb-2">
+        {isLoading ? (
+          <div className="rounded-xl border border-border bg-background-white p-12 text-center shadow-sm dark:border-border-dark dark:bg-surface-dark">
+            <Icon name="progress_activity" size="lg" className="animate-spin text-primary mb-3" />
+            <p className="text-sm text-text-secondary">불러오는 중...</p>
+          </div>
+        ) : filteredIssues.length === 0 ? (
+          <EmptyState hasAnyIssue={issues.length > 0} />
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+            {filteredIssues.map((issue) => (
+              <RiskIssueCard
+                key={issue.id}
+                issue={issue}
+                onPatch={(data) => patchIssue(issue, data)}
+                onDelete={() => handleDelete(issue)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <RiskIssueCreateModal
         isOpen={createModalOpen}
