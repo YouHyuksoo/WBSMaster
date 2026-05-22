@@ -1,0 +1,20 @@
+#!/bin/sh
+# pre-push: push 전 로컬 검증
+# package-lock.json 동기화 + TypeScript 타입 오류 차단
+
+echo "🔍 [pre-push] package-lock.json 동기화 확인..."
+npm ci --dry-run --ignore-scripts 2>/dev/null
+if [ $? -ne 0 ]; then
+  echo "❌ package-lock.json이 package.json과 맞지 않습니다."
+  echo "   → npm install 실행 후 package-lock.json을 커밋하세요."
+  exit 1
+fi
+echo "✅ lock 파일 OK"
+
+echo "🔍 [pre-push] TypeScript 타입 검사..."
+npx tsc --noEmit
+if [ $? -ne 0 ]; then
+  echo "❌ TypeScript 오류가 있습니다. 수정 후 다시 push하세요."
+  exit 1
+fi
+echo "✅ TypeScript OK"

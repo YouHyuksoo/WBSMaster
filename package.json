@@ -11,7 +11,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "postinstall": "prisma generate",
-    "deploy": "npm install && npm run build && npm run start"
+    "deploy": "npm install && npm run build && npm run start",
+    "prepare": "husky"
   },
   "dependencies": {
     "@antv/infographic": "^0.2.9",
@@ -66,6 +67,7 @@
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "husky": "^9.1.7",
     "jsdom": "^25.0.1",
     "tailwindcss": "^4",
     "typescript": "^5",
