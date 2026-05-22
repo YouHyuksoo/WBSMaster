@@ -23,7 +23,12 @@ import { RiskIssueCard } from "./RiskIssueCard";
 import { RiskIssueCreateModal } from "./RiskIssueCreateModal";
 import { RiskIssueFilters, type StatusFilter } from "./RiskIssueFilters";
 import { RiskIssueKpiCards } from "./RiskIssueKpiCards";
-import { getMajorCategoriesForStageCategory } from "./riskIssueOptions";
+import {
+  getMajorCategoriesForStageCategory,
+  mergeMajorCategoriesWithIssues,
+} from "./riskIssueOptions";
+
+const ALL_MAJOR = "__ALL__";
 
 interface Props {
   projectId: string;
@@ -36,26 +41,31 @@ export function RiskIssueTab({ projectId, tasks }: Props) {
   const remove = useDeleteProgressRiskIssue();
 
   const [stageCategory, setStageCategory] = useState<StageCategory>("MES_SYSTEM");
-  const majorCategories = useMemo(
-    () => getMajorCategoriesForStageCategory(tasks, stageCategory),
-    [tasks, stageCategory]
-  );
-  const [majorCategory, setMajorCategory] = useState("");
-  const selectedMajorCategory = majorCategory || majorCategories[0] || "";
+  const [majorCategory, setMajorCategory] = useState<string>(ALL_MAJOR);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("OPEN_ALL");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
+  // 카테고리 안의 모든 이슈를 한 번에 가져와 클라이언트에서 대분류·상태·검색 필터링
   const { data: issues = [], isLoading } = useProgressRiskIssues({
     projectId,
     stageCategory,
-    majorCategory: selectedMajorCategory || undefined,
   });
+
+  const baseMajorCategories = useMemo(
+    () => getMajorCategoriesForStageCategory(tasks, stageCategory),
+    [tasks, stageCategory]
+  );
+  const majorCategories = useMemo(
+    () => mergeMajorCategoriesWithIssues(baseMajorCategories, issues, stageCategory),
+    [baseMajorCategories, issues, stageCategory]
+  );
 
   const filteredIssues = useMemo(() => {
     const keyword = searchKeyword.trim().toLowerCase();
     return issues.filter((issue) => {
+      if (majorCategory !== ALL_MAJOR && issue.majorCategory !== majorCategory) return false;
       if (statusFilter === "OPEN_ALL" && !isOpenStatus(issue.status)) return false;
       if (statusFilter !== "ALL" && statusFilter !== "OPEN_ALL" && issue.status !== statusFilter) return false;
       if (!keyword) return true;
@@ -65,7 +75,7 @@ export function RiskIssueTab({ projectId, tasks }: Props) {
         (issue.decisionMaker ?? "").toLowerCase().includes(keyword)
       );
     });
-  }, [issues, statusFilter, searchKeyword]);
+  }, [issues, majorCategory, statusFilter, searchKeyword]);
 
   const patchIssue = (issue: ProgressRiskIssue, data: Partial<ProgressRiskIssue>) => {
     update.mutate({ id: issue.id, data });
@@ -87,9 +97,9 @@ export function RiskIssueTab({ projectId, tasks }: Props) {
         stageCategory={stageCategory}
         onStageCategoryChange={(value) => {
           setStageCategory(value);
-          setMajorCategory("");
+          setMajorCategory(ALL_MAJOR);
         }}
-        majorCategory={selectedMajorCategory}
+        majorCategory={majorCategory}
         majorCategories={majorCategories}
         onMajorCategoryChange={setMajorCategory}
         statusFilter={statusFilter}
@@ -127,10 +137,10 @@ export function RiskIssueTab({ projectId, tasks }: Props) {
         projectId={projectId}
         stageCategory={stageCategory}
         majorCategories={majorCategories}
-        defaultMajorCategory={selectedMajorCategory}
+        defaultMajorCategory={majorCategory === ALL_MAJOR ? (majorCategories[0] ?? "") : majorCategory}
         onStageCategoryChange={(value) => {
           setStageCategory(value);
-          setMajorCategory("");
+          setMajorCategory(ALL_MAJOR);
         }}
       />
     </div>

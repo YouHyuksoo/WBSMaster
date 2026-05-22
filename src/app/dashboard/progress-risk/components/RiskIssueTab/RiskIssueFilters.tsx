@@ -73,9 +73,8 @@ export function RiskIssueFilters({
           aria-label="리스크 대분류"
           className={`${selectClass} min-w-[180px]`}
         >
-          {majorCategories.length === 0 ? (
-            <option value="">대분류 없음</option>
-          ) : majorCategories.map((category) => (
+          <option value="__ALL__">대분류 전체</option>
+          {majorCategories.map((category) => (
             <option key={category} value={category}>{category}</option>
           ))}
         </select>
