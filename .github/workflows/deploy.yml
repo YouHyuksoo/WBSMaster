@@ -26,12 +26,22 @@ jobs:
       - name: Configure Git safe directory
         run: git config --global --add safe.directory C:/Project/WBSMaster
 
-      # ── 1단계: 코드/의존성/빌드 검증 (서버 무중단) ──────────────────────
+      # ── 1단계: 코드 pull ──────────────────────────────────────────────────
       - name: Pull latest code
         run: |
           git fetch origin master
           git reset --hard origin/master
 
+      # ── 2단계: 서버 중단 (next-swc .node 파일 잠금 해제) ─────────────────
+      - name: Stop WBSMaster process
+        run: |
+          set PM2_HOME=C:\Users\Administrator\.pm2
+          pm2 stop wbs-master 2>nul || echo "wbs-master not running"
+          pm2 delete wbs-master 2>nul || echo "wbs-master not registered"
+        shell: cmd
+        continue-on-error: true
+
+      # ── 3단계: 의존성/빌드 ────────────────────────────────────────────────
       - name: Validate lock file sync
         run: npm ci
 
@@ -41,15 +51,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      # ── 2단계: 빌드 성공 후에만 서버 교체 ───────────────────────────────
-      - name: Stop WBSMaster process only
-        run: |
-          set PM2_HOME=C:\Users\Administrator\.pm2
-          pm2 stop wbs-master 2>nul || echo "wbs-master not running"
-          pm2 delete wbs-master 2>nul || echo "wbs-master not registered"
-        shell: cmd
-        continue-on-error: true
-
+      # ── 4단계: 빌드 성공 후 서버 재시작 ──────────────────────────────────
       - name: Start WBSMaster PM2 process
         run: |
           $env:PM2_HOME = "C:\Users\Administrator\.pm2"
