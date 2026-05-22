@@ -239,11 +239,9 @@ export function TaskGrid({ tasks, projectId, highlightTaskId, virtualizeRows = f
   };
 
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex items-start gap-3 h-full min-h-0">
       <div
-        className={`min-w-0 flex-1 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-x-auto ${
-          virtualizeRows ? "max-h-[calc(100vh-320px)] overflow-y-auto" : "overflow-hidden"
-        }`}
+        className="min-w-0 flex-1 h-full min-h-0 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-x-auto overflow-y-auto"
         onScroll={(event) => {
           if (!virtualizeRows) return;
           const target = event.currentTarget;
@@ -258,6 +256,8 @@ export function TaskGrid({ tasks, projectId, highlightTaskId, virtualizeRows = f
           <option key={c} value={c} />
         ))}
       </datalist>
+      {/* sticky: 일괄변경 바 + 컬럼 헤더 — 세로 스크롤 시 항상 표시 */}
+      <div className="sticky top-0 z-10">
       <div className="flex flex-wrap items-center gap-2 border-b border-border dark:border-border-dark bg-background-white dark:bg-surface-dark px-3 py-2">
         <span className="text-[11px] font-medium text-text-secondary">
           선택 {selectedCount}개
@@ -391,6 +391,7 @@ export function TaskGrid({ tasks, projectId, highlightTaskId, virtualizeRows = f
           />
         ))}
       </div>
+      </div>{/* /sticky top-0 */}
 
       {/* task 목록 */}
       {virtualizeRows && virtualRange.topPadding > 0 && (
@@ -418,7 +419,7 @@ export function TaskGrid({ tasks, projectId, highlightTaskId, virtualizeRows = f
       )}
       </div>
       {editingTask && (
-        <aside className="sticky top-4 max-h-[calc(100vh-140px)] w-[380px] shrink-0 overflow-y-auto rounded-xl border border-border bg-background-white shadow-sm dark:border-border-dark dark:bg-surface-dark">
+        <aside className="h-full w-[380px] shrink-0 overflow-y-auto rounded-xl border border-border bg-background-white shadow-sm dark:border-border-dark dark:bg-surface-dark">
           <div className="flex items-center justify-between border-b border-border px-4 py-3 dark:border-border-dark">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-text dark:text-white">행 수정</p>

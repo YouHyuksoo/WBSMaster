@@ -68,92 +68,102 @@ export default function ProgressRiskPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <PageHeader
-        taskCount={tasks.length}
-        onAddTask={() => setAddModalOpen(true)}
-        onExportExcel={() => {
-          if (selectedProject) {
-            window.location.href = api.progressTasks.exportUrl(selectedProject.id);
-          }
-        }}
-        onImportExcel={() => setImportModalOpen(true)}
-        onOpenStageManager={() => setStageManagerOpen(true)}
-        onRefresh={() => refetch()}
-        isRefreshing={isFetching && !isLoading}
-      />
+    <div className="flex flex-col h-full">
+      {/* 고정 헤더 영역 — 스크롤 시에도 항상 보임 */}
+      <div className="flex-none px-6 pt-6 space-y-4">
+        <PageHeader
+          taskCount={tasks.length}
+          onAddTask={() => setAddModalOpen(true)}
+          onExportExcel={() => {
+            if (selectedProject) {
+              window.location.href = api.progressTasks.exportUrl(selectedProject.id);
+            }
+          }}
+          onImportExcel={() => setImportModalOpen(true)}
+          onOpenStageManager={() => setStageManagerOpen(true)}
+          onRefresh={() => refetch()}
+          isRefreshing={isFetching && !isLoading}
+        />
 
-      {!selectedProject && (
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
-          <Icon name="folder_off" size="xl" className="text-text-secondary mb-4" />
-          <p className="text-text-secondary">먼저 프로젝트를 선택해주세요.</p>
-        </div>
-      )}
+        {selectedProject && tasks.length > 0 && (
+          <>
+            <KpiRow tasks={tasks} conflicts={conflicts} diagnosis={diagnosis} projectEndDate={projectEnd} />
+            <div className="flex flex-wrap items-center gap-3">
+              <TabSwitcher
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                conflictCount={conflictUserCount}
+                recommendationCount={recCount}
+              />
+              {activeTab === "list" && (
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+                  <FilterBar tasks={tasks} filters={filters} onChange={setFilters} />
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
-      {selectedProject && isLoading && (
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
-          <p className="text-text-secondary">불러오는 중...</p>
-        </div>
-      )}
-
-      {selectedProject && !isLoading && tasks.length === 0 && (
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-12 text-center">
-          <Icon name="inbox" size="xl" className="text-text-secondary mb-4" />
-          <p className="text-text-secondary mb-2">등록된 task가 없습니다.</p>
-          <p className="text-xs text-text-secondary opacity-60">우측 상단의 &quot;DATA 추가&quot;로 시작하세요.</p>
-        </div>
-      )}
-
-      {selectedProject && tasks.length > 0 && (
-        <>
-          <KpiRow tasks={tasks} conflicts={conflicts} diagnosis={diagnosis} projectEndDate={projectEnd} />
-          <div className="flex flex-wrap items-center gap-3">
-            <TabSwitcher
-              activeTab={activeTab}
-              onChange={setActiveTab}
-              conflictCount={conflictUserCount}
-              recommendationCount={recCount}
-            />
-            {activeTab === "list" && (
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-                <FilterBar tasks={tasks} filters={filters} onChange={setFilters} />
-              </div>
-            )}
+      {/* 콘텐츠 영역 — list 탭은 그리드가 내부 스크롤을 가지므로 flex 전파, 나머지는 페이지 스크롤 */}
+      <div className={`flex-1 min-h-0 px-6 pb-6 pt-4 ${selectedProject && tasks.length > 0 && activeTab === "list" ? "flex flex-col" : "overflow-y-auto"}`}>
+        {!selectedProject && (
+          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
+            <Icon name="folder_off" size="xl" className="text-text-secondary mb-4" />
+            <p className="text-text-secondary">먼저 프로젝트를 선택해주세요.</p>
           </div>
+        )}
 
-          {activeTab === "list" && (
-            <ListTab
-              tasks={tasks}
-              projectId={selectedProject.id}
-              filters={filters}
-              viewMode={listViewMode}
-              onViewModeChange={setListViewMode}
-              highlightTaskId={highlightTaskId}
-            />
-          )}
+        {selectedProject && isLoading && (
+          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center">
+            <p className="text-text-secondary">불러오는 중...</p>
+          </div>
+        )}
 
-          {activeTab === "gantt" && (
-            <GanttTab
-              tasks={tasks}
-              forecast={data?.forecast ?? new Map()}
-              projectEndDate={projectEnd}
-              criticalPath={diagnosis?.criticalPath}
-            />
-          )}
+        {selectedProject && !isLoading && tasks.length === 0 && (
+          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-12 text-center">
+            <Icon name="inbox" size="xl" className="text-text-secondary mb-4" />
+            <p className="text-text-secondary mb-2">등록된 task가 없습니다.</p>
+            <p className="text-xs text-text-secondary opacity-60">우측 상단의 &quot;DATA 추가&quot;로 시작하세요.</p>
+          </div>
+        )}
 
-          {activeTab === "load" && data && (
-            <LoadTab tasks={tasks} forecast={data.forecast} />
-          )}
+        {selectedProject && tasks.length > 0 && (
+          <>
+            {activeTab === "list" && (
+              <ListTab
+                tasks={tasks}
+                projectId={selectedProject.id}
+                filters={filters}
+                viewMode={listViewMode}
+                onViewModeChange={setListViewMode}
+                highlightTaskId={highlightTaskId}
+              />
+            )}
 
-          {activeTab === "riskIssues" && (
-            <RiskIssueTab projectId={selectedProject.id} tasks={tasks} />
-          )}
+            {activeTab === "gantt" && (
+              <GanttTab
+                tasks={tasks}
+                forecast={data?.forecast ?? new Map()}
+                projectEndDate={projectEnd}
+                criticalPath={diagnosis?.criticalPath}
+              />
+            )}
 
-          {activeTab === "diagnosis" && (
-            <DiagnosisTab diagnosis={diagnosis} onCardClick={handleCardClick} />
-          )}
-        </>
-      )}
+            {activeTab === "load" && data && (
+              <LoadTab tasks={tasks} forecast={data.forecast} />
+            )}
+
+            {activeTab === "riskIssues" && (
+              <RiskIssueTab projectId={selectedProject.id} tasks={tasks} />
+            )}
+
+            {activeTab === "diagnosis" && (
+              <DiagnosisTab diagnosis={diagnosis} onCardClick={handleCardClick} />
+            )}
+          </>
+        )}
+      </div>
 
       {selectedProject && (
         <>

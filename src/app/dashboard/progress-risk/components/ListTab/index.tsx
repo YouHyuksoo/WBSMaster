@@ -38,16 +38,18 @@ export function ListTab({ tasks, projectId, filters, viewMode, onViewModeChange,
   const setPage = (page: number) => setPageState({ filterKey, page });
 
   return (
-    <div className="space-y-3">
-      <TaskGrid
-        tasks={paginated.items}
-        projectId={projectId}
-        highlightTaskId={highlightTaskId}
-        virtualizeRows={viewMode === "scroll"}
-        viewMode={viewMode}
-        onViewModeChange={onViewModeChange}
-        startIndex={paginated.startIndex || 1}
-      />
+    <div className="flex flex-col min-h-0 flex-1 gap-3">
+      <div className="flex-1 min-h-0">
+        <TaskGrid
+          tasks={paginated.items}
+          projectId={projectId}
+          highlightTaskId={highlightTaskId}
+          virtualizeRows={viewMode === "scroll"}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+          startIndex={paginated.startIndex || 1}
+        />
+      </div>
       {paginated.showPagination && (
         <PaginationControls
           page={paginated.page}
