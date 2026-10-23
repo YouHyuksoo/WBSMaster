@@ -48,6 +48,11 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
+      # .next/dev/types는 next dev 산출물인데 tsconfig include에 포함되어,
+      # 삭제된 라우트를 참조하는 오래된 파일이 남아 있으면 빌드 타입 검사가 실패함
+      - name: Remove stale next dev artifacts
+        run: if (Test-Path .next\dev) { Remove-Item .next\dev -Recurse -Force }
+
       - name: Build
         run: npm run build
 
