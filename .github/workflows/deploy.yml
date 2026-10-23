@@ -1,4 +1,4 @@
-name: Deploy to Windows Server
+name: Deploy to Windows Server (지성 IDC)
 
 on:
   push:
@@ -7,11 +7,12 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    # 지성 IDC 서버(jisung-idc)의 러너에서만 실행
+    runs-on: [self-hosted, jisung-idc]
 
     defaults:
       run:
-        working-directory: C:\Project\WBSMaster
+        working-directory: D:\Project\WBSMaster
 
     steps:
       - name: Check current user
@@ -24,7 +25,7 @@ jobs:
         shell: cmd
 
       - name: Configure Git safe directory
-        run: git config --global --add safe.directory C:/Project/WBSMaster
+        run: git config --global --add safe.directory D:/Project/WBSMaster
 
       # ── 1단계: 코드 pull ──────────────────────────────────────────────────
       - name: Pull latest code
@@ -63,7 +64,7 @@ jobs:
           $ErrorActionPreference = 'SilentlyContinue'
           pm2 delete wbs-master 2>&1 | Out-Null
           $ErrorActionPreference = 'Stop'
-          Set-Location C:\Project\WBSMaster
+          Set-Location D:\Project\WBSMaster
           pm2 start ecosystem.config.js --update-env
           pm2 save
           Start-Sleep 5
