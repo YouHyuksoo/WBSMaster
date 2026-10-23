@@ -3,7 +3,7 @@
 ## 프로젝트 개요
 
 WBS Master는 **프로젝트 관리를 위한 WBS(Work Breakdown Structure) 도구**입니다.
-Next.js 16 + React 19 기반의 풀스택 애플리케이션으로, Prisma ORM과 Supabase PostgreSQL을 사용합니다.
+Next.js 16 + React 19 기반의 풀스택 애플리케이션으로, Prisma ORM과 PostgreSQL(로컬 설치)을 사용합니다.
 
 ## 기술 스택
 
@@ -12,7 +12,7 @@ Next.js 16 + React 19 기반의 풀스택 애플리케이션으로, Prisma ORM�
 | **프레임워크** | Next.js 16.1.1, React 19.2.3 |
 | **언어** | TypeScript 5 |
 | **스타일링** | Tailwind CSS 4 |
-| **데이터베이스** | PostgreSQL (Supabase) |
+| **데이터베이스** | PostgreSQL (로컬 설치, Supabase 미사용) |
 | **ORM** | Prisma 7 |
 | **상태 관리** | TanStack React Query 5 |
 | **차트** | ECharts 5, Recharts 3 |
@@ -219,8 +219,7 @@ src/app/dashboard/feature/
 # .env.local
 DATABASE_URL=postgresql://...
 DIRECT_URL=postgresql://...
-NEXT_PUBLIC_SUPABASE_URL=https://...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+# UPLOAD_DIR=...   (선택, 기본 <프로젝트>/uploads)
 ```
 
 ## 🎨 리스트 페이지 스타일 규칙
@@ -560,74 +559,15 @@ onChange={(e) => setAffiliation(e.target.value as Affiliation)}
 - nullable 필드 필터링 시 타입 가드 사용
 - 외부 라이브러리 enum은 import해서 사용
 
-## 🚨 Supabase Storage RLS 규칙 (2026-01-13 학습) - 매우 중요!
+## 파일 업로드 (2026-10-23 Supabase 제거)
 
-### 핵심 문제
-이 프로젝트는 **자체 인증 시스템(Prisma User + bcrypt)**을 사용하고, **Supabase Auth를 사용하지 않음**.
-따라서 Supabase Storage에서 `authenticated` 역할로 인식되지 않아 RLS 정책이 실패함.
+Supabase(DB·Storage)는 더 이상 사용하지 않는다. 업로드 파일은 서버 로컬 디스크에 저장한다.
 
-### 증상
-```
-StorageApiError: new row violates row-level security policy (403)
-```
-
-### 원인
-- Supabase Storage RLS 정책이 `authenticated` 역할에만 적용됨
-- 자체 인증 사용 시 Supabase에서는 `anon` (익명) 역할로 인식
-- 서버 사이드 API에서 Storage 업로드 시 사용자 세션이 전달되지 않음
-
-### ✅ 해결 방법
-
-**Supabase 대시보드에서 Storage RLS 정책 수정:**
-
-1. **Storage** → **Policies** → 해당 버킷 (예: `avatars`)
-2. INSERT/UPDATE/DELETE 정책의 **Applied to**를 `authenticated` → `public`으로 변경
-3. 또는 새로운 public 정책 추가
-
-**현재 avatars 버킷 정책 (수정 후):**
-| 정책 이름 | Command | Applied to |
-|-----------|---------|------------|
-| avatars_public_read | SELECT | public |
-| avatars_authenticated_insert | INSERT | **public** (수정됨) |
-| avatars_authenticated_update | UPDATE | **public** (수정됨) |
-| avatars_authenticated_delete | DELETE | **public** (수정됨) |
-
-### 클라이언트 직접 업로드 방식
-
-서버 API(`/api/upload`)를 거치지 않고 클라이언트에서 직접 Supabase Storage에 업로드:
-
-```typescript
-import { createClient } from "@/lib/supabase/client";
-
-const handleUpload = async (blob: Blob, userId: string) => {
-  const supabase = createClient();
-  const fileName = `${Date.now()}.jpg`;
-  const filePath = `${userId}/${fileName}`;
-
-  const { error } = await supabase.storage
-    .from("avatars")
-    .upload(filePath, blob, {
-      contentType: "image/jpeg",
-      upsert: true,
-    });
-
-  if (error) throw error;
-
-  const { data: { publicUrl } } = supabase.storage
-    .from("avatars")
-    .getPublicUrl(filePath);
-
-  return publicUrl;
-};
-```
-
-### ❌ 절대 하지 말 것
-- RLS 정책이 `authenticated`인 상태에서 자체 인증으로 업로드 시도
-- 서버 사이드에서 ANON_KEY로 Storage 업로드 (세션 전달 안 됨)
-
-### ✅ 반드시 할 것
-- 새 Storage 버킷 생성 시 RLS 정책을 `public`으로 설정
-- 업로드 실패 시 RLS 정책 Applied to 확인
+- 저장: `src/lib/uploads.ts`의 `saveUpload()` → `UPLOAD_DIR` 또는 `<프로젝트>/uploads` (git 제외)
+- 업로드 API: `POST /api/upload` (FormData `file`, 인증 필요) → `{ url: "/api/uploads/avatars/<userId>/<ts>.<ext>" }`
+- 조회 API: `GET /api/uploads/[...path]` (공개, 이미지 확장자만, 업로드 폴더 밖 경로 차단)
+- 클라이언트에서 직접 업로드하지 말고 항상 `/api/upload`를 거친다.
+- Next.js는 빌드 후 `public/`에 추가된 파일을 서빙하지 않으므로 업로드를 `public/`에 저장하지 않는다.
 
 ## Git 브랜치
 

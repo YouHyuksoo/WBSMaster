@@ -6,7 +6,7 @@
  * 1. **mode**: "create" or "edit"
  * 2. **editingUser**: edit 모드 초기값
  * 3. **isOpen**: 외부에서 제어
- * 4. **ImageCropper**: 아바타 이미지 크롭 + Supabase 업로드(/api/upload)
+ * 4. **ImageCropper**: 아바타 이미지 크롭 + 서버 업로드(/api/upload)
  */
 "use client";
 

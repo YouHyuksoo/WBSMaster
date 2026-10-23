@@ -66,3 +66,6 @@ supabase/.temp/
 
 # Superpowers brainstorming mockups
 .superpowers/
+
+# 업로드 파일 (아바타 등, src/lib/uploads.ts)
+/uploads

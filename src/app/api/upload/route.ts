@@ -2,29 +2,26 @@
  * @file src/app/api/upload/route.ts
  * @description
  * 이미지 업로드 API입니다.
- * Supabase Storage에 이미지를 업로드하고 URL을 반환합니다.
+ * 서버 로컬 디스크(uploads/)에 이미지를 저장하고 URL을 반환합니다.
  *
  * 초보자 가이드:
  * 1. **POST /api/upload**: 이미지 파일 업로드
  *    - FormData로 file 전송
- *    - 업로드된 이미지의 public URL 반환
- * 2. **버킷 준비**: avatars 버킷이 Supabase에 미리 생성되어 있어야 함
- *    - Public 버킷으로 설정 필요
- *    - RLS 정책: authenticated 사용자는 업로드/읽기 가능
+ *    - 업로드된 이미지의 URL(/api/uploads/...) 반환
+ * 2. **저장 위치**: src/lib/uploads.ts의 UPLOAD_ROOT (기본 <프로젝트>/uploads)
  *
  * 수정 방법:
- * - 버킷 이름 변경: BUCKET_NAME 상수 수정
+ * - 저장 폴더 변경: AVATAR_FOLDER 상수 수정
  * - 파일 크기 제한 변경: MAX_FILE_SIZE 상수 수정
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
+import { IMAGE_EXTENSIONS, saveUpload } from "@/lib/uploads";
 
 /** 업로드 설정 */
-const BUCKET_NAME = "avatars";
+const AVATAR_FOLDER = "avatars";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 /**
  * 이미지 업로드
@@ -48,7 +45,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 파일 타입 검증
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const fileExt = IMAGE_EXTENSIONS[file.type];
+    if (!fileExt) {
       return NextResponse.json(
         { error: "지원하지 않는 파일 형식입니다. (jpg, png, webp, gif만 가능)" },
         { status: 400 }
@@ -63,40 +61,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Supabase Storage에 업로드
-    const supabase = await createClient();
+    // 파일 경로 생성 (avatars/<userId>/<timestamp>.<ext>)
+    const filePath = `${AVATAR_FOLDER}/${user!.id}/${Date.now()}.${fileExt}`;
 
-    // 파일 이름 생성 (userId_timestamp.extension)
-    const fileExt = file.name.split(".").pop() || "jpg";
-    const fileName = `${user!.id}_${Date.now()}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
+    // 로컬 디스크에 저장
+    const url = await saveUpload(filePath, new Uint8Array(await file.arrayBuffer()));
 
-    // 파일을 ArrayBuffer로 변환
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = new Uint8Array(arrayBuffer);
-
-    // 업로드 (기존 파일이 있으면 덮어씀)
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(filePath, buffer, {
-        contentType: file.type,
-        upsert: true,
-      });
-
-    if (uploadError) {
-      console.error("업로드 실패:", uploadError);
-      return NextResponse.json(
-        { error: "파일 업로드에 실패했습니다." },
-        { status: 500 }
-      );
-    }
-
-    // Public URL 생성
-    const { data: { publicUrl } } = supabase.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(filePath);
-
-    return NextResponse.json({ url: publicUrl });
+    return NextResponse.json({ url });
   } catch (error) {
     console.error("업로드 처리 실패:", error);
     return NextResponse.json(

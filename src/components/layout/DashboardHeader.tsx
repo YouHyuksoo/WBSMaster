@@ -24,7 +24,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Icon, Button, Input, ImageCropper, useToast } from "@/components/ui";
 import { useProject } from "@/contexts/ProjectContext";
 import { TodayStatsScroller } from "@/components/dashboard/TodayStatsScroller";
-import { createClient } from "@/lib/supabase/client";
 
 /** 로컬 사용자 타입 */
 interface LocalUser {
@@ -397,7 +396,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
   /**
    * 이미지 크롭 완료 후 업로드 처리
-   * 클라이언트에서 직접 Supabase Storage에 업로드 (RLS 정책 적용)
+   * /api/upload로 전송하여 서버 로컬 디스크에 저장
    */
   const handleImageCropComplete = async (blob: Blob) => {
     if (!user) {
@@ -407,31 +406,17 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
     setIsUploadingImage(true);
     try {
-      const supabase = createClient();
+      const formData = new FormData();
+      formData.append("file", blob, "avatar.jpg");
 
-      // 파일 이름 생성 (userId 폴더 안에 저장)
-      const fileName = `${Date.now()}.jpg`;
-      const filePath = `${user.id}/${fileName}`;
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
 
-      // Supabase Storage에 직접 업로드
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, blob, {
-          contentType: "image/jpeg",
-          upsert: true,
-        });
-
-      if (uploadError) {
-        console.error("업로드 실패:", uploadError);
-        throw new Error(uploadError.message || "업로드 실패");
+      if (!res.ok) {
+        throw new Error(data.error || "업로드 실패");
       }
 
-      // Public URL 생성
-      const { data: { publicUrl } } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath);
-
-      setEditAvatar(publicUrl);
+      setEditAvatar(data.url);
       setShowImageCropper(false);
       setShowProfileModal(true); // 프로필 모달 다시 열기
       toast.success("이미지가 업로드되었습니다.");

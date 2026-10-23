@@ -21,8 +21,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Icon } from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks";
 
 interface DashboardSidebarProps {
@@ -92,7 +92,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
+  const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
   const isAdmin = currentUser?.role === "ADMIN";
 
@@ -101,10 +101,12 @@ export function DashboardSidebar({
   );
 
   /**
-   * 로그아웃 핸들러
+   * 로그아웃 핸들러 (DashboardHeader와 동일하게 userId 쿠키 삭제)
    */
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    localStorage.removeItem("user");
+    queryClient.clear();
+    await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
   };
