@@ -53,7 +53,7 @@ export function MonthlyCalendar({
 
     // 이전 달의 빈 칸
     for (let i = 0; i < startingDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-24 bg-surface/50 dark:bg-background-dark/50" />);
+      days.push(<div key={`empty-${i}`} className="h-32 bg-surface/50 dark:bg-background-dark/50" />);
     }
 
     // 현재 달의 날짜
@@ -67,7 +67,7 @@ export function MonthlyCalendar({
       days.push(
         <div
           key={day}
-          className={`group relative h-24 p-2 border-b border-r border-border dark:border-border-dark overflow-hidden transition-colors hover:bg-primary/5 ${
+          className={`group relative h-32 p-2 border-b border-r border-border dark:border-border-dark overflow-hidden transition-colors hover:bg-primary/5 ${
             isWeekend ? "bg-surface/50 dark:bg-background-dark/50" : "bg-background-white dark:bg-surface-dark"
           }`}
         >
@@ -99,7 +99,7 @@ export function MonthlyCalendar({
             )}
           </div>
           <div className="space-y-1">
-            {dayHolidays.slice(0, 2).map((holiday) => {
+            {dayHolidays.slice(0, 3).map((holiday) => {
               const config = holidayTypeConfig[holiday.type] || holidayTypeConfig.COMPANY_HOLIDAY;
               return (
                 <div
@@ -123,8 +123,8 @@ export function MonthlyCalendar({
                 </div>
               );
             })}
-            {dayHolidays.length > 2 && (
-              <div className="text-[10px] text-text-secondary">+{dayHolidays.length - 2}개 더</div>
+            {dayHolidays.length > 3 && (
+              <div className="text-[10px] text-text-secondary">+{dayHolidays.length - 3}개 더</div>
             )}
           </div>
         </div>
