@@ -2,10 +2,10 @@
  * @file src/app/dashboard/as-is-analysis/components/OverviewHeader.tsx
  * @description
  * AS-IS 분석 페이지의 헤더 컴포넌트입니다.
- * 프로젝트 정보, 작성가이드, 새로고침 기능을 제공합니다.
+ * 작성가이드, 새로고침 기능을 제공합니다.
  *
  * 초보자 가이드:
- * 1. **프로젝트 배지**: 현재 선택된 프로젝트 표시
+ * 1. **프로젝트**: 상단 내비게이션에만 표시한다 (화면 안에 프로젝트 배지를 두지 않는다)
  * 2. **작성가이드**: 작성가이드 모달 열기 버튼
  * 3. **새로고침**: 데이터 새로고침 버튼
  * (사업부 구분은 화면에서 쓰지 않는다. 데이터는 POLE 로 고정 저장된다.)
@@ -16,8 +16,6 @@
 import { Icon, Button } from "@/components/ui";
 
 interface OverviewHeaderProps {
-  /** 프로젝트 이름 */
-  projectName: string;
   /** 새로고침 핸들러 */
   onRefresh: () => void;
   /** 작성가이드 모달 열기 핸들러 */
@@ -28,7 +26,6 @@ interface OverviewHeaderProps {
  * AS-IS 분석 헤더 컴포넌트
  */
 export function OverviewHeader({
-  projectName,
   onRefresh,
   onShowGuide,
 }: OverviewHeaderProps) {
@@ -51,16 +48,8 @@ export function OverviewHeader({
         </p>
       </div>
 
-      {/* 오른쪽: 프로젝트 및 메타 정보 */}
+      {/* 오른쪽: 버튼 */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* 프로젝트 배지 */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-          <Icon name="folder" size="sm" className="text-primary" />
-          <span className="text-sm font-medium text-primary">
-            {projectName}
-          </span>
-        </div>
-
         {/* 작성가이드 버튼 */}
         <Button
           variant="outline"

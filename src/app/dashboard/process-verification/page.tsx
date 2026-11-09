@@ -474,13 +474,6 @@ export default function ProcessVerificationPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* 현재 선택된 프로젝트 표시 */}
-          {selectedProject && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-              <Icon name="folder" size="sm" className="text-primary" />
-              <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
-            </div>
-          )}
           {/* 새로고침 버튼 */}
           <button
             onClick={handleRefresh}

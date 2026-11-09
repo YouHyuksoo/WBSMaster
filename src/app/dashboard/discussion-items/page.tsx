@@ -35,7 +35,7 @@ import {
  */
 export default function DiscussionItemsPage() {
   /** 전역 프로젝트 선택 상태 */
-  const { selectedProjectId, selectedProject } = useProject();
+  const { selectedProjectId } = useProject();
 
   // 필터 상태
   const [filterStage, setFilterStage] = useState<string>("all");
@@ -310,13 +310,6 @@ export default function DiscussionItemsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* 프로젝트 배지 */}
-          {selectedProject && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-              <Icon name="folder" size="sm" className="text-primary" />
-              <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
-            </div>
-          )}
 
           {/* 버튼들 */}
           <Button variant="outline" leftIcon="download" onClick={handleExportExcel}>

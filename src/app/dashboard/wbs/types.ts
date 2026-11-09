@@ -11,7 +11,7 @@
  * 4. **DragState**: 간트 차트 드래그 상태
  */
 
-import type { WbsItem, WbsLevel, TeamMember, Project } from "@/lib/api";
+import type { WbsItem, WbsLevel, TeamMember } from "@/lib/api";
 
 /** 계산된 날짜 (상위 항목용) */
 export interface CalculatedDates {
@@ -237,7 +237,6 @@ export interface WbsPageStats {
 
 /** WbsToolbar Props */
 export interface WbsToolbarProps {
-  selectedProject: Project | null;
   selectedProjectId: string | null;
   wbsTree: WbsItem[];
   rightPanelView: RightPanelView;

@@ -13,7 +13,7 @@
  * 초보자 가이드:
  * 1. **메시지 영역**: 대화 기록 표시 (마크다운 + 차트)
  * 2. **입력 영역**: 메시지 입력 및 전송
- * 3. **프로젝트 선택**: 특정 프로젝트 컨텍스트로 질문
+ * 3. **프로젝트**: 상단 내비게이션에서 고른 프로젝트를 따른다 (화면 안 선택 상자 없음)
  */
 
 "use client";
@@ -42,13 +42,14 @@ type FeedbackRating = "POSITIVE" | "NEGATIVE" | "NEUTRAL" | null;
  */
 export default function ChatPage() {
   const toast = useToast();
-  const { selectedProject, projects } = useProject();
+  const { selectedProject } = useProject();
 
   // 상태
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  /** 상단 내비게이션의 프로젝트 (화면 안에서 따로 고르지 않는다) */
+  const selectedProjectId = selectedProject?.id ?? "";
   /** 채팅 기록 조회 요청 번호 (마지막 요청의 응답만 반영) */
   const historyRequestRef = useRef(0);
 
@@ -179,13 +180,6 @@ export default function ChatPage() {
   useEffect(() => {
     loadChatHistory();
   }, [loadChatHistory]);
-
-  // 선택된 프로젝트 동기화
-  useEffect(() => {
-    if (selectedProject) {
-      setSelectedProjectId(selectedProject.id);
-    }
-  }, [selectedProject]);
 
   /**
    * 페르소나 목록 불러오기
@@ -721,20 +715,6 @@ export default function ChatPage() {
             />
           </div>
 
-          {/* 프로젝트 선택 */}
-          <select
-            value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm"
-          >
-            <option value="">전체 프로젝트</option>
-            {projects?.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-
           {/* 기록 삭제 */}
           <Button variant="ghost" size="sm" onClick={handleClearHistory} leftIcon="delete">
             기록 삭제
@@ -854,7 +834,7 @@ export default function ChatPage() {
               {/* 메시지 */}
               <p className="text-text-secondary text-center mb-6">
                 {selectedProjectId
-                  ? `'${projects?.find((p) => p.id === selectedProjectId)?.name ?? "선택한"}' 프로젝트의 채팅 기록이 삭제됩니다.`
+                  ? `'${selectedProject?.name ?? "선택한"}' 프로젝트의 채팅 기록이 삭제됩니다.`
                   : "모든 프로젝트의 채팅 기록이 삭제됩니다."}
                 <br />
                 이 작업은 되돌릴 수 없습니다.

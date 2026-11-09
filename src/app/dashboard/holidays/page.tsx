@@ -54,7 +54,7 @@ export default function HolidaysPage() {
   const month = currentDate.getMonth();
 
   // 컨텍스트 및 데이터 조회
-  const { selectedProjectId, selectedProject } = useProject();
+  const { selectedProjectId } = useProject();
   const { data: members = [] } = useMembers(
     selectedProjectId ? { projectId: selectedProjectId } : undefined
   );
@@ -325,12 +325,6 @@ export default function HolidaysPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {selectedProject && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-              <Icon name="folder" size="sm" className="text-primary" />
-              <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
-            </div>
-          )}
           <Button
             variant="primary"
             leftIcon="add"

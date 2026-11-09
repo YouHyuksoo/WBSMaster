@@ -25,7 +25,7 @@ import {
 } from "./types";
 
 export default function DocumentsPage() {
-  const { selectedProjectId, selectedProject } = useProject();
+  const { selectedProjectId } = useProject();
 
   // 모달 상태
   const [modalState, setModalState] = useState<{
@@ -144,12 +144,6 @@ export default function DocumentsPage() {
             프로젝트 문서를 등록하고 빠르게 접근하세요
           </p>
         </div>
-        {selectedProject && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-            <Icon name="folder" size="sm" className="text-primary" />
-            <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
-          </div>
-        )}
       </div>
 
       {/* 프로젝트 미선택 안내 */}

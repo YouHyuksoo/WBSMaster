@@ -62,17 +62,6 @@ export function EquipmentToolbar({
 
         {/* 우측: 프로젝트 배지 + 버튼 */}
         <div className="flex items-center gap-3">
-          {/* 프로젝트 배지 */}
-          {selectedProject && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-              <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>
-                folder
-              </span>
-              <span className="text-sm font-medium text-primary">
-                {selectedProject.name}
-              </span>
-            </div>
-          )}
 
           {/* 설비 개수 */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark">

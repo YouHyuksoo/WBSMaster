@@ -58,8 +58,9 @@ export function MilestonePageHeader({ selectedProject }: MilestonePageHeaderProp
           {/* 텍스트 정보 */}
           <div>
             <div className="flex items-center gap-3 mb-1">
+              {/* 프로젝트 이름은 상단 내비게이션에만 표시한다 */}
               <h2 className="text-lg font-bold text-text dark:text-white">
-                {selectedProject.name}
+                마일스톤 타임라인
               </h2>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusStyle.bg} ${statusStyle.text}`}>
                 {statusStyle.label}

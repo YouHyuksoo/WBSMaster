@@ -94,7 +94,6 @@ export default function WBSPage() {
   return (
     <div className="h-full flex flex-col bg-background dark:bg-background-dark">
       <WbsToolbar
-        selectedProject={selectedProject}
         selectedProjectId={selectedProjectId}
         wbsTree={wbsTree}
         rightPanelView={rightPanelView}

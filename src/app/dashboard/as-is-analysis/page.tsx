@@ -136,13 +136,6 @@ export default function AsIsAnalysisPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* 프로젝트 배지 */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-              <Icon name="folder" size="sm" className="text-primary" />
-              <span className="text-sm font-medium text-primary">
-                {selectedProject.name}
-              </span>
-            </div>
           </div>
         </div>
 
@@ -178,7 +171,6 @@ export default function AsIsAnalysisPage() {
       {/* 헤더 */}
       <div className="p-4 border-b border-border dark:border-border-dark bg-background-white dark:bg-background-dark">
         <OverviewHeader
-          projectName={selectedProject.name}
           onRefresh={refetch}
           onShowGuide={() => setShowGuideModal(true)}
         />

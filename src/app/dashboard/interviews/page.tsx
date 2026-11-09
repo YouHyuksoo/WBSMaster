@@ -386,12 +386,6 @@ export default function InterviewsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {selectedProject && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-              <Icon name="folder" size="sm" className="text-primary" />
-              <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
-            </div>
-          )}
           <button
             onClick={handleRefresh}
             disabled={!selectedProjectId || isLoading}

@@ -16,7 +16,6 @@ import { Icon, Button } from "@/components/ui";
 import type { WbsToolbarProps } from "../types";
 
 export function WbsToolbar({
-  selectedProject,
   selectedProjectId,
   wbsTree,
   rightPanelView,
@@ -43,16 +42,6 @@ export function WbsToolbar({
           </span>
         </h1>
 
-        {/* 현재 선택된 프로젝트 표시 */}
-        {selectedProject && (
-          <>
-            <div className="h-6 w-px bg-border dark:bg-border-dark" />
-            <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 border border-primary/20">
-              <Icon name="folder" size="sm" className="text-primary" />
-              <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
-            </div>
-          </>
-        )}
 
         {/* 확장/축소 버튼 */}
         {selectedProjectId && wbsTree.length > 0 && (

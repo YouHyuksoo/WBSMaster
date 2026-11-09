@@ -59,7 +59,7 @@ export default function MembersPage() {
   const toast = useToast();
 
   // 전역 프로젝트 선택 상태 (헤더에서 선택)
-  const { selectedProjectId, selectedProject, projects, setSelectedProjectId } = useProject();
+  const { selectedProjectId, projects, setSelectedProjectId } = useProject();
 
   // 멤버 페이지 전용: 전체 사용자 보기 토글
   const [showAllUsers, setShowAllUsers] = useState(false);
@@ -397,13 +397,6 @@ export default function MembersPage() {
                 : "시스템에 등록된 전체 사용자를 관리합니다"}
             </p>
           </div>
-          {/* 현재 선택된 프로젝트 표시 */}
-          {selectedProject && !showAllUsers && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-              <Icon name="folder" size="sm" className="text-primary" />
-              <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
-            </div>
-          )}
         </div>
         <div className="flex items-center gap-2">
           {/* 전체 사용자 보기 토글 */}

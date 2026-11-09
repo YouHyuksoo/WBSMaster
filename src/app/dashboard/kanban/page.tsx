@@ -96,12 +96,6 @@ export default function KanbanPage() {
                 / 작업 현황
               </span>
             </h1>
-            {selectedProject && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 border border-primary/20">
-                <Icon name="folder" size="sm" className="text-primary" />
-                <span className="text-sm font-medium text-primary">{selectedProject.name}</span>
-              </div>
-            )}
           </div>
 
           {/* 탭 버튼 */}
