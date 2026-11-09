@@ -1318,6 +1318,7 @@ model Equipment {
 
   // 동적 속성 (1:N)
   properties EquipmentProperty[]
+  plcs EquipmentPlc[] // PLC 연결정보와 TAG·알람 정의
 
   // 설비 간 연결 (다대다, 양방향)
   connectionsFrom EquipmentConnection[] @relation("ConnectionFrom")
@@ -1391,6 +1392,74 @@ enum SystemType {
 // 동적 속성 모델
 // 사용자가 설비별로 커스텀 속성 추가 가능
 // ============================================
+model EquipmentPlc {
+  id String @id @default(uuid())
+  equipmentId String
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  name String
+  manufacturer String?
+  model String?
+  protocol String?
+  ipAddress String?
+  port Int?
+  station String?
+  notes String?
+  tags EquipmentTag[]
+  alarms EquipmentAlarm[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([equipmentId, name])
+  @@map("equipment_plcs")
+}
+
+model EquipmentTag {
+  id String @id @default(uuid())
+  plcId String
+  plc EquipmentPlc @relation(fields: [plcId], references: [id], onDelete: Cascade)
+  name String
+  address String
+  category String?
+  description String?
+  dataType String?
+  unit String?
+  decimalPlaces String?
+  byteSize String?
+  settingValue String?
+  productionHistory String?
+  accessMode String?
+  notes String?
+  sourceFile String?
+  sourceSheet String?
+  sourceRow Int?
+  sourceData Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([plcId, sourceSheet, sourceRow])
+  @@index([plcId, address])
+  @@map("equipment_tags")
+}
+
+model EquipmentAlarm {
+  id String @id @default(uuid())
+  plcId String
+  plc EquipmentPlc @relation(fields: [plcId], references: [id], onDelete: Cascade)
+  address String
+  linkedAddress String?
+  category String?
+  message String
+  legacyMessage String?
+  notes String?
+  sourceFile String?
+  sourceSheet String?
+  sourceRow Int?
+  sourceData Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([plcId, sourceSheet, sourceRow])
+  @@index([plcId, address])
+  @@map("equipment_alarms")
+}
+
 model EquipmentProperty {
   id        String            @id @default(uuid())
   key       String // 속성명 (예: "온도", "압력", "용량")

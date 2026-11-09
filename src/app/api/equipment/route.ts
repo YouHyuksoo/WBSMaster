@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { EquipmentType, EquipmentStatus, Prisma } from "@prisma/client";
+import { nextEquipmentCode } from "@/lib/equipment-code";
 
 /**
  * 설비 목록 조회
@@ -168,15 +169,11 @@ export async function POST(request: NextRequest) {
     if (accessError) return accessError;
 
     // 설비 코드 자동 생성 (EQ-001, EQ-002, ...)
-    const lastEquipment = await prisma.equipment.findFirst({
+    const equipmentCodes = await prisma.equipment.findMany({
       where: { projectId },
-      orderBy: { createdAt: "desc" },
       select: { code: true },
     });
-    const nextNumber = lastEquipment?.code
-      ? parseInt(lastEquipment.code.replace("EQ-", "")) + 1
-      : 1;
-    const code = `EQ-${String(nextNumber).padStart(3, "0")}`;
+    const code = nextEquipmentCode(equipmentCodes.map(row => row.code));
 
     const equipment = await prisma.equipment.create({
       data: {

@@ -27,6 +27,7 @@ import { Equipment, EquipmentStatus, EquipmentType } from "@/lib/api";
 import { useEquipment, useEquipmentLines } from "./hooks/useEquipment";
 import { useEquipmentConnections } from "./hooks/useEquipmentConnections";
 import { STATUS_CONFIG, TYPE_CONFIG } from "./types";
+import { EquipmentInterfaces } from "./components/EquipmentInterfaces";
 import {
   EquipmentToolbar,
   EquipmentCanvas,
@@ -45,7 +46,7 @@ export default function EquipmentPage() {
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
 
   // 뷰 모드 상태 (grid: 그리드 보기, canvas: 캔버스 보기)
-  const [viewMode, setViewMode] = useState<"grid" | "canvas">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "canvas" | "interfaces">("grid");
 
   // 페이지네이션 상태 (그리드 뷰용)
   const [currentPage, setCurrentPage] = useState(1);
@@ -458,11 +459,13 @@ export default function EquipmentPage() {
                 </span>
                 <span>캔버스 보기</span>
               </button>
+              <button onClick={() => setViewMode("interfaces")} aria-pressed={viewMode === "interfaces"} className={`px-4 py-2 rounded-lg text-sm focus-visible:ring-2 focus-visible:ring-primary ${viewMode === "interfaces" ? "bg-primary text-white" : "text-text-secondary hover:bg-surface dark:hover:bg-surface-dark"}`}>TAG·알람·PLC 관리</button>
             </div>
 
           </div>
 
           {/* 필터 바 */}
+          {viewMode !== "interfaces" && <>
           <div className="px-4 py-2 bg-background-white dark:bg-background-dark border-b border-border dark:border-border-dark flex flex-wrap items-center gap-3 shrink-0">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary" style={{ fontSize: 18 }}>
@@ -626,8 +629,9 @@ export default function EquipmentPage() {
 
           </div>
 
+          </>}
           {/* 뷰 모드별 콘텐츠 */}
-          {viewMode === "grid" ? (
+          {viewMode === "interfaces" ? <EquipmentInterfaces key={selectedProjectId} equipments={equipments} projectId={selectedProjectId || ""} /> : viewMode === "grid" ? (
             // 그리드 보기
             <div className="flex-1 overflow-auto p-4 min-w-0">
               <EquipmentGridView
