@@ -202,22 +202,9 @@ export const EquipmentNode = memo(({ data }: NodeProps<EquipmentNodeData>) => {
         </div>
       )}
 
-      {/* 사업부 / 라인 / 위치 (한 줄 표시) */}
-      {(equipment.divisionCode || equipment.lineCode || equipment.location) && (
+      {/* 라인 / 위치 (한 줄 표시) */}
+      {(equipment.lineCode || equipment.location) && (
         <div className="flex items-center gap-2 text-xs text-text-secondary dark:text-text-secondary">
-          {/* 사업부 */}
-          {equipment.divisionCode && (
-            <>
-              <div className="flex items-center gap-1">
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-                  business
-                </span>
-                <span className="truncate">{equipment.divisionCode}</span>
-              </div>
-              {(equipment.lineCode || equipment.location) && <span>•</span>}
-            </>
-          )}
-
           {/* 라인 코드 */}
           {equipment.lineCode && (
             <>

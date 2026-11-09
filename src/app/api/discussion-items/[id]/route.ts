@@ -74,7 +74,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * PATCH /api/discussion-items/[id]
  *
  * 수정 가능한 필드:
- * - businessUnit: 사업부구분
  * - title: 협의 주제
  * - description: 상세 내용
  * - stage: 발생 단계
@@ -106,7 +105,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // 업데이트할 데이터 구성
     const updateData: Record<string, unknown> = {};
 
-    if (body.businessUnit !== undefined) updateData.businessUnit = body.businessUnit;
     if (body.title !== undefined) updateData.title = body.title;
     if (body.description !== undefined) updateData.description = body.description || null;
     if (body.stage !== undefined) updateData.stage = body.stage;

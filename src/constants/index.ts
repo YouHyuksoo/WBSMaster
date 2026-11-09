@@ -6,7 +6,7 @@
  *
  * 사용 예시:
  * ```typescript
- * import { BUSINESS_UNITS, LOCATIONS } from '@/constants';
+ * import { DEFAULT_BUSINESS_UNIT, LOCATIONS } from '@/constants';
  * ```
  */
 

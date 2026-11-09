@@ -15,7 +15,7 @@
  * @example
  * const { data: requirements } = useCustomerRequirements({ projectId: 'xxx' });
  * const createReq = useCreateCustomerRequirement();
- * createReq.mutate({ projectId: 'xxx', businessUnit: 'IT', functionName: '기능', content: '내용' });
+ * createReq.mutate({ projectId: 'xxx', functionName: '기능', content: '내용' });
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,12 +33,11 @@ export const customerRequirementKeys = {
 
 /**
  * 고객요구사항 목록 조회 Hook
- * @param filters - 필터 옵션 (projectId, businessUnit, applyStatus, search)
+ * @param filters - 필터 옵션 (projectId, applyStatus, search)
  * staleTime: 5분 (자주 변경되지 않으므로 캐싱)
  */
 export function useCustomerRequirements(filters?: {
   projectId?: string;
-  businessUnit?: string;
   applyStatus?: string;
   search?: string;
 }) {
@@ -75,7 +74,6 @@ export function useCreateCustomerRequirement() {
   return useMutation({
     mutationFn: (data: {
       projectId: string;
-      businessUnit: string;
       category?: string;
       functionName: string;
       content: string;

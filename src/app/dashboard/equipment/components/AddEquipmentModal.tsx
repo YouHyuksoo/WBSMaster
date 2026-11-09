@@ -35,7 +35,6 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
     status: "ACTIVE" as EquipmentStatus,
     location: "",
     lineCode: "",
-    divisionCode: "",
     imageUrl: "",
     description: "",
     manufacturer: "",
@@ -67,7 +66,6 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
       status: formData.status,
       location: formData.location || undefined,
       lineCode: formData.lineCode || undefined,
-      divisionCode: formData.divisionCode || undefined,
       imageUrl: formData.imageUrl || undefined,
       description: formData.description || undefined,
       manufacturer: formData.manufacturer || undefined,
@@ -183,20 +181,6 @@ export function AddEquipmentModal({ projectId, onClose }: AddEquipmentModalProps
                 value={formData.lineCode}
                 onChange={(e) => setFormData({ ...formData, lineCode: e.target.value })}
                 placeholder="예: L1, L2, LINE-A"
-                className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            {/* 사업부 코드 */}
-            <div>
-              <label className="text-sm font-medium text-text dark:text-white mb-1 block">
-                사업부 코드
-              </label>
-              <input
-                type="text"
-                value={formData.divisionCode}
-                onChange={(e) => setFormData({ ...formData, divisionCode: e.target.value })}
-                placeholder="예: DIV-A, 사업부1"
                 className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>

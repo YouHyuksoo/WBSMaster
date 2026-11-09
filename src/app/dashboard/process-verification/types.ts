@@ -5,9 +5,20 @@
  *
  * 2026-01-17 구조 개선:
  * - ProcessVerificationMaster: 관리코드 기준 마스터 데이터
- * - ProcessVerificationBusinessUnitApply: 사업부별 적용 현황
+ * - ProcessVerificationBusinessUnitApply: 마스터별 적용 여부·검증 상태 행
  * - 기존 ProcessVerificationItem은 백업용으로 유지
+ *
+ * 2026-11-09: 화면에서 사업부 구분을 없앴다.
+ * - 마스터 하나에 적용 행 하나(businessUnit = DEFAULT_BUSINESS_UNIT)만 쓴다.
+ * - getMasterApply() 로 그 행을 찾고, 없으면 "미적용·대기"로 본다.
+ *
+ * 초보자 가이드:
+ * 1. **ProcessVerificationMaster**: 테이블 한 행 = 마스터 하나
+ * 2. **getMasterApply(master)**: 적용 여부(isApplied)·검증 상태(status) 조회
+ * 3. **verificationStatusConfig**: 상태별 라벨·색상(라이트/다크)
  */
+
+import { DEFAULT_BUSINESS_UNIT } from "@/constants/business-units";
 
 /**
  * 검증 상태 Enum
@@ -19,32 +30,6 @@ export type VerificationStatus = "PENDING" | "IN_PROGRESS" | "VERIFIED" | "NOT_A
  */
 export const PRODUCT_TYPES = ["SMD", "HANES"] as const;
 export type ProductType = (typeof PRODUCT_TYPES)[number];
-
-/**
- * 전체 사업부 목록 상수
- */
-export const BUSINESS_UNITS = ["V_IVI", "V_DISP", "V_PCBA", "V_HMS"] as const;
-export type BusinessUnit = (typeof BUSINESS_UNITS)[number];
-
-/**
- * 제품유형별 사업부 매핑
- * - SMD: V_IVI, V_DISP, V_PCBA (동일 마스터 공유)
- * - HANES: V_HMS (별도 마스터)
- */
-export const PRODUCT_TYPE_BUSINESS_UNITS: Record<ProductType, readonly BusinessUnit[]> = {
-  SMD: ["V_IVI", "V_DISP", "V_PCBA"] as const,
-  HANES: ["V_HMS"] as const,
-};
-
-/**
- * 사업부별 제품유형 역매핑
- */
-export const BUSINESS_UNIT_PRODUCT_TYPE: Record<BusinessUnit, ProductType> = {
-  V_IVI: "SMD",
-  V_DISP: "SMD",
-  V_PCBA: "SMD",
-  V_HMS: "HANES",
-};
 
 /**
  * 검증 상태 설정 (다크 모드 지원)
@@ -159,8 +144,9 @@ export interface ProcessVerificationMaster {
 }
 
 /**
- * 사업부별 적용 인터페이스 (신규)
- * 마스터 + 사업부 조합으로 적용 여부 관리
+ * 적용 행 인터페이스
+ * DB 테이블(ProcessVerificationBusinessUnit) 구조를 그대로 받는다.
+ * 화면은 businessUnit = DEFAULT_BUSINESS_UNIT 인 행만 쓴다.
  */
 export interface ProcessVerificationBusinessUnitApply {
   id: string;
@@ -170,4 +156,14 @@ export interface ProcessVerificationBusinessUnitApply {
   status: VerificationStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * 마스터의 적용 행(DEFAULT_BUSINESS_UNIT)을 돌려준다.
+ * 행이 없으면 undefined → 화면은 "미적용·대기"로 표시한다.
+ */
+export function getMasterApply(
+  master: Pick<ProcessVerificationMaster, "businessUnitApplies">
+): ProcessVerificationBusinessUnitApply | undefined {
+  return master.businessUnitApplies?.find((a) => a.businessUnit === DEFAULT_BUSINESS_UNIT);
 }

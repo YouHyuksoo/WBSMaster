@@ -695,7 +695,6 @@ export interface FieldIssue {
   id: string;
   sequence: number;           // 순번
   code: string;              // 이슈번호 (IS0001)
-  businessUnit: string;      // 사업부
   category?: string | null;  // 업무구분
   title: string;             // 이슈관리명
   description?: string | null; // 이슈 설명
@@ -745,7 +744,6 @@ export interface Interview {
   interviewDate: string;           // 인터뷰 일자
   interviewer?: string | null;     // 인터뷰 진행자
   interviewee?: string | null;     // 인터뷰 대상자
-  businessUnit: string;            // 사업부
   category?: string | null;        // 업무영역 (생산, 구매, 자재 등)
   currentProcess?: string | null;  // 1. 현재 운영 방식 (AS-IS)
   painPoints?: string | null;      // 2. 문제점
@@ -771,7 +769,6 @@ export interface CustomerRequirement {
   id: string;
   sequence: number;         // 순번
   code: string;            // 관리번호 (RQIT_00001)
-  businessUnit: string;    // 사업부
   category?: string | null; // 업무구분
   functionName: string;    // 기능명
   content: string;         // 요구사항 내용
@@ -1469,14 +1466,13 @@ export const api = {
   /** 고객요구사항 API */
   customerRequirements: {
     /** 목록 조회 (필터링 지원) */
-    list: (params?: { projectId?: string; businessUnit?: string; applyStatus?: string; search?: string }) =>
+    list: (params?: { projectId?: string; applyStatus?: string; search?: string }) =>
       get<CustomerRequirement[]>("/api/customer-requirements", params),
     /** 단건 조회 */
     get: (id: string) => get<CustomerRequirement>(`/api/customer-requirements/${id}`),
     /** 생성 (관리번호 자동 부여) */
     create: (data: {
       projectId: string;
-      businessUnit: string;
       category?: string;
       functionName: string;
       content: string;
@@ -1573,7 +1569,7 @@ export const api = {
   /** 설비 관리 API */
   equipment: {
     /** 설비 목록 조회 (사업부/라인 필터 지원) */
-    list: (params?: { projectId?: string; divisionCode?: string; lineCode?: string }) =>
+    list: (params?: { projectId?: string; lineCode?: string }) =>
       get<Equipment[]>("/api/equipment", params),
     /** 설비 상세 조회 */
     get: (id: string) => get<Equipment>(`/api/equipment/${id}`),
@@ -1588,7 +1584,6 @@ export const api = {
       description?: string;
       location?: string;
       lineCode?: string;         // 라인코드 (예: L1, L2, LINE-A)
-      divisionCode?: string;     // 사업부 코드 (예: DIV-A, 사업부1)
       imageUrl?: string;         // 설비 이미지 URL
       manufacturer?: string;
       modelNumber?: string;
@@ -1615,8 +1610,8 @@ export const api = {
         { updates }
       ),
     /** 필터 목록 조회 (사업부/라인 코드) */
-    getFilters: (projectId: string, divisionCode?: string) =>
-      get<{ divisions: string[]; lines: string[] }>("/api/equipment/filters", { projectId, divisionCode }),
+    getFilters: (projectId: string) =>
+      get<{ lines: string[] }>("/api/equipment/filters", { projectId }),
   },
 
   /** 설비 속성 API */
@@ -1668,14 +1663,13 @@ export const api = {
   /** 현업이슈 API */
   fieldIssues: {
     /** 목록 조회 (필터링 지원) */
-    list: (params?: { projectId?: string; businessUnit?: string; status?: string; search?: string }) =>
+    list: (params?: { projectId?: string; status?: string; search?: string }) =>
       get<FieldIssue[]>("/api/field-issues", params),
     /** 단건 조회 */
     get: (id: string) => get<FieldIssue>(`/api/field-issues/${id}`),
     /** 생성 (이슈번호 자동 부여) */
     create: (data: {
       projectId: string;
-      businessUnit: string;
       category?: string;
       title: string;
       description?: string;
@@ -1722,7 +1716,7 @@ export const api = {
   // ============================================
   interviews: {
     /** 목록 조회 (필터링 지원) */
-    list: (params?: { projectId?: string; businessUnit?: string; transferStatus?: string; search?: string }) =>
+    list: (params?: { projectId?: string; transferStatus?: string; search?: string }) =>
       get<Interview[]>("/api/interviews", params),
     /** 단건 조회 */
     get: (id: string) => get<Interview>(`/api/interviews/${id}`),
@@ -1733,7 +1727,6 @@ export const api = {
       interviewDate?: string;
       interviewer?: string;
       interviewee?: string;
-      businessUnit: string;
       currentProcess?: string;
       painPoints?: string;
       desiredResults?: string;
@@ -1818,7 +1811,6 @@ export const api = {
       startDate: string;
       endDate: string;
       category?: string;
-      businessUnit?: string;
       description?: string;
       predecessorId?: string;
       isParallel?: boolean;

@@ -7,8 +7,9 @@
  * 초보자 가이드:
  * 1. **통계 카드**: 전체, 발견/수정중/해결/수정안함/완료 현황
  * 2. **탭**: 진행(발견/수정중) vs 종료(해결/수정안함/완료)
- * 3. **필터**: 사업부, 업무구분, 검색어로 필터링
+ * 3. **필터**: 업무구분, 검색어로 필터링
  * 4. **테이블**: 현업이슈 목록 (상태 클릭으로 변경)
+ * 5. **사업부**: 화면에서 구분하지 않는다. 저장은 서버가 DEFAULT_BUSINESS_UNIT 으로 고정한다.
  *
  * 상태 흐름 (필독 가이드 기준):
  * OPEN (발견) → IN_PROGRESS (수정 중) → RESOLVED (해결) / WONT_FIX (수정 안함) → CLOSED (완료)
@@ -36,7 +37,6 @@ import {
   type FieldIssueFormData,
   type FieldIssueStatus,
   STATUS_CONFIG,
-  BUSINESS_UNITS,
   BUSINESS_CATEGORIES,
 } from "./types";
 
@@ -48,7 +48,6 @@ export default function FieldIssuesPage() {
   const { selectedProjectId, selectedProject } = useProject();
 
   // 필터 상태
-  const [filterBusinessUnit, setFilterBusinessUnit] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   /** 현재 선택된 탭 (active: 발견/수정중, closed: 해결/수정안함/완료) */
@@ -118,8 +117,6 @@ export default function FieldIssuesPage() {
   // 필터링된 이슈
   const filteredIssues = useMemo(() => {
     return tabIssues.filter((issue) => {
-      const matchesBusinessUnit =
-        filterBusinessUnit === "all" || issue.businessUnit === filterBusinessUnit;
       const matchesCategory =
         filterCategory === "all" || issue.category === filterCategory;
       const matchesSearch =
@@ -128,9 +125,9 @@ export default function FieldIssuesPage() {
         issue.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         issue.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         issue.issuer?.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesBusinessUnit && matchesCategory && matchesSearch;
+      return matchesCategory && matchesSearch;
     }).sort((a, b) => a.sequence - b.sequence);
-  }, [tabIssues, filterBusinessUnit, filterCategory, searchQuery]);
+  }, [tabIssues, filterCategory, searchQuery]);
 
   // 페이지네이션 계산
   const totalPages = Math.ceil(filteredIssues.length / itemsPerPage);
@@ -142,7 +139,7 @@ export default function FieldIssuesPage() {
   // 필터/탭 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, filterBusinessUnit, filterCategory, searchQuery]);
+  }, [activeTab, filterCategory, searchQuery]);
 
   // 통계 계산 (필독 가이드 기준)
   const stats = useMemo(() => {
@@ -165,27 +162,6 @@ export default function FieldIssuesPage() {
       closed,
       completionRate: total > 0 ? Math.round((totalClosed / total) * 100) : 0,
     };
-  }, [issues]);
-
-  // 사업부별 통계 (필독 가이드 기준)
-  const businessUnitStats = useMemo(() => {
-    const unitCounts: Record<string, { active: number; closed: number }> = {};
-    issues.forEach((issue) => {
-      if (issue.businessUnit) {
-        if (!unitCounts[issue.businessUnit]) {
-          unitCounts[issue.businessUnit] = { active: 0, closed: 0 };
-        }
-        // 진행 중 (발견, 수정 중)
-        if (issue.status === "OPEN" || issue.status === "IN_PROGRESS" || issue.status === "PENDING") {
-          unitCounts[issue.businessUnit].active++;
-        }
-        // 종료 (해결, 수정안함, 완료)
-        else {
-          unitCounts[issue.businessUnit].closed++;
-        }
-      }
-    });
-    return unitCounts;
   }, [issues]);
 
   // 모달 열기 - 등록
@@ -298,7 +274,6 @@ export default function FieldIssuesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: selectedProjectId,
-          businessUnit: transferringIssue.businessUnit || "공통",
           title: transferringIssue.title,
           description: `${transferringIssue.description || ""}\n\n[현업이슈에서 이관: ${transferringIssue.code}]`,
           stage,
@@ -352,7 +327,6 @@ export default function FieldIssuesPage() {
 
     const excelData = filteredIssues.map((issue, idx) => ({
       "이슈번호": issue.code || "",
-      "사업부": issue.businessUnit || "",
       "업무구분": issue.category || "",
       "이슈관리명": issue.title || "",
       "이슈 설명": issue.description || "",
@@ -370,7 +344,7 @@ export default function FieldIssuesPage() {
 
     const worksheet = utils.json_to_sheet(excelData);
     worksheet["!cols"] = [
-      { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 25 }, { wch: 40 },
+      { wch: 10 }, { wch: 8 }, { wch: 25 }, { wch: 40 },
       { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 8 },
       { wch: 12 }, { wch: 12 }, { wch: 40 }, { wch: 40 }, { wch: 30 },
     ];
@@ -486,9 +460,9 @@ export default function FieldIssuesPage() {
                 isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
               }`}
             >
-              <div className="grid grid-cols-2 lg:grid-cols-8 gap-3 pb-2">
-                {/* 종료율 카드 */}
-                <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
+              <div className="grid grid-cols-2 lg:grid-cols-7 gap-3 pb-2">
+                {/* 종료율 카드 (모바일 2열에서 7개 카드가 비지 않도록 한 줄 전체 차지) */}
+                <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <Icon name="speed" size="xs" className="text-primary" />
                     <span className="text-xs font-semibold text-primary">종료율</span>
@@ -580,23 +554,6 @@ export default function FieldIssuesPage() {
                   </div>
                 </div>
 
-                {/* 사업부별 통계 */}
-                <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon name="business" size="xs" className="text-cyan-500" />
-                    <span className="text-xs font-semibold text-cyan-500">사업부별</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1">
-                    {Object.entries(businessUnitStats).slice(0, 4).map(([unit, counts]) => (
-                      <div key={unit} className="text-center flex-1">
-                        <p className="text-sm font-bold text-text dark:text-white">
-                          {counts.active}
-                        </p>
-                        <p className="text-[8px] text-text-secondary truncate">{unit}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -678,18 +635,6 @@ export default function FieldIssuesPage() {
               />
             </div>
 
-            {/* 사업부 필터 */}
-            <select
-              value={filterBusinessUnit}
-              onChange={(e) => setFilterBusinessUnit(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-            >
-              <option value="all">전체 사업부</option>
-              {BUSINESS_UNITS.map((unit) => (
-                <option key={unit} value={unit}>{unit}</option>
-              ))}
-            </select>
-
             {/* 업무구분 필터 */}
             <select
               value={filterCategory}
@@ -749,7 +694,6 @@ export default function FieldIssuesPage() {
           sheetName: "리스트",
           columns: [
             { header: "이슈번호", key: "code", width: 10, example: "IS0001" },
-            { header: "사업부", key: "businessUnit", width: 10, example: "V_IVI" },
             { header: "업무구분", key: "category", width: 8, example: "자재" },
             { header: "이슈관리명", key: "title", width: 25, example: "LOT 추적성" },
             { header: "이슈 설명", key: "description", width: 50, example: "LOT 추적성을 확인하기 위해..." },
@@ -768,7 +712,7 @@ export default function FieldIssuesPage() {
         hints={[
           "첫 번째 행은 헤더로 인식됩니다",
           "이슈번호가 없으면 자동 생성됩니다 (IS0001 형식)",
-          "사업부: V_HNS, V_DISP, V_IVI, V_PCBA, 공통",
+          "필수: 이슈관리명",
           "상태: 발견/수정중/해결/수정안함/완료",
         ]}
         clearExistingLabel="기존 현업이슈 삭제 후 가져오기"

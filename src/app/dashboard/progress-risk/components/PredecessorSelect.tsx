@@ -62,7 +62,6 @@ export function PredecessorSelect({ value, taskId, allTasks, stages, onChange }:
         return [
           task.code,
           task.name,
-          task.businessUnit,
           STAGE_CATEGORY_LABEL[task.stageCategory],
           task.category,
           task.endDate?.slice(0, 10),
@@ -72,8 +71,6 @@ export function PredecessorSelect({ value, taskId, allTasks, stages, onChange }:
           .some((value) => String(value).toLowerCase().includes(normalized));
       })
       .sort((a, b) => {
-        const byBusinessUnit = (a.businessUnit ?? "").localeCompare(b.businessUnit ?? "");
-        if (byBusinessUnit !== 0) return byBusinessUnit;
         const byCategory = STAGE_CATEGORY_LABEL[a.stageCategory].localeCompare(STAGE_CATEGORY_LABEL[b.stageCategory]);
         if (byCategory !== 0) return byCategory;
         const byMajor = (a.category ?? "").localeCompare(b.category ?? "");
@@ -112,7 +109,7 @@ export function PredecessorSelect({ value, taskId, allTasks, stages, onChange }:
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="코드, 기능명, 사업부, 카테고리, 대분류, 목표일자 검색"
+              placeholder="코드, 기능명, 카테고리, 대분류, 목표일자 검색"
               className="md:max-w-xl"
               autoFocus
             />
@@ -122,10 +119,9 @@ export function PredecessorSelect({ value, taskId, allTasks, stages, onChange }:
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-border dark:border-border-dark">
-            <div className="min-w-[1030px]">
-              <div className="grid grid-cols-[86px_82px_110px_130px_minmax(220px,1fr)_86px_104px_104px_72px] gap-2 border-b border-border bg-surface px-3 py-2 text-[11px] font-semibold text-text-secondary dark:border-border-dark dark:bg-background-dark">
+            <div className="min-w-[940px]">
+              <div className="grid grid-cols-[86px_110px_130px_minmax(220px,1fr)_86px_104px_104px_72px] gap-2 border-b border-border bg-surface px-3 py-2 text-[11px] font-semibold text-text-secondary dark:border-border-dark dark:bg-background-dark">
                 <div>코드</div>
-                <div>사업부</div>
                 <div>카테고리</div>
                 <div>대분류</div>
                 <div>기능명</div>
@@ -149,14 +145,13 @@ export function PredecessorSelect({ value, taskId, allTasks, stages, onChange }:
                         key={candidate.id}
                         type="button"
                         onClick={() => handleSelect(candidate.id)}
-                        className={`grid w-full grid-cols-[86px_82px_110px_130px_minmax(220px,1fr)_86px_104px_104px_72px] gap-2 border-b border-border px-3 py-2 text-left text-xs transition-colors last:border-b-0 dark:border-border-dark ${
+                        className={`grid w-full grid-cols-[86px_110px_130px_minmax(220px,1fr)_86px_104px_104px_72px] gap-2 border-b border-border px-3 py-2 text-left text-xs transition-colors last:border-b-0 dark:border-border-dark ${
                           selected
                             ? "bg-primary/12 text-primary"
                             : "text-text hover:bg-surface dark:text-white dark:hover:bg-background-dark"
                         }`}
                       >
                         <div className="truncate font-medium">{candidate.code ?? "-"}</div>
-                        <div className="truncate text-text-secondary">{candidate.businessUnit ?? "-"}</div>
                         <div className="truncate text-text-secondary">{STAGE_CATEGORY_LABEL[candidate.stageCategory]}</div>
                         <div className="truncate text-text-secondary" title={candidate.category ?? ""}>
                           {candidate.category ?? "-"}

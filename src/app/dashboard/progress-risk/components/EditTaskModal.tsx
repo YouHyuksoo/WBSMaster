@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Button, Input, Modal } from "@/components/ui";
-import { BUSINESS_UNITS } from "@/constants/business-units";
 import { useUpdateProgressTask } from "@/hooks";
 import type { ProgressTask } from "@/lib/api";
 import { STAGE_CATEGORY_LABEL, STAGE_CATEGORY_ORDER, type StageCategory } from "@/lib/stage-categories";
@@ -19,7 +18,6 @@ interface EditTaskModalProps {
 
 export interface EditTaskDraft {
   name: string;
-  businessUnit: string;
   category: string;
   description: string;
   targetDate: string;
@@ -32,7 +30,6 @@ export interface EditTaskDraft {
 export function buildEditTaskPayload(draft: EditTaskDraft): Partial<ProgressTask> {
   return {
     name: draft.name.trim(),
-    businessUnit: draft.businessUnit || null,
     category: draft.category || null,
     description: draft.description.trim() || null,
     endDate: draft.targetDate,
@@ -46,7 +43,6 @@ export function buildEditTaskPayload(draft: EditTaskDraft): Partial<ProgressTask
 function getInitialDraft(task: ProgressTask): EditTaskDraft {
   return {
     name: task.name,
-    businessUnit: task.businessUnit ?? "",
     category: task.category ?? "",
     description: task.description ?? "",
     targetDate: task.endDate.slice(0, 10),
@@ -103,7 +99,6 @@ export function EditTaskPanel({
 
   const predecessorOptions = allTasks.filter((candidate) => candidate.id !== task.id);
   const primaryGridClass = layout === "modal" ? "grid gap-3 md:grid-cols-[1fr_150px]" : "grid gap-3";
-  const tripleGridClass = layout === "modal" ? "grid gap-3 md:grid-cols-3" : "grid gap-3";
   const doubleGridClass = layout === "modal" ? "grid gap-3 md:grid-cols-[1fr_1fr]" : "grid gap-3";
 
   return (
@@ -126,19 +121,7 @@ export function EditTaskPanel({
           </Field>
         </div>
 
-        <div className={tripleGridClass}>
-          <Field label="사업부">
-            <select
-              value={draft.businessUnit}
-              onChange={(event) => set({ businessUnit: event.target.value })}
-              className="h-10 w-full rounded-lg border border-border bg-background-white px-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary dark:border-border-dark dark:bg-surface-dark dark:text-white"
-            >
-              <option value="">(미지정)</option>
-              {BUSINESS_UNITS.map((unit) => (
-                <option key={unit} value={unit}>{unit}</option>
-              ))}
-            </select>
-          </Field>
+        <div className={doubleGridClass}>
           <Field label="카테고리">
             <select
               value={draft.stageCategory}

@@ -22,7 +22,6 @@ import { useUpdateEquipment, useDeleteEquipment } from "../hooks/useEquipment";
 import { STATUS_CONFIG, TYPE_CONFIG, SYSTEM_TYPE_CONFIG } from "../types";
 import { SystemType } from "@/lib/api";
 import { PropertyEditor } from "./PropertyEditor";
-import { BUSINESS_UNITS } from "@/constants/business-units";
 import { LOCATIONS } from "@/constants/locations";
 
 /** Props 타입 */
@@ -77,7 +76,6 @@ export function EquipmentSidebar({ equipment, onClose }: EquipmentSidebarProps) 
         description: editData.description,
         location: editData.location,
         lineCode: editData.lineCode,
-        divisionCode: editData.divisionCode,
         imageUrl: editData.imageUrl,
         manufacturer: editData.manufacturer,
         modelNumber: editData.modelNumber,
@@ -230,25 +228,6 @@ export function EquipmentSidebar({ equipment, onClose }: EquipmentSidebarProps) 
             placeholder="예: L1, L2, LINE-A"
             className="flex-1 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
           />
-        </div>
-
-        {/* 사업부 코드 */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-text dark:text-white w-16 shrink-0">
-            사업부:
-          </label>
-          <select
-            value={editData.divisionCode || ""}
-            onChange={(e) => setEditData({ ...editData, divisionCode: e.target.value })}
-            className="flex-1 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-xs text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">선택 안함</option>
-            {BUSINESS_UNITS.map((unit) => (
-              <option key={unit} value={unit}>
-                {unit}
-              </option>
-            ))}
-          </select>
         </div>
 
         {/* 이미지 URL */}

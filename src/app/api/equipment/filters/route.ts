@@ -1,11 +1,11 @@
 /**
  * @file src/app/api/equipment/filters/route.ts
  * @description
- * 설비 필터 목록 API - 사업부/라인 코드 목록 조회
+ * 설비 필터 목록 API - 프로젝트의 라인 코드 목록 조회
  *
- * 사용법:
- * - 사업부 목록: GET /api/equipment/filters?projectId=xxx
- * - 라인 목록: GET /api/equipment/filters?projectId=xxx&divisionCode=V_PCBA
+ * 초보자 가이드:
+ * - GET /api/equipment/filters?projectId=xxx → { lines: string[] }
+ * - 사업부(구분코드) 단위 관리는 2026-11-09 제거됐다. 라인은 프로젝트 전체 기준이다.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -13,14 +13,12 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * GET /api/equipment/filters
- * - divisionCode 없으면: 사업부 목록만 반환
- * - divisionCode 있으면: 해당 사업부의 라인 목록 반환
+ * 프로젝트의 라인 코드 목록 (중복 제거)
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
-    const divisionCode = searchParams.get("divisionCode");
 
     if (!projectId) {
       return NextResponse.json(
@@ -29,33 +27,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // divisionCode가 없으면 사업부 목록만 반환
-    if (!divisionCode) {
-      const divisions = await prisma.equipment.findMany({
-        where: { projectId, divisionCode: { not: null } },
-        select: { divisionCode: true },
-        distinct: ["divisionCode"],
-      });
-
-      return NextResponse.json({
-        divisions: divisions.map((d) => d.divisionCode).filter(Boolean),
-        lines: [], // 라인은 사업부 선택 후 별도 요청
-      });
-    }
-
-    // divisionCode가 있으면 해당 사업부의 라인 목록 반환
     const lines = await prisma.equipment.findMany({
-      where: {
-        projectId,
-        divisionCode: divisionCode === "ALL" ? undefined : divisionCode,
-        lineCode: { not: null }
-      },
+      where: { projectId, lineCode: { not: null } },
       select: { lineCode: true },
       distinct: ["lineCode"],
     });
 
     return NextResponse.json({
-      divisions: [], // 이미 사업부는 알고 있으므로 빈 배열
       lines: lines.map((l) => l.lineCode).filter(Boolean),
     });
   } catch (error) {

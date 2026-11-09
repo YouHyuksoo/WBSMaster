@@ -95,7 +95,6 @@ export async function POST(
           projectId: interview.projectId,
           sequence: nextSequence,
           code: createdCode,
-          businessUnit: interview.businessUnit,
           functionName: interview.title,
           content: fullDescription,
           requester: interview.interviewee || null,
@@ -118,7 +117,6 @@ export async function POST(
           projectId: interview.projectId,
           sequence: nextSequence,
           code: createdCode,
-          businessUnit: interview.businessUnit,
           title: interview.title,
           description: fullDescription,
           registeredDate: interview.interviewDate,
@@ -167,7 +165,6 @@ export async function POST(
         data: {
           projectId: interview.projectId,
           code: createdCode,
-          businessUnit: interview.businessUnit,
           title: interview.title,
           description: fullDescription,
           status: "DISCUSSING",

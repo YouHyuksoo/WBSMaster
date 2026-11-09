@@ -83,9 +83,6 @@ export async function PATCH(
     // 업데이트할 데이터 구성
     const updateData: Record<string, unknown> = {};
 
-    if (body.businessUnit !== undefined) {
-      updateData.businessUnit = body.businessUnit;
-    }
     if (body.category !== undefined) {
       updateData.category = body.category || null;
     }

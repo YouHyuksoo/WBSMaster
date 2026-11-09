@@ -2,39 +2,26 @@
  * @file src/app/dashboard/as-is-analysis/components/OverviewHeader.tsx
  * @description
  * AS-IS 분석 페이지의 헤더 컴포넌트입니다.
- * 프로젝트 정보, 사업부 선택, 새로고침 기능을 제공합니다.
+ * 프로젝트 정보, 작성가이드, 새로고침 기능을 제공합니다.
  *
  * 초보자 가이드:
  * 1. **프로젝트 배지**: 현재 선택된 프로젝트 표시
- * 2. **사업부 선택**: 드롭다운으로 사업부 전환
+ * 2. **작성가이드**: 작성가이드 모달 열기 버튼
  * 3. **새로고침**: 데이터 새로고침 버튼
+ * (사업부 구분은 화면에서 쓰지 않는다. 데이터는 POLE 로 고정 저장된다.)
  */
 
 "use client";
 
 import { Icon, Button } from "@/components/ui";
-import { BUSINESS_UNITS, type BusinessUnit } from "@/constants/business-units";
-import type { AsIsOverview } from "../types";
 
 interface OverviewHeaderProps {
   /** 프로젝트 이름 */
   projectName: string;
-  /** AS-IS 총괄 데이터 */
-  overview?: AsIsOverview | null;
-  /** 현재 선택된 사업부 */
-  businessUnit: BusinessUnit;
-  /** 사업부 변경 핸들러 */
-  onBusinessUnitChange: (unit: BusinessUnit) => void;
   /** 새로고침 핸들러 */
   onRefresh: () => void;
   /** 작성가이드 모달 열기 핸들러 */
   onShowGuide: () => void;
-  /** 다른 사업부로 복사 모달 열기 핸들러 */
-  onShowCopyModal?: () => void;
-  /** 선택된 항목 수 */
-  selectedCount?: number;
-  /** 선택 해제 핸들러 */
-  onClearSelection?: () => void;
 }
 
 /**
@@ -42,14 +29,8 @@ interface OverviewHeaderProps {
  */
 export function OverviewHeader({
   projectName,
-  overview,
-  businessUnit,
-  onBusinessUnitChange,
   onRefresh,
   onShowGuide,
-  onShowCopyModal,
-  selectedCount = 0,
-  onClearSelection,
 }: OverviewHeaderProps) {
 
   return (
@@ -72,22 +53,6 @@ export function OverviewHeader({
 
       {/* 오른쪽: 프로젝트 및 메타 정보 */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* 사업부 선택 */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
-          <Icon name="business" size="sm" className="text-amber-500" />
-          <select
-            value={businessUnit}
-            onChange={(e) => onBusinessUnitChange(e.target.value as BusinessUnit)}
-            className="bg-transparent text-sm font-medium text-amber-500 cursor-pointer focus:outline-none"
-          >
-            {BUSINESS_UNITS.map((unit) => (
-              <option key={unit} value={unit} className="text-text dark:text-white bg-surface dark:bg-surface-dark">
-                {unit}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* 프로젝트 배지 */}
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
           <Icon name="folder" size="sm" className="text-primary" />
@@ -95,50 +60,6 @@ export function OverviewHeader({
             {projectName}
           </span>
         </div>
-
-        {/* 선택 항목 표시 및 복사 버튼 */}
-        {selectedCount > 0 ? (
-          <>
-            {/* 선택 해제 버튼 */}
-            <button
-              onClick={onClearSelection}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text-secondary hover:text-text dark:hover:text-white transition-colors"
-            >
-              <Icon name="close" size="xs" />
-              <span>선택 해제</span>
-            </button>
-            {/* 선택된 항목 수 표시 */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 border border-success/20">
-              <Icon name="check_circle" size="sm" className="text-success" />
-              <span className="text-sm font-medium text-success">
-                {selectedCount}개 선택됨
-              </span>
-            </div>
-            {/* 선택 복사 버튼 */}
-            {onShowCopyModal && (
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon="content_copy"
-                onClick={onShowCopyModal}
-              >
-                선택 항목 복사
-              </Button>
-            )}
-          </>
-        ) : (
-          /* 다른 사업부로 복사 버튼 (전체 복사) */
-          onShowCopyModal && overview && (overview.items?.length ?? 0) > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon="content_copy"
-              onClick={onShowCopyModal}
-            >
-              다른 사업부로 복사
-            </Button>
-          )
-        )}
 
         {/* 작성가이드 버튼 */}
         <Button

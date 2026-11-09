@@ -19,6 +19,9 @@
  * │ - 업무목록  │   총괄: OverviewTable                           │
  * │ - 검색     │   단위: UnitAnalysisPanel                       │
  * └────────────┴────────────────────────────────────────────────┘
+ *
+ * 사업부 구분은 화면에서 쓰지 않는다. 총괄은 프로젝트당 하나이며
+ * 서버가 DEFAULT_BUSINESS_UNIT(POLE)으로 고정해 조회·저장한다.
  */
 
 "use client";
@@ -26,13 +29,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useProject } from "@/contexts/ProjectContext";
 import { Icon, Button } from "@/components/ui";
-import { BUSINESS_UNITS, type BusinessUnit } from "@/constants/business-units";
 import { OverviewHeader } from "./components/OverviewHeader";
 import { OverviewTable } from "./components/OverviewTable";
 import { TaskListPanel } from "./components/TaskListPanel";
 import { UnitAnalysisPanel } from "./components/UnitAnalysisPanel";
 import { WritingGuideModal } from "./components/WritingGuideModal";
-import { CopyToBusinessUnitModal } from "./components/CopyToBusinessUnitModal";
 import { useAsIsOverview } from "./hooks/useAsIsOverview";
 import type { AsIsOverviewItem } from "./types";
 
@@ -48,18 +49,13 @@ export default function AsIsAnalysisPage() {
   const [selectedItem, setSelectedItem] = useState<AsIsOverviewItem | null>(null);
   const [leftPanelWidth, setLeftPanelWidth] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
-  const [businessUnit, setBusinessUnit] = useState<BusinessUnit>("V_IVI");
   // 좌측 패널 접기 상태
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const [isLeftPanelHovered, setIsLeftPanelHovered] = useState(false);
   // 작성가이드 모달 상태
   const [showGuideModal, setShowGuideModal] = useState(false);
-  // 다른 사업부로 복사 모달 상태
-  const [showCopyModal, setShowCopyModal] = useState(false);
-  // 체크된 항목 ID 목록 (복사용)
-  const [checkedItemIds, setCheckedItemIds] = useState<Set<string>>(new Set());
 
-  // AS-IS 총괄 데이터 조회 (프로젝트+사업부별)
+  // AS-IS 총괄 데이터 조회 (프로젝트별)
   const {
     overview,
     isLoading,
@@ -67,14 +63,7 @@ export default function AsIsAnalysisPage() {
     refetch,
     createOverview,
     isCreating,
-  } = useAsIsOverview(selectedProject?.id, businessUnit);
-
-  // 사업부 변경 시 선택 항목 및 체크 상태 초기화
-  useEffect(() => {
-    setSelectedItem(null);
-    setActiveTab("overview");
-    setCheckedItemIds(new Set());
-  }, [businessUnit]);
+  } = useAsIsOverview(selectedProject?.id);
 
   // 항목 선택 핸들러
   const handleSelectItem = useCallback((item: AsIsOverviewItem) => {
@@ -147,18 +136,6 @@ export default function AsIsAnalysisPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* 사업부 선택 */}
-            <select
-              value={businessUnit}
-              onChange={(e) => setBusinessUnit(e.target.value as BusinessUnit)}
-              className="px-3 py-1.5 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-            >
-              {BUSINESS_UNITS.map((unit) => (
-                <option key={unit} value={unit}>
-                  {unit}
-                </option>
-              ))}
-            </select>
             {/* 프로젝트 배지 */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
               <Icon name="folder" size="sm" className="text-primary" />
@@ -178,7 +155,7 @@ export default function AsIsAnalysisPage() {
             AS-IS 분석 시작하기
           </h2>
           <p className="text-text-secondary text-center max-w-md mb-4">
-            <span className="font-semibold text-primary">{businessUnit}</span> 사업부의 AS-IS 분석 데이터가 없습니다.
+            AS-IS 분석 데이터가 없습니다.
             <br />
             새로운 AS-IS 분석을 시작하려면 아래 버튼을 클릭하세요.
           </p>
@@ -186,10 +163,10 @@ export default function AsIsAnalysisPage() {
             variant="primary"
             size="lg"
             leftIcon="add"
-            onClick={() => createOverview({ projectId: selectedProject.id, businessUnit })}
+            onClick={() => createOverview({ projectId: selectedProject.id })}
             isLoading={isCreating}
           >
-            {businessUnit} AS-IS 분석 생성
+            AS-IS 분석 생성
           </Button>
         </div>
       </div>
@@ -202,14 +179,8 @@ export default function AsIsAnalysisPage() {
       <div className="p-4 border-b border-border dark:border-border-dark bg-background-white dark:bg-background-dark">
         <OverviewHeader
           projectName={selectedProject.name}
-          overview={overview}
-          businessUnit={businessUnit}
-          onBusinessUnitChange={setBusinessUnit}
           onRefresh={refetch}
           onShowGuide={() => setShowGuideModal(true)}
-          onShowCopyModal={() => setShowCopyModal(true)}
-          selectedCount={checkedItemIds.size}
-          onClearSelection={() => setCheckedItemIds(new Set())}
         />
       </div>
 
@@ -349,8 +320,6 @@ export default function AsIsAnalysisPage() {
                 items={overview?.items || []}
                 onSelectItem={handleSelectItem}
                 selectedItem={selectedItem}
-                checkedItemIds={checkedItemIds}
-                onCheckedItemsChange={setCheckedItemIds}
               />
             ) : (
               <UnitAnalysisPanel
@@ -365,24 +334,6 @@ export default function AsIsAnalysisPage() {
       {/* 작성가이드 모달 */}
       {showGuideModal && (
         <WritingGuideModal onClose={() => setShowGuideModal(false)} />
-      )}
-
-      {/* 다른 사업부로 복사 모달 */}
-      {overview && (
-        <CopyToBusinessUnitModal
-          isOpen={showCopyModal}
-          onClose={() => setShowCopyModal(false)}
-          sourceOverviewId={overview.id}
-          sourceBusinessUnit={businessUnit}
-          projectId={selectedProject.id}
-          itemCount={overview.items?.length ?? 0}
-          selectedItemIds={checkedItemIds.size > 0 ? Array.from(checkedItemIds) : undefined}
-          onSuccess={() => {
-            // 복사 성공 시 새로고침 및 선택 초기화
-            refetch();
-            setCheckedItemIds(new Set());
-          }}
-        />
       )}
     </div>
   );

@@ -11,11 +11,14 @@
  * 컬럼 매핑 (엑셀 → DB):
  * - 기능명 (필수)
  * - 카테고리 (선택)
+ * - 대분류 (선택)
  * - 설명 (선택)
  * - 목표일자 (필수, YYYY-MM-DD 또는 Excel 시리얼)
  * - 현재 단계 (선택, 한글 라벨 또는 enum)
  * - 공수(MD) (선택)
  * - 선행 task 코드 (선택, 같은 프로젝트 안에서 매칭)
+ * - 진행 방식, 담당자 (선택)
+ * - 헤더 이름으로 읽는다. 사업부 컬럼은 읽지 않는다 (businessUnit 은 DB 기본값 POLE)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -103,13 +106,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 기존 데이터 삭제 (옵션)
-    if (clearExisting) {
-      await prisma.progressTask.deleteMany({
-        where: { projectId },
-      });
-    }
-
     // 단계명 → id 매핑 캐시 (카테고리별)
     const stageDefs = await prisma.progressStageDef.findMany({
       where: { projectId },
@@ -140,6 +136,13 @@ export async function POST(request: NextRequest) {
         { error: "데이터가 없습니다. (최소 1행 필요)" },
         { status: 400 }
       );
+    }
+
+    // 기존 데이터 삭제 (옵션) — 파일 검사를 통과한 뒤에만 지운다
+    if (clearExisting) {
+      await prisma.progressTask.deleteMany({
+        where: { projectId },
+      });
     }
 
     const stats = {
@@ -239,9 +242,6 @@ export async function POST(request: NextRequest) {
             currentStageId,
             category: row["대분류"]
               ? String(row["대분류"]).trim()
-              : null,
-            businessUnit: row["사업부"]
-              ? String(row["사업부"]).trim()
               : null,
             description: row["설명"]
               ? String(row["설명"]).trim()

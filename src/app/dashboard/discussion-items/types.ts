@@ -63,7 +63,6 @@ export interface DiscussionOption {
 export interface DiscussionItem {
   id: string;
   code: string;                      // 협의요청 코드 (DIS-0001)
-  businessUnit: string;              // 사업부구분
   title: string;                     // 협의 주제
   description: string | null;        // 상세 내용
   status: DiscussionStatus;          // 상태
@@ -113,7 +112,6 @@ export interface DiscussionItem {
  * 폼 데이터 타입 (등록/수정용)
  */
 export interface DiscussionItemFormData {
-  businessUnit: string;
   title: string;
   description?: string;
   stage: DiscussionStage;

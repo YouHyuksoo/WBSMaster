@@ -305,7 +305,7 @@ export const DATABASE_SCHEMA = {
       id: { type: "uuid", description: "요구사항 고유 ID (Primary Key)" },
       sequence: { type: "int", description: "순번 (자동 부여)" },
       code: { type: "string", description: "관리번호 (RQIT_00001 형식)" },
-      businessUnit: { type: "string", description: "사업부 (IT, 생산, 품질 등)" },
+      businessUnit: { type: "string", description: "내부 고정값 POLE (화면에서 사업부 구분 안 함, 필터에 쓰지 말 것)" },
       category: { type: "string?", description: "업무구분 (공통, 프로세스 등)" },
       functionName: { type: "string", description: "기능명" },
       content: { type: "string", description: "요구사항 내용" },
@@ -505,7 +505,7 @@ export const DATABASE_SCHEMA = {
       description: { type: "string?", description: "설명" },
       location: { type: "string?", description: "물리적 위치 (예: A동 2층)" },
       lineCode: { type: "string?", description: "라인코드 (예: L1, L2, LINE-A)" },
-      divisionCode: { type: "string?", description: "사업부 코드" },
+      divisionCode: { type: "string?", description: "구분 코드 (선택, 화면에서 사용 안 함)" },
       imageUrl: { type: "string?", description: "설비 이미지 URL" },
       manufacturer: { type: "string?", description: "제조사" },
       modelNumber: { type: "string?", description: "모델번호" },
@@ -600,7 +600,7 @@ export const DATABASE_SCHEMA = {
       id: { type: "uuid", description: "이슈 고유 ID (Primary Key)" },
       sequence: { type: "int", description: "순번 (자동 부여)" },
       code: { type: "string", description: "이슈번호 (IS0001 형식)" },
-      businessUnit: { type: "string", description: "사업부 (V_IVI, V_DISP, V_PCBA 등)" },
+      businessUnit: { type: "string", description: "내부 고정값 POLE (화면에서 사업부 구분 안 함, 필터에 쓰지 말 것)" },
       category: { type: "string?", description: "업무구분 (자재, 생산, 품질 등)" },
       title: { type: "string", description: "이슈관리명 (제목)" },
       description: { type: "string?", description: "이슈 설명 (상세 내용)" },
@@ -630,7 +630,7 @@ export const DATABASE_SCHEMA = {
     columns: {
       id: { type: "uuid", description: "협의요청 고유 ID (Primary Key)" },
       code: { type: "string", description: "협의요청 코드 (DIS-001 등)" },
-      businessUnit: { type: "string", description: "사업부구분 (IT, 생산, 품질 등)" },
+      businessUnit: { type: "string", description: "내부 고정값 POLE (화면에서 사업부 구분 안 함, 필터에 쓰지 말 것)" },
       title: { type: "string", description: "협의 주제" },
       description: { type: "string?", description: "상세 내용" },
       status: {
@@ -676,7 +676,7 @@ export const DATABASE_SCHEMA = {
       interviewDate: { type: "datetime", description: "인터뷰 일자" },
       interviewer: { type: "string?", description: "인터뷰 진행자 (이름)" },
       interviewee: { type: "string?", description: "인터뷰 대상자 (현업 담당자)" },
-      businessUnit: { type: "string", description: "사업부" },
+      businessUnit: { type: "string", description: "내부 고정값 POLE (화면에서 사업부 구분 안 함, 필터에 쓰지 말 것)" },
       category: { type: "string?", description: "업무영역 (생산, 구매, 자재, 품질 등)" },
       currentProcess: { type: "string?", description: "1. 현재 운영 방식 (AS-IS)" },
       painPoints: { type: "string?", description: "2. 문제점 (Pain Points)" },
@@ -703,7 +703,7 @@ export const DATABASE_SCHEMA = {
     description: "AS-IS 분석 총괄 테이블 - 프로젝트별 현행 분석 총괄 정보",
     columns: {
       id: { type: "uuid", description: "총괄 고유 ID (Primary Key)" },
-      businessUnit: { type: "string", description: "사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HNS)" },
+      businessUnit: { type: "string", description: "내부 고정값 POLE (화면에서 사업부 구분 안 함, 필터에 쓰지 말 것)" },
       customerName: { type: "string?", description: "고객사명" },
       author: { type: "string?", description: "작성자" },
       createdDate: { type: "datetime", description: "작성일" },
@@ -1177,10 +1177,10 @@ export const DATABASE_SCHEMA = {
 
   process_verification_business_units: {
     tableName: "process_verification_business_units",
-    description: "공정검증 사업부별 적용 현황 테이블",
+    description: "공정검증 항목별 적용 여부·상태 테이블 (마스터당 1행, businessUnit=POLE)",
     columns: {
       id: { type: "uuid", description: "적용 고유 ID (Primary Key)" },
-      businessUnit: { type: "string", description: "사업부 코드 (V_IVI, V_DISP, V_PCBA, V_HMS)" },
+      businessUnit: { type: "string", description: "내부 고정값 POLE (화면에서 사업부 구분 안 함, 필터에 쓰지 말 것)" },
       isApplied: { type: "boolean", description: "적용여부 (Y/N)" },
       status: {
         type: "enum",
@@ -1333,9 +1333,9 @@ export const TABLE_RELATIONSHIPS = `
 
 26. **process_verification_masters** (공정검증 마스터)
     - N:1 → process_verification_categories
-    - 1:N → process_verification_business_units (사업부별 적용)
+    - 1:N → process_verification_business_units (적용 여부·상태)
 
-27. **process_verification_business_units** (공정검증 사업부별)
+27. **process_verification_business_units** (공정검증 적용 여부·상태)
     - N:1 → process_verification_masters
 `;
 
@@ -1550,7 +1550,7 @@ export const TABLE_SUMMARIES: Record<string, { description: string; keywords: st
   // === AS-IS 분석 ===
   as_is_overviews: {
     description: "AS-IS 분석 총괄",
-    keywords: ["AS-IS", "현행분석", "사업부", "V_IVI", "V_DISP", "V_PCBA", "V_HNS"]
+    keywords: ["AS-IS", "현행분석"]
   },
   as_is_overview_items: {
     description: "AS-IS 업무 항목 (대/중분류)",
@@ -1631,8 +1631,8 @@ export const TABLE_SUMMARIES: Record<string, { description: string; keywords: st
     keywords: ["검증마스터", "템플릿"]
   },
   process_verification_business_units: {
-    description: "공정검증 사업부별 설정",
-    keywords: ["검증사업부", "사업부설정"]
+    description: "공정검증 적용 여부·상태",
+    keywords: ["적용여부", "검증상태"]
   },
 };
 

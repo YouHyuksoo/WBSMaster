@@ -6,8 +6,9 @@
  *
  * 초보자 가이드:
  * 1. **POST /api/equipment/import**: 엑셀 파일 업로드 및 임포트
- *    - FormData: file (엑셀 파일), projectId, divisionCode
- * 2. **설비 코드**: 자동 생성 (EQ-{사업부}-{순번})
+ *    - FormData: file (엑셀 파일), projectId
+ * 2. **설비 코드**: 자동 생성 (EQ-POLE-{순번}), 순번은 프로젝트의 기존 설비 수 다음부터 (중복 방지)
+ *    - 사업부(구분코드)는 받지 않는다. divisionCode 는 null 로 저장
  * 3. **설비 타입**: 명칭으로 자동 유추
  * 4. **상태**: 기본값 ACTIVE (가동)
  *
@@ -21,6 +22,7 @@ import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
 import { EquipmentType, EquipmentStatus } from "@prisma/client";
 import { getUser } from "@/lib/auth";
+import { DEFAULT_BUSINESS_UNIT } from "@/constants/business-units";
 
 /** 설비 타입 유추 함수 */
 function inferEquipmentType(name: string): EquipmentType {
@@ -54,7 +56,7 @@ function inferEquipmentType(name: string): EquipmentType {
 }
 
 /** 엑셀 행에서 설비 정보 추출 */
-function inferEquipmentFromRow(row: any, divisionCode: string, index: number) {
+function inferEquipmentFromRow(row: any, index: number) {
   // 컬럼명 매핑 (다양한 경우 지원)
   const name = row["명칭"] || row["설비명"] || row["설비명칭"] || "";
   const model = row["모델"] || row["모델명"] || "";
@@ -80,7 +82,8 @@ function inferEquipmentFromRow(row: any, divisionCode: string, index: number) {
   const type = inferEquipmentType(name);
 
   // 설비 코드 생성
-  const code = `EQ-${divisionCode}-${String(index).padStart(4, "0")}`;
+  const codePrefix = DEFAULT_BUSINESS_UNIT;
+  const code = `EQ-${codePrefix}-${String(index).padStart(4, "0")}`;
 
   return {
     code,
@@ -91,7 +94,7 @@ function inferEquipmentFromRow(row: any, divisionCode: string, index: number) {
     manufacturer: manufacturer?.trim() || null,
     location: process?.trim() || null,
     lineCode: lineCode?.trim() || null,
-    divisionCode,
+    divisionCode: null,
     positionX: (index % 10) * 200, // 자동 배치 (10개씩 가로 배열)
     positionY: Math.floor(index / 10) * 150, // 세로 간격
   };
@@ -112,7 +115,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const projectId = formData.get("projectId") as string;
-    const divisionCode = formData.get("divisionCode") as string;
+
 
     // 필수 필드 검증
     if (!file) {
@@ -120,9 +123,6 @@ export async function POST(request: NextRequest) {
     }
     if (!projectId) {
       return NextResponse.json({ error: "프로젝트 ID가 필요합니다." }, { status: 400 });
-    }
-    if (!divisionCode) {
-      return NextResponse.json({ error: "사업부 코드가 필요합니다." }, { status: 400 });
     }
 
     // 프로젝트 존재 확인
@@ -144,6 +144,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`총 ${data.length}개 행 발견`);
 
+    // 설비코드 순번 시작점: 프로젝트의 기존 설비 수 (반복 가져오기 시 코드 중복 방지)
+    const codeStart = await prisma.equipment.count({ where: { projectId } });
+
     // 데이터 매핑 및 삽입
     const successItems: string[] = [];
     const errorItems: string[] = [];
@@ -152,7 +155,7 @@ export async function POST(request: NextRequest) {
       const row: any = data[i];
 
       try {
-        const equipmentData = inferEquipmentFromRow(row, divisionCode, i + 1);
+        const equipmentData = inferEquipmentFromRow(row, codeStart + i + 1);
 
         if (!equipmentData) {
           console.warn(`⚠️  행 ${i + 1}: 명칭이 없어서 건너뜁니다.`);

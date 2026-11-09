@@ -6,7 +6,7 @@
  * customer-requirements 스타일을 따릅니다.
  *
  * 초보자 가이드:
- * 1. **컬럼 구성**: 수정, 설비코드, 설비명, 타입, 상태, 사업부, 라인, 위치, 제조사, 모델번호, IP주소, 포트번호, 로그수집
+ * 1. **컬럼 구성**: 수정, 설비코드, 설비명, 타입, 상태, 라인, 위치, 제조사, 모델번호, IP주소, 포트번호, 로그수집
  * 2. **상태 배지**: 클릭 시 드롭다운으로 상태 변경 가능
  * 3. **툴팁**: 긴 텍스트에 마우스 오버 시 전체 내용 표시
  * 4. **페이지네이션**: 하단에 페이지 네비게이션 제공
@@ -100,15 +100,14 @@ export function EquipmentGridView({
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 테이블 헤더 */}
       <div
-        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1600px]"
-        style={{ gridTemplateColumns: "70px 150px 180px 130px 100px 100px 100px 100px 120px 120px 120px 80px 80px 80px 80px" }}
+        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1500px]"
+        style={{ gridTemplateColumns: "70px 150px 180px 130px 100px 100px 100px 120px 120px 120px 80px 80px 80px 80px" }}
       >
         <div>관리</div>
         <div>설비코드</div>
         <div>설비명</div>
         <div>타입</div>
         <div>상태</div>
-        <div>사업부</div>
         <div>라인</div>
         <div>위치</div>
         <div>제조사</div>
@@ -136,8 +135,8 @@ export function EquipmentGridView({
         return (
           <div
             key={eq.id}
-            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1600px]"
-            style={{ gridTemplateColumns: "70px 150px 180px 130px 100px 100px 100px 100px 120px 120px 120px 80px 80px 80px 80px" }}
+            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1500px]"
+            style={{ gridTemplateColumns: "70px 150px 180px 130px 100px 100px 100px 120px 120px 120px 80px 80px 80px 80px" }}
           >
             {/* 수정/캔버스 보기/삭제 버튼 */}
             <div className="flex items-center gap-0.5">
@@ -242,13 +241,6 @@ export function EquipmentGridView({
                   </div>
                 </>
               )}
-            </div>
-
-            {/* 사업부 */}
-            <div>
-              <span className="text-xs font-medium px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-                {eq.divisionCode || "-"}
-              </span>
             </div>
 
             {/* 라인 */}

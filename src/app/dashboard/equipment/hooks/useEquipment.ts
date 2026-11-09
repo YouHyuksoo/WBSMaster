@@ -19,25 +19,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, Equipment } from "@/lib/api";
 
-/** 사업부 목록 조회 훅 (최초 1회만) */
-export function useEquipmentDivisions(projectId?: string) {
+/** 라인 목록 조회 훅 (프로젝트 전체 기준, 사업부 구분 없음) */
+export function useEquipmentLines(projectId?: string) {
   return useQuery({
-    queryKey: ["equipmentDivisions", projectId],
+    queryKey: ["equipmentLines", projectId],
     queryFn: () => api.equipment.getFilters(projectId!),
     enabled: !!projectId,
-    staleTime: Infinity, // 무한 캐시 (수동 갱신 전까지 유지)
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-  });
-}
-
-/** 라인 목록 조회 훅 (사업부 선택 시 동적 조회) */
-export function useEquipmentLines(projectId?: string, divisionCode?: string) {
-  return useQuery({
-    queryKey: ["equipmentLines", projectId, divisionCode],
-    queryFn: () => api.equipment.getFilters(projectId!, divisionCode),
-    enabled: !!projectId && !!divisionCode, // 사업부 선택 시에만 조회
     staleTime: 1000 * 60 * 5, // 5분 캐시
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -45,13 +32,8 @@ export function useEquipmentLines(projectId?: string, divisionCode?: string) {
   });
 }
 
-/** @deprecated useEquipmentDivisions, useEquipmentLines 사용 권장 */
-export function useEquipmentFilters(projectId?: string) {
-  return useEquipmentDivisions(projectId);
-}
-
-/** 설비 목록 조회 훅 (사업부/라인 필터 지원) */
-export function useEquipment(params?: { projectId?: string; divisionCode?: string; lineCode?: string }) {
+/** 설비 목록 조회 훅 (라인 필터 지원) */
+export function useEquipment(params?: { projectId?: string; lineCode?: string }) {
   return useQuery({
     queryKey: ["equipment", params],
     queryFn: () => api.equipment.list(params),

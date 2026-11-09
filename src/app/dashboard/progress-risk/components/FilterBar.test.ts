@@ -12,7 +12,6 @@ function makeTask(overrides: Partial<ProgressTask>): ProgressTask {
     code: "T-001",
     name: "테스트 task",
     category: "기준관리",
-    businessUnit: null,
     description: null,
     order: 0,
     startDate: "2026-01-01",
@@ -36,21 +35,29 @@ function makeTask(overrides: Partial<ProgressTask>): ProgressTask {
 const baseFilters: Filters = {
   search: "",
   status: "all",
-  businessUnit: "",
   category: "",
   majorCategory: "",
 };
 
 describe("applyFilters", () => {
-  it("filters by business unit", () => {
-    const tasks = [
-      makeTask({ id: "sales", businessUnit: "Sales" }),
-      makeTask({ id: "factory", businessUnit: "Factory" }),
-    ];
+  it("keeps every task when no filter is set", () => {
+    const tasks = [makeTask({ id: "a" }), makeTask({ id: "b" }), makeTask({ id: "c" })];
 
-    const filtered = applyFilters(tasks, { ...baseFilters, businessUnit: "Sales" });
+    const filtered = applyFilters(tasks, baseFilters);
 
-    expect(filtered.map((task) => task.id)).toEqual(["sales"]);
+    expect(filtered.map((task) => task.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("does not render business unit condition", () => {
+    render(
+      createElement(FilterBar, {
+        tasks: [makeTask({})],
+        filters: baseFilters,
+        onChange: () => undefined,
+      })
+    );
+
+    expect(screen.queryByRole("combobox", { name: "사업부" })).toBeNull();
   });
 
   it("filters by category", () => {

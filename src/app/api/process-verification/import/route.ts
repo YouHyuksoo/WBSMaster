@@ -8,13 +8,13 @@
  * POST /api/process-verification/import (multipart/form-data)
  * - file: 엑셀 파일 (.xlsx, .xls) - SMD_[DISP]_(Process Verification_ST_Doc) 형식
  * - projectId: 프로젝트 ID (필수)
- * - businessUnit: 사업부 (선택, 기본값 "V_IVI")
  * - clearExisting: 기존 데이터 삭제 여부 (선택, 기본값 "false")
  *
  * 다중 시트 방식:
  * - "재료관리"부터 "이송용매거진관리"까지 22개 시트를 자동으로 처리합니다
  * - 각 시트의 "구분" 컬럼 값으로 카테고리를 자동 생성합니다
  * - 개요, 용어집 등 메타데이터 시트는 자동으로 스킵합니다
+ * - businessUnit 은 DB 기본값(POLE)으로 저장됩니다 (2026-11-09 사업부 관리 제거)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File | null;
     const projectId = formData.get("projectId") as string | null;
     const clearExisting = formData.get("clearExisting") === "true";
-    const businessUnit = (formData.get("businessUnit") as string | null) || "V_IVI";
 
     // 필수 값 검증
     if (!file) {
@@ -140,7 +139,15 @@ export async function POST(request: NextRequest) {
       "이송용매거진관리",
     ];
 
-    // 기존 데이터 삭제 (옵션)
+    // 데이터 시트가 하나도 없으면 아무것도 지우지 않고 중단
+    if (!dataSheets.some((name) => workbook.Sheets[name])) {
+      return NextResponse.json(
+        { error: "가져올 시트가 없습니다. 기능추적표 템플릿 형식의 파일인지 확인해주세요." },
+        { status: 400 }
+      );
+    }
+
+    // 기존 데이터 삭제 (옵션) — 파일 검사를 통과한 뒤에만 지운다
     if (clearExisting) {
       await prisma.processVerificationCategory.deleteMany({
         where: { projectId },
@@ -258,7 +265,6 @@ export async function POST(request: NextRequest) {
               customerRequest: row[9] ? String(row[9]).trim() : null,
               order: rowIdx,
               status: "PENDING",
-              businessUnit, // 선택된 사업부로 저장
             },
           });
           stats.created++;

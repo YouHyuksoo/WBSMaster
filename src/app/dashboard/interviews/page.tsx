@@ -5,9 +5,9 @@
  * 인터뷰 목록 조회, 등록, 수정, 삭제, 이관 기능을 제공합니다.
  *
  * 초보자 가이드:
- * 1. **통계 카드**: 전체, 미이관, 이관완료, 완료율, 사업부별 통계
+ * 1. **통계 카드**: 이관율, 전체, 미이관, 이관완료
  * 2. **탭**: 미이관(NOT_TRANSFERRED) vs 이관완료(TRANSFERRED)
- * 3. **필터**: 사업부, 검색어로 필터링
+ * 3. **필터**: 검색어로 필터링 (사업부 구분은 쓰지 않는다. 저장은 서버가 DEFAULT_BUSINESS_UNIT 으로 고정)
  * 4. **테이블**: 인터뷰 목록 (InterviewTable 컴포넌트 사용)
  * 5. **이관 기능**: 요구사항/이슈/협의요청 중 선택하여 이관
  *
@@ -34,7 +34,6 @@ import {
   type InterviewTransferType,
   TRANSFER_STATUS_CONFIG,
   TRANSFER_TYPE_CONFIG,
-  BUSINESS_UNITS,
 } from "./types";
 
 /**
@@ -45,7 +44,6 @@ export default function InterviewsPage() {
   const { selectedProjectId, selectedProject } = useProject();
 
   // 필터 상태
-  const [filterBusinessUnit, setFilterBusinessUnit] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   /** 현재 선택된 탭 (not_transferred: 미이관, transferred: 이관완료) */
   const [activeTab, setActiveTab] = useState<"not_transferred" | "transferred">("not_transferred");
@@ -108,8 +106,6 @@ export default function InterviewsPage() {
   // 필터링된 인터뷰
   const filteredInterviews = useMemo(() => {
     return tabInterviews.filter((interview) => {
-      const matchesBusinessUnit =
-        filterBusinessUnit === "all" || interview.businessUnit === filterBusinessUnit;
       const matchesSearch =
         !searchQuery ||
         interview.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -118,9 +114,9 @@ export default function InterviewsPage() {
         interview.currentProcess?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         interview.painPoints?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         interview.desiredResults?.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesBusinessUnit && matchesSearch;
+      return matchesSearch;
     });
-  }, [tabInterviews, filterBusinessUnit, searchQuery]);
+  }, [tabInterviews, searchQuery]);
 
   // 페이지네이션 계산
   const totalPages = Math.ceil(filteredInterviews.length / itemsPerPage);
@@ -132,7 +128,7 @@ export default function InterviewsPage() {
   // 필터/탭 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, filterBusinessUnit, searchQuery]);
+  }, [activeTab, searchQuery]);
 
   // 통계 계산
   const stats = useMemo(() => {
@@ -146,21 +142,6 @@ export default function InterviewsPage() {
       transferred,
       completionRate: total > 0 ? Math.round((transferred / total) * 100) : 0,
     };
-  }, [interviews]);
-
-  // 사업부별 통계
-  const businessUnitStats = useMemo(() => {
-    const unitCounts: Record<string, { notTransferred: number; transferred: number }> = {};
-    interviews.forEach((interview) => {
-      if (interview.businessUnit) {
-        if (!unitCounts[interview.businessUnit]) {
-          unitCounts[interview.businessUnit] = { notTransferred: 0, transferred: 0 };
-        }
-        if (interview.transferStatus === "NOT_TRANSFERRED") unitCounts[interview.businessUnit].notTransferred++;
-        else if (interview.transferStatus === "TRANSFERRED") unitCounts[interview.businessUnit].transferred++;
-      }
-    });
-    return unitCounts;
   }, [interviews]);
 
   // 모달 열기 - 등록
@@ -249,7 +230,6 @@ export default function InterviewsPage() {
       let apiEndpoint = "";
       let bodyData: any = {
         projectId: selectedProjectId,
-        businessUnit: transferringInterview.businessUnit || "공통",
         title: transferringInterview.title,
       };
 
@@ -341,7 +321,6 @@ export default function InterviewsPage() {
     const excelData = filteredInterviews.map((interview) => ({
       "제목": interview.title || "",
       "인터뷰 일자": interview.interviewDate ? new Date(interview.interviewDate).toLocaleDateString() : "",
-      "사업부": interview.businessUnit || "",
       "진행자": interview.interviewer || "",
       "대상자": interview.interviewee || "",
       "현재 운영 방식 (AS-IS)": interview.currentProcess || "",
@@ -355,7 +334,7 @@ export default function InterviewsPage() {
 
     const worksheet = utils.json_to_sheet(excelData);
     worksheet["!cols"] = [
-      { wch: 25 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+      { wch: 25 }, { wch: 12 }, { wch: 10 }, { wch: 10 },
       { wch: 40 }, { wch: 40 }, { wch: 40 }, { wch: 40 }, { wch: 40 },
       { wch: 30 }, { wch: 10 },
     ];
@@ -463,7 +442,7 @@ export default function InterviewsPage() {
                 isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
               }`}
             >
-              <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 pb-2">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pb-2">
                 {/* 완료율 카드 (이관 완료 비율) */}
                 <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-2">
@@ -518,40 +497,6 @@ export default function InterviewsPage() {
                   </div>
                 </div>
 
-                {/* 사업부별 통계 - 2개 카드 */}
-                <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon name="business" size="xs" className="text-cyan-500" />
-                    <span className="text-xs font-semibold text-cyan-500">사업부별 (1/2)</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1">
-                    {Object.entries(businessUnitStats).slice(0, 2).map(([unit, counts]) => (
-                      <div key={unit} className="text-center flex-1">
-                        <p className="text-sm font-bold text-text dark:text-white">
-                          {counts.notTransferred}
-                        </p>
-                        <p className="text-[8px] text-text-secondary truncate">{unit}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon name="business" size="xs" className="text-cyan-500" />
-                    <span className="text-xs font-semibold text-cyan-500">사업부별 (2/2)</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1">
-                    {Object.entries(businessUnitStats).slice(2, 5).map(([unit, counts]) => (
-                      <div key={unit} className="text-center flex-1">
-                        <p className="text-sm font-bold text-text dark:text-white">
-                          {counts.notTransferred}
-                        </p>
-                        <p className="text-[8px] text-text-secondary truncate">{unit}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -632,18 +577,6 @@ export default function InterviewsPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-
-            {/* 사업부 필터 */}
-            <select
-              value={filterBusinessUnit}
-              onChange={(e) => setFilterBusinessUnit(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-            >
-              <option value="all">전체 사업부</option>
-              {BUSINESS_UNITS.map((unit) => (
-                <option key={unit} value={unit}>{unit}</option>
-              ))}
-            </select>
           </div>
 
           {/* 인터뷰 목록 테이블 */}

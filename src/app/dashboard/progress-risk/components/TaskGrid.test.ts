@@ -9,7 +9,6 @@ function makeTask(overrides: Partial<ProgressTask>): ProgressTask {
     code: "T-001",
     name: "테스트 task",
     category: "기준관리",
-    businessUnit: null,
     description: null,
     order: 0,
     startDate: "2026-01-01",

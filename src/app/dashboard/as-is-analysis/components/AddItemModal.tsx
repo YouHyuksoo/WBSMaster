@@ -24,8 +24,6 @@ interface AddItemModalProps {
   overviewId: string;
   /** 프로젝트 ID (캐시 무효화용) */
   projectId: string;
-  /** 사업부 코드 (캐시 무효화용) */
-  businessUnit: string;
   /** 모달 닫기 핸들러 */
   onClose: () => void;
 }
@@ -33,9 +31,9 @@ interface AddItemModalProps {
 /**
  * 업무 항목 추가 모달 컴포넌트
  */
-export function AddItemModal({ overviewId, projectId, businessUnit, onClose }: AddItemModalProps) {
-  // projectId, businessUnit을 전달해야 mutation 성공 시 올바른 캐시가 무효화됨
-  const { createItem, isCreatingItem } = useAsIsOverview(projectId, businessUnit);
+export function AddItemModal({ overviewId, projectId, onClose }: AddItemModalProps) {
+  // projectId를 전달해야 mutation 성공 시 올바른 캐시가 무효화됨
+  const { createItem, isCreatingItem } = useAsIsOverview(projectId);
 
   const [asIsManagementNo, setAsIsManagementNo] = useState(""); // AS-IS 관리번호
   const [majorCategory, setMajorCategory] = useState<AsIsMajorCategory>("OTHER");

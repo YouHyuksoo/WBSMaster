@@ -2,6 +2,11 @@
  * @file src/app/dashboard/interviews/types.ts
  * @description
  * 인터뷰 관리 페이지에서 사용하는 타입 정의 파일입니다.
+ *
+ * 초보자 가이드:
+ * 1. **InterviewFormData**: 등록/수정 폼 데이터 (사업부 없음 - 서버가 DEFAULT_BUSINESS_UNIT 으로 저장)
+ * 2. **TRANSFER_STATUS_CONFIG / TRANSFER_TYPE_CONFIG**: 이관 상태·유형 라벨과 아이콘
+ * 3. **BUSINESS_CATEGORIES**: 업무영역 목록
  */
 
 import type { Interview, InterviewTransferStatus, InterviewTransferType } from "@/lib/api";
@@ -14,7 +19,6 @@ export interface InterviewFormData {
   interviewDate?: string;
   interviewer?: string;
   interviewee?: string;
-  businessUnit: string;
   category?: string;  // 업무영역
   currentProcess?: string;
   painPoints?: string;
@@ -64,15 +68,6 @@ export const TRANSFER_TYPE_CONFIG: Record<
     color: "text-warning",
   },
 };
-
-/** 사업부 목록 */
-export const BUSINESS_UNITS = [
-  "V_HNS",
-  "V_DISP",
-  "V_IVI",
-  "V_PCBA",
-  "공통",
-] as const;
 
 /** 업무영역 목록 (고객요구사항과 동일) */
 export const BUSINESS_CATEGORIES = [

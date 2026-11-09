@@ -5,9 +5,10 @@
  * 검증 항목을 테이블 형태로 표시하고 수정/삭제/상태변경 기능을 제공합니다.
  *
  * 초보자 가이드:
- * 1. **상태 변경**: 상태 배지를 클릭하면 드롭다운이 열려 상태 변경 가능
- * 2. **페이지네이션**: 한 페이지에 ITEMS_PER_PAGE(20개)씩 표시
- * 3. **스마트 드롭다운**: 화면 하단 근처면 드롭다운이 위로 열림
+ * 1. **적용**: 행마다 체크박스 하나로 적용 여부를 바꾼다 (onApplyChange)
+ * 2. **상태**: 행마다 검증 상태 드롭다운으로 상태를 바꾼다 (onApplyChange)
+ *    - 적용 행이 아직 없으면 "미적용·대기"로 보이고, 바꾸는 순간 서버가 행을 만든다
+ * 3. **페이지네이션**: 페이지당 표시 갯수(PAGE_SIZE_OPTIONS)만큼 표시
  */
 
 "use client";
@@ -18,17 +19,26 @@ import {
   ProcessVerificationMaster,
   VerificationStatus,
   verificationStatusConfig,
-  PRODUCT_TYPE_BUSINESS_UNITS,
-  ProductType,
+  getMasterApply,
 } from "../types";
 
 /** 페이지당 표시 갯수 옵션 */
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
+/** 헤더·행 공통 그리드 컬럼 정의 (헤더와 행이 어긋나지 않도록 한 곳에서 관리) */
+const GRID_COLUMNS = "60px 60px 80px 80px 120px 120px 150px 60px 110px 150px 120px 60px 80px 80px";
+
+/** 적용 행 변경 내용 */
+export interface ApplyChange {
+  isApplied?: boolean;
+  status?: VerificationStatus;
+}
+
 interface ItemTableProps {
   items: ProcessVerificationMaster[];
   isLoading?: boolean;
-  onUpdateItem: (id: string, data: Partial<ProcessVerificationMaster>) => Promise<void>;
+  /** 적용 여부·검증 상태 변경 (부모가 API 호출 후 목록 갱신) */
+  onApplyChange: (masterId: string, change: ApplyChange) => Promise<void>;
   onEditItem?: (item: ProcessVerificationMaster) => void;
   onDeleteItem?: (item: ProcessVerificationMaster) => void;
 }
@@ -40,12 +50,10 @@ interface ItemTableProps {
 export default function ItemTable({
   items,
   isLoading,
-  onUpdateItem,
+  onApplyChange,
   onEditItem,
   onDeleteItem,
 }: ItemTableProps) {
-  const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
-  const [dropdownOpenUpward, setDropdownOpenUpward] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20); // 페이지당 표시 갯수
 
@@ -101,56 +109,6 @@ export default function ItemTable({
     return pages;
   };
 
-  /**
-   * 사업부별 적용 여부 토글
-   * @param masterId 마스터 ID
-   * @param businessUnit 사업부
-   * @param currentApplied 현재 적용 상태
-   */
-  const handleToggleApply = async (masterId: string, businessUnit: string, currentApplied: boolean) => {
-    try {
-      const res = await fetch(`/api/process-verification/masters/${masterId}/apply`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessUnit, isApplied: !currentApplied }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        // 부모 컴포넌트에서 상태 업데이트
-        await onUpdateItem(masterId, updated);
-      }
-    } catch (error) {
-      console.error("적용 토글 실패:", error);
-    }
-  };
-
-  /**
-   * 사업부별 상태 변경
-   * @param masterId 마스터 ID
-   * @param businessUnit 사업부
-   * @param status 새 상태
-   */
-  const handleStatusChange = async (
-    masterId: string,
-    businessUnit: string,
-    status: VerificationStatus
-  ) => {
-    try {
-      const res = await fetch(`/api/process-verification/masters/${masterId}/apply`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessUnit, status }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        await onUpdateItem(masterId, updated);
-      }
-    } catch (error) {
-      console.error("상태 변경 실패:", error);
-    }
-    setOpenStatusDropdown(null);
-  };
-
   if (isLoading) {
     return (
       <div className="animate-pulse p-4">
@@ -188,7 +146,7 @@ export default function ItemTable({
       {/* 테이블 헤더 (그리드 레이아웃) */}
       <div
         className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1600px]"
-        style={{ gridTemplateColumns: "60px 60px 80px 80px 120px 120px 150px 180px 150px 120px 60px 80px 80px" }}
+        style={{ gridTemplateColumns: GRID_COLUMNS }}
       >
         <div>작업</div>
         <div>제품유형</div>
@@ -197,7 +155,8 @@ export default function ItemTable({
         <div>관리영역</div>
         <div>세부항목</div>
         <div>세부검증</div>
-        <div className="text-center">사업부별 적용</div>
+        <div className="text-center">적용</div>
+        <div>상태</div>
         <div>수용여부</div>
         <div>MES/IT</div>
         <div>기존MES</div>
@@ -227,15 +186,18 @@ export default function ItemTable({
 
       {/* 항목 목록 */}
       {paginatedItems.map((item) => {
-        // 제품유형에 따른 사업부 목록
-        const businessUnits = PRODUCT_TYPE_BUSINESS_UNITS[item.productType as ProductType] || [];
+        // 적용 행 (없으면 미적용·대기)
+        const apply = getMasterApply(item);
+        const isApplied = apply?.isApplied ?? false;
+        const status: VerificationStatus = apply?.status ?? "PENDING";
+        const statusConfig = verificationStatusConfig[status];
 
         return (
           <Fragment key={item.id}>
             {/* 항목 행 (그리드 레이아웃) */}
             <div
               className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1600px]"
-              style={{ gridTemplateColumns: "60px 60px 80px 80px 120px 120px 150px 180px 150px 120px 60px 80px 80px" }}
+              style={{ gridTemplateColumns: GRID_COLUMNS }}
             >
               {/* 작업 버튼 (수정/삭제) */}
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -301,25 +263,31 @@ export default function ItemTable({
                 )}
               </div>
 
-              {/* 사업부별 적용 체크박스 */}
-              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                {businessUnits.map((bu) => {
-                  const apply = item.businessUnitApplies?.find((a) => a.businessUnit === bu);
-                  const isApplied = apply?.isApplied ?? false;
-                  return (
-                    <label key={bu} className="flex items-center gap-1 cursor-pointer" title={bu}>
-                      <input
-                        type="checkbox"
-                        checked={isApplied}
-                        onChange={() => handleToggleApply(item.id, bu, isApplied)}
-                        className="w-3.5 h-3.5 text-blue-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500"
-                      />
-                      <span className={`text-[10px] ${isApplied ? "text-success font-medium" : "text-slate-400"}`}>
-                        {bu.replace("V_", "")}
-                      </span>
-                    </label>
-                  );
-                })}
+              {/* 적용 체크박스 */}
+              <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={isApplied}
+                  onChange={() => onApplyChange(item.id, { isApplied: !isApplied })}
+                  aria-label={`${item.managementCode} 적용`}
+                  className="w-4 h-4 text-blue-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 cursor-pointer"
+                />
+              </div>
+
+              {/* 검증 상태 드롭다운 */}
+              <div onClick={(e) => e.stopPropagation()}>
+                <select
+                  value={status}
+                  onChange={(e) => onApplyChange(item.id, { status: e.target.value as VerificationStatus })}
+                  aria-label={`${item.managementCode} 검증 상태`}
+                  className={`w-full px-2 py-1 rounded-md text-xs font-medium border border-transparent cursor-pointer focus:ring-2 focus:ring-primary ${statusConfig.bgColor} ${statusConfig.color}`}
+                >
+                  {Object.entries(verificationStatusConfig).map(([key, config]) => (
+                    <option key={key} value={key} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                      {config.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* 수용여부 (툴팁) */}

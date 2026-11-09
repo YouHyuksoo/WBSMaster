@@ -14,7 +14,7 @@
  * @example
  * const { data: interviews } = useInterviews({ projectId: 'xxx' });
  * const createInterview = useCreateInterview();
- * createInterview.mutate({ projectId: 'xxx', title: '인터뷰명', businessUnit: 'V_IVI' });
+ * createInterview.mutate({ projectId: 'xxx', title: '인터뷰명' });
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,12 +32,11 @@ export const interviewKeys = {
 
 /**
  * 인터뷰 목록 조회 Hook
- * @param filters - 필터 옵션 (projectId, businessUnit, transferStatus, search)
+ * @param filters - 필터 옵션 (projectId, transferStatus, search)
  * staleTime: 5분 (자주 변경되지 않으므로 캐싱)
  */
 export function useInterviews(filters?: {
   projectId?: string;
-  businessUnit?: string;
   transferStatus?: string;
   search?: string;
 }) {
@@ -75,7 +74,6 @@ export function useCreateInterview() {
       interviewDate?: string;
       interviewer?: string;
       interviewee?: string;
-      businessUnit: string;
       currentProcess?: string;
       painPoints?: string;
       desiredResults?: string;

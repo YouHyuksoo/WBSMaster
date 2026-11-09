@@ -8,8 +8,9 @@
  * 초보자 가이드:
  * 1. **통계 카드**: 적용률, 전체, 검토/승인/개발/적용/거절/보류 현황
  * 2. **탭**: 활성(검토/승인/개발/적용) vs 거절/보류
- * 3. **필터**: 사업부, 검색어로 필터링
+ * 3. **필터**: 업무구분, 요청자, 검색어로 필터링
  * 4. **테이블**: 고객요구사항 목록 (상태 클릭으로 변경)
+ * 5. **사업부**: 화면에서 구분하지 않는다. 저장은 서버가 DEFAULT_BUSINESS_UNIT 으로 고정한다.
  *
  * 상태 흐름 (필독 가이드 기준):
  * REVIEWING (검토) → APPROVED (승인) / REJECTED (거절)
@@ -38,7 +39,6 @@ import {
   type CustomerRequirementFormData,
   type ApplyStatus,
   APPLY_STATUS_CONFIG,
-  BUSINESS_UNITS,
   BUSINESS_CATEGORIES,
 } from "./types";
 
@@ -50,7 +50,6 @@ export default function CustomerRequirementsPage() {
   const { selectedProjectId, selectedProject } = useProject();
 
   // 필터 상태
-  const [filterBusinessUnit, setFilterBusinessUnit] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterRequester, setFilterRequester] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -126,8 +125,6 @@ export default function CustomerRequirementsPage() {
   // 필터링 및 정렬된 요구사항
   const filteredRequirements = useMemo(() => {
     const filtered = tabRequirements.filter((req) => {
-      const matchesBusinessUnit =
-        filterBusinessUnit === "all" || req.businessUnit === filterBusinessUnit;
       const matchesCategory =
         filterCategory === "all" || req.category === filterCategory;
       const matchesRequester =
@@ -137,7 +134,7 @@ export default function CustomerRequirementsPage() {
         req.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         req.functionName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         req.content?.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesBusinessUnit && matchesCategory && matchesRequester && matchesSearch;
+      return matchesCategory && matchesRequester && matchesSearch;
     });
 
     // 정렬 적용 (내림차순)
@@ -151,7 +148,7 @@ export default function CustomerRequirementsPage() {
         return new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime();
       }
     });
-  }, [tabRequirements, filterBusinessUnit, filterCategory, filterRequester, searchQuery, sortBy]);
+  }, [tabRequirements, filterCategory, filterRequester, searchQuery, sortBy]);
 
   // 페이지네이션 계산
   const totalPages = Math.ceil(filteredRequirements.length / itemsPerPage);
@@ -163,7 +160,7 @@ export default function CustomerRequirementsPage() {
   // 필터/탭/정렬 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, filterBusinessUnit, filterCategory, filterRequester, searchQuery, sortBy]);
+  }, [activeTab, filterCategory, filterRequester, searchQuery, sortBy]);
 
   // 통계 계산 (필독 가이드 기준)
   const stats = useMemo(() => {
@@ -203,17 +200,6 @@ export default function CustomerRequirementsPage() {
       lastWeekCreated,
       lastWeekCompleted,
     };
-  }, [requirements]);
-
-  // 사업부별 통계
-  const businessUnitStats = useMemo(() => {
-    const unitCounts: Record<string, number> = {};
-    requirements.forEach((req) => {
-      if (req.businessUnit) {
-        unitCounts[req.businessUnit] = (unitCounts[req.businessUnit] || 0) + 1;
-      }
-    });
-    return unitCounts;
   }, [requirements]);
 
   // 필터 옵션: 업무구분 목록 추출
@@ -346,7 +332,6 @@ export default function CustomerRequirementsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: selectedProjectId,
-          businessUnit: transferringRequirement.businessUnit || "공통",
           title: transferringRequirement.functionName || transferringRequirement.content?.substring(0, 50) || "고객요구사항 협의",
           description: `${transferringRequirement.content || ""}\n\n[고객요구사항에서 이관: ${transferringRequirement.code}]`,
           stage,
@@ -406,7 +391,6 @@ export default function CustomerRequirementsPage() {
     const excelData = filteredRequirements.map((req, idx) => ({
       "순번": idx + 1,
       "요구번호": req.code || "",
-      "사업부": req.businessUnit || "",
       "업무구분": req.category || "",
       "기능명": req.functionName || "",
       "요구사항": req.content || "",
@@ -419,7 +403,7 @@ export default function CustomerRequirementsPage() {
 
     const worksheet = utils.json_to_sheet(excelData);
     worksheet["!cols"] = [
-      { wch: 6 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 20 },
+      { wch: 6 }, { wch: 14 }, { wch: 12 }, { wch: 20 },
       { wch: 40 }, { wch: 12 }, { wch: 10 }, { wch: 30 }, { wch: 10 }, { wch: 20 },
     ];
 
@@ -466,7 +450,7 @@ export default function CustomerRequirementsPage() {
             </span>
           </h1>
           <p className="text-text-secondary mt-1">
-            고객 사업부별 요구사항을 관리합니다
+            고객 요구사항을 관리합니다
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -540,7 +524,7 @@ export default function CustomerRequirementsPage() {
                 isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
               }`}
             >
-              <div className="grid grid-cols-2 lg:grid-cols-10 gap-2 pb-2">
+              <div className="grid grid-cols-2 lg:grid-cols-8 gap-2 pb-2">
                 {/* 적용률 카드 */}
                 <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-lg p-3 flex flex-col items-center justify-center text-center">
                   <div className="size-9 rounded-lg bg-primary/20 flex items-center justify-center mb-2">
@@ -624,32 +608,6 @@ export default function CustomerRequirementsPage() {
                   <p className="text-2xl font-bold text-text dark:text-white">{stats.rejected}</p>
                   <p className="text-xs text-text-secondary">거절</p>
                 </div>
-                {/* 사업부 막대 카드 */}
-                <div className="lg:col-span-2 bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Icon name="business" size="xs" className="text-cyan-500" />
-                    <span className="text-xs font-semibold text-cyan-500">사업부</span>
-                  </div>
-                  <div className="space-y-2">
-                    {BUSINESS_UNITS.map((unit) => {
-                      const count = businessUnitStats[unit] || 0;
-                      const maxCount = Math.max(...BUSINESS_UNITS.map((u) => businessUnitStats[u] || 0), 1);
-                      const percentage = (count / maxCount) * 100;
-                      return (
-                        <div key={unit} className="flex items-center gap-2">
-                          <span className="text-[10px] font-semibold text-text-secondary w-12 truncate">{unit}</span>
-                          <div className="flex-1 h-1.5 bg-white/30 dark:bg-black/20 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-cyan-500 rounded-full transition-all"
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-semibold text-text dark:text-white w-6 text-right">{count}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -732,16 +690,6 @@ export default function CustomerRequirementsPage() {
                 </button>
               </div>
 
-              <select
-                value={filterBusinessUnit}
-                onChange={(e) => setFilterBusinessUnit(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-              >
-                <option value="all">전체 사업부</option>
-                {BUSINESS_UNITS.map((unit) => (
-                  <option key={unit} value={unit}>{unit}</option>
-                ))}
-              </select>
               {/* 업무구분 필터 */}
               <select
                 value={filterCategory}
@@ -859,7 +807,6 @@ export default function CustomerRequirementsPage() {
           columns: [
             { header: "순번", key: "sequence", width: 8, example: 1 },
             { header: "요구번호", key: "code", width: 15, example: "RQIT_00001" },
-            { header: "사업부", key: "businessUnit", width: 12, example: "V_DISP" },
             { header: "업무구분", key: "category", width: 12, example: "공통" },
             { header: "기능명", key: "functionName", width: 20, example: "모바일 알람" },
             { header: "요구사항", key: "content", width: 40, example: "모바일 알람 기능 요청" },
@@ -873,7 +820,7 @@ export default function CustomerRequirementsPage() {
         hints={[
           "첫 번째 행은 헤더로 인식됩니다",
           "요구번호가 없으면 자동 생성됩니다",
-          "사업부: V_HNS, V_DISP, V_IVI, V_PCBA, IT",
+          "필수: 기능명, 요구사항",
           "적용여부: 검토/승인/거절/개발/적용/보류",
         ]}
         clearExistingLabel="기존 고객요구사항 삭제 후 가져오기"

@@ -1,6 +1,10 @@
 /**
  * @file src/app/api/progress-tasks/export/route.ts
  * @description GET /api/progress-tasks/export?projectId=... — .xlsx 다운로드
+ *
+ * 초보자 가이드:
+ * 1. **컬럼 순서**: rows 객체의 키 순서가 엑셀 컬럼 순서다 (사업부 컬럼은 내보내지 않는다)
+ * 2. **컬럼 폭**: ws["!cols"] 는 rows 키 순서와 1:1 로 맞춘다 (13개)
  */
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
@@ -43,7 +47,6 @@ export async function GET(request: NextRequest) {
   const rows = tasks.map((t) => ({
     코드: t.code ?? "",
     기능명: t.name,
-    사업부: t.businessUnit ?? "",
     카테고리: t.stageCategory ? (STAGE_CATEGORY_LABEL[t.stageCategory as keyof typeof STAGE_CATEGORY_LABEL] ?? t.stageCategory) : "",
     대분류: t.category ?? "",
     설명: t.description ?? "",
@@ -71,11 +74,11 @@ export async function GET(request: NextRequest) {
   XLSX.utils.book_append_sheet(wb, ws, "진도리스크");
 
   ws["!cols"] = [
-    { wch: 8 },
-    { wch: 25 },
-    { wch: 10 },
-    { wch: 12 },
-    { wch: 30 },
+    { wch: 8 },  // 코드
+    { wch: 25 }, // 기능명
+    { wch: 12 }, // 카테고리
+    { wch: 15 }, // 대분류
+    { wch: 30 }, // 설명
     { wch: 12 },
     { wch: 10 },
     { wch: 10 },

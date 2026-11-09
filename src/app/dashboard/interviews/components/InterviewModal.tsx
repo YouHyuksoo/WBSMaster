@@ -6,8 +6,8 @@
  *
  * 초보자 가이드:
  * 1. **모드**: 생성(create) 또는 수정(edit) 모드
- * 2. **폼 필드**: 제목, 인터뷰 일자, 진행자, 대상자, 사업부, 5가지 카테고리(현재 운영 방식, 문제점, 원하는 결과, 기술적 제약, 궁금한 점), 비고
- * 3. **유효성 검사**: 필수 필드 체크 (제목, 사업부)
+ * 2. **폼 필드**: 제목, 인터뷰 일자, 업무영역, 진행자, 대상자, 5가지 카테고리(현재 운영 방식, 문제점, 원하는 결과, 기술적 제약, 궁금한 점), 비고
+ * 3. **유효성 검사**: 필수 필드 체크 (제목). 사업부는 묻지 않는다 (서버가 DEFAULT_BUSINESS_UNIT 으로 저장)
  * 4. **5가지 카테고리**: textarea로 각각 입력받아 구조화된 인터뷰 내용 저장
  */
 
@@ -18,7 +18,6 @@ import { X, Loader2 } from "lucide-react";
 import {
   type Interview,
   type InterviewFormData,
-  BUSINESS_UNITS,
   BUSINESS_CATEGORIES,
 } from "../types";
 
@@ -36,7 +35,6 @@ const DEFAULT_FORM_DATA: InterviewFormData = {
   interviewDate: "",
   interviewer: "",
   interviewee: "",
-  businessUnit: "",
   category: "",
   currentProcess: "",
   painPoints: "",
@@ -70,7 +68,6 @@ export function InterviewModal({
           : "",
         interviewer: interview.interviewer || "",
         interviewee: interview.interviewee || "",
-        businessUnit: interview.businessUnit,
         category: interview.category || "",
         currentProcess: interview.currentProcess || "",
         painPoints: interview.painPoints || "",
@@ -107,9 +104,6 @@ export function InterviewModal({
 
     if (!formData.title.trim()) {
       newErrors.title = "제목을 입력해주세요.";
-    }
-    if (!formData.businessUnit.trim()) {
-      newErrors.businessUnit = "사업부를 선택해주세요.";
     }
 
     setErrors(newErrors);
@@ -198,32 +192,6 @@ export function InterviewModal({
                   onChange={(e) => handleChange("interviewDate", e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-              </div>
-
-              {/* 사업부 */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  사업부 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.businessUnit}
-                  onChange={(e) => handleChange("businessUnit", e.target.value)}
-                  className={`w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.businessUnit
-                      ? "border-red-500"
-                      : "border-slate-300 dark:border-slate-600"
-                  }`}
-                >
-                  <option value="">선택하세요</option>
-                  {BUSINESS_UNITS.map((unit) => (
-                    <option key={unit} value={unit}>
-                      {unit}
-                    </option>
-                  ))}
-                </select>
-                {errors.businessUnit && (
-                  <p className="mt-1 text-xs text-red-500">{errors.businessUnit}</p>
-                )}
               </div>
 
               {/* 업무영역 */}

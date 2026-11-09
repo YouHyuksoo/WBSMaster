@@ -10,6 +10,7 @@
  * 2. 그룹번호를 입력합니다.
  * 3. 순번은 자동으로 생성됩니다.
  * 4. 관리코드 = 이니셜-그룹번호-순번
+ * 5. "적용" 체크박스·"상태"는 마스터의 적용 행(1건) 초기값으로 저장됩니다.
  */
 
 "use client";
@@ -21,7 +22,6 @@ import {
   VerificationStatus,
   verificationStatusConfig,
 } from "../types";
-import { BUSINESS_UNITS } from "@/constants/business-units";
 
 /**
  * 이니셜과 카테고리 매핑 정보
@@ -78,7 +78,6 @@ interface NewItemData {
   customerRequest: string;
   remarks: string;
   status: VerificationStatus;
-  businessUnit: string;
 }
 
 /**
@@ -131,7 +130,6 @@ export default function AddItemModal({
     customerRequest: "",
     remarks: "",
     status: "PENDING",
-    businessUnit: "V_IVI",
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -232,7 +230,6 @@ export default function AddItemModal({
         customerRequest: "",
         remarks: "",
         status: "PENDING",
-        businessUnit: "",
       });
       setErrors({});
     }
@@ -500,25 +497,6 @@ export default function AddItemModal({
                   )}
                 </div>
               )}
-            </div>
-
-            {/* 사업부 */}
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                사업부
-              </label>
-              <select
-                name="businessUnit"
-                value={formData.businessUnit}
-                onChange={handleChange}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {BUSINESS_UNITS.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* 관리 영역 (필수) */}

@@ -36,27 +36,27 @@ model User {
   updatedAt   DateTime     @updatedAt
 
   // 관계
-  ownedProjects         Project[]              @relation("ProjectOwner")
+  ownedProjects         Project[]                 @relation("ProjectOwner")
   teamMembers           TeamMember[]
-  assignedTasks         Task[]                 @relation("TaskAssignee") // 내가 주 담당자인 태스크들
+  assignedTasks         Task[]                    @relation("TaskAssignee") // 내가 주 담당자인 태스크들
   taskAssignments       TaskAssignee[] // 태스크 부 담당자 (다대다)
-  createdTasks          Task[]                 @relation("TaskCreator")
-  requestedRequirements Requirement[]          @relation("RequirementRequester") // 내가 요청한 요구사항
-  assignedRequirements  Requirement[]          @relation("RequirementAssignee") // 나에게 할당된 요구사항
+  createdTasks          Task[]                    @relation("TaskCreator")
+  requestedRequirements Requirement[]             @relation("RequirementRequester") // 내가 요청한 요구사항
+  assignedRequirements  Requirement[]             @relation("RequirementAssignee") // 나에게 할당된 요구사항
   wbsAssignments        WbsAssignee[] // WBS 담당자 (다대다)
-  reportedIssues        Issue[]                @relation("IssueReporter") // 내가 보고한 이슈
-  assignedIssues        Issue[]                @relation("IssueAssignee") // 나에게 할당된 이슈
+  reportedIssues        Issue[]                   @relation("IssueReporter") // 내가 보고한 이슈
+  assignedIssues        Issue[]                   @relation("IssueAssignee") // 나에게 할당된 이슈
   aiSetting             AiSetting? // AI 설정 (1:1)
   chatHistories         ChatHistory[] // 채팅 기록
-  holidays              Holiday[]              @relation("HolidayUser") // 개인 일정
-  taskNudges            TaskNudge[]            @relation("TaskNudger") // 내가 보낸 재촉
-  weeklyReports         WeeklyReport[]         @relation("UserWeeklyReports") // 주간보고
-  weeklySummaries       WeeklySummary[]        @relation("SummaryCreator") // 내가 생성한 취합보고
-  workloadAnalyses      WorkloadAnalysis[]     @relation("WorkloadAnalysisCreator") // 내가 생성한 부하분석
-  documents             Document[]             @relation("DocumentCreator") // 내가 등록한 문서
-  notifications         Notification[]         @relation("UserNotifications") // 내 알림
-  reportedDiscussions   DiscussionItem[]       @relation("DiscussionReporter") // 내가 보고한 협의요청
-  assignedDiscussions   DiscussionItem[]       @relation("DiscussionAssignee") // 나에게 할당된 협의요청
+  holidays              Holiday[]                 @relation("HolidayUser") // 개인 일정
+  taskNudges            TaskNudge[]               @relation("TaskNudger") // 내가 보낸 재촉
+  weeklyReports         WeeklyReport[]            @relation("UserWeeklyReports") // 주간보고
+  weeklySummaries       WeeklySummary[]           @relation("SummaryCreator") // 내가 생성한 취합보고
+  workloadAnalyses      WorkloadAnalysis[]        @relation("WorkloadAnalysisCreator") // 내가 생성한 부하분석
+  documents             Document[]                @relation("DocumentCreator") // 내가 등록한 문서
+  notifications         Notification[]            @relation("UserNotifications") // 내 알림
+  reportedDiscussions   DiscussionItem[]          @relation("DiscussionReporter") // 내가 보고한 협의요청
+  assignedDiscussions   DiscussionItem[]          @relation("DiscussionAssignee") // 나에게 할당된 협의요청
   progressAssignments   ProgressTaskAssignee[] // 진도 task 담당자 할당
   progressStageDetails  ProgressTaskStageDetail[] // 진도 task 단계별 담당 상세
 
@@ -534,15 +534,15 @@ model AiSetting {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  provider      String  @default("gemini") // "gemini" | "mistral" | "openai" | "openrouter" (src/lib/llm/config.ts LLM_PROVIDERS)
-  geminiApiKey  String? // Google AI Studio API 키
-  geminiModel   String  @default("gemini-1.5-flash")
-  mistralApiKey String? // Mistral API 키
-  mistralModel  String  @default("mistral-small-latest")
-  kimiApiKey    String? // 사용 중단 (2026-11-09 Kimi 제공자 제거, 저장된 값 보존용)
-  kimiModel     String  @default("moonshot-v1-8k") // 사용 중단
-  openaiApiKey  String? // OpenAI API 키
-  openaiModel   String  @default("gpt-4.1-mini")
+  provider         String  @default("gemini") // "gemini" | "mistral" | "openai" | "openrouter" (src/lib/llm/config.ts LLM_PROVIDERS)
+  geminiApiKey     String? // Google AI Studio API 키
+  geminiModel      String  @default("gemini-1.5-flash")
+  mistralApiKey    String? // Mistral API 키
+  mistralModel     String  @default("mistral-small-latest")
+  kimiApiKey       String? // 사용 중단 (2026-11-09 Kimi 제공자 제거, 저장된 값 보존용)
+  kimiModel        String  @default("moonshot-v1-8k") // 사용 중단
+  openaiApiKey     String? // OpenAI API 키
+  openaiModel      String  @default("gpt-4.1-mini")
   openrouterApiKey String? // OpenRouter API 키
   openrouterModel  String  @default("openai/gpt-4.1-mini") // "회사/모델" 형식
 
@@ -995,7 +995,7 @@ model ProcessVerificationBusinessUnit {
   id String @id @default(uuid())
 
   // 적용 정보
-  businessUnit String // 사업부 코드 (SMD: V_IVI, V_DISP, V_PCBA / HANES: V_HMS)
+  businessUnit String             @default("POLE") // 사업부: 화면에서 관리하지 않음. DB 기본값 POLE (행성사 오창) 고정, 코드에서 값을 보내지 않는다
   isApplied    Boolean            @default(false) // 적용여부 (Y/N)
   status       VerificationStatus @default(PENDING) // 검증 상태 (사업부별 독립 관리)
 
@@ -1036,7 +1036,7 @@ model ProcessVerificationItem {
   order        Int                @default(0) // 정렬 순서
   remarks      String? // 비고
   status       VerificationStatus @default(PENDING) // 검증 상태
-  businessUnit String             @default("V_IVI") // 사업부 구분 코드
+  businessUnit String             @default("POLE") // 사업부: 화면에서 관리하지 않음. DB 기본값 POLE (행성사 오창) 고정, 코드에서 값을 보내지 않는다
   asIsCode     String? // AS-IS 관리번호
   toBeCode     String? // TO-BE 관리번호
 
@@ -1149,7 +1149,7 @@ model CustomerRequirement {
   id           String      @id @default(uuid())
   sequence     Int // 순번 (자동 부여)
   code         String // 관리번호 (RQIT_00001 형식)
-  businessUnit String // 사업부 (IT, 생산, 품질 등)
+  businessUnit String      @default("POLE") // 사업부: 화면에서 관리하지 않음. DB 기본값 POLE (행성사 오창) 고정, 코드에서 값을 보내지 않는다
   category     String? // 업무구분 (공통, 프로세스 등)
   functionName String // 기능명
   content      String // 요구사항 내용
@@ -1530,7 +1530,7 @@ model Interview {
   interviewDate DateTime @default(now()) // 인터뷰 일자
   interviewer   String? // 인터뷰 진행자 (이름)
   interviewee   String? // 인터뷰 대상자 (현업 담당자)
-  businessUnit  String // 사업부 (V_IVI, V_DISP, V_PCBA 등)
+  businessUnit  String   @default("POLE") // 사업부: 화면에서 관리하지 않음. DB 기본값 POLE (행성사 오창) 고정, 코드에서 값을 보내지 않는다
   category      String? // 업무영역 (생산, 구매, 자재, 품질 등)
 
   // 5가지 카테고리 (가이드 기준)
@@ -1586,7 +1586,7 @@ model FieldIssue {
   id               String           @id @default(uuid())
   sequence         Int // 순번 (자동 부여)
   code             String // 이슈번호 (IS0001 형식)
-  businessUnit     String // 사업부 (V_IVI, V_DISP, V_PCBA 등)
+  businessUnit     String           @default("POLE") // 사업부: 화면에서 관리하지 않음. DB 기본값 POLE (행성사 오창) 고정, 코드에서 값을 보내지 않는다
   category         String? // 업무구분 (자재, 생산, 품질 등)
   title            String // 이슈관리명 (제목)
   description      String? // 이슈 설명 (상세 내용)
@@ -1637,7 +1637,7 @@ enum FieldIssueStatus {
 model DiscussionItem {
   id           String             @id @default(uuid())
   code         String // 협의요청 코드 (DIS-001 등)
-  businessUnit String // 사업부구분 (IT, 생산, 품질 등)
+  businessUnit String             @default("POLE") // 사업부: 화면에서 관리하지 않음. DB 기본값 POLE (행성사 오창) 고정, 코드에서 값을 보내지 않는다
   title        String // 협의 주제
   description  String? // 상세 내용
   status       DiscussionStatus   @default(DISCUSSING) // 상태
@@ -1750,7 +1750,7 @@ enum AsIsCurrentMethod {
 // ============================================
 model AsIsOverview {
   id           String   @id @default(uuid())
-  businessUnit String   @default("V_IVI") // 사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HMS)
+  businessUnit String   @default("POLE") // 사업부: 화면에서 관리하지 않음. DB 기본값 POLE (행성사 오창) 고정, 코드에서 값을 보내지 않는다
   customerName String? // 고객사명
   author       String? // 작성자
   createdDate  DateTime @default(now()) // 작성일
@@ -2183,8 +2183,8 @@ model ProgressStageDef {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  tasks   ProgressTask[] @relation("CurrentStageDef")
+  project     Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       ProgressTask[]            @relation("CurrentStageDef")
   taskDetails ProgressTaskStageDetail[]
 
   @@unique([projectId, category, name])
@@ -2256,7 +2256,7 @@ model ProgressTask {
   code         String? // T-001 자동 부여
   name         String // "주문등록" 등 기능명
   category     String? // 대분류 라벨
-  businessUnit String? // 사업부 (V_IVI, V_DISP, V_PCBA, V_HNS) — 사업부별 분석용
+  businessUnit String? @default("POLE") // 사업부: 화면에서 관리하지 않음. DB 기본값 POLE (행성사 오창) 고정, 코드에서 값을 보내지 않는다
   description  String?
   order        Int     @default(0)
 
@@ -2271,9 +2271,9 @@ model ProgressTask {
   stageCategory   StageCategory     @default(ETC)
   currentStageId  String?
   currentStageDef ProgressStageDef? @relation("CurrentStageDef", fields: [currentStageId], references: [id], onDelete: SetNull)
-  status       TaskStatus    @default(PENDING)
-  progress     Int           @default(0)
-  effortMd     Float?
+  status          TaskStatus        @default(PENDING)
+  progress        Int               @default(0)
+  effortMd        Float?
 
   // 의존성 (단일 선행)
   predecessorId String?
@@ -2283,10 +2283,10 @@ model ProgressTask {
   updatedAt DateTime @updatedAt
 
   // 관계
-  project     Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  predecessor ProgressTask?          @relation("ProgressTaskDeps", fields: [predecessorId], references: [id], onDelete: SetNull)
-  successors  ProgressTask[]         @relation("ProgressTaskDeps")
-  assignees   ProgressTaskAssignee[]
+  project      Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  predecessor  ProgressTask?             @relation("ProgressTaskDeps", fields: [predecessorId], references: [id], onDelete: SetNull)
+  successors   ProgressTask[]            @relation("ProgressTaskDeps")
+  assignees    ProgressTaskAssignee[]
   stageDetails ProgressTaskStageDetail[]
 
   @@unique([projectId, code])
@@ -2316,7 +2316,7 @@ model ProgressTaskAssignee {
 }
 
 model ProgressTaskStageDetail {
-  id             String  @id @default(uuid())
+  id             String                        @id @default(uuid())
   taskId         String
   stageId        String
   status         ProgressTaskStageDetailStatus @default(PENDING)

@@ -5,7 +5,7 @@
  * 고객요구사항 목록을 테이블 형태로 표시하고 수정/삭제/상태변경 기능을 제공합니다.
  *
  * 초보자 가이드:
- * 1. **컬럼 구성**: 수정, 상태, 요구번호, 사업부, 업무구분, 기능명, 요구사항, 적용방안, 요청일, 처리완료일, 요청자, 제약사항, To-Be
+ * 1. **컬럼 구성**: 수정, 상태, 요구번호, 업무구분, 기능명, 요구사항, 적용방안, 요청일, 처리완료일, 요청자, 제약사항, To-Be
  * 2. **상태 배지**: 클릭 시 드롭다운으로 상태 변경 가능
  * 3. **툴팁**: 기능명, 요구사항, 적용방안, 제약사항에 마우스 오버 시 전체 내용 표시
  * 4. **페이지네이션**: 하단에 페이지 네비게이션 제공
@@ -91,13 +91,12 @@ export function CustomerRequirementTable({
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 테이블 헤더 (수정 버튼을 맨 앞에 배치) */}
       <div
-        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1580px]"
-        style={{ gridTemplateColumns: "80px 80px 100px 80px 80px 150px 1fr 180px 80px 80px 100px 150px 100px" }}
+        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1490px]"
+        style={{ gridTemplateColumns: "80px 80px 100px 80px 150px 1fr 180px 80px 80px 100px 150px 100px" }}
       >
         <div>액션</div>
         <div>상태</div>
         <div>요구번호</div>
-        <div>사업부</div>
         <div>업무구분</div>
         <div>기능명</div>
         <div>요구사항</div>
@@ -124,8 +123,8 @@ export function CustomerRequirementTable({
         return (
           <div
             key={req.id}
-            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1580px]"
-            style={{ gridTemplateColumns: "80px 80px 100px 80px 80px 150px 1fr 180px 80px 80px 100px 150px 100px" }}
+            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1490px]"
+            style={{ gridTemplateColumns: "80px 80px 100px 80px 150px 1fr 180px 80px 80px 100px 150px 100px" }}
           >
             {/* 수정/삭제/이관 버튼 (맨 앞 배치) */}
             <div className="flex items-center gap-0.5">
@@ -208,13 +207,6 @@ export function CustomerRequirementTable({
             <div>
               <span className="text-xs text-text-secondary font-mono">
                 {req.code || "-"}
-              </span>
-            </div>
-
-            {/* 사업부 */}
-            <div>
-              <span className="text-xs font-medium px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-                {req.businessUnit || "-"}
               </span>
             </div>
 

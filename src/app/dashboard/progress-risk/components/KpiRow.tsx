@@ -3,7 +3,7 @@
  * @description KPI 카드 — 진도 요약 및 리스크 지표
  *
  * 초보자 가이드:
- * 1. **요약 카드**: 사업부별 task, 일정 초과, 정상 진행
+ * 1. **요약 카드**: 일정 초과, 정상 진행(진행 중·완료 / 전체)
  * 2. **alert**: 공수 부족 또는 일정 초과 시 빨간색, 충돌 인원 시 주황색
  */
 import type { ProgressTask } from "@/lib/api";
@@ -19,11 +19,6 @@ interface Props {
 
 export function KpiRow({ tasks, diagnosis, projectEndDate = null }: Props) {
   const total = tasks.length;
-  const businessUnitCounts = [...tasks.reduce((map, task) => {
-    const key = task.businessUnit || "미지정";
-    map.set(key, (map.get(key) ?? 0) + 1);
-    return map;
-  }, new Map<string, number>())].sort(([a], [b]) => a.localeCompare(b));
 
   const shortageMd = diagnosis?.shortageMd ?? 0;
   const overrunDays = diagnosis?.overrunDays ?? 0;
@@ -55,7 +50,6 @@ export function KpiRow({ tasks, diagnosis, projectEndDate = null }: Props) {
     <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
       <SummaryCard
         total={total}
-        businessUnitCounts={businessUnitCounts}
         overrunDays={overrunDays}
         onTrack={onTrack}
       />
@@ -74,12 +68,11 @@ export function KpiRow({ tasks, diagnosis, projectEndDate = null }: Props) {
 
 interface SummaryCardProps {
   total: number;
-  businessUnitCounts: Array<[string, number]>;
   overrunDays: number;
   onTrack: number;
 }
 
-function SummaryCard({ total, businessUnitCounts, overrunDays, onTrack }: SummaryCardProps) {
+function SummaryCard({ total, overrunDays, onTrack }: SummaryCardProps) {
   return (
     <div
       className="border rounded-xl p-3 bg-background-white dark:bg-surface-dark border-border dark:border-border-dark"
@@ -96,9 +89,6 @@ function SummaryCard({ total, businessUnitCounts, overrunDays, onTrack }: Summar
           </div>
         </div>
         <div className="grid flex-1 grid-cols-[repeat(auto-fit,minmax(72px,1fr))] gap-1.5">
-          {businessUnitCounts.map(([businessUnit, count]) => (
-            <SummaryMetric key={businessUnit} label={businessUnit} value={String(count)} />
-          ))}
           <SummaryMetric
             label="일정 초과"
             value={overrunDays > 0 ? `+${overrunDays}일` : "0"}

@@ -56,12 +56,11 @@ export function DiscussionItemTable({
       <div
         className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase"
         style={{
-          gridTemplateColumns: "120px 100px 100px 80px 1fr 80px 80px 100px 100px 80px",
+          gridTemplateColumns: "120px 100px 80px 1fr 80px 80px 100px 100px 80px",
         }}
       >
         <div>상태</div>
         <div>코드</div>
-        <div>사업부</div>
         <div>요청자</div>
         <div>협의 주제</div>
         <div>단계</div>
@@ -90,7 +89,7 @@ export function DiscussionItemTable({
             key={item.id}
             className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center"
             style={{
-              gridTemplateColumns: "120px 100px 100px 80px 1fr 80px 80px 100px 100px 80px",
+              gridTemplateColumns: "120px 100px 80px 1fr 80px 80px 100px 100px 80px",
             }}
           >
             {/* 상태 배지 (드롭다운) */}
@@ -130,9 +129,6 @@ export function DiscussionItemTable({
 
             {/* 코드 */}
             <div className="text-sm font-mono text-text dark:text-white">{item.code}</div>
-
-            {/* 사업부 */}
-            <div className="text-sm text-text dark:text-white">{item.businessUnit}</div>
 
             {/* 요청자 */}
             <div className="text-sm text-text dark:text-white truncate" title={item.requesterName || ""}>

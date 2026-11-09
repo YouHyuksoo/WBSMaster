@@ -8,7 +8,8 @@
  * 1. **협의요청이란**: 버그도 아니고 새 기능도 아닌, PM과 협의가 필요한 사항
  * 2. **통계 카드**: 전체, 협의 중, 변환됨, 완료 현황
  * 3. **탭**: 협의 중 vs 변환됨/완료
- * 4. **필터**: 사업부, 발생 단계, 검색어로 필터링
+ * 4. **필터**: 발생 단계, 검색어로 필터링
+ * 5. **사업부**: 화면에서 구분하지 않는다. 저장은 서버가 DEFAULT_BUSINESS_UNIT 으로 고정한다.
  *
  * @example
  * 접속 URL: /dashboard/discussion-items
@@ -28,7 +29,6 @@ import {
   STATUS_CONFIG,
   STAGE_CONFIG,
 } from "./types";
-import { BUSINESS_UNITS } from "@/constants/business-units";
 
 /**
  * 협의요청관리 페이지 컴포넌트
@@ -38,7 +38,6 @@ export default function DiscussionItemsPage() {
   const { selectedProjectId, selectedProject } = useProject();
 
   // 필터 상태
-  const [filterBusinessUnit, setFilterBusinessUnit] = useState<string>("all");
   const [filterStage, setFilterStage] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"discussing" | "converted" | "completed" | "all">("discussing");
@@ -119,8 +118,6 @@ export default function DiscussionItemsPage() {
   // 필터링된 아이템
   const filteredItems = useMemo(() => {
     return tabItems.filter((item) => {
-      const matchesBusinessUnit =
-        filterBusinessUnit === "all" || item.businessUnit === filterBusinessUnit;
       const matchesStage =
         filterStage === "all" || item.stage === filterStage;
       const matchesSearch =
@@ -128,14 +125,9 @@ export default function DiscussionItemsPage() {
         item.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.description?.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesBusinessUnit && matchesStage && matchesSearch;
+      return matchesStage && matchesSearch;
     });
-  }, [tabItems, filterBusinessUnit, filterStage, searchQuery]);
-
-  // 필터/탭 변경 시 검색 리셋
-  useEffect(() => {
-    // 탭 변경 시 검색 유지
-  }, [activeTab, filterBusinessUnit, filterStage]);
+  }, [tabItems, filterStage, searchQuery]);
 
   // 통계 계산
   const stats = useMemo(() => {
@@ -281,7 +273,6 @@ export default function DiscussionItemsPage() {
   const handleExportExcel = useCallback(() => {
     const data = filteredItems.map((item) => ({
       코드: item.code,
-      사업부: item.businessUnit,
       협의주제: item.title,
       상세내용: item.description || "",
       상태: STATUS_CONFIG[item.status].label,
@@ -566,20 +557,6 @@ export default function DiscussionItemsPage() {
             </span>
           </button>
         </div>
-
-        {/* 사업부 필터 */}
-        <select
-          value={filterBusinessUnit}
-          onChange={(e) => setFilterBusinessUnit(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white"
-        >
-          <option value="all">전체 사업부</option>
-          {BUSINESS_UNITS.map((unit) => (
-            <option key={unit} value={unit}>
-              {unit}
-            </option>
-          ))}
-        </select>
 
         {/* 단계 필터 */}
         <select

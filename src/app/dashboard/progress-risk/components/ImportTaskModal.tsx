@@ -4,7 +4,7 @@
  *
  * 초보자 가이드:
  * 1. **공통 모달**: ImportExcelModal은 @/components/common에 정의된 범용 컴포넌트
- * 2. **템플릿 설정**: 8개 컬럼 + 5개 힌트 포함
+ * 2. **템플릿 설정**: 10개 컬럼 + 9개 힌트 포함 (사업부 컬럼 없음, 헤더 이름으로 매칭)
  * 3. **API 연결**: /api/progress-tasks/import 엔드포인트로 데이터 전송
  * 4. **성공 처리**: onSuccess 콜백으로 모달 닫기 + 목록 새로고침
  */
@@ -33,7 +33,6 @@ export function ImportTaskModal({ isOpen, onClose, onSuccess, projectId }: Props
         sheetName: "진도리스크",
         columns: [
           { header: "기능명",         key: "name",            width: 25, example: "주문등록" },
-          { header: "사업부",         key: "businessUnit",    width: 10, example: "V_IVI" },
           { header: "카테고리",       key: "stageCategory",   width: 12, example: "MES시스템" },
           { header: "대분류",         key: "category",        width: 15, example: "기준관리" },
           { header: "설명",           key: "description",     width: 30 },
@@ -51,7 +50,6 @@ export function ImportTaskModal({ isOpen, onClose, onSuccess, projectId }: Props
         "카테고리(단계 그룹): MES시스템/설비연동/단말기/기준정보/ERP I/F/SLMS I/F/CUT OFF/운영/인프라/기타 — 빈 값은 기타",
         "대분류는 자유 텍스트 (그룹핑/필터 용도)",
         "현재 단계는 해당 카테고리에 정의된 단계 이름과 정확히 일치해야 합니다 (매칭 실패 시 빈 단계로 import)",
-        "사업부: V_IVI / V_DISP / V_PCBA / V_HNS 중 선택 (빈 값=미지정)",
         "선행 task 코드는 같은 프로젝트 또는 같은 import 안의 코드만 매칭",
         "진행 방식: 병렬/순차 (또는 P/S). 비우면 병렬",
         "담당자: 이름 또는 이름(역할) 또는 이름(역할) 50% 형식, 쉼표로 다수 구분",

@@ -6,8 +6,9 @@
  *
  * 초보자 가이드:
  * 1. **모드**: 생성(create) 또는 수정(edit) 모드
- * 2. **폼 필드**: 사업부, 업무구분, 이슈관리명, 이슈설명, 등록일, 이슈어, 담당자, 상태, 타겟일, 완료일, 제안된 해결방안, 최종 적용방안, 비고
- * 3. **유효성 검사**: 필수 필드 체크 (사업부, 이슈관리명)
+ * 2. **폼 필드**: 업무구분, 이슈관리명, 이슈설명, 등록일, 이슈어, 담당자, 상태, 타겟일, 완료일, 제안된 해결방안, 최종 적용방안, 비고
+ * 3. **유효성 검사**: 필수 필드 체크 (이슈관리명)
+ * 4. **사업부**: 묻지 않는다. 저장 시 서버가 DEFAULT_BUSINESS_UNIT 으로 채운다.
  */
 
 "use client";
@@ -20,7 +21,6 @@ import {
   type FieldIssueStatus,
   STATUS_LABELS,
   DEFAULT_FORM_DATA,
-  BUSINESS_UNITS,
   BUSINESS_CATEGORIES,
 } from "../types";
 
@@ -50,7 +50,6 @@ export function FieldIssueModal({
   useEffect(() => {
     if (mode === "edit" && issue) {
       setFormData({
-        businessUnit: issue.businessUnit,
         category: issue.category || "",
         title: issue.title,
         description: issue.description || "",
@@ -97,9 +96,6 @@ export function FieldIssueModal({
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.businessUnit.trim()) {
-      newErrors.businessUnit = "사업부를 선택해주세요.";
-    }
     if (!formData.title.trim()) {
       newErrors.title = "이슈관리명을 입력해주세요.";
     }
@@ -156,32 +152,6 @@ export function FieldIssueModal({
         {/* 폼 */}
         <form onSubmit={handleSubmit} className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* 사업부 */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                사업부 <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.businessUnit}
-                onChange={(e) => handleChange("businessUnit", e.target.value)}
-                className={`w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.businessUnit
-                    ? "border-red-500"
-                    : "border-slate-300 dark:border-slate-600"
-                }`}
-              >
-                <option value="">선택하세요</option>
-                {BUSINESS_UNITS.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
-                  </option>
-                ))}
-              </select>
-              {errors.businessUnit && (
-                <p className="mt-1 text-xs text-red-500">{errors.businessUnit}</p>
-              )}
-            </div>
-
             {/* 업무구분 */}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">

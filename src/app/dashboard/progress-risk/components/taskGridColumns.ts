@@ -1,7 +1,6 @@
 export type TaskGridColumnId =
   | "select"
   | "index"
-  | "businessUnit"
   | "stageCategory"
   | "majorCategory"
   | "name"
@@ -26,7 +25,6 @@ export const DEFAULT_TASK_GRID_COLUMNS: TaskGridColumn[] = [
   { id: "actions", label: "", width: 74, minWidth: 72 },
   { id: "select", label: "", width: 36, minWidth: 36 },
   { id: "index", label: "#", width: 46, minWidth: 42 },
-  { id: "businessUnit", label: "사업부", width: 70, minWidth: 64, resizable: true },
   { id: "stageCategory", label: "카테고리", width: 110, minWidth: 90, resizable: true },
   { id: "majorCategory", label: "대분류", width: 110, minWidth: 90, resizable: true },
   { id: "name", label: "기능명", width: 220, minWidth: 160, resizable: true },

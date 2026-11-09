@@ -15,7 +15,7 @@
  * @example
  * const { data: issues } = useFieldIssues({ projectId: 'xxx' });
  * const createIssue = useCreateFieldIssue();
- * createIssue.mutate({ projectId: 'xxx', businessUnit: 'V_IVI', title: '이슈명' });
+ * createIssue.mutate({ projectId: 'xxx', title: '이슈명' });
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,12 +33,11 @@ export const fieldIssueKeys = {
 
 /**
  * 현업이슈 목록 조회 Hook
- * @param filters - 필터 옵션 (projectId, businessUnit, status, search)
+ * @param filters - 필터 옵션 (projectId, status, search)
  * staleTime: 5분 (자주 변경되지 않으므로 캐싱)
  */
 export function useFieldIssues(filters?: {
   projectId?: string;
-  businessUnit?: string;
   status?: string;
   search?: string;
 }) {
@@ -72,7 +71,6 @@ export function useCreateFieldIssue() {
   return useMutation({
     mutationFn: (data: {
       projectId: string;
-      businessUnit: string;
       category?: string;
       title: string;
       description?: string;

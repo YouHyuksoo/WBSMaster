@@ -6,7 +6,7 @@
  * 초보자 가이드:
  * 1. **GET**: 마스터 상세 조회
  * 2. **PATCH**: 마스터 수정
- * 3. **DELETE**: 마스터 삭제 (연결된 사업부 적용 데이터도 함께 삭제)
+ * 3. **DELETE**: 마스터 삭제 (연결된 적용 행도 함께 삭제)
  */
 
 import { NextRequest, NextResponse } from "next/server";

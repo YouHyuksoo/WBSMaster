@@ -16,7 +16,6 @@ import { useCreateProgressTask, useAddAssignee, useUsers } from "@/hooks";
 import type { ProgressTask, StageCategory } from "@/lib/api";
 import { STAGE_CATEGORY_LABEL, STAGE_CATEGORY_ORDER } from "@/lib/stage-categories";
 import { ROLE_OPTIONS } from "../constants";
-import { BUSINESS_UNITS } from "@/constants/business-units";
 import { toProgressTaskDateRange } from "./taskDateFields";
 
 interface AddTaskModalProps {
@@ -36,7 +35,6 @@ interface DraftAssignee {
 export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddTaskModalProps) {
   const [name, setName] = useState("");
   const [stageCategory, setStageCategory] = useState<StageCategory>("MES_SYSTEM");
-  const [businessUnit, setBusinessUnit] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [predecessorId, setPredecessorId] = useState("");
   const [isParallel, setIsParallel] = useState(true);
@@ -79,7 +77,6 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
   const reset = () => {
     setName("");
     setStageCategory("MES_SYSTEM");
-    setBusinessUnit("");
     setTargetDate("");
     setPredecessorId("");
     setIsParallel(true);
@@ -99,7 +96,6 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
       startDate,
       endDate,
       stageCategory,
-      businessUnit: businessUnit || undefined,
       predecessorId: predecessorId || undefined,
       isParallel,
     });
@@ -127,35 +123,20 @@ export function AddTaskModal({ isOpen, onClose, projectId, existingTasks }: AddT
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 주문등록" autoFocus />
         </div>
 
-        {/* 사업부 / 카테고리 */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-text dark:text-white mb-1">사업부</label>
-            <select
-              value={businessUnit}
-              onChange={(e) => setBusinessUnit(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">(미지정)</option>
-              {BUSINESS_UNITS.map(u => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-text dark:text-white mb-1">카테고리</label>
-            <select
-              value={stageCategory}
-              onChange={(e) => setStageCategory(e.target.value as StageCategory)}
-              className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {STAGE_CATEGORY_ORDER.map((category) => (
-                <option key={category} value={category}>
-                  {STAGE_CATEGORY_LABEL[category]}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* 카테고리 */}
+        <div>
+          <label className="block text-xs font-semibold text-text dark:text-white mb-1">카테고리</label>
+          <select
+            value={stageCategory}
+            onChange={(e) => setStageCategory(e.target.value as StageCategory)}
+            className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {STAGE_CATEGORY_ORDER.map((category) => (
+              <option key={category} value={category}>
+                {STAGE_CATEGORY_LABEL[category]}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* 목표일자 */}

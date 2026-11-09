@@ -12,6 +12,7 @@
  *    - CLOSED: 완료
  * 2. **FieldIssue**: 현업이슈 데이터 타입
  * 3. **STATUS_CONFIG**: 상태별 설정 (아이콘, 색상)
+ * 4. **사업부**: 폼에 없다. 저장 시 서버가 DEFAULT_BUSINESS_UNIT 으로 채운다.
  *
  * 상태 흐름 (필독 가이드 기준):
  * OPEN (발견) → IN_PROGRESS (수정 중) → RESOLVED (해결) / WONT_FIX (수정 안함) → CLOSED (완료)
@@ -92,7 +93,6 @@ export const STATUS_CONFIG: Record<FieldIssueStatus, {
 
 /** 폼 데이터 타입 (생성/수정 시 사용) */
 export interface FieldIssueFormData {
-  businessUnit: string;
   category?: string;
   title: string;
   description?: string;
@@ -110,7 +110,6 @@ export interface FieldIssueFormData {
 
 /** 기본 폼 값 */
 export const DEFAULT_FORM_DATA: FieldIssueFormData = {
-  businessUnit: "",
   category: "",
   title: "",
   description: "",
@@ -125,9 +124,6 @@ export const DEFAULT_FORM_DATA: FieldIssueFormData = {
   finalSolution: "",
   remarks: "",
 };
-
-/** 사업부 목록 (공통 상수에서 import) */
-export { BUSINESS_UNITS } from "@/constants/business-units";
 
 /** 업무구분 목록 (고객요구사항과 동일) */
 export const BUSINESS_CATEGORIES = [

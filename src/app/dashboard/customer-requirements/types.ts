@@ -12,7 +12,9 @@
  *    - APPLIED: 적용 완료
  *    - HOLD: 보류
  * 2. **CustomerRequirement**: 고객요구사항 데이터 타입
- * 3. **FilterState**: 필터 상태 타입
+ * 3. **CustomerRequirementFormData**: 등록/수정 폼 데이터 타입
+ *
+ * 사업부 구분은 화면에서 쓰지 않는다. 저장 시 서버가 DEFAULT_BUSINESS_UNIT 으로 채운다.
  */
 
 import type { CustomerRequirement, ApplyStatus } from "@/lib/api";
@@ -55,17 +57,8 @@ export const APPLY_STATUS_CONFIG: Record<string, { label: string; icon: string; 
   HOLD: { label: "보류", icon: "pause_circle", color: "text-text-secondary", bgColor: "bg-slate-100 dark:bg-slate-800" },
 };
 
-/** 필터 상태 타입 */
-export interface FilterState {
-  projectId: string;
-  businessUnit: string;
-  applyStatus: string;
-  search: string;
-}
-
 /** 폼 데이터 타입 (생성/수정 시 사용) */
 export interface CustomerRequirementFormData {
-  businessUnit: string;
   category?: string;
   functionName: string;
   content: string;
@@ -80,7 +73,6 @@ export interface CustomerRequirementFormData {
 
 /** 기본 폼 값 */
 export const DEFAULT_FORM_DATA: CustomerRequirementFormData = {
-  businessUnit: "",
   category: "",
   functionName: "",
   content: "",
@@ -92,9 +84,6 @@ export const DEFAULT_FORM_DATA: CustomerRequirementFormData = {
   toBeCode: "",
   completeDate: "",
 };
-
-/** 사업부 목록 (공통 상수에서 import) */
-export { BUSINESS_UNITS } from "@/constants/business-units";
 
 /** 업무구분 목록 */
 export const BUSINESS_CATEGORIES = [

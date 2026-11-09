@@ -30,7 +30,6 @@ export interface ProgressTask {
   code: string | null;
   name: string;
   category: string | null;
-  businessUnit: string | null;
   description: string | null;
   order: number;
   startDate: string;

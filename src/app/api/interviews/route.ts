@@ -6,6 +6,7 @@
  * 초보자 가이드:
  * - GET /api/interviews: 목록 조회 (필터링 지원)
  * - POST /api/interviews: 새 인터뷰 생성
+ *   (사업부는 받지 않는다. DB 기본값 POLE 으로 저장)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -19,7 +20,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
-    const businessUnit = searchParams.get("businessUnit");
     const transferStatus = searchParams.get("transferStatus");
     const search = searchParams.get("search");
 
@@ -30,9 +30,6 @@ export async function GET(request: NextRequest) {
       where.projectId = projectId;
     }
 
-    if (businessUnit) {
-      where.businessUnit = businessUnit;
-    }
 
     if (transferStatus) {
       where.transferStatus = transferStatus;
@@ -86,7 +83,6 @@ export async function POST(request: NextRequest) {
       interviewDate,
       interviewer,
       interviewee,
-      businessUnit,
       category,
       currentProcess,
       painPoints,
@@ -107,13 +103,6 @@ export async function POST(request: NextRequest) {
     if (!title) {
       return NextResponse.json(
         { error: "인터뷰 제목은 필수입니다." },
-        { status: 400 }
-      );
-    }
-
-    if (!businessUnit) {
-      return NextResponse.json(
-        { error: "사업부는 필수입니다." },
         { status: 400 }
       );
     }
@@ -149,7 +138,6 @@ export async function POST(request: NextRequest) {
         interviewDate: interviewDate ? new Date(interviewDate) : new Date(),
         interviewer: interviewer || null,
         interviewee: interviewee || null,
-        businessUnit,
         category: category || null,
         currentProcess: currentProcess || null,
         painPoints: painPoints || null,

@@ -5,22 +5,23 @@
  * 관리코드 기준 단일 마스터 데이터 CRUD
  *
  * 초보자 가이드:
- * 1. **GET**: 마스터 목록 조회 (사업부별 적용 현황 포함)
- * 2. **POST**: 새 마스터 생성 (+ 모든 사업부 적용 데이터 자동 생성)
+ * 1. **GET**: 마스터 목록 조회 (적용 행 포함)
+ * 2. **POST**: 새 마스터 생성 (+ 적용 행 1건 자동 생성)
+ * 3. 적용 행은 마스터당 하나이며 businessUnit 은 항상 DEFAULT_BUSINESS_UNIT 이다.
+ *    (2026-11-09 화면에서 사업부 구분 제거)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_BUSINESS_UNIT } from "@/constants/business-units";
 
-/**
- * 제품유형별 사업부 매핑
- * - SMD: V_IVI, V_DISP, V_PCBA (동일 마스터 공유)
- * - HANES: V_HMS (별도 마스터)
- */
-const PRODUCT_TYPE_BUSINESS_UNITS: Record<string, string[]> = {
-  SMD: ["V_IVI", "V_DISP", "V_PCBA"],
-  HANES: ["V_HMS"],
-};
+/** 검증 상태 값 */
+type VerificationStatus = "PENDING" | "IN_PROGRESS" | "VERIFIED" | "NOT_APPLICABLE";
+
+/** 응답에 포함할 적용 행 (고정 값 행만) */
+const APPLY_INCLUDE = {
+  where: { businessUnit: DEFAULT_BUSINESS_UNIT },
+} as const;
 
 /**
  * 마스터 목록 조회
@@ -31,8 +32,7 @@ const PRODUCT_TYPE_BUSINESS_UNITS: Record<string, string[]> = {
  * - categoryId: 카테고리 필터 (선택)
  * - productType: 제품유형 필터 (선택)
  * - search: 검색어 (선택)
- * - businessUnit: 특정 사업부 적용 필터 (선택)
- * - isApplied: 해당 사업부 적용 여부 필터 (선택)
+ * - isApplied: 적용 여부 필터 (선택, "true" | "false")
  */
 export async function GET(request: NextRequest) {
   try {
@@ -41,7 +41,6 @@ export async function GET(request: NextRequest) {
     const categoryId = searchParams.get("categoryId");
     const productType = searchParams.get("productType");
     const search = searchParams.get("search");
-    const businessUnit = searchParams.get("businessUnit");
     const isApplied = searchParams.get("isApplied");
 
     if (!projectId) {
@@ -75,13 +74,14 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // 특정 사업부 적용 여부로 필터링
-    if (businessUnit && isApplied !== null) {
+    // 적용 여부 필터 (적용 행이 없는 마스터는 미적용으로 본다)
+    if (isApplied === "true") {
       where.businessUnitApplies = {
-        some: {
-          businessUnit,
-          isApplied: isApplied === "true",
-        },
+        some: { businessUnit: DEFAULT_BUSINESS_UNIT, isApplied: true },
+      };
+    } else if (isApplied === "false") {
+      where.businessUnitApplies = {
+        none: { businessUnit: DEFAULT_BUSINESS_UNIT, isApplied: true },
       };
     }
 
@@ -91,9 +91,7 @@ export async function GET(request: NextRequest) {
         categoryRef: {
           select: { id: true, name: true, code: true },
         },
-        businessUnitApplies: {
-          orderBy: { businessUnit: "asc" },
-        },
+        businessUnitApplies: APPLY_INCLUDE,
       },
       orderBy: [{ categoryRef: { order: "asc" } }, { order: "asc" }],
     });
@@ -117,7 +115,8 @@ export async function GET(request: NextRequest) {
  * - managementCode: 관리코드 (필수)
  * - productType: 제품유형 (기본: SMD)
  * - ... 기타 마스터 필드
- * - businessUnits: 사업부별 적용 설정 (선택)
+ * - isApplied: 적용 여부 (선택, 기본 false)
+ * - status: 검증 상태 (선택, 기본 PENDING)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -138,7 +137,8 @@ export async function POST(request: NextRequest) {
       toBeCode,
       order,
       remarks,
-      businessUnits = [], // { businessUnit: string, isApplied: boolean, status?: string }[]
+      isApplied,
+      status,
     } = body;
 
     // 필수 필드 검증
@@ -165,72 +165,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 트랜잭션으로 마스터 + 사업부 적용 일괄 생성
-    const master = await prisma.$transaction(async (tx) => {
-      // 1. 마스터 생성
-      const newMaster = await tx.processVerificationMaster.create({
-        data: {
-          categoryId,
-          managementCode,
-          productType,
-          category: category || "",
-          managementArea,
-          detailItem,
-          mesMapping,
-          verificationDetail,
-          acceptanceStatus,
-          existingMes: existingMes ?? false,
-          customerRequest,
-          asIsCode,
-          toBeCode,
-          order: order ?? 0,
-          remarks,
+    // 마스터 + 적용 행 1건을 함께 생성
+    const master = await prisma.processVerificationMaster.create({
+      data: {
+        categoryId,
+        managementCode,
+        productType,
+        category: category || "",
+        managementArea,
+        detailItem,
+        mesMapping,
+        verificationDetail,
+        acceptanceStatus,
+        existingMes: existingMes ?? false,
+        customerRequest,
+        asIsCode,
+        toBeCode,
+        order: order ?? 0,
+        remarks,
+        businessUnitApplies: {
+          create: {
+            // businessUnit 은 DB 기본값(POLE)
+            isApplied: isApplied === true,
+            status: (status as VerificationStatus | undefined) ?? "PENDING",
+          },
         },
-      });
-
-      // 2. 사업부 적용 데이터 생성 (제품유형에 맞는 사업부만)
-      const targetBusinessUnits = PRODUCT_TYPE_BUSINESS_UNITS[productType] || [];
-
-      if (businessUnits.length > 0) {
-        // 전달된 사업부별 설정 사용 (해당 제품유형 사업부만 필터링)
-        const filteredBUs = businessUnits.filter(
-          (bu: { businessUnit: string }) => targetBusinessUnits.includes(bu.businessUnit)
-        );
-        await tx.processVerificationBusinessUnit.createMany({
-          data: filteredBUs.map(
-            (bu: {
-              businessUnit: string;
-              isApplied?: boolean;
-              status?: string;
-            }) => ({
-              masterId: newMaster.id,
-              businessUnit: bu.businessUnit,
-              isApplied: bu.isApplied ?? false,
-              status: (bu.status as "PENDING" | "IN_PROGRESS" | "VERIFIED" | "NOT_APPLICABLE") ?? "PENDING",
-            })
-          ),
-        });
-      } else {
-        // 전달 안 된 경우 해당 제품유형의 사업부에 대해 기본값(미적용)으로 생성
-        await tx.processVerificationBusinessUnit.createMany({
-          data: targetBusinessUnits.map((unit) => ({
-            masterId: newMaster.id,
-            businessUnit: unit,
-            isApplied: false,
-            status: "PENDING" as const,
-          })),
-        });
-      }
-
-      return newMaster;
+      },
     });
 
-    // 생성된 마스터 + 사업부 적용 조회하여 반환
+    // 생성된 마스터 + 적용 행 조회하여 반환
     const result = await prisma.processVerificationMaster.findUnique({
       where: { id: master.id },
       include: {
         categoryRef: { select: { id: true, name: true, code: true } },
-        businessUnitApplies: { orderBy: { businessUnit: "asc" } },
+        businessUnitApplies: APPLY_INCLUDE,
       },
     });
 

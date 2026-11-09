@@ -22,7 +22,6 @@ import { prisma } from "@/lib/prisma";
  *
  * 쿼리 파라미터:
  * - projectId: 프로젝트 ID (필터링)
- * - businessUnit: 사업부구분 (필터링)
  * - status: 상태 (DISCUSSING, CONVERTED_TO_REQUEST 등)
  * - stage: 발생 단계 (ANALYSIS, DESIGN 등)
  * - search: 검색어 (코드, 제목, 설명)
@@ -31,7 +30,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
-    const businessUnit = searchParams.get("businessUnit");
     const status = searchParams.get("status");
     const stage = searchParams.get("stage");
     const search = searchParams.get("search");
@@ -43,9 +41,6 @@ export async function GET(request: NextRequest) {
       where.projectId = projectId;
     }
 
-    if (businessUnit) {
-      where.businessUnit = businessUnit;
-    }
 
     if (status) {
       where.status = status;
@@ -111,7 +106,6 @@ export async function GET(request: NextRequest) {
  *
  * 필수 필드:
  * - projectId: 프로젝트 ID
- * - businessUnit: 사업부구분
  * - title: 협의 주제
  * - stage: 발생 단계
  * - options: 선택지 배열 (최소 2개 이상)
@@ -129,7 +123,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       projectId,
-      businessUnit,
       title,
       description,
       stage,
@@ -145,13 +138,6 @@ export async function POST(request: NextRequest) {
     if (!projectId) {
       return NextResponse.json(
         { error: "프로젝트 ID는 필수입니다." },
-        { status: 400 }
-      );
-    }
-
-    if (!businessUnit) {
-      return NextResponse.json(
-        { error: "사업부구분은 필수입니다." },
         { status: 400 }
       );
     }
@@ -215,7 +201,6 @@ export async function POST(request: NextRequest) {
       data: {
         projectId,
         code,
-        businessUnit,
         title,
         description: description || null,
         stage,

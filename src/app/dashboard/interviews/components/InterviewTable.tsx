@@ -5,7 +5,7 @@
  * 인터뷰 목록을 테이블 형태로 표시하고 수정/삭제/이관 기능을 제공합니다.
  *
  * 초보자 가이드:
- * 1. **컬럼 구성**: 수정, 이관상태, 제목, 인터뷰 일자, 사업부, 진행자, 대상자, 5가지 카테고리 요약, 이관버튼
+ * 1. **컬럼 구성**: 수정, 이관상태, 제목, 인터뷰 일자, 업무영역, 진행자, 대상자, 5가지 카테고리 요약, 이관버튼
  * 2. **이관 상태 배지**: 미이관/이관완료 표시
  * 3. **이관 버튼**: 드롭다운으로 요구사항/이슈/협의요청 선택
  * 4. **툴팁**: 긴 텍스트에 마우스 오버 시 전체 내용 표시
@@ -89,14 +89,13 @@ export function InterviewTable({
     <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 테이블 헤더 */}
       <div
-        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1900px]"
-        style={{ gridTemplateColumns: "80px 90px 200px 80px 80px 70px 80px 80px 1fr 150px 150px 150px 150px 150px 100px" }}
+        className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1810px]"
+        style={{ gridTemplateColumns: "80px 90px 200px 80px 70px 80px 80px 1fr 150px 150px 150px 150px 150px 100px" }}
       >
         <div>수정</div>
         <div>이관상태</div>
         <div>제목</div>
         <div>일자</div>
-        <div>사업부</div>
         <div>업무영역</div>
         <div>진행자</div>
         <div>대상자</div>
@@ -124,8 +123,8 @@ export function InterviewTable({
         return (
           <div
             key={interview.id}
-            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1900px]"
-            style={{ gridTemplateColumns: "80px 90px 200px 80px 80px 70px 80px 80px 1fr 150px 150px 150px 150px 150px 100px" }}
+            className="grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark hover:bg-surface dark:hover:bg-background-dark transition-colors items-center min-w-[1810px]"
+            style={{ gridTemplateColumns: "80px 90px 200px 80px 70px 80px 80px 1fr 150px 150px 150px 150px 150px 100px" }}
           >
             {/* 수정/삭제 버튼 */}
             <div className="flex items-center gap-0.5">
@@ -177,13 +176,6 @@ export function InterviewTable({
             <div>
               <span className="text-xs text-text-secondary">
                 {formatDate(interview.interviewDate)}
-              </span>
-            </div>
-
-            {/* 사업부 */}
-            <div>
-              <span className="text-xs font-medium px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-                {interview.businessUnit || "-"}
               </span>
             </div>
 

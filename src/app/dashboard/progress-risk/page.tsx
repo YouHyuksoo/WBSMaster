@@ -50,7 +50,7 @@ export default function ProgressRiskPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("list");
   const [listViewMode, setListViewMode] = useState<ListViewMode>("pagination");
   const [filters, setFilters] = useState<Filters>({
-    search: "", status: "all", businessUnit: "", category: "", majorCategory: "",
+    search: "", status: "all", category: "", majorCategory: "",
   });
   const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
 

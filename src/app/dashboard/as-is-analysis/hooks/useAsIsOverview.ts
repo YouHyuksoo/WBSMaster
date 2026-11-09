@@ -15,9 +15,9 @@ import type { AsIsOverview, AsIsOverviewItem, CreateAsIsOverviewRequest, CreateA
 // API 함수
 // ============================================
 
-/** AS-IS 총괄 조회 (프로젝트+사업부별) */
-async function fetchOverview(projectId: string, businessUnit: string): Promise<AsIsOverview | null> {
-  const res = await fetch(`/api/as-is-analysis/overview?projectId=${projectId}&businessUnit=${businessUnit}`);
+/** AS-IS 총괄 조회 (프로젝트별, 사업부는 서버에서 POLE 고정) */
+async function fetchOverview(projectId: string): Promise<AsIsOverview | null> {
+  const res = await fetch(`/api/as-is-analysis/overview?projectId=${projectId}`);
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.error || "조회 실패");
@@ -115,12 +115,12 @@ async function deleteItem(id: string): Promise<void> {
 
 /**
  * AS-IS 총괄 훅
+ * 사업부 구분은 화면에서 쓰지 않는다. 서버가 DEFAULT_BUSINESS_UNIT(POLE)으로 고정해 조회·저장한다.
  * @param projectId 프로젝트 ID
- * @param businessUnit 사업부 코드 (기본값: V_IVI)
  */
-export function useAsIsOverview(projectId?: string, businessUnit: string = "V_IVI") {
+export function useAsIsOverview(projectId?: string) {
   const queryClient = useQueryClient();
-  const queryKey = ["as-is-overview", projectId, businessUnit];
+  const queryKey = ["as-is-overview", projectId];
 
   // 총괄 조회
   const {
@@ -130,7 +130,7 @@ export function useAsIsOverview(projectId?: string, businessUnit: string = "V_IV
     refetch,
   } = useQuery({
     queryKey,
-    queryFn: () => fetchOverview(projectId!, businessUnit),
+    queryFn: () => fetchOverview(projectId!),
     enabled: !!projectId,
   });
 

@@ -2,33 +2,33 @@
  * @file src/app/dashboard/process-verification/page.tsx
  * @description
  * 기능추적표(공정검증) 페이지입니다.
- * Excel에서 가져온 공정검증 항목을 카테고리별로 관리하며, 두 가지 뷰를 제공합니다:
- * - 현재 그리드: 개별 항목 조회/편집
- * - 그룹 비교: 사업부별 관리영역 현황 비교
+ * Excel에서 가져온 공정검증 항목(마스터)을 카테고리별로 관리합니다.
+ * 마스터마다 적용 여부·검증 상태를 하나씩 가진다 (2026-11-09 사업부 구분 제거).
  *
  * 초보자 가이드:
- * 1. **그리드 뷰**: 좌측 카테고리 선택 → 우측 테이블에서 항목 조회/편집
- * 2. **비교 뷰**: 사업부 다중 선택 → 관리영역별 Y/N 현황 및 사용율 비교
- * 3. Excel 가져오기로 데이터 일괄 등록
+ * 1. 좌측 카테고리/관리영역 선택 → 우측 테이블에서 항목 조회/편집
+ * 2. 테이블의 "적용" 체크박스·"상태" 드롭다운으로 바로 변경 (handleApplyChange)
+ * 3. Excel 가져오기로 데이터 일괄 등록, 엑셀 다운로드로 내보내기
  */
 
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { utils, writeFile } from "xlsx";
-import { CategoryList, ItemTable, FilterBar, EditItemModal, AddItemModal, ComparisonGrid } from "./components";
+import { CategoryList, ItemTable, FilterBar, EditItemModal, AddItemModal } from "./components";
+import type { ApplyChange } from "./components/ItemTable";
 import { useProject } from "@/contexts";
 import { Icon, Button, useToast, ConfirmModal } from "@/components/ui";
 import { ImportExcelModal, type ImportResult } from "@/components/common";
 import {
   ProcessVerificationCategory,
   ProcessVerificationMaster,
+  ProcessVerificationBusinessUnitApply,
   FilterState,
+  VerificationStatus,
   verificationStatusConfig,
-  PRODUCT_TYPES,
-  ProductType,
+  getMasterApply,
 } from "./types";
-import { PRODUCT_TYPE_BUSINESS_UNITS } from "@/constants/business-units";
 
 /**
  * 기능추적표 페이지 컴포넌트
@@ -51,10 +51,6 @@ export default function ProcessVerificationPage() {
   });
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [isLoadingMasters, setIsLoadingMasters] = useState(false);
-  // 뷰 선택 상태
-  const [viewMode, setViewMode] = useState<"grid" | "comparison">("grid");
-  // 그룹 비교 보기에서 선택한 사업부
-  const [comparisonBusinessUnits, setComparisonBusinessUnits] = useState<string[]>([]);
   // 수정 모달 상태
   const [editingMaster, setEditingMaster] = useState<ProcessVerificationMaster | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -164,21 +160,18 @@ export default function ProcessVerificationPage() {
     }));
   }, [categories, filteredMasters]);
 
-  // 통계 계산 (마스터 기준)
+  // 통계 계산 (마스터 기준, 적용 행이 없으면 미적용)
   const stats = useMemo(() => {
+    const isApplied = (master: ProcessVerificationMaster) => getMasterApply(master)?.isApplied ?? false;
     const total = masters.length;
-    // 적용된 마스터: 하나 이상의 사업부에서 적용된 경우
-    const applied = masters.filter((master) =>
-      master.businessUnitApplies?.some((bu) => bu.isApplied)
-    ).length;
+    const applied = masters.filter(isApplied).length;
     const notApplied = total - applied;
-    // 검증 완료: 모든 적용된 사업부가 VERIFIED인 경우
-    const verified = masters.filter((master) =>
-      master.businessUnitApplies?.filter((bu) => bu.isApplied).every((bu) => bu.status === "VERIFIED")
-      && master.businessUnitApplies?.some((bu) => bu.isApplied)
+    // 검증 완료: 적용 + VERIFIED
+    const verified = masters.filter(
+      (master) => isApplied(master) && getMasterApply(master)?.status === "VERIFIED"
     ).length;
-    const inProgress = masters.filter((master) =>
-      master.businessUnitApplies?.some((bu) => bu.isApplied && bu.status === "IN_PROGRESS")
+    const inProgress = masters.filter(
+      (master) => isApplied(master) && getMasterApply(master)?.status === "IN_PROGRESS"
     ).length;
     return {
       total,
@@ -187,43 +180,9 @@ export default function ProcessVerificationPage() {
       verified,
       inProgress,
       filteredTotal: filteredMasters.length,
-      filteredApplied: filteredMasters.filter((master) =>
-        master.businessUnitApplies?.some((bu) => bu.isApplied)
-      ).length,
+      filteredApplied: filteredMasters.filter(isApplied).length,
     };
   }, [masters, filteredMasters]);
-
-  // 사업부별 통계 계산 (그룹비교 모드용)
-  const businessUnitStats = useMemo(() => {
-    const allBusinessUnits = [...PRODUCT_TYPE_BUSINESS_UNITS.SMD, ...PRODUCT_TYPE_BUSINESS_UNITS.HANES];
-    const stats: Record<string, { applied: number; notApplied: number; total: number; rate: number }> = {};
-
-    allBusinessUnits.forEach((unit) => {
-      let applied = 0;
-      let notApplied = 0;
-
-      masters.forEach((master) => {
-        const apply = master.businessUnitApplies?.find((a) => a.businessUnit === unit);
-        if (apply) {
-          if (apply.isApplied) {
-            applied++;
-          } else {
-            notApplied++;
-          }
-        }
-      });
-
-      const total = applied + notApplied;
-      stats[unit] = {
-        applied,
-        notApplied,
-        total,
-        rate: total > 0 ? Math.round((applied / total) * 100) : 0,
-      };
-    });
-
-    return stats;
-  }, [masters]);
 
   // 카테고리 선택 핸들러
   const handleSelectCategory = (categoryId: string | null) => {
@@ -274,6 +233,38 @@ export default function ProcessVerificationPage() {
       }
     } catch (error) {
       console.error("마스터 업데이트 실패:", error);
+    }
+  };
+
+  /**
+   * 적용 여부·검증 상태 변경 핸들러
+   * 적용 API 가 돌려준 행을 해당 마스터의 businessUnitApplies 에 반영한다.
+   * (적용 행이 없던 마스터는 서버 upsert 로 새로 생긴 행을 추가)
+   */
+  const handleApplyChange = async (masterId: string, change: ApplyChange) => {
+    try {
+      const res = await fetch(`/api/process-verification/masters/${masterId}/apply`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(change),
+      });
+      if (!res.ok) {
+        toast.error("적용 상태를 변경하지 못했습니다.");
+        return;
+      }
+      const row: ProcessVerificationBusinessUnitApply = await res.json();
+      setMasters((prev) =>
+        prev.map((master) => {
+          if (master.id !== masterId) return master;
+          const others = (master.businessUnitApplies ?? []).filter(
+            (a) => a.businessUnit !== row.businessUnit
+          );
+          return { ...master, businessUnitApplies: [...others, row] };
+        })
+      );
+    } catch (error) {
+      console.error("적용 상태 변경 실패:", error);
+      toast.error("적용 상태를 변경하지 못했습니다.");
     }
   };
 
@@ -329,6 +320,8 @@ export default function ProcessVerificationPage() {
     existingMes: boolean;
     customerRequest: string;
     remarks: string;
+    isApplied: boolean;
+    status: VerificationStatus;
     productType?: string;
   }) => {
     try {
@@ -392,7 +385,9 @@ export default function ProcessVerificationPage() {
     }
 
     // 엑셀 데이터 변환 (마스터 기준)
-    const excelData = filteredMasters.map((master) => ({
+    const excelData = filteredMasters.map((master) => {
+      const apply = getMasterApply(master);
+      return {
       "제품유형": master.productType,
       "관리코드": master.managementCode,
       "AS-IS 관리번호": master.asIsCode || "",
@@ -403,14 +398,13 @@ export default function ProcessVerificationPage() {
       "세부 검증 내용": master.verificationDetail || "",
       "MES/IT 매핑": master.mesMapping || "",
       "기존MES": master.existingMes ? "Y" : "N",
-      "V_IVI": master.businessUnitApplies?.find((bu) => bu.businessUnit === "V_IVI")?.isApplied ? "Y" : "N",
-      "V_DISP": master.businessUnitApplies?.find((bu) => bu.businessUnit === "V_DISP")?.isApplied ? "Y" : "N",
-      "V_PCBA": master.businessUnitApplies?.find((bu) => bu.businessUnit === "V_PCBA")?.isApplied ? "Y" : "N",
-      "V_HMS": master.businessUnitApplies?.find((bu) => bu.businessUnit === "V_HMS")?.isApplied ? "Y" : "N",
+      "적용": apply?.isApplied ? "Y" : "N",
+      "상태": verificationStatusConfig[apply?.status ?? "PENDING"].label,
       "수용 여부": master.acceptanceStatus || "",
       "고객 요청": master.customerRequest || "",
       "비고": master.remarks || "",
-    }));
+      };
+    });
 
     // 워크시트 생성
     const worksheet = utils.json_to_sheet(excelData);
@@ -427,10 +421,8 @@ export default function ProcessVerificationPage() {
       { wch: 50 }, // 세부 검증 내용
       { wch: 20 }, // MES/IT 매핑
       { wch: 8 },  // 기존MES
-      { wch: 8 },  // V_IVI
-      { wch: 8 },  // V_DISP
-      { wch: 8 },  // V_PCBA
-      { wch: 8 },  // V_HMS
+      { wch: 8 },  // 적용
+      { wch: 10 }, // 상태
       { wch: 15 }, // 수용 여부
       { wch: 30 }, // 고객 요청
       { wch: 30 }, // 비고
@@ -553,112 +545,68 @@ export default function ProcessVerificationPage() {
                 isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
               }`}
             >
-              {viewMode === "grid" ? (
-                /* 상세 그리드 모드: 기존 통계 카드 */
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 pb-2">
-                  {/* 적용률 카드 */}
-                  <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Icon name="speed" size="xs" className="text-primary" />
-                      <span className="text-xs font-semibold text-primary">적용률</span>
-                    </div>
-                    <p className="text-2xl font-bold text-primary mb-1">
-                      {stats.total > 0 ? Math.round((stats.applied / stats.total) * 100) : 0}%
-                    </p>
-                    <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                        style={{ width: stats.total > 0 ? `${(stats.applied / stats.total) * 100}%` : "0%" }}
-                      />
-                    </div>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 pb-2">
+                {/* 적용률 카드 */}
+                <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon name="speed" size="xs" className="text-primary" />
+                    <span className="text-xs font-semibold text-primary">적용률</span>
                   </div>
-                  <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Icon name="checklist" size="xs" className="text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                        <p className="text-[10px] text-text-secondary">전체</p>
-                      </div>
-                    </div>
+                  <p className="text-2xl font-bold text-primary mb-1">
+                    {stats.total > 0 ? Math.round((stats.applied / stats.total) * 100) : 0}%
+                  </p>
+                  <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
+                      style={{ width: stats.total > 0 ? `${(stats.applied / stats.total) * 100}%` : "0%" }}
+                    />
                   </div>
-                  <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                        <Icon name="check_circle" size="xs" className="text-success" />
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-text dark:text-white">{stats.applied}</p>
-                        <p className="text-[10px] text-text-secondary">적용</p>
-                      </div>
+                </div>
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Icon name="checklist" size="xs" className="text-primary" />
                     </div>
-                  </div>
-                  <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                        <Icon name="pending" size="xs" className="text-warning" />
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-text dark:text-white">{stats.notApplied}</p>
-                        <p className="text-[10px] text-text-secondary">미적용</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="size-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                        <Icon name="category" size="xs" className="text-cyan-500" />
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-text dark:text-white">{categories.length}</p>
-                        <p className="text-[10px] text-text-secondary">카테고리</p>
-                      </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
+                      <p className="text-[10px] text-text-secondary">전체</p>
                     </div>
                   </div>
                 </div>
-              ) : (
-                /* 그룹 비교 모드: 사업부별 통계 카드 (한 장) */
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 pb-2 mb-2">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Icon name="compare_arrows" size="sm" className="text-primary" />
-                    <h3 className="text-sm font-semibold text-text dark:text-white">사업부별 적용 현황</h3>
-                    <span className="text-xs text-text-secondary ml-auto">전체 마스터 {masters.length}건 기준</span>
-                  </div>
-                  <div className="space-y-3">
-                    {[...PRODUCT_TYPE_BUSINESS_UNITS.SMD, ...PRODUCT_TYPE_BUSINESS_UNITS.HANES].map((unit) => {
-                      const stat = businessUnitStats[unit];
-                      if (!stat || stat.total === 0) return null;
-                      return (
-                        <div key={unit} className="flex items-center gap-3">
-                          <span className="text-xs font-semibold text-text dark:text-white w-16">{unit}</span>
-                          <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full transition-all rounded-full ${
-                                stat.rate >= 75 ? "bg-success" :
-                                stat.rate >= 50 ? "bg-primary" :
-                                stat.rate >= 25 ? "bg-warning" : "bg-error"
-                              }`}
-                              style={{ width: `${stat.rate}%` }}
-                            />
-                          </div>
-                          <div className="flex items-center gap-2 text-xs min-w-[120px] justify-end">
-                            <span className="text-success font-semibold">Y:{stat.applied}</span>
-                            <span className="text-text-secondary">N:{stat.notApplied}</span>
-                            <span className={`font-bold min-w-[35px] text-right ${
-                              stat.rate >= 75 ? "text-success" :
-                              stat.rate >= 50 ? "text-primary" :
-                              stat.rate >= 25 ? "text-warning" : "text-error"
-                            }`}>
-                              {stat.rate}%
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
+                      <Icon name="check_circle" size="xs" className="text-success" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.applied}</p>
+                      <p className="text-[10px] text-text-secondary">적용</p>
+                    </div>
                   </div>
                 </div>
-              )}
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <Icon name="pending" size="xs" className="text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{stats.notApplied}</p>
+                      <p className="text-[10px] text-text-secondary">미적용</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                      <Icon name="category" size="xs" className="text-cyan-500" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-text dark:text-white">{categories.length}</p>
+                      <p className="text-[10px] text-text-secondary">카테고리</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* 슬라이드 핸들 */}
@@ -697,43 +645,32 @@ export default function ProcessVerificationPage() {
             onFilterChange={handleFilterChange}
             totalCount={stats.filteredTotal}
             appliedCount={stats.filteredApplied}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
           />
 
           {/* 메인 컨텐츠 */}
-          {viewMode === "grid" ? (
-            <div className="flex flex-1 overflow-hidden rounded-xl border border-border dark:border-border-dark bg-background-white dark:bg-surface-dark">
-              {/* 카테고리 사이드바 - 전체 카테고리 표시 */}
-              <CategoryList
-                categories={categories}
-                items={filteredMasters}
-                selectedCategoryId={selectedCategoryId}
-                selectedManagementArea={selectedManagementArea}
-                onSelectCategory={handleSelectCategory}
-                onSelectManagementArea={handleSelectManagementArea}
-                isLoading={isLoadingCategories}
-              />
-
-              {/* 마스터 테이블 - 선택된 카테고리로 필터링 */}
-              <div className="flex-1 overflow-auto">
-                <ItemTable
-                  items={displayMasters}
-                  isLoading={isLoadingMasters}
-                  onUpdateItem={handleUpdateMaster}
-                  onEditItem={handleEditMaster}
-                  onDeleteItem={handleDeleteMaster}
-                />
-              </div>
-            </div>
-          ) : (
-            <ComparisonGrid
-              items={masters}
-              selectedBusinessUnits={comparisonBusinessUnits}
-              onBusinessUnitsChange={setComparisonBusinessUnits}
-              isLoading={isLoadingMasters}
+          <div className="flex flex-1 overflow-hidden rounded-xl border border-border dark:border-border-dark bg-background-white dark:bg-surface-dark">
+            {/* 카테고리 사이드바 - 전체 카테고리 표시 */}
+            <CategoryList
+              categories={categories}
+              items={filteredMasters}
+              selectedCategoryId={selectedCategoryId}
+              selectedManagementArea={selectedManagementArea}
+              onSelectCategory={handleSelectCategory}
+              onSelectManagementArea={handleSelectManagementArea}
+              isLoading={isLoadingCategories}
             />
-          )}
+
+            {/* 마스터 테이블 - 선택된 카테고리로 필터링 */}
+            <div className="flex-1 overflow-auto">
+              <ItemTable
+                items={displayMasters}
+                isLoading={isLoadingMasters}
+                onApplyChange={handleApplyChange}
+                onEditItem={handleEditMaster}
+                onDeleteItem={handleDeleteMaster}
+              />
+            </div>
+          </div>
         </>
       )}
 

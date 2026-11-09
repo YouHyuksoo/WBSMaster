@@ -332,7 +332,7 @@ export default function EditItemModal({
             {/* 안내 문구 */}
             <div className="col-span-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
               <p className="text-xs text-blue-600 dark:text-blue-400">
-                <strong>참고:</strong> 사업부별 적용 여부와 검증 상태는 테이블에서 직접 변경할 수 있습니다.
+                <strong>참고:</strong> 적용 여부와 검증 상태는 테이블에서 직접 변경할 수 있습니다.
               </p>
             </div>
           </div>

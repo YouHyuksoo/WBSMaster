@@ -8,12 +8,17 @@
  * - file: 엑셀 파일 (.xlsx, .xls)
  * - projectId: 프로젝트 ID (필수)
  * - clearExisting: 기존 데이터 삭제 여부 (선택, 기본값 "false")
+ *
+ * 엑셀 컬럼 순서 (화면의 "고객요구사항_템플릿"과 같아야 한다):
+ * 순번, 요구번호, 업무구분, 기능명, 요구사항, 요청일자, 요청자, 적용방안, 적용여부, 비고
+ * 사업부 컬럼은 없다. businessUnit 은 DB 기본값(POLE)으로 저장된다.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ApplyStatus } from "@prisma/client";
 import * as XLSX from "xlsx";
+import { hasLegacyBusinessUnitColumn, LEGACY_TEMPLATE_MESSAGE } from "@/lib/import-guards";
 
 /**
  * 적용여부 문자열을 ApplyStatus로 변환 (필독 가이드 기준)
@@ -122,13 +127,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 기존 데이터 삭제 (옵션)
-    if (clearExisting) {
-      await prisma.customerRequirement.deleteMany({
-        where: { projectId },
-      });
-    }
-
     // 파일을 ArrayBuffer로 변환 후 XLSX 파싱
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
@@ -143,6 +141,18 @@ export async function POST(request: NextRequest) {
         { error: "데이터가 없습니다. (헤더 제외 최소 1행 필요)" },
         { status: 400 }
       );
+    }
+
+    // 예전 템플릿(사업부 칼럼 포함)은 칼럼이 한 칸씩 밀리므로 거부
+    if (hasLegacyBusinessUnitColumn(data[0])) {
+      return NextResponse.json({ error: LEGACY_TEMPLATE_MESSAGE }, { status: 400 });
+    }
+
+    // 기존 데이터 삭제 (옵션) — 파일 검사를 통과한 뒤에만 지운다
+    if (clearExisting) {
+      await prisma.customerRequirement.deleteMany({
+        where: { projectId },
+      });
     }
 
     const stats = {
@@ -164,11 +174,11 @@ export async function POST(request: NextRequest) {
       const row = data[rowIdx];
 
       // 행이 없거나 컬럼이 부족한 경우 (누락 추적)
-      if (!row || row.length < 6) {
+      if (!row || row.length < 5) {
         // 빈 행이 아니면 에러로 기록
         if (row && row.some((cell) => cell != null && cell !== "")) {
           stats.skipped++;
-          stats.errors.push(`행 ${rowIdx + 1}: 컬럼 수 부족 (${row.length}개, 최소 6개 필요)`);
+          stats.errors.push(`행 ${rowIdx + 1}: 컬럼 수 부족 (${row.length}개, 최소 5개 필요)`);
         }
         continue;
       }
@@ -181,22 +191,21 @@ export async function POST(request: NextRequest) {
 
       try {
         // 컬럼 매핑 (엑셀 구조에 맞게)
-        // 순번, 요구번호, 사업부, 업무구분, 기능명, 요구사항, 요청일자, 요청자, 적용방안, 적용여부, 비고
+        // 순번, 요구번호, 업무구분, 기능명, 요구사항, 요청일자, 요청자, 적용방안, 적용여부, 비고
         const excelCode = String(row[1] || "").trim(); // 요구번호
-        const businessUnit = String(row[2] || "").trim(); // 사업부
-        const category = row[3] ? String(row[3]).trim() : null; // 업무구분
-        const functionName = String(row[4] || "").trim(); // 기능명
-        const content = String(row[5] || "").trim(); // 요구사항
-        const requestDate = parseExcelDate(row[6]); // 요청일자
-        const requester = row[7] ? String(row[7]).trim() : null; // 요청자
-        const solution = row[8] ? String(row[8]).trim() : null; // 적용방안
-        const applyStatus = parseApplyStatus(row[9] ? String(row[9]) : null); // 적용여부
-        const remarks = row[10] ? String(row[10]).trim() : null; // 비고
+        const category = row[2] ? String(row[2]).trim() : null; // 업무구분
+        const functionName = String(row[3] || "").trim(); // 기능명
+        const content = String(row[4] || "").trim(); // 요구사항
+        const requestDate = parseExcelDate(row[5]); // 요청일자
+        const requester = row[6] ? String(row[6]).trim() : null; // 요청자
+        const solution = row[7] ? String(row[7]).trim() : null; // 적용방안
+        const applyStatus = parseApplyStatus(row[8] ? String(row[8]) : null); // 적용여부
+        const remarks = row[9] ? String(row[9]).trim() : null; // 비고
 
         // 필수 값 검증
-        if (!businessUnit || !functionName || !content) {
+        if (!functionName || !content) {
           stats.skipped++;
-          stats.errors.push(`행 ${rowIdx + 1}: 필수 값 누락 (사업부, 기능명, 요구사항)`);
+          stats.errors.push(`행 ${rowIdx + 1}: 필수 값 누락 (기능명, 요구사항)`);
           continue;
         }
 
@@ -223,7 +232,6 @@ export async function POST(request: NextRequest) {
             projectId,
             sequence: nextSequence,
             code,
-            businessUnit,
             category,
             functionName,
             content,

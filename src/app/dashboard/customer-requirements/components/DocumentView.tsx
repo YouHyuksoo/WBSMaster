@@ -270,7 +270,7 @@ export function DocumentView({
                   업무영역명
                 </th>
                 <td className="border border-slate-300 dark:border-slate-600 px-4 py-3 text-text dark:text-white">
-                  {currentRequirement.category || currentRequirement.businessUnit || "-"}
+                  {currentRequirement.category || "-"}
                 </td>
               </tr>
 
@@ -344,7 +344,7 @@ export function DocumentView({
                   출처
                 </th>
                 <td colSpan={3} className="border border-slate-300 dark:border-slate-600 px-4 py-3 text-text dark:text-white">
-                  {currentRequirement.businessUnit || "-"} 사업부 요청 ({formatDate(currentRequirement.requestDate)})
+                  {currentRequirement.requester || "-"} 요청 ({formatDate(currentRequirement.requestDate)})
                 </td>
               </tr>
 

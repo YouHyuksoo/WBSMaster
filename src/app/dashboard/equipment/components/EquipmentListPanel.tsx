@@ -171,16 +171,8 @@ export function EquipmentListPanel({
                     {equipment.name}
                   </h3>
 
-                  {/* 하단: 사업부 / 라인 / 위치 (아이콘 포함) */}
+                  {/* 하단: 라인 / 위치 (아이콘 포함) */}
                   <div className="flex items-center gap-1.5 text-xs text-text-secondary flex-wrap">
-                    {equipment.divisionCode && (
-                      <div className="flex items-center gap-1 bg-surface dark:bg-background-dark px-2 py-0.5 rounded">
-                        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
-                          business
-                        </span>
-                        <span className="truncate">{equipment.divisionCode}</span>
-                      </div>
-                    )}
                     {equipment.lineCode && (
                       <div className="flex items-center gap-1 bg-surface dark:bg-background-dark px-2 py-0.5 rounded">
                         <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
@@ -197,7 +189,7 @@ export function EquipmentListPanel({
                         <span className="truncate">{equipment.location}</span>
                       </div>
                     )}
-                    {!equipment.divisionCode && !equipment.lineCode && !equipment.location && (
+                    {!equipment.lineCode && !equipment.location && (
                       <span className="text-text-secondary/50 italic">정보 없음</span>
                     )}
                   </div>

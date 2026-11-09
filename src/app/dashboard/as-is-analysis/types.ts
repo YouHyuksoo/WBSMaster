@@ -51,7 +51,6 @@ export type Priority = "HIGH" | "MEDIUM" | "LOW";
 /** AS-IS 총괄 */
 export interface AsIsOverview {
   id: string;
-  businessUnit: string; // 사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HNS)
   customerName?: string | null;
   author?: string | null;
   createdDate: string;
@@ -397,10 +396,9 @@ export interface SwimlaneProcessNodeData {
 // API 요청/응답 타입
 // ============================================
 
-/** 총괄 생성 요청 */
+/** 총괄 생성 요청 (사업부는 서버가 DEFAULT_BUSINESS_UNIT("POLE")으로 고정) */
 export interface CreateAsIsOverviewRequest {
   projectId: string;
-  businessUnit: string; // 사업부 구분 (V_IVI, V_DISP, V_PCBA, V_HNS)
   customerName?: string;
   author?: string;
 }

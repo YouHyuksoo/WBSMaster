@@ -53,7 +53,6 @@ export function EquipmentModal({
     status: "ACTIVE" as EquipmentStatus,
     location: "",
     lineCode: "",
-    divisionCode: "",
     imageUrl: "",
     description: "",
     manufacturer: "",
@@ -82,7 +81,6 @@ export function EquipmentModal({
         status: equipment.status || "ACTIVE",
         location: equipment.location || "",
         lineCode: equipment.lineCode || "",
-        divisionCode: equipment.divisionCode || "",
         imageUrl: equipment.imageUrl || "",
         description: equipment.description || "",
         manufacturer: equipment.manufacturer || "",
@@ -104,7 +102,6 @@ export function EquipmentModal({
         status: "ACTIVE",
         location: "",
         lineCode: "",
-        divisionCode: "",
         imageUrl: "",
         description: "",
         manufacturer: "",
@@ -138,7 +135,6 @@ export function EquipmentModal({
           status: formData.status,
           location: formData.location || undefined,
           lineCode: formData.lineCode || undefined,
-          divisionCode: formData.divisionCode || undefined,
           imageUrl: formData.imageUrl || undefined,
           description: formData.description || undefined,
           manufacturer: formData.manufacturer || undefined,
@@ -161,7 +157,6 @@ export function EquipmentModal({
             status: formData.status,
             location: formData.location || undefined,
             lineCode: formData.lineCode || undefined,
-            divisionCode: formData.divisionCode || undefined,
             imageUrl: formData.imageUrl || undefined,
             description: formData.description || undefined,
             manufacturer: formData.manufacturer || undefined,
@@ -274,33 +269,18 @@ export function EquipmentModal({
               </div>
             </div>
 
-            {/* 사업부 + 라인 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-text dark:text-white mb-1 block">
-                  사업부 코드
-                </label>
-                <input
-                  type="text"
-                  value={formData.divisionCode}
-                  onChange={(e) => setFormData({ ...formData, divisionCode: e.target.value })}
-                  placeholder="예: DIV-A, 사업부1"
-                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-text dark:text-white mb-1 block">
-                  라인코드
-                </label>
-                <input
-                  type="text"
-                  value={formData.lineCode}
-                  onChange={(e) => setFormData({ ...formData, lineCode: e.target.value })}
-                  placeholder="예: L1, L2, LINE-A"
-                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
+            {/* 라인 */}
+            <div>
+              <label className="text-sm font-medium text-text dark:text-white mb-1 block">
+                라인코드
+              </label>
+              <input
+                type="text"
+                value={formData.lineCode}
+                onChange={(e) => setFormData({ ...formData, lineCode: e.target.value })}
+                placeholder="예: L1, L2, LINE-A"
+                className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+              />
             </div>
 
             {/* 위치 */}

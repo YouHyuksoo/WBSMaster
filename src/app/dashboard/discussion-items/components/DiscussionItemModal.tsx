@@ -6,8 +6,9 @@
  *
  * 초보자 가이드:
  * 1. **모드**: 생성(create) 또는 수정(edit) 모드
- * 2. **필수 필드**: 사업부, 협의 주제, 발생 단계, 선택지 (최소 2개)
+ * 2. **필수 필드**: 협의 주제, 발생 단계, 선택지 (최소 2개)
  * 3. **선택지 관리**: 동적으로 추가/삭제 가능
+ * 4. **사업부**: 묻지 않는다. 저장 시 서버가 DEFAULT_BUSINESS_UNIT 으로 채운다.
  */
 
 "use client";
@@ -23,7 +24,6 @@ import {
   STAGE_CONFIG,
   PRIORITY_CONFIG,
 } from "../types";
-import { BUSINESS_UNITS } from "@/constants/business-units";
 
 interface DiscussionItemModalProps {
   isOpen: boolean;
@@ -35,7 +35,6 @@ interface DiscussionItemModalProps {
 
 /** 기본 폼 데이터 */
 const DEFAULT_FORM_DATA: DiscussionItemFormData = {
-  businessUnit: "",
   title: "",
   description: "",
   stage: "ANALYSIS",
@@ -66,7 +65,6 @@ export function DiscussionItemModal({
   useEffect(() => {
     if (mode === "edit" && item) {
       setFormData({
-        businessUnit: item.businessUnit,
         title: item.title,
         description: item.description || "",
         stage: item.stage,
@@ -135,9 +133,6 @@ export function DiscussionItemModal({
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.businessUnit.trim()) {
-      newErrors.businessUnit = "사업부를 선택해주세요.";
-    }
     if (!formData.title.trim()) {
       newErrors.title = "협의 주제를 입력해주세요.";
     }
@@ -206,28 +201,6 @@ export function DiscussionItemModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* 기본 정보 */}
           <div className="grid grid-cols-2 gap-4">
-            {/* 사업부구분 */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                사업부구분 <span className="text-error">*</span>
-              </label>
-              <select
-                value={formData.businessUnit}
-                onChange={(e) => handleChange("businessUnit", e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
-              >
-                <option value="">선택</option>
-                {BUSINESS_UNITS.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
-                  </option>
-                ))}
-              </select>
-              {errors.businessUnit && (
-                <p className="mt-1 text-xs text-error">{errors.businessUnit}</p>
-              )}
-            </div>
-
             {/* 발생 단계 */}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">

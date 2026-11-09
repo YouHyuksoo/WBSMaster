@@ -6,6 +6,7 @@
  * 초보자 가이드:
  * - GET /api/customer-requirements: 목록 조회 (필터링 지원)
  * - POST /api/customer-requirements: 새 고객요구사항 생성
+ *   (사업부는 받지 않는다. DB 기본값 POLE 으로 저장)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -19,7 +20,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
-    const businessUnit = searchParams.get("businessUnit");
     const applyStatus = searchParams.get("applyStatus");
     const search = searchParams.get("search");
 
@@ -30,9 +30,6 @@ export async function GET(request: NextRequest) {
       where.projectId = projectId;
     }
 
-    if (businessUnit) {
-      where.businessUnit = businessUnit;
-    }
 
     if (applyStatus) {
       where.applyStatus = applyStatus;
@@ -82,7 +79,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       projectId,
-      businessUnit,
       category,
       functionName,
       content,
@@ -98,13 +94,6 @@ export async function POST(request: NextRequest) {
     if (!projectId) {
       return NextResponse.json(
         { error: "프로젝트 ID는 필수입니다." },
-        { status: 400 }
-      );
-    }
-
-    if (!businessUnit) {
-      return NextResponse.json(
-        { error: "사업부는 필수입니다." },
         { status: 400 }
       );
     }
@@ -150,7 +139,6 @@ export async function POST(request: NextRequest) {
         projectId,
         sequence: nextSequence,
         code,
-        businessUnit,
         category: category || null,
         functionName,
         content,

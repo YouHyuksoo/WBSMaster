@@ -4,12 +4,18 @@
  * 공정검증 필터 바 컴포넌트입니다.
  * 검색 및 필터링 기능을 제공합니다.
  * customer-requirements 스타일과 통일됨.
+ *
+ * 초보자 가이드:
+ * 1. **검색**: Enter 또는 입력창을 벗어나면 검색어를 적용한다
+ * 2. **제품유형**: SMD / HANES 로 마스터를 거른다
+ * 3. **상태**: 검증 상태 선택 값을 FilterState.status 에 담는다 (목록 필터링에는 아직 미반영)
+ * 4. 카테고리는 좌측 사이드바(CategoryList)에서 고른다
  */
 
 "use client";
 
 import { useState } from "react";
-import { Icon, Input } from "@/components/ui";
+import { Input } from "@/components/ui";
 import {
   FilterState,
   VerificationStatus,
@@ -23,8 +29,6 @@ interface FilterBarProps {
   onFilterChange: (filter: Partial<FilterState>) => void;
   totalCount: number;
   appliedCount: number;
-  viewMode: "grid" | "comparison";
-  onViewModeChange: (mode: "grid" | "comparison") => void;
 }
 
 /**
@@ -34,8 +38,6 @@ interface FilterBarProps {
 export default function FilterBar({
   filter,
   onFilterChange,
-  viewMode,
-  onViewModeChange,
 }: FilterBarProps) {
   const [searchInput, setSearchInput] = useState(filter.search);
 
@@ -103,34 +105,6 @@ export default function FilterBar({
             </option>
           ))}
         </select>
-      </div>
-
-      {/* 우측: 보기 모드 전환 */}
-      <div className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg">
-        <button
-          onClick={() => onViewModeChange("grid")}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            viewMode === "grid"
-              ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
-              : "text-text-secondary hover:text-text dark:hover:text-white"
-          }`}
-          title="상세 그리드"
-        >
-          <Icon name="table_chart" size="xs" />
-          <span className="hidden sm:inline">상세 그리드</span>
-        </button>
-        <button
-          onClick={() => onViewModeChange("comparison")}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            viewMode === "comparison"
-              ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
-              : "text-text-secondary hover:text-text dark:hover:text-white"
-          }`}
-          title="그룹 비교"
-        >
-          <Icon name="compare_arrows" size="xs" />
-          <span className="hidden sm:inline">그룹 비교</span>
-        </button>
       </div>
     </div>
   );

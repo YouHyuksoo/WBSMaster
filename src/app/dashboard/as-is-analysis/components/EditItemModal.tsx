@@ -23,8 +23,6 @@ interface EditItemModalProps {
   item: AsIsOverviewItem;
   /** 프로젝트 ID (캐시 무효화용) */
   projectId: string;
-  /** 사업부 코드 (캐시 무효화용) */
-  businessUnit: string;
   /** 모달 닫기 핸들러 */
   onClose: () => void;
 }
@@ -32,9 +30,9 @@ interface EditItemModalProps {
 /**
  * 업무 항목 수정 모달 컴포넌트
  */
-export function EditItemModal({ item, projectId, businessUnit, onClose }: EditItemModalProps) {
-  // projectId, businessUnit을 전달해야 mutation 성공 시 올바른 캐시가 무효화됨
-  const { updateItem, isUpdatingItem } = useAsIsOverview(projectId, businessUnit);
+export function EditItemModal({ item, projectId, onClose }: EditItemModalProps) {
+  // projectId를 전달해야 mutation 성공 시 올바른 캐시가 무효화됨
+  const { updateItem, isUpdatingItem } = useAsIsOverview(projectId);
 
   // 초기값: 기존 항목 데이터
   const [asIsManagementNo, setAsIsManagementNo] = useState(item.asIsManagementNo || ""); // AS-IS 관리번호

@@ -9,7 +9,6 @@ function task(id: string, stageCategory: ProgressTask["stageCategory"], category
     code: id,
     name: id,
     category,
-    businessUnit: null,
     description: null,
     order: 0,
     startDate: "2026-01-01",

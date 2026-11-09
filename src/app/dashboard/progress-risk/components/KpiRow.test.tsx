@@ -11,7 +11,6 @@ function makeTask(overrides: Partial<ProgressTask> = {}): ProgressTask {
     code: "T-001",
     name: "테스트 task",
     category: null,
-    businessUnit: null,
     description: null,
     order: 0,
     startDate: "2026-01-01",
@@ -62,7 +61,7 @@ describe("KpiRow", () => {
     expect(alert.className).not.toContain("bg-error/5");
   });
 
-  it("사업부별 task와 일정 초과만 요약 카드에 표시하고 총 공수와 충돌 인원은 표시하지 않는다", () => {
+  it("일정 초과와 정상 진행만 요약 카드에 표시하고 사업부별 건수·총 공수·충돌 인원은 표시하지 않는다", () => {
     const diagnosis: Diagnosis = {
       verdict: "SCHEDULE_OVERRUN",
       overrunDays: 2,
@@ -75,9 +74,9 @@ describe("KpiRow", () => {
     render(
       <KpiRow
         tasks={[
-          makeTask({ id: "task-1", businessUnit: "V_IVI" }),
-          makeTask({ id: "task-2", businessUnit: "V_IVI" }),
-          makeTask({ id: "task-3", businessUnit: "V_DISP" }),
+          makeTask({ id: "task-1" }),
+          makeTask({ id: "task-2" }),
+          makeTask({ id: "task-3" }),
         ]}
         conflicts={[{ userId: "user-1", week: "2026-W01", sumPct: 120, overflow: 20 }]}
         diagnosis={diagnosis}
@@ -88,8 +87,8 @@ describe("KpiRow", () => {
     const text = summary.textContent ?? "";
 
     expect(text).not.toContain("총 task");
-    expect(text).toContain("V_IVI");
-    expect(text).toContain("V_DISP");
+    expect(text).not.toContain("V_IVI");
+    expect(text).not.toContain("미지정");
     expect(text).not.toContain("총 공수");
     expect(text).toContain("일정 초과");
     expect(text).not.toContain("충돌 인원");

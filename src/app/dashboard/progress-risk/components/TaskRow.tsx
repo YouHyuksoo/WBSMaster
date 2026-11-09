@@ -163,9 +163,6 @@ export function TaskRow({
         />
       </div>
       <div className="text-text-secondary">{index}</div>
-      <div className="text-text-secondary text-[11px] truncate" title={task.businessUnit ?? ""}>
-        {task.businessUnit ?? "-"}
-      </div>
       <select
         value={task.stageCategory}
         onChange={(e) => update.mutate({ id: task.id, data: { stageCategory: e.target.value as StageCategory } })}

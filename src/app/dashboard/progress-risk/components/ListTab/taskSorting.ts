@@ -9,7 +9,6 @@ const categoryRank = new Map<StageCategory, number>(
 export function sortProgressTasksForGrid(tasks: ProgressTask[]): ProgressTask[] {
   return [...tasks].sort((a, b) => {
     return (
-      compareText(a.businessUnit, b.businessUnit) ||
       compareCategory(a.stageCategory, b.stageCategory) ||
       compareText(a.category, b.category) ||
       compareText(a.name, b.name) ||

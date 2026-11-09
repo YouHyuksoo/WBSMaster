@@ -9,15 +9,17 @@
  * - projectId: 프로젝트 ID (필수)
  * - clearExisting: 기존 데이터 삭제 여부 (선택, 기본값 "false")
  *
- * 엑셀 컬럼 순서 (리스트 시트):
- * 이슈번호, 사업부, 업무구분, 이슈관리명, 이슈 설명, 등록일, 이슈어,
+ * 엑셀 컬럼 순서 (리스트 시트, 화면의 "현업이슈_템플릿"과 같아야 한다):
+ * 이슈번호, 업무구분, 이슈관리명, 이슈 설명, 등록일, 이슈어,
  * 요구사항 번호, 담당자, 상태, 타겟일, 완료일, 제안된 해결 방안, 최종 적용된 방안, 참고
+ * 사업부 컬럼은 없다. businessUnit 은 DB 기본값(POLE)으로 저장된다.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { FieldIssueStatus } from "@prisma/client";
 import * as XLSX from "xlsx";
+import { hasLegacyBusinessUnitColumn, LEGACY_TEMPLATE_MESSAGE } from "@/lib/import-guards";
 
 /**
  * 상태 문자열을 FieldIssueStatus로 변환 (필독 가이드 기준)
@@ -123,13 +125,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 기존 데이터 삭제 (옵션)
-    if (clearExisting) {
-      await prisma.fieldIssue.deleteMany({
-        where: { projectId },
-      });
-    }
-
     // 파일을 ArrayBuffer로 변환 후 XLSX 파싱
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
@@ -146,6 +141,18 @@ export async function POST(request: NextRequest) {
         { error: "데이터가 없습니다. (헤더 제외 최소 1행 필요)" },
         { status: 400 }
       );
+    }
+
+    // 예전 템플릿(사업부 칼럼 포함)은 칼럼이 한 칸씩 밀리므로 거부
+    if (hasLegacyBusinessUnitColumn(data[0])) {
+      return NextResponse.json({ error: LEGACY_TEMPLATE_MESSAGE }, { status: 400 });
+    }
+
+    // 기존 데이터 삭제 (옵션) — 파일 검사를 통과한 뒤에만 지운다
+    if (clearExisting) {
+      await prisma.fieldIssue.deleteMany({
+        where: { projectId },
+      });
     }
 
     const stats = {
@@ -167,11 +174,11 @@ export async function POST(request: NextRequest) {
       const row = data[rowIdx];
 
       // 행이 없거나 컬럼이 부족한 경우
-      if (!row || row.length < 4) {
+      if (!row || row.length < 3) {
         // 빈 행이 아니면 에러로 기록
         if (row && row.some((cell) => cell != null && cell !== "")) {
           stats.skipped++;
-          stats.errors.push(`행 ${rowIdx + 1}: 컬럼 수 부족 (${row.length}개, 최소 4개 필요)`);
+          stats.errors.push(`행 ${rowIdx + 1}: 컬럼 수 부족 (${row.length}개, 최소 3개 필요)`);
         }
         continue;
       }
@@ -184,28 +191,27 @@ export async function POST(request: NextRequest) {
 
       try {
         // 컬럼 매핑 (엑셀 구조에 맞게 - 0부터 시작)
-        // 이슈번호, 사업부, 업무구분, 이슈관리명, 이슈 설명, 등록일, 이슈어,
+        // 이슈번호, 업무구분, 이슈관리명, 이슈 설명, 등록일, 이슈어,
         // 요구사항 번호, 담당자, 상태, 타겟일, 완료일, 제안된 해결 방안, 최종 적용된 방안, 참고
         const excelCode = String(row[0] || "").trim(); // 이슈번호
-        const businessUnit = String(row[1] || "").trim(); // 사업부
-        const category = row[2] ? String(row[2]).trim() : null; // 업무구분
-        const title = String(row[3] || "").trim(); // 이슈관리명
-        const description = row[4] ? String(row[4]).trim() : null; // 이슈 설명
-        const registeredDate = parseExcelDate(row[5]); // 등록일
-        const issuer = row[6] ? String(row[6]).trim() : null; // 이슈어
-        const requirementCode = row[7] ? String(row[7]).trim() : null; // 요구사항 번호
-        const assignee = row[8] ? String(row[8]).trim() : null; // 담당자
-        const status = parseStatus(row[9] ? String(row[9]) : null); // 상태
-        const targetDate = parseExcelDate(row[10]); // 타겟일
-        const completedDate = parseExcelDate(row[11]); // 완료일
-        const proposedSolution = row[12] ? String(row[12]).trim() : null; // 제안된 해결 방안
-        const finalSolution = row[13] ? String(row[13]).trim() : null; // 최종 적용된 방안
-        const remarks = row[14] ? String(row[14]).trim() : null; // 참고
+        const category = row[1] ? String(row[1]).trim() : null; // 업무구분
+        const title = String(row[2] || "").trim(); // 이슈관리명
+        const description = row[3] ? String(row[3]).trim() : null; // 이슈 설명
+        const registeredDate = parseExcelDate(row[4]); // 등록일
+        const issuer = row[5] ? String(row[5]).trim() : null; // 이슈어
+        const requirementCode = row[6] ? String(row[6]).trim() : null; // 요구사항 번호
+        const assignee = row[7] ? String(row[7]).trim() : null; // 담당자
+        const status = parseStatus(row[8] ? String(row[8]) : null); // 상태
+        const targetDate = parseExcelDate(row[9]); // 타겟일
+        const completedDate = parseExcelDate(row[10]); // 완료일
+        const proposedSolution = row[11] ? String(row[11]).trim() : null; // 제안된 해결 방안
+        const finalSolution = row[12] ? String(row[12]).trim() : null; // 최종 적용된 방안
+        const remarks = row[13] ? String(row[13]).trim() : null; // 참고
 
         // 필수 값 검증
-        if (!businessUnit || !title) {
+        if (!title) {
           stats.skipped++;
-          stats.errors.push(`행 ${rowIdx + 1}: 필수 값 누락 (사업부, 이슈관리명)`);
+          stats.errors.push(`행 ${rowIdx + 1}: 필수 값 누락 (이슈관리명)`);
           continue;
         }
 
@@ -232,7 +238,6 @@ export async function POST(request: NextRequest) {
             projectId,
             sequence: nextSequence,
             code,
-            businessUnit,
             category,
             title,
             description,

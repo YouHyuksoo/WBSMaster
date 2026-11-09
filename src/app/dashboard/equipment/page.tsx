@@ -5,15 +5,16 @@
  *
  * 초보자 가이드:
  * 1. **EquipmentToolbar**: 상단 툴바 (제목, 프로젝트 정보, 새 설비 추가)
- * 2. **필터 바**: 사업부, 라인 필터링 (캔버스 상단)
+ * 2. **필터 바**: 라인, 타입, 상태, 위치 필터링 (캔버스 상단)
  *    - 라인 선택 필수: 성능 최적화를 위해 라인을 선택해야 설비 표시
+ *    - 라인 목록은 프로젝트 전체 라인을 불러온다 (filters API 에 "ALL" 전달)
  * 3. **EquipmentCanvas**: 중앙 캔버스 (노드 + 연결선)
  * 4. **EquipmentListPanel**: 좌측 설비 목록
  * 5. **EquipmentSidebar**: 우측 사이드바 (선택한 설비 편집)
  *
  * 수정 방법:
  * - 레이아웃 변경: className 수정
- * - 필터 추가: uniqueDivisions, uniqueLines에 필터 옵션 추가
+ * - 필터 추가: uniqueLines, uniqueLocations에 필터 옵션 추가
  * - 추가 기능: 컴포넌트 추가
  */
 
@@ -23,7 +24,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { utils, writeFile } from "xlsx";
 import { useProject } from "@/contexts";
 import { Equipment, EquipmentStatus, EquipmentType } from "@/lib/api";
-import { useEquipment, useEquipmentDivisions, useEquipmentLines } from "./hooks/useEquipment";
+import { useEquipment, useEquipmentLines } from "./hooks/useEquipment";
 import { useEquipmentConnections } from "./hooks/useEquipmentConnections";
 import { STATUS_CONFIG, TYPE_CONFIG } from "./types";
 import {
@@ -60,7 +61,6 @@ export default function EquipmentPage() {
   });
 
   // 필터 상태 (초기값: 선택 안 됨)
-  const [divisionFilter, setDivisionFilter] = useState<string>("ALL");
   const [lineFilter, setLineFilter] = useState<string>(""); // 빈 문자열: 선택 안 됨
   const [typeFilter, setTypeFilter] = useState<EquipmentType | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<EquipmentStatus | "ALL">("ALL");
@@ -123,24 +123,16 @@ export default function EquipmentPage() {
     }
   `;
 
-  // 사업부 목록 조회 (최초 1회만)
-  const { data: divisionData } = useEquipmentDivisions(selectedProjectId || undefined);
-
-  // 라인 목록 조회 (사업부 선택 시 동적 조회)
-  // 사업부가 "ALL"이면 라인 조회 안 함 (사업부 먼저 선택 필요)
-  const { data: lineData } = useEquipmentLines(
-    selectedProjectId || undefined,
-    divisionFilter !== "ALL" ? divisionFilter : undefined
-  );
+  // 라인 목록 조회 (프로젝트 전체 라인)
+  const { data: lineData } = useEquipmentLines(selectedProjectId || undefined);
 
   // 설비 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
   const equipmentFilters = useMemo(
     () => ({
       projectId: lineFilter ? (selectedProjectId || undefined) : undefined, // 라인 미선택 시 조회 비활성화
-      divisionCode: divisionFilter !== "ALL" ? divisionFilter : undefined,
       lineCode: lineFilter && lineFilter !== "ALL" ? lineFilter : undefined,
     }),
-    [selectedProjectId, lineFilter, divisionFilter]
+    [selectedProjectId, lineFilter]
   );
 
   // 설비 데이터 조회 (필터 조건으로)
@@ -166,9 +158,7 @@ export default function EquipmentPage() {
     isLoading: isLoadingConnections,
   } = useEquipmentConnections(connectionFilters);
 
-  // 사업부 목록 (최초 1회 조회)
-  const uniqueDivisions = divisionData?.divisions || [];
-  // 라인 목록 (사업부 선택 시 동적 조회)
+  // 라인 목록
   const uniqueLines = lineData?.lines || [];
 
   // 위치 목록 (조회된 데이터에서 추출)
@@ -179,9 +169,9 @@ export default function EquipmentPage() {
   // 필터 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [divisionFilter, lineFilter, typeFilter, statusFilter, locationFilter]);
+  }, [lineFilter, typeFilter, statusFilter, locationFilter]);
 
-  // 필터링된 설비 목록 (API에서 사업부/라인 필터링됨, 추가로 타입/상태/위치 클라이언트 필터링)
+  // 필터링된 설비 목록 (API에서 라인 필터링됨, 추가로 타입/상태/위치 클라이언트 필터링)
   const filteredEquipments = useMemo(() => {
     let result = equipments;
 
@@ -266,7 +256,6 @@ export default function EquipmentPage() {
       "설비명": eq.name,
       "타입": TYPE_CONFIG[eq.type]?.label || eq.type,
       "상태": STATUS_CONFIG[eq.status]?.label || eq.status,
-      "사업부": eq.divisionCode || "",
       "라인": eq.lineCode || "",
       "위치": eq.location || "",
       "설명": eq.description || "",
@@ -298,7 +287,6 @@ export default function EquipmentPage() {
       { wch: 25 }, // 설비명
       { wch: 12 }, // 타입
       { wch: 12 }, // 상태
-      { wch: 15 }, // 사업부
       { wch: 15 }, // 라인
       { wch: 15 }, // 위치
       { wch: 40 }, // 설명
@@ -483,38 +471,18 @@ export default function EquipmentPage() {
               <span className="text-sm font-medium text-text dark:text-white">필터</span>
             </div>
 
-            {/* 사업부 필터 */}
-            <select
-              value={divisionFilter}
-              onChange={(e) => {
-                setDivisionFilter(e.target.value);
-                setLineFilter(""); // 사업부 변경 시 라인 선택 해제
-              }}
-              className="px-3 py-1.5 rounded-lg bg-background-white dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="ALL">전체 사업부</option>
-              {uniqueDivisions.map((division) => (
-                <option key={division} value={division}>
-                  {division}
-                </option>
-              ))}
-            </select>
-
-            {/* 라인 필터 (사업부 선택 후 활성화) */}
+            {/* 라인 필터 (선택해야 설비 표시) */}
             <select
               value={lineFilter}
               onChange={(e) => setLineFilter(e.target.value)}
-              disabled={divisionFilter === "ALL"}
               className={`px-3 py-1.5 rounded-lg bg-background-white dark:bg-background-dark border text-sm focus:outline-none focus:ring-2 focus:ring-primary ${
-                divisionFilter === "ALL"
-                  ? "opacity-50 cursor-not-allowed border-border dark:border-border-dark text-text-secondary"
-                  : !lineFilter
-                    ? "border-warning text-warning font-medium"
-                    : "border-border dark:border-border-dark text-text dark:text-white"
+                !lineFilter
+                  ? "border-warning text-warning font-medium"
+                  : "border-border dark:border-border-dark text-text dark:text-white"
               }`}
             >
               <option value="" disabled>
-                {divisionFilter === "ALL" ? "📌 사업부 먼저 선택" : "⚠️ 라인을 선택하세요"}
+                ⚠️ 라인을 선택하세요
               </option>
               <option value="ALL">전체 라인</option>
               {uniqueLines.map((line) => (
@@ -567,10 +535,9 @@ export default function EquipmentPage() {
             </select>
 
             {/* 필터 초기화 버튼 */}
-            {(divisionFilter !== "ALL" || (lineFilter && lineFilter !== "ALL") || typeFilter !== "ALL" || statusFilter !== "ALL" || locationFilter !== "ALL") && (
+            {((lineFilter && lineFilter !== "ALL") || typeFilter !== "ALL" || statusFilter !== "ALL" || locationFilter !== "ALL") && (
               <button
                 onClick={() => {
-                  setDivisionFilter("ALL");
                   setLineFilter(""); // 빈 문자열로 초기화
                   setTypeFilter("ALL");
                   setStatusFilter("ALL");
@@ -696,10 +663,7 @@ export default function EquipmentPage() {
                   setViewMode("canvas");
                   setSelectedEquipmentId(eq.id);
                   setFocusEquipmentId(eq.id);
-                  // 해당 설비의 사업부와 라인으로 필터 설정
-                  if (eq.divisionCode) {
-                    setDivisionFilter(eq.divisionCode);
-                  }
+                  // 해당 설비의 라인으로 필터 설정
                   if (eq.lineCode) {
                     setLineFilter(eq.lineCode);
                   }
@@ -745,25 +709,7 @@ export default function EquipmentPage() {
           ) : (
             // 캔버스 보기
             <>
-              {divisionFilter === "ALL" ? (
-                // 사업부 미선택 시 안내 메시지
-                <div className="flex-1 flex items-center justify-center bg-surface dark:bg-background-dark">
-                  <div className="text-center">
-                    <span className="material-symbols-outlined text-primary mb-4" style={{ fontSize: 64 }}>
-                      business
-                    </span>
-                    <h2 className="text-xl font-bold text-text dark:text-white mb-2">
-                      사업부를 선택해주세요
-                    </h2>
-                    <p className="text-text-secondary mb-4">
-                      상단의 사업부 필터에서 보려는 사업부를 선택하세요.
-                    </p>
-                    <p className="text-sm text-text-secondary">
-                      사업부 선택 후 해당 사업부의 라인이 표시됩니다.
-                    </p>
-                  </div>
-                </div>
-              ) : !lineFilter ? (
+              {!lineFilter ? (
                 // 라인 미선택 시 안내 메시지
                 <div className="flex-1 flex items-center justify-center bg-surface dark:bg-background-dark">
                   <div className="text-center">
