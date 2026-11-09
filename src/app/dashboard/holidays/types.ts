@@ -30,6 +30,7 @@ export const holidayTypeConfig: Record<string, HolidayTypeConfigItem> = {
   PERSONAL_SCHEDULE: { label: "개인 일정", color: "text-violet-500", bgColor: "bg-violet-500", icon: "person" },
   MEETING: { label: "회의", color: "text-sky-500", bgColor: "bg-sky-500", icon: "videocam" },
   DEADLINE: { label: "마감일", color: "text-amber-500", bgColor: "bg-amber-500", icon: "flag" },
+  ONSITE_WORK: { label: "상주근무", color: "text-teal-500", bgColor: "bg-teal-500", icon: "apartment" },
   OTHER: { label: "기타", color: "text-slate-500", bgColor: "bg-slate-500", icon: "event" },
 };
 
@@ -70,6 +71,7 @@ export const holidayTypeList = [
   "PERSONAL_SCHEDULE",
   "MEETING",
   "DEADLINE",
+  "ONSITE_WORK",
   "OTHER",
 ] as const;
 

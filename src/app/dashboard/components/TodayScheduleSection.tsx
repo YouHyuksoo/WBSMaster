@@ -41,6 +41,7 @@ const scheduleTypeConfig: Record<string, { label: string; color: string; icon: s
   PERSONAL_SCHEDULE: { label: "개인 일정", color: "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400", icon: "person" },
   MEETING: { label: "회의", color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400", icon: "videocam" },
   DEADLINE: { label: "마감", color: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400", icon: "flag" },
+  ONSITE_WORK: { label: "상주근무", color: "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400", icon: "apartment" },
   OTHER: { label: "기타", color: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400", icon: "event" },
 };
 

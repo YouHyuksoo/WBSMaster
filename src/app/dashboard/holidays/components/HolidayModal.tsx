@@ -136,6 +136,7 @@ export function HolidayModal({
               <option value="DEADLINE">마감일</option>
               <option value="COMPANY_HOLIDAY">회사 휴일</option>
               <option value="TEAM_OFFSITE">팀 오프사이트</option>
+              <option value="ONSITE_WORK">상주근무</option>
               <option value="PERSONAL_LEAVE">개인 휴가</option>
               <option value="OTHER">기타</option>
             </select>

@@ -361,6 +361,7 @@ enum HolidayType {
   PERSONAL_SCHEDULE // 개인 일정
   MEETING // 회의
   DEADLINE // 마감일
+  ONSITE_WORK // 상주근무 (고객사 현장 상주)
   OTHER // 기타
 }
 
