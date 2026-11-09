@@ -32,7 +32,7 @@ import {
   useUpdateCustomerRequirement,
   useDeleteCustomerRequirement,
 } from "@/hooks";
-import { CustomerRequirementModal, CustomerRequirementTable, DocumentView } from "./components";
+import { CustomerRequirementModal, CustomerRequirementTable, DocumentView, StatsSummary } from "./components";
 import { ImportExcelModal } from "@/components/common";
 import {
   type CustomerRequirement,
@@ -517,91 +517,7 @@ export default function CustomerRequirementsPage() {
                 isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
               }`}
             >
-              <div className="grid grid-cols-2 lg:grid-cols-8 gap-2 pb-2">
-                {/* 적용률 카드 */}
-                <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                  <div className="size-9 rounded-lg bg-primary/20 flex items-center justify-center mb-2">
-                    <Icon name="speed" size="sm" className="text-primary" />
-                  </div>
-                  <p className="text-xs font-semibold text-primary mb-1">적용률</p>
-                  <p className="text-2xl font-bold text-primary mb-2">
-                    {stats.appliedRate}%
-                  </p>
-                  <div className="w-full h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                      style={{ width: `${stats.appliedRate}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* 전주 통계 카드 */}
-                <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                  <div className="size-9 rounded-lg bg-blue-500/20 flex items-center justify-center mb-2">
-                    <Icon name="calendar_month" size="sm" className="text-blue-500" />
-                  </div>
-                  <p className="text-xs font-semibold text-blue-500 mb-1">전주</p>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{stats.lastWeekCreated}</p>
-                      <p className="text-xs text-text-secondary">등록</p>
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-success">{stats.lastWeekCompleted}</p>
-                      <p className="text-xs text-text-secondary">완료</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 전체 */}
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                  <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                    <Icon name="list_alt" size="sm" className="text-primary" />
-                  </div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-xs text-text-secondary">전체</p>
-                </div>
-                {/* 검토 */}
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                  <div className="size-9 rounded-lg bg-warning/10 flex items-center justify-center mb-2">
-                    <Icon name="pending" size="sm" className="text-warning" />
-                  </div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.reviewing}</p>
-                  <p className="text-xs text-text-secondary">검토</p>
-                </div>
-                {/* 승인 */}
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                  <div className="size-9 rounded-lg bg-blue-500/10 flex items-center justify-center mb-2">
-                    <Icon name="thumb_up" size="sm" className="text-blue-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.approved}</p>
-                  <p className="text-xs text-text-secondary">승인</p>
-                </div>
-                {/* 개발 */}
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                  <div className="size-9 rounded-lg bg-purple-500/10 flex items-center justify-center mb-2">
-                    <Icon name="code" size="sm" className="text-purple-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.inDevelopment}</p>
-                  <p className="text-xs text-text-secondary">개발</p>
-                </div>
-                {/* 적용 */}
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                  <div className="size-9 rounded-lg bg-success/10 flex items-center justify-center mb-2">
-                    <Icon name="check_circle" size="sm" className="text-success" />
-                  </div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.applied}</p>
-                  <p className="text-xs text-text-secondary">적용</p>
-                </div>
-                {/* 거절 */}
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                  <div className="size-9 rounded-lg bg-error/10 flex items-center justify-center mb-2">
-                    <Icon name="cancel" size="sm" className="text-error" />
-                  </div>
-                  <p className="text-2xl font-bold text-text dark:text-white">{stats.rejected}</p>
-                  <p className="text-xs text-text-secondary">거절</p>
-                </div>
-              </div>
+              <StatsSummary stats={stats} />
             </div>
 
             {/* 슬라이드 핸들 */}

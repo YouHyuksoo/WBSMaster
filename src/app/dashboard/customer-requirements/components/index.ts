@@ -8,8 +8,10 @@
  * - CustomerRequirementTable: 그리드(테이블) 형식 보기
  * - CustomerRequirementModal: 등록/수정 모달
  * - DocumentView: 산출물 형식 보기 (한 페이지씩 넘김)
+ * - StatsSummary: 상단 통계 카드 한 줄
  */
 
 export { CustomerRequirementTable } from "./CustomerRequirementTable";
 export { CustomerRequirementModal } from "./CustomerRequirementModal";
 export { DocumentView } from "./DocumentView";
+export { StatsSummary } from "./StatsSummary";

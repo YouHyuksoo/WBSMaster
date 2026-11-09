@@ -19,6 +19,7 @@ import {
   type FieldIssueStatus,
   STATUS_CONFIG,
 } from "../types";
+import { HoverTooltip } from "@/components/common";
 
 interface FieldIssueTableProps {
   /** 표시할 이슈 목록 */
@@ -217,7 +218,7 @@ export function FieldIssueTable({
             </div>
 
             {/* 이슈관리명 - 툴팁 */}
-            <div className="relative group/title">
+            <HoverTooltip label="이슈관리명" content={issue.title} enabled={Boolean(issue.title)} strong>
               <p
                 className={`text-sm font-medium truncate cursor-default ${
                   issue.status === "COMPLETED"
@@ -227,36 +228,14 @@ export function FieldIssueTable({
               >
                 {issue.title || "-"}
               </p>
-              {issue.title && (
-                <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/title:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[200px] max-w-[300px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">이슈관리명</span>
-                    </div>
-                    <p className="text-sm font-medium">{issue.title}</p>
-                  </div>
-                  <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 이슈 설명 - 툴팁 */}
-            <div className="relative group/desc">
+            <HoverTooltip label="이슈 설명" content={issue.description} enabled={Boolean(issue.description)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {issue.description || "-"}
               </p>
-              {issue.description && (
-                <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/desc:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">이슈 설명</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{issue.description}</p>
-                  </div>
-                  <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 등록일 */}
             <div>
@@ -294,40 +273,18 @@ export function FieldIssueTable({
             </div>
 
             {/* 제안된 해결방안 - 툴팁 */}
-            <div className="relative group/proposed">
+            <HoverTooltip label="제안된 해결방안" content={issue.proposedSolution} enabled={Boolean(issue.proposedSolution)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {issue.proposedSolution || "-"}
               </p>
-              {issue.proposedSolution && (
-                <div className="absolute bottom-full right-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/proposed:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">제안된 해결방안</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{issue.proposedSolution}</p>
-                  </div>
-                  <div className="absolute right-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 최종 적용방안 - 툴팁 */}
-            <div className="relative group/final">
+            <HoverTooltip label="최종 적용방안" content={issue.finalSolution} enabled={Boolean(issue.finalSolution)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {issue.finalSolution || "-"}
               </p>
-              {issue.finalSolution && (
-                <div className="absolute bottom-full right-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/final:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">최종 적용방안</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{issue.finalSolution}</p>
-                  </div>
-                  <div className="absolute right-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
           </div>
         );
       })}

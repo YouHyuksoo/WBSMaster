@@ -6,3 +6,4 @@
 
 export { ImportExcelModal } from "./ImportExcelModal";
 export type { ColumnConfig, TemplateConfig, ImportResult } from "./ImportExcelModal";
+export { HoverTooltip } from "./HoverTooltip";

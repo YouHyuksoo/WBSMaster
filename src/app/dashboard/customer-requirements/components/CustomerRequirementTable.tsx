@@ -20,6 +20,7 @@ import {
   type ApplyStatus,
   APPLY_STATUS_CONFIG,
 } from "../types";
+import { HoverTooltip } from "@/components/common";
 
 interface CustomerRequirementTableProps {
   /** 표시할 요구사항 목록 */
@@ -218,7 +219,7 @@ export function CustomerRequirementTable({
             </div>
 
             {/* 기능명 - 툴팁 */}
-            <div className="relative group/fn">
+            <HoverTooltip label="기능명" content={req.functionName} enabled={Boolean(req.functionName)} strong>
               <p
                 className={`text-sm font-medium truncate cursor-default ${
                   req.applyStatus === "REJECTED" || req.applyStatus === "HOLD"
@@ -228,57 +229,21 @@ export function CustomerRequirementTable({
               >
                 {req.functionName || "-"}
               </p>
-              {/* 기능명 툴팁 */}
-              {req.functionName && (
-                <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/fn:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[200px] max-w-[300px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">기능명</span>
-                    </div>
-                    <p className="text-sm font-medium">{req.functionName}</p>
-                  </div>
-                  <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 요구사항 - 툴팁 */}
-            <div className="relative group/content">
+            <HoverTooltip label="요구사항" content={req.content} enabled={Boolean(req.content)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {req.content || "-"}
               </p>
-              {/* 요구사항 툴팁 */}
-              {req.content && (
-                <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/content:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">요구사항</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{req.content}</p>
-                  </div>
-                  <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 적용방안 - 툴팁 */}
-            <div className="relative group/solution">
+            <HoverTooltip label="적용방안" content={req.solution} enabled={Boolean(req.solution)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {req.solution || "-"}
               </p>
-              {/* 적용방안 툴팁 */}
-              {req.solution && (
-                <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/solution:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">적용방안</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{req.solution}</p>
-                  </div>
-                  <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 요청일 */}
             <div>
@@ -302,23 +267,11 @@ export function CustomerRequirementTable({
             </div>
 
             {/* 제약사항 및 전제조건 - 툴팁 */}
-            <div className="relative group/remarks">
+            <HoverTooltip label="제약사항 및 전제조건" content={req.remarks} enabled={Boolean(req.remarks)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {req.remarks || "-"}
               </p>
-              {/* 제약사항 툴팁 */}
-              {req.remarks && (
-                <div className="absolute bottom-full right-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/remarks:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[200px] max-w-[350px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">제약사항 및 전제조건</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{req.remarks}</p>
-                  </div>
-                  <div className="absolute right-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* To-Be 코드 */}
             <div>

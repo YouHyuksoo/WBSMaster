@@ -8,7 +8,8 @@
  * 1. **모드**: 생성(create) 또는 수정(edit) 모드
  * 2. **폼 필드**: 업무구분, 기능명, 요구사항, 요청일, 요청자, 적용방안, 적용여부, 비고, To-Be
  * 3. **유효성 검사**: 필수 필드 체크 (기능명, 요구사항)
- * 4. **사업부**: 묻지 않는다. 저장 시 서버가 DEFAULT_BUSINESS_UNIT 으로 채운다.
+ * 4. **사업부**: 묻지 않는다. 저장 시 DB 기본값(POLE)이 채워진다.
+ * 5. **배치**: max-w-5xl, 4칸 격자 (기능명·업무구분·적용여부 / 요청자·요청일·완료일·To-Be / 요구사항·적용방안 / 비고)
  */
 
 "use client";
@@ -24,6 +25,13 @@ import {
   BUSINESS_CATEGORIES,
 } from "../types";
 
+/** 라벨 · 입력 공통 클래스 */
+const LABEL = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1";
+const FIELD = "w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
+const FIELD_BORDER = "border-slate-300 dark:border-slate-600";
+/** 긴 입력칸: 내용 길이에 맞춰 늘어나고(field-sizing), 너무 길면 그때만 칸 안에서 스크롤 */
+const GROW_LARGE = "field-sizing-content min-h-40 max-h-[38vh] resize-y";
+const GROW_SMALL = "field-sizing-content min-h-16 max-h-[18vh] resize-y";
 interface CustomerRequirementModalProps {
   isOpen: boolean;
   mode: "create" | "edit";
@@ -132,15 +140,20 @@ export function CustomerRequirementModal({
         onClick={onClose}
       />
 
-      {/* 모달 */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-xl shadow-xl">
+      {/* 모달: 넓은 폭 + 4칸 격자로 스크롤 없이 한 화면에 (작은 화면은 1칸으로 쌓이고 스크롤) */}
+      <div className="relative w-full max-w-5xl mx-4 max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-xl shadow-xl">
         {/* 헤더 */}
-        <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
             {mode === "create" ? "고객요구사항 등록" : "고객요구사항 수정"}
+            {mode === "edit" && requirement?.code && (
+              <span className="ml-2 text-sm font-normal text-slate-500 dark:text-slate-400 tabular-nums">{requirement.code}</span>
+            )}
           </h2>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="닫기"
             className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
           >
             <X className="w-5 h-5" />
@@ -148,17 +161,29 @@ export function CustomerRequirementModal({
         </div>
 
         {/* 폼 */}
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* 업무구분 */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                업무구분
+        <form onSubmit={handleSubmit} className="px-6 py-5">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-x-4 gap-y-4">
+            {/* 1줄: 기능명(2칸) · 업무구분 · 적용여부 */}
+            <div className="md:col-span-2">
+              <label className={LABEL}>
+                기능명 <span className="text-red-500">*</span>
               </label>
+              <input
+                type="text"
+                value={formData.functionName}
+                onChange={(e) => handleChange("functionName", e.target.value)}
+                placeholder="기능명을 입력하세요"
+                className={`${FIELD} ${errors.functionName ? "border-red-500" : FIELD_BORDER}`}
+              />
+              {errors.functionName && <p className="mt-1 text-xs text-red-500">{errors.functionName}</p>}
+            </div>
+
+            <div>
+              <label className={LABEL}>업무구분</label>
               <select
                 value={formData.category}
                 onChange={(e) => handleChange("category", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`${FIELD} ${FIELD_BORDER}`}
               >
                 <option value="">선택하세요</option>
                 {BUSINESS_CATEGORIES.map((cat) => (
@@ -169,113 +194,12 @@ export function CustomerRequirementModal({
               </select>
             </div>
 
-            {/* 기능명 */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                기능명 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.functionName}
-                onChange={(e) => handleChange("functionName", e.target.value)}
-                placeholder="기능명을 입력하세요"
-                className={`w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.functionName
-                    ? "border-red-500"
-                    : "border-slate-300 dark:border-slate-600"
-                }`}
-              />
-              {errors.functionName && (
-                <p className="mt-1 text-xs text-red-500">{errors.functionName}</p>
-              )}
-            </div>
-
-            {/* 요구사항 */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                요구사항 <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={formData.content}
-                onChange={(e) => handleChange("content", e.target.value)}
-                placeholder="요구사항 내용을 입력하세요"
-                rows={4}
-                className={`w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none ${
-                  errors.content
-                    ? "border-red-500"
-                    : "border-slate-300 dark:border-slate-600"
-                }`}
-              />
-              {errors.content && (
-                <p className="mt-1 text-xs text-red-500">{errors.content}</p>
-              )}
-            </div>
-
-            {/* 요청일 */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                요청일
-              </label>
-              <input
-                type="date"
-                value={formData.requestDate}
-                onChange={(e) => handleChange("requestDate", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* 요청처리완료 일자 */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                요청처리완료 일자
-              </label>
-              <input
-                type="date"
-                value={formData.completeDate}
-                onChange={(e) => handleChange("completeDate", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* 요청자 */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                요청자
-              </label>
-              <input
-                type="text"
-                value={formData.requester}
-                onChange={(e) => handleChange("requester", e.target.value)}
-                placeholder="요청자 이름"
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* 적용방안 */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                적용방안
-              </label>
-              <textarea
-                value={formData.solution}
-                onChange={(e) => handleChange("solution", e.target.value)}
-                placeholder="적용방안을 입력하세요"
-                rows={3}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
-            </div>
-
-            {/* 적용여부 */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                적용여부
-              </label>
+              <label className={LABEL}>적용여부</label>
               <select
                 value={formData.applyStatus}
-                onChange={(e) =>
-                  handleChange("applyStatus", e.target.value as ApplyStatus)
-                }
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => handleChange("applyStatus", e.target.value as ApplyStatus)}
+                className={`${FIELD} ${FIELD_BORDER}`}
               >
                 {Object.entries(APPLY_STATUS_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -285,31 +209,84 @@ export function CustomerRequirementModal({
               </select>
             </div>
 
-            {/* To-Be 관리번호 */}
+            {/* 2줄: 요청자 · 요청일 · 처리완료일 · To-Be */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                To-Be 관리번호
-              </label>
+              <label className={LABEL}>요청자</label>
+              <input
+                type="text"
+                value={formData.requester}
+                onChange={(e) => handleChange("requester", e.target.value)}
+                placeholder="요청자 이름"
+                className={`${FIELD} ${FIELD_BORDER}`}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL}>요청일</label>
+              <input
+                type="date"
+                value={formData.requestDate}
+                onChange={(e) => handleChange("requestDate", e.target.value)}
+                className={`${FIELD} ${FIELD_BORDER}`}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL}>요청처리완료 일자</label>
+              <input
+                type="date"
+                value={formData.completeDate}
+                onChange={(e) => handleChange("completeDate", e.target.value)}
+                className={`${FIELD} ${FIELD_BORDER}`}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL}>To-Be 관리번호</label>
               <input
                 type="text"
                 value={formData.toBeCode}
                 onChange={(e) => handleChange("toBeCode", e.target.value)}
                 placeholder="예: TOBE_00001"
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`${FIELD} ${FIELD_BORDER}`}
               />
             </div>
 
-            {/* 비고 */}
+            {/* 3줄: 요구사항 · 적용방안 나란히 */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                비고
+              <label className={LABEL}>
+                요구사항 <span className="text-red-500">*</span>
               </label>
+              <textarea
+                value={formData.content}
+                onChange={(e) => handleChange("content", e.target.value)}
+                placeholder="요구사항 내용을 입력하세요"
+                rows={7}
+                className={`${FIELD} ${GROW_LARGE} ${errors.content ? "border-red-500" : FIELD_BORDER}`}
+              />
+              {errors.content && <p className="mt-1 text-xs text-red-500">{errors.content}</p>}
+            </div>
+
+            <div className="md:col-span-2">
+              <label className={LABEL}>적용방안</label>
+              <textarea
+                value={formData.solution}
+                onChange={(e) => handleChange("solution", e.target.value)}
+                placeholder="적용방안을 입력하세요"
+                rows={7}
+                className={`${FIELD} ${GROW_LARGE} ${FIELD_BORDER}`}
+              />
+            </div>
+
+            {/* 4줄: 비고 */}
+            <div className="md:col-span-4">
+              <label className={LABEL}>비고</label>
               <textarea
                 value={formData.remarks}
                 onChange={(e) => handleChange("remarks", e.target.value)}
                 placeholder="추가 메모"
                 rows={2}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className={`${FIELD} ${GROW_SMALL} ${FIELD_BORDER}`}
               />
             </div>
           </div>

@@ -21,6 +21,7 @@ import {
   TRANSFER_STATUS_CONFIG,
   TRANSFER_TYPE_CONFIG,
 } from "../types";
+import { HoverTooltip } from "@/components/common";
 
 interface InterviewTableProps {
   /** 표시할 인터뷰 목록 */
@@ -155,22 +156,11 @@ export function InterviewTable({
             </div>
 
             {/* 제목 - 툴팁 */}
-            <div className="relative group/title">
+            <HoverTooltip label="제목" content={interview.title} enabled={Boolean(interview.title)} strong>
               <p className="text-sm font-medium truncate cursor-default text-text dark:text-white">
                 {interview.title || "-"}
               </p>
-              {interview.title && (
-                <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/title:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[200px] max-w-[300px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">제목</span>
-                    </div>
-                    <p className="text-sm font-medium">{interview.title}</p>
-                  </div>
-                  <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 인터뷰 일자 */}
             <div>
@@ -201,112 +191,46 @@ export function InterviewTable({
             </div>
 
             {/* 현재 운영 방식 - 툴팁 */}
-            <div className="relative group/current">
+            <HoverTooltip label="현재 운영 방식 (AS-IS)" content={interview.currentProcess} enabled={Boolean(interview.currentProcess)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {interview.currentProcess || "-"}
               </p>
-              {interview.currentProcess && (
-                <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/current:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">현재 운영 방식 (AS-IS)</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{interview.currentProcess}</p>
-                  </div>
-                  <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 문제점 - 툴팁 */}
-            <div className="relative group/pain">
+            <HoverTooltip label="문제점 (Pain Points)" content={interview.painPoints} enabled={Boolean(interview.painPoints)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {interview.painPoints || "-"}
               </p>
-              {interview.painPoints && (
-                <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/pain:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">문제점 (Pain Points)</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{interview.painPoints}</p>
-                  </div>
-                  <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 원하는 결과 - 툴팁 */}
-            <div className="relative group/desired">
+            <HoverTooltip label="원하는 결과 (TO-BE)" content={interview.desiredResults} enabled={Boolean(interview.desiredResults)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {interview.desiredResults || "-"}
               </p>
-              {interview.desiredResults && (
-                <div className="absolute bottom-full right-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/desired:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">원하는 결과 (TO-BE)</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{interview.desiredResults}</p>
-                  </div>
-                  <div className="absolute right-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 기술적 제약 - 툴팁 */}
-            <div className="relative group/tech">
+            <HoverTooltip label="기술적 제약 (Technical Limits)" content={interview.technicalConstraints} enabled={Boolean(interview.technicalConstraints)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {interview.technicalConstraints || "-"}
               </p>
-              {interview.technicalConstraints && (
-                <div className="absolute bottom-full right-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/tech:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">기술적 제약 (Technical Limits)</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{interview.technicalConstraints}</p>
-                  </div>
-                  <div className="absolute right-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 궁금한 점 - 툴팁 */}
-            <div className="relative group/questions">
+            <HoverTooltip label="궁금한 점 (Questions)" content={interview.questions} enabled={Boolean(interview.questions)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {interview.questions || "-"}
               </p>
-              {interview.questions && (
-                <div className="absolute bottom-full right-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/questions:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">궁금한 점 (Questions)</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{interview.questions}</p>
-                  </div>
-                  <div className="absolute right-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 비고 - 툴팁 */}
-            <div className="relative group/remarks">
+            <HoverTooltip label="비고" content={interview.remarks} enabled={Boolean(interview.remarks)}>
               <p className="text-xs text-text-secondary line-clamp-2 cursor-default">
                 {interview.remarks || "-"}
               </p>
-              {interview.remarks && (
-                <div className="absolute bottom-full right-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/remarks:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[250px] max-w-[400px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">비고</span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{interview.remarks}</p>
-                  </div>
-                  <div className="absolute right-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 이관 버튼 (드롭다운) */}
             <div className="relative">

@@ -18,6 +18,7 @@ import { useState } from "react";
 import { Icon } from "@/components/ui";
 import { Equipment, EquipmentStatus } from "@/lib/api";
 import { STATUS_CONFIG, TYPE_CONFIG } from "../types";
+import { HoverTooltip } from "@/components/common";
 
 interface EquipmentGridViewProps {
   /** 표시할 설비 목록 (이미 페이지네이션 적용됨) */
@@ -171,23 +172,11 @@ export function EquipmentGridView({
             </div>
 
             {/* 설비명 */}
-            <div className="relative group/name">
+            <HoverTooltip label="설비명" content={eq.name} enabled={Boolean(eq.name && eq.name.length > 20)} strong>
               <p className="text-sm font-medium truncate text-text dark:text-white cursor-default">
                 {eq.name}
               </p>
-              {/* 설비명 툴팁 */}
-              {eq.name && eq.name.length > 20 && (
-                <div className="absolute bottom-full left-0 mb-2 z-50 pointer-events-none opacity-0 group-hover/name:opacity-100 transition-opacity">
-                  <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 p-3 min-w-[200px] max-w-[300px]">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-slate-400">설비명</span>
-                    </div>
-                    <p className="text-sm font-medium">{eq.name}</p>
-                  </div>
-                  <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-900 dark:bg-slate-800 rotate-45 border-r border-b border-slate-700" />
-                </div>
-              )}
-            </div>
+            </HoverTooltip>
 
             {/* 타입 */}
             <div>
