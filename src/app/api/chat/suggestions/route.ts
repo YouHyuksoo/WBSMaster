@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import { createLLMClient, LLMConfig } from "@/lib/llm";
+import { createLLMClient, resolveLLMConfig, LLMConfig } from "@/lib/llm";
 import { EXAMPLE_GROUPS, ExampleGroup } from "@/app/dashboard/chat/components/constants";
 
 /**
@@ -85,23 +85,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ suggestions: EXAMPLE_GROUPS, source: "default" });
     }
 
-    // LLM 설정 구성
-    const llmConfig: LLMConfig = {
-      provider: aiSettings.provider as "gemini" | "mistral",
-      apiKey:
-        aiSettings.provider === "gemini"
-          ? aiSettings.geminiApiKey!
-          : aiSettings.mistralApiKey!,
-      model:
-        aiSettings.provider === "gemini"
-          ? aiSettings.geminiModel
-          : aiSettings.mistralModel,
-    };
-
-    // API 키가 없으면 기본 제안 반환
-    if (!llmConfig.apiKey) {
+    // 현재 선택된 제공자의 API 키·모델 (키가 없으면 기본 제안 반환)
+    const resolved = resolveLLMConfig(aiSettings);
+    if (!resolved.ok) {
       return NextResponse.json({ suggestions: EXAMPLE_GROUPS, source: "default" });
     }
+    const llmConfig: LLMConfig = resolved.config;
 
     // 프로젝트 컨텍스트 정보 수집
     let contextInfo = "";

@@ -21,21 +21,26 @@ import { useState, useEffect, useCallback } from "react";
 import { Icon, Button, Input, Card, ConfirmModal } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { api, AiPersona } from "@/lib/api";
+import type { LLMProvider } from "@/lib/llm/config";
+import { OpenAiProviderButton, OpenAiSettingsPanel } from "./components";
 
 /**
  * AI 설정 타입
  */
 interface AiSettings {
-  provider: "gemini" | "mistral" | "kimi";
+  provider: LLMProvider;
   geminiApiKey: string | null;
   geminiModel: string;
   mistralApiKey: string | null;
   mistralModel: string;
   kimiApiKey: string | null;
   kimiModel: string;
+  openaiApiKey: string | null;
+  openaiModel: string;
   hasGeminiKey: boolean;
   hasMistralKey: boolean;
   hasKimiKey: boolean;
+  hasOpenaiKey: boolean;
   sqlSystemPrompt: string;
   analysisSystemPrompt: string;
 }
@@ -101,9 +106,12 @@ export default function SettingsPage() {
     mistralModel: "mistral-small-latest",
     kimiApiKey: null,
     kimiModel: "moonshot-v1-8k",
+    openaiApiKey: null,
+    openaiModel: "gpt-4.1-mini",
     hasGeminiKey: false,
     hasMistralKey: false,
     hasKimiKey: false,
+    hasOpenaiKey: false,
     sqlSystemPrompt: "",
     analysisSystemPrompt: "",
   });
@@ -115,6 +123,7 @@ export default function SettingsPage() {
   const [newGeminiKey, setNewGeminiKey] = useState("");
   const [newMistralKey, setNewMistralKey] = useState("");
   const [newKimiKey, setNewKimiKey] = useState("");
+  const [newOpenaiKey, setNewOpenaiKey] = useState("");
 
   // 로딩 상태
   const [isLoadingAi, setIsLoadingAi] = useState(true);
@@ -288,6 +297,7 @@ export default function SettingsPage() {
         geminiModel: aiSettings.geminiModel,
         mistralModel: aiSettings.mistralModel,
         kimiModel: aiSettings.kimiModel,
+        openaiModel: aiSettings.openaiModel,
         sqlSystemPrompt: aiSettings.sqlSystemPrompt,
         analysisSystemPrompt: aiSettings.analysisSystemPrompt,
       };
@@ -302,6 +312,9 @@ export default function SettingsPage() {
       if (newKimiKey) {
         payload.kimiApiKey = newKimiKey;
       }
+      if (newOpenaiKey) {
+        payload.openaiApiKey = newOpenaiKey;
+      }
 
       const res = await fetch("/api/ai-settings", {
         method: "POST",
@@ -315,6 +328,7 @@ export default function SettingsPage() {
         setNewGeminiKey("");
         setNewMistralKey("");
         setNewKimiKey("");
+        setNewOpenaiKey("");
         toast.success("AI 설정이 저장되었습니다.");
       } else {
         const error = await res.json();
@@ -471,8 +485,26 @@ export default function SettingsPage() {
                       </div>
                     )}
                   </button>
+
+                  {/* OpenAI 버튼 */}
+                  <OpenAiProviderButton
+                    selected={aiSettings.provider === "openai"}
+                    hasKey={aiSettings.hasOpenaiKey}
+                    onSelect={() => setAiSettings((prev) => ({ ...prev, provider: "openai" }))}
+                  />
                 </div>
               </div>
+
+              {/* OpenAI 설정 */}
+              {aiSettings.provider === "openai" && (
+                <OpenAiSettingsPanel
+                  hasKey={aiSettings.hasOpenaiKey}
+                  newKey={newOpenaiKey}
+                  onNewKeyChange={setNewOpenaiKey}
+                  model={aiSettings.openaiModel}
+                  onModelChange={(value) => setAiSettings((prev) => ({ ...prev, openaiModel: value }))}
+                />
+              )}
 
               {/* Gemini 설정 */}
               {aiSettings.provider === "gemini" && (
@@ -703,7 +735,7 @@ export default function SettingsPage() {
                 <Button
                   variant="ghost"
                   onClick={handleTestConnection}
-                  disabled={isTestingConnection || (!aiSettings.hasGeminiKey && !newGeminiKey && !aiSettings.hasMistralKey && !newMistralKey && !aiSettings.hasKimiKey && !newKimiKey)}
+                  disabled={isTestingConnection || (!aiSettings.hasGeminiKey && !newGeminiKey && !aiSettings.hasMistralKey && !newMistralKey && !aiSettings.hasKimiKey && !newKimiKey && !aiSettings.hasOpenaiKey && !newOpenaiKey)}
                   leftIcon={isTestingConnection ? "progress_activity" : "network_check"}
                 >
                   연결 테스트

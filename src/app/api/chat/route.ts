@@ -22,7 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import { processChatMessage, LLMConfig, SystemPromptConfig } from "@/lib/llm";
+import { processChatMessage, resolveLLMConfig, LLMConfig, SystemPromptConfig } from "@/lib/llm";
 import { Prisma } from "@prisma/client";
 import { createTask } from "@/lib/services/taskService";
 
@@ -111,40 +111,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 현재 선택된 제공자의 API 키 확인
-    const provider = aiSettings.provider as "gemini" | "mistral" | "kimi";
-    let apiKey: string | null = null;
-    let model: string = "";
-
-    switch (provider) {
-      case "gemini":
-        apiKey = aiSettings.geminiApiKey;
-        model = aiSettings.geminiModel;
-        break;
-      case "mistral":
-        apiKey = aiSettings.mistralApiKey;
-        model = aiSettings.mistralModel;
-        break;
-      case "kimi":
-        apiKey = aiSettings.kimiApiKey;
-        model = aiSettings.kimiModel;
-        break;
+    // 현재 선택된 제공자의 API 키·모델
+    const resolved = resolveLLMConfig(aiSettings);
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
     }
-
-    if (!apiKey) {
-      const providerName = provider === "gemini" ? "Gemini" : provider === "mistral" ? "Mistral" : "Kimi";
-      return NextResponse.json(
-        { error: `${providerName} API 키가 설정되지 않았습니다.` },
-        { status: 400 }
-      );
-    }
-
-    // LLM 설정
-    const llmConfig: LLMConfig = {
-      provider,
-      apiKey,
-      model,
-    };
+    const llmConfig: LLMConfig = resolved.config;
 
     // 시스템 프롬프트 설정 (DB 저장값 또는 undefined)
     const promptConfig: SystemPromptConfig = {

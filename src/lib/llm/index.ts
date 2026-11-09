@@ -2,10 +2,10 @@
  * @file src/lib/llm/index.ts
  * @description
  * LLM (Large Language Model) 클라이언트 통합 모듈입니다.
- * Google Gemini, Mistral AI, Kimi AI (Moonshot)를 모두 지원합니다.
+ * Google Gemini, Mistral AI, Kimi AI (Moonshot), OpenAI 를 지원합니다.
  *
  * 초보자 가이드:
- * 1. **LLMClient**: LLM 추상화 클래스 (Gemini/Mistral/Kimi 공통 인터페이스)
+ * 1. **LLMClient**: LLM 추상화 클래스 (Gemini/Mistral/Kimi/OpenAI 공통 인터페이스)
  * 2. **createLLMClient()**: 설정에 따라 적절한 LLM 클라이언트 생성
  * 3. **generateSQL()**: 사용자 질문을 SQL로 변환
  * 4. **analyzeResults()**: SQL 실행 결과를 분석하여 응답 생성
@@ -14,6 +14,8 @@
  * - Google Gemini: @google/generative-ai SDK 사용
  * - Mistral AI: @mistralai/mistralai SDK 사용
  * - Kimi AI (Moonshot): OpenAI 호환 API 직접 호출 (https://api.moonshot.ai/v1)
+ * - OpenAI: Chat Completions API 직접 호출 (https://api.openai.com/v1)
+ * - 사용자 설정 → LLMConfig 변환은 ./config 의 resolveLLMConfig() 를 쓴다.
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -24,6 +26,10 @@ import {
   getTableSummariesForLLM,
   getDynamicSchemaInfo,
 } from "./schema-info";
+import type { LLMConfig } from "./config";
+
+export type { LLMConfig, LLMProvider } from "./config";
+export { resolveLLMConfig, providerLabel, LLM_PROVIDERS, isLLMProvider } from "./config";
 
 /**
  * 마인드맵 노드 타입
@@ -56,15 +62,6 @@ export interface LLMResponse {
   totalCount?: number;
   /** 현재 표시된 건수 */
   displayedCount?: number;
-}
-
-/**
- * LLM 설정 타입
- */
-export interface LLMConfig {
-  provider: "gemini" | "mistral" | "kimi";
-  apiKey: string;
-  model: string;
 }
 
 /**
@@ -270,13 +267,18 @@ class MistralClient extends LLMClient {
 }
 
 /**
- * Kimi AI 클라이언트 (Moonshot AI)
- * OpenAI 호환 API 사용
+ * OpenAI 호환 Chat Completions 클라이언트 (Kimi · OpenAI 공용)
+ * - Kimi: max_tokens + temperature 0.3 (기존 동작 유지)
+ * - OpenAI: 추론 모델(gpt-5, o 시리즈)은 temperature 변경 · max_tokens 를 거부하므로
+ *   max_completion_tokens 만 보낸다.
  */
-class KimiClient extends LLMClient {
-  private baseUrl = "https://api.moonshot.ai/v1";
-
-  constructor(config: LLMConfig) {
+class OpenAICompatibleClient extends LLMClient {
+  constructor(
+    config: LLMConfig,
+    private baseUrl: string,
+    private label: string,
+    private extraBody: Record<string, unknown>
+  ) {
     super(config);
   }
 
@@ -297,14 +299,13 @@ class KimiClient extends LLMClient {
       body: JSON.stringify({
         model: this.config.model,
         messages,
-        max_tokens: 4096,  // 응답 잘림 방지
-        temperature: 0.3,  // SQL 생성 시 일관성 향상
+        ...this.extraBody,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Kimi API 오류 (${response.status}): ${errorText}`);
+      throw new Error(`${this.label} API 오류 (${response.status}): ${errorText}`);
     }
 
     const data = await response.json();
@@ -328,7 +329,14 @@ export function createLLMClient(config: LLMConfig): LLMClient {
     case "mistral":
       return new MistralClient(config);
     case "kimi":
-      return new KimiClient(config);
+      return new OpenAICompatibleClient(config, "https://api.moonshot.ai/v1", "Kimi", {
+        max_tokens: 4096, // 응답 잘림 방지
+        temperature: 0.3, // SQL 생성 시 일관성 향상
+      });
+    case "openai":
+      return new OpenAICompatibleClient(config, "https://api.openai.com/v1", "OpenAI", {
+        max_completion_tokens: 8192, // 추론 모델은 추론 토큰도 이 한도에 포함
+      });
     default:
       throw new Error(`지원하지 않는 LLM 제공자: ${config.provider}`);
   }

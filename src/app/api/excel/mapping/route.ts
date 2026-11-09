@@ -17,7 +17,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createLLMClient, LLMConfig } from "@/lib/llm";
+import { createLLMClient, resolveLLMConfig, LLMConfig } from "@/lib/llm";
 
 /**
  * 타겟 타입별 필드 정의
@@ -102,24 +102,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(fallbackMapping(headers, targetType));
     }
 
-    // LLM 클라이언트 생성
-    const apiKey = aiSetting.provider === "gemini"
-      ? aiSetting.geminiApiKey
-      : aiSetting.mistralApiKey;
-    const model = aiSetting.provider === "gemini"
-      ? aiSetting.geminiModel
-      : aiSetting.mistralModel;
-
-    if (!apiKey) {
-      // API 키가 없으면 기본 매핑 시도
+    // 현재 선택된 제공자의 API 키·모델 (키가 없으면 기본 매핑 시도)
+    const resolved = resolveLLMConfig(aiSetting);
+    if (!resolved.ok) {
       return NextResponse.json(fallbackMapping(headers, targetType));
     }
-
-    const config: LLMConfig = {
-      provider: aiSetting.provider as "gemini" | "mistral",
-      apiKey,
-      model,
-    };
+    const config: LLMConfig = resolved.config;
 
     const client = createLLMClient(config);
 

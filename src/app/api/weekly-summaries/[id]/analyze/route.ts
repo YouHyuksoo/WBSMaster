@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createLLMClient, LLMConfig } from "@/lib/llm";
+import { createLLMClient, resolveLLMConfig, LLMConfig } from "@/lib/llm";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -104,43 +104,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // API 키 확인 (provider별 분기)
-    let apiKey: string | null = null;
-    let model: string = "";
-
-    switch (aiSetting.provider) {
-      case "gemini":
-        apiKey = aiSetting.geminiApiKey;
-        model = aiSetting.geminiModel;
-        break;
-      case "mistral":
-        apiKey = aiSetting.mistralApiKey;
-        model = aiSetting.mistralModel;
-        break;
-      case "kimi":
-        apiKey = aiSetting.kimiApiKey;
-        model = aiSetting.kimiModel;
-        break;
-      default:
-        return NextResponse.json(
-          { error: `Unsupported AI provider: ${aiSetting.provider}` },
-          { status: 400 }
-        );
+    // 현재 선택된 제공자의 API 키·모델
+    const resolved = resolveLLMConfig(aiSetting);
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
     }
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: `${aiSetting.provider} API key not configured` },
-        { status: 400 }
-      );
-    }
-
-    // LLM 클라이언트 생성
-    const llmConfig: LLMConfig = {
-      provider: aiSetting.provider as "gemini" | "mistral" | "kimi",
-      apiKey,
-      model,
-    };
+    const llmConfig: LLMConfig = resolved.config;
 
     const client = createLLMClient(llmConfig);
 

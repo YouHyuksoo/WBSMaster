@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createLLMClient, LLMConfig } from "@/lib/llm";
+import { createLLMClient, resolveLLMConfig, LLMConfig } from "@/lib/llm";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
@@ -192,26 +192,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 선택된 provider의 API 키 확인
-    const apiKey = aiSettings.provider === "gemini"
-      ? aiSettings.geminiApiKey
-      : aiSettings.mistralApiKey;
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "LLM API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요." },
-        { status: 400 }
-      );
+    // 현재 선택된 제공자의 API 키·모델
+    const resolved = resolveLLMConfig(aiSettings);
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
     }
-
-    // LLM 클라이언트 생성
-    const config: LLMConfig = {
-      provider: aiSettings.provider as "gemini" | "mistral",
-      apiKey,
-      model: aiSettings.provider === "gemini"
-        ? aiSettings.geminiModel
-        : aiSettings.mistralModel,
-    };
+    const config: LLMConfig = resolved.config;
 
     const client = createLLMClient(config);
 

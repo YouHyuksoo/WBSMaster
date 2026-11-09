@@ -16,7 +16,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import { DEFAULT_SQL_SYSTEM_PROMPT, DEFAULT_ANALYSIS_SYSTEM_PROMPT } from "@/lib/llm";
+import { DEFAULT_SQL_SYSTEM_PROMPT, DEFAULT_ANALYSIS_SYSTEM_PROMPT, isLLMProvider } from "@/lib/llm";
+import type { AiSetting } from "@prisma/client";
+
+const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 
 /**
  * API 키 마스킹 유틸리티
@@ -27,6 +30,31 @@ function maskApiKey(key: string | null): string | null {
   if (key.length <= 8) return "****";
   return `${key.slice(0, 4)}...${key.slice(-4)}`;
 }
+
+/** 클라이언트 응답 (키는 마스킹) */
+function toResponse(settings: AiSetting) {
+  return {
+    provider: settings.provider,
+    geminiApiKey: maskApiKey(settings.geminiApiKey),
+    geminiModel: settings.geminiModel,
+    mistralApiKey: maskApiKey(settings.mistralApiKey),
+    mistralModel: settings.mistralModel,
+    kimiApiKey: maskApiKey(settings.kimiApiKey),
+    kimiModel: settings.kimiModel,
+    openaiApiKey: maskApiKey(settings.openaiApiKey),
+    openaiModel: settings.openaiModel,
+    hasGeminiKey: !!settings.geminiApiKey,
+    hasMistralKey: !!settings.mistralApiKey,
+    hasKimiKey: !!settings.kimiApiKey,
+    hasOpenaiKey: !!settings.openaiApiKey,
+    sqlSystemPrompt: settings.sqlSystemPrompt || DEFAULT_SQL_SYSTEM_PROMPT,
+    analysisSystemPrompt: settings.analysisSystemPrompt || DEFAULT_ANALYSIS_SYSTEM_PROMPT,
+  };
+}
+
+/** 마스킹된 값("abcd...wxyz")이 아닌 새 키만 저장 대상 */
+const newKey = (key: unknown): string | undefined =>
+  typeof key === "string" && key && !key.includes("...") ? key : undefined;
 
 /**
  * AI 설정 조회
@@ -53,29 +81,19 @@ export async function GET() {
         mistralModel: "mistral-small-latest",
         kimiApiKey: null,
         kimiModel: "moonshot-v1-8k",
+        openaiApiKey: null,
+        openaiModel: DEFAULT_OPENAI_MODEL,
         hasGeminiKey: false,
         hasMistralKey: false,
         hasKimiKey: false,
+        hasOpenaiKey: false,
         sqlSystemPrompt: DEFAULT_SQL_SYSTEM_PROMPT,
         analysisSystemPrompt: DEFAULT_ANALYSIS_SYSTEM_PROMPT,
       });
     }
 
     // API 키는 마스킹하여 반환, 시스템 프롬프트는 DB 값 또는 기본값
-    return NextResponse.json({
-      provider: settings.provider,
-      geminiApiKey: maskApiKey(settings.geminiApiKey),
-      geminiModel: settings.geminiModel,
-      mistralApiKey: maskApiKey(settings.mistralApiKey),
-      mistralModel: settings.mistralModel,
-      kimiApiKey: maskApiKey(settings.kimiApiKey),
-      kimiModel: settings.kimiModel,
-      hasGeminiKey: !!settings.geminiApiKey,
-      hasMistralKey: !!settings.mistralApiKey,
-      hasKimiKey: !!settings.kimiApiKey,
-      sqlSystemPrompt: settings.sqlSystemPrompt || DEFAULT_SQL_SYSTEM_PROMPT,
-      analysisSystemPrompt: settings.analysisSystemPrompt || DEFAULT_ANALYSIS_SYSTEM_PROMPT,
-    });
+    return NextResponse.json(toResponse(settings));
   } catch (error) {
     console.error("AI 설정 조회 실패:", error);
     return NextResponse.json(
@@ -105,12 +123,14 @@ export async function POST(request: NextRequest) {
       mistralModel,
       kimiApiKey,
       kimiModel,
+      openaiApiKey,
+      openaiModel,
       sqlSystemPrompt,
       analysisSystemPrompt,
     } = body;
 
     // 유효성 검증
-    if (provider && !["gemini", "mistral", "kimi"].includes(provider)) {
+    if (provider && !isLLMProvider(provider)) {
       return NextResponse.json(
         { error: "지원하지 않는 LLM 제공자입니다." },
         { status: 400 }
@@ -143,6 +163,8 @@ export async function POST(request: NextRequest) {
       mistralModel?: string;
       kimiApiKey?: string;
       kimiModel?: string;
+      openaiApiKey?: string;
+      openaiModel?: string;
       sqlSystemPrompt?: string | null;
       analysisSystemPrompt?: string | null;
     } = {};
@@ -151,17 +173,13 @@ export async function POST(request: NextRequest) {
     if (geminiModel !== undefined) updateData.geminiModel = geminiModel;
     if (mistralModel !== undefined) updateData.mistralModel = mistralModel;
     if (kimiModel !== undefined) updateData.kimiModel = kimiModel;
+    if (openaiModel !== undefined) updateData.openaiModel = openaiModel;
 
     // API 키는 마스킹된 값이 아닌 경우에만 업데이트
-    if (geminiApiKey && !geminiApiKey.includes("...")) {
-      updateData.geminiApiKey = geminiApiKey;
-    }
-    if (mistralApiKey && !mistralApiKey.includes("...")) {
-      updateData.mistralApiKey = mistralApiKey;
-    }
-    if (kimiApiKey && !kimiApiKey.includes("...")) {
-      updateData.kimiApiKey = kimiApiKey;
-    }
+    if (newKey(geminiApiKey)) updateData.geminiApiKey = newKey(geminiApiKey);
+    if (newKey(mistralApiKey)) updateData.mistralApiKey = newKey(mistralApiKey);
+    if (newKey(kimiApiKey)) updateData.kimiApiKey = newKey(kimiApiKey);
+    if (newKey(openaiApiKey)) updateData.openaiApiKey = newKey(openaiApiKey);
 
     // 시스템 프롬프트 업데이트 (빈 문자열이면 null로 저장하여 기본값 사용)
     if (sqlSystemPrompt !== undefined) {
@@ -184,26 +202,15 @@ export async function POST(request: NextRequest) {
         mistralModel: mistralModel || "mistral-small-latest",
         kimiApiKey: kimiApiKey && !kimiApiKey.includes("...") ? kimiApiKey : null,
         kimiModel: kimiModel || "kimi-k2-2-5",
+        openaiApiKey: newKey(openaiApiKey) ?? null,
+        openaiModel: openaiModel || DEFAULT_OPENAI_MODEL,
         sqlSystemPrompt: sqlSystemPrompt?.trim() || null,
         analysisSystemPrompt: analysisSystemPrompt?.trim() || null,
       },
     });
 
     // API 키는 마스킹하여 반환, 시스템 프롬프트는 DB 값 또는 기본값
-    return NextResponse.json({
-      provider: settings.provider,
-      geminiApiKey: maskApiKey(settings.geminiApiKey),
-      geminiModel: settings.geminiModel,
-      mistralApiKey: maskApiKey(settings.mistralApiKey),
-      mistralModel: settings.mistralModel,
-      kimiApiKey: maskApiKey(settings.kimiApiKey),
-      kimiModel: settings.kimiModel,
-      hasGeminiKey: !!settings.geminiApiKey,
-      hasMistralKey: !!settings.mistralApiKey,
-      hasKimiKey: !!settings.kimiApiKey,
-      sqlSystemPrompt: settings.sqlSystemPrompt || DEFAULT_SQL_SYSTEM_PROMPT,
-      analysisSystemPrompt: settings.analysisSystemPrompt || DEFAULT_ANALYSIS_SYSTEM_PROMPT,
-    });
+    return NextResponse.json(toResponse(settings));
   } catch (error) {
     console.error("AI 설정 저장 실패:", error);
     return NextResponse.json(
