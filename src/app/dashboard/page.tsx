@@ -546,14 +546,14 @@ export default function DashboardPage() {
    * 일정 유형별 스타일 설정
    */
   const scheduleTypeConfig: Record<string, { label: string; color: string; icon: string }> = {
-    COMPANY_HOLIDAY: { label: "회사 휴일", color: "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400", icon: "event_busy" },
-    TEAM_OFFSITE: { label: "팀 외근", color: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400", icon: "groups" },
-    PERSONAL_LEAVE: { label: "개인 휴가", color: "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400", icon: "beach_access" },
-    PERSONAL_SCHEDULE: { label: "개인 일정", color: "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400", icon: "person" },
-    MEETING: { label: "회의", color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400", icon: "videocam" },
-    DEADLINE: { label: "마감", color: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400", icon: "flag" },
-    ONSITE_WORK: { label: "상주근무", color: "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400", icon: "apartment" },
-    OTHER: { label: "기타", color: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400", icon: "event" },
+    COMPANY_HOLIDAY: { label: "회사 휴일", color: "bg-rose-500/10 text-rose-600 dark:text-rose-400", icon: "event_busy" },
+    TEAM_OFFSITE: { label: "팀 외근", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400", icon: "groups" },
+    PERSONAL_LEAVE: { label: "개인 휴가", color: "bg-sky-500/10 text-sky-600 dark:text-sky-400", icon: "beach_access" },
+    PERSONAL_SCHEDULE: { label: "개인 일정", color: "bg-violet-500/10 text-violet-600 dark:text-violet-400", icon: "person" },
+    MEETING: { label: "회의", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", icon: "videocam" },
+    DEADLINE: { label: "마감", color: "bg-red-500/10 text-red-600 dark:text-red-400", icon: "flag" },
+    ONSITE_WORK: { label: "상주근무", color: "bg-teal-500/10 text-teal-600 dark:text-teal-400", icon: "apartment" },
+    OTHER: { label: "기타", color: "bg-slate-500/10 text-slate-600 dark:text-slate-400", icon: "event" },
   };
 
   /**
