@@ -19,6 +19,8 @@
  * const newProject = await api.projects.create({ name: '새 프로젝트' });
  */
 
+import { handleUnauthorized } from "@/lib/session";
+
 /** API 에러 클래스 */
 export class ApiError extends Error {
   constructor(
@@ -30,8 +32,9 @@ export class ApiError extends Error {
   }
 }
 
-/** API 응답 처리 */
-async function handleResponse<T>(response: Response): Promise<T> {
+/** API 응답 처리 (401 이면 세션 만료로 보고 로그인 화면으로 보낸다) */
+export async function handleResponse<T>(response: Response): Promise<T> {
+  if (response.status === 401) handleUnauthorized();
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "알 수 없는 오류" }));
     throw new ApiError(response.status, error.error || "요청 실패");

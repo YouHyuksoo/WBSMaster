@@ -20,6 +20,7 @@ import { ReactNode, useState, useEffect } from "react";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { DashboardHeader } from "./DashboardHeader";
 import { FloatingMenu } from "@/components/common/FloatingMenu";
+import { checkSession } from "@/lib/session";
 
 interface DashboardLayoutProps {
   /** 메인 콘텐츠 영역에 표시될 내용 */
@@ -42,6 +43,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     if (savedCollapsed !== null) {
       setSidebarCollapsed(savedCollapsed === "true");
     }
+  }, []);
+
+  /**
+   * 세션 확인: 처음 열릴 때와 탭에 다시 돌아올 때 쿠키 세션이 살아 있는지 본다.
+   * 쿠키가 만료되면 화면은 로그인 상태(localStorage)인데 API 만 401 이 되어
+   * "인증이 필요합니다" · "불러오는 중" 멈춤이 생기므로 로그인 화면으로 보낸다.
+   */
+  useEffect(() => {
+    checkSession();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") checkSession();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
   /**
