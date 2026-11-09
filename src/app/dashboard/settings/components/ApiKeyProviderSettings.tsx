@@ -62,6 +62,7 @@ export const API_KEY_PROVIDERS: Record<ApiKeyProviderId, ProviderMeta> = {
     keyUrlLabel: "OpenRouter",
     placeholder: "openai/gpt-4.1-mini",
     models: [
+      "openrouter/free",
       "openai/gpt-4.1-mini",
       "openai/gpt-4o-mini",
       "anthropic/claude-sonnet-4",
@@ -69,7 +70,8 @@ export const API_KEY_PROVIDERS: Record<ApiKeyProviderId, ProviderMeta> = {
       "mistralai/mistral-small",
       "deepseek/deepseek-chat",
     ],
-    modelHint: "모델명은 \"회사/모델\" 형식입니다 (openrouter.ai/models 에서 확인)",
+    modelHint:
+      "모델명은 \"회사/모델\" 형식입니다. 무료: \"회사/모델:free\" 또는 무료 모델 자동 선택 \"openrouter/free\" (openrouter.ai/models 에서 확인)",
   },
 };
 
