@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { findSensitiveSqlReference, runSafeSql } from "@/lib/llm/safe-sql";
 import * as XLSX from "xlsx";
 
 /**
@@ -94,10 +95,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 비밀번호 등 민감 정보 조회 차단 (요청 본문의 SQL 을 그대로 실행하므로 반드시 필요)
+    const blocked = findSensitiveSqlReference(fullQuery);
+    if (blocked) {
+      return NextResponse.json({ error: blocked }, { status: 400 });
+    }
+
     console.log("[Chat Export] Executing query:", fullQuery.substring(0, 200) + "...");
 
-    // SQL 실행
-    const results = (await prisma.$queryRawUnsafe(fullQuery)) as Record<
+    // SQL 실행 (비밀번호 없는 users 뷰 위에서 실행, 결과의 password 키 제거)
+    const results = (await runSafeSql(prisma, fullQuery)) as Record<
       string,
       unknown
     >[];

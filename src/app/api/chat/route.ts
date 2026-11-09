@@ -25,6 +25,7 @@ import { requireAuth } from "@/lib/auth";
 import { processChatMessage, resolveLLMConfig, LLMConfig, SystemPromptConfig } from "@/lib/llm";
 import { Prisma } from "@prisma/client";
 import { createTask } from "@/lib/services/taskService";
+import { runSafeSql } from "@/lib/llm/safe-sql";
 
 /**
  * 채팅 기록 조회
@@ -179,15 +180,15 @@ export async function POST(request: NextRequest) {
           }
         } catch (taskError) {
           console.error("[Chat] Task 서비스 레이어 호출 실패:", taskError);
-          // 실패 시 원래 SQL 실행 시도
-          const results = await prisma.$queryRawUnsafe(sql);
+          // 실패 시 원래 SQL 실행 시도 (비밀번호 차단 경로)
+          const results = await runSafeSql(prisma, sql);
           sqlExecTime = Date.now() - execStart;
           return results as unknown[];
         }
       }
 
-      // 일반 SQL 실행
-      const results = await prisma.$queryRawUnsafe(sql);
+      // 일반 SQL 실행 (비밀번호 없는 users 뷰 위에서 실행, 결과의 password 키 제거)
+      const results = await runSafeSql(prisma, sql);
       sqlExecTime = Date.now() - execStart;
       return results as unknown[];
     };
