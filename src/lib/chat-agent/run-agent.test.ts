@@ -89,6 +89,18 @@ describe("runAgent", () => {
     expect(res.content).toBe("아래 내용으로 진행할까요?");
   });
 
+  it("delete proposal carries danger and asks to delete", async () => {
+    const r = new ToolRegistry();
+    r.register({
+      name: "propose_delete_records", description: "삭제", parameters: { type: "object", properties: {} }, kind: "write",
+      parse: () => ({}),
+      execute: async () => ({ kind: "proposal", actionId: "act-9", summary: "마일스톤 1건 삭제", fields: [], danger: true }),
+    });
+    const res = await run(new FakeLLM([{ type: "tool_calls", calls: [{ id: "c1", name: "propose_delete_records", arguments: "{}" }] }]), r);
+    expect(res.pendingAction).toMatchObject({ id: "act-9", danger: true });
+    expect(res.content).toBe("아래 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다.");
+  });
+
   it("unknown tool", async () => {
     const llm = new FakeLLM([
       { type: "tool_calls", calls: [{ id: "c1", name: "drop_table", arguments: "{}" }] },

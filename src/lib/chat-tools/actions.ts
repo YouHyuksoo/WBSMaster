@@ -16,6 +16,7 @@ import { createIssue, updateIssue } from "@/lib/services/issueService";
 import { createFieldIssue, updateFieldIssue } from "@/lib/services/fieldIssueService";
 import { createDiscussionItem, updateDiscussionItem } from "@/lib/services/discussionItemService";
 import { updateWbsItems } from "@/lib/services/wbsService";
+import { ENTITY_SPECS, executeEntityAction } from "./entities";
 
 export type ActionOutcome = { ok: true; resultRef: string; link: string } | { ok: false; error: string; status: number };
 
@@ -34,6 +35,8 @@ const LINKS: Record<string, string> = {
 export async function executePendingAction(action: PendingAction, user: AuthUser): Promise<ActionOutcome> {
   const a = (action.args ?? {}) as any;
   const p = action.projectId;
+  // 공통 등록·수정·삭제는 화면 API 핸들러로 실행 (같은 요청의 로그인 쿠키 사용)
+  if (action.kind.startsWith("entity_")) return executeEntityAction(action, ENTITY_SPECS);
   let out: ServiceOut;
   switch (action.kind) {
     case "create_task":

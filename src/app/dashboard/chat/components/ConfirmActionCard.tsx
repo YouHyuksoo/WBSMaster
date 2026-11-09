@@ -19,6 +19,8 @@ export interface PendingActionView {
   id: string;
   summary: string;
   fields: { label: string; value: string }[];
+  /** 삭제 제안 (빨간 카드·[삭제] 버튼) */
+  danger?: boolean;
 }
 
 type State = { kind: "idle" | "busy" } | { kind: "done"; link: string } | { kind: "cancelled" } | { kind: "error"; message: string };
@@ -44,7 +46,7 @@ export function ConfirmActionCard({ action }: { action: PendingActionView }) {
   };
 
   return (
-    <div className="mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm">
+    <div className={`mt-3 rounded-lg border p-3 text-sm ${action.danger ? "border-red-500/40 bg-red-500/10" : "border-blue-500/30 bg-blue-500/10"}`}>
       <p className="font-medium text-text dark:text-white">{action.summary}</p>
       {action.fields.length > 0 && (
         <table className="mt-2 w-full text-xs">
@@ -66,9 +68,9 @@ export function ConfirmActionCard({ action }: { action: PendingActionView }) {
               type="button"
               disabled={state.kind === "busy"}
               onClick={() => send("confirm")}
-              className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:opacity-90 disabled:opacity-50"
+              className={`px-3 py-1.5 rounded-lg text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 ${action.danger ? "bg-red-600" : "bg-primary"}`}
             >
-              등록
+              {action.danger ? "삭제" : "등록"}
             </button>
             <button
               type="button"
@@ -82,7 +84,7 @@ export function ConfirmActionCard({ action }: { action: PendingActionView }) {
         )}
         {state.kind === "done" && (
           <span className="text-xs text-green-600 dark:text-green-400">
-            등록했습니다.{" "}
+            {action.danger ? "삭제했습니다." : "처리했습니다."}{" "}
             <Link href={state.link} className="underline">
               결과 보기
             </Link>

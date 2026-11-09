@@ -19,7 +19,7 @@ import type { ToolContext, ToolResult } from "@/lib/chat-tools/types";
 
 export interface AgentResult extends LLMResponse {
   toolSummary: { tool: string; summary: string }[];
-  pendingAction?: { id: string; summary: string; fields: { label: string; value: string }[] };
+  pendingAction?: { id: string; summary: string; fields: { label: string; value: string }[]; danger?: boolean };
   candidates?: { prompt: string; options: { label: string; value: string }[] };
   usedFallback: boolean;
 }
@@ -86,7 +86,9 @@ export async function runAgent(opts: {
       if (r.kind === "proposal") {
         toolSummary.push({ tool: call.name, summary: r.summary });
         // 요약은 확인 카드가 보여 주므로 본문은 질문만 (같은 문장 두 번 방지). 기록에는 toolSummary 로 남는다
-        return finish("아래 내용으로 진행할까요?", { pendingAction: { id: r.actionId, summary: r.summary, fields: r.fields } });
+        return finish(r.danger ? "아래 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다." : "아래 내용으로 진행할까요?", {
+          pendingAction: { id: r.actionId, summary: r.summary, fields: r.fields, ...(r.danger ? { danger: true } : {}) },
+        });
       }
       if (r.kind === "candidates") {
         return finish(r.prompt, { candidates: { prompt: r.prompt, options: r.options } });

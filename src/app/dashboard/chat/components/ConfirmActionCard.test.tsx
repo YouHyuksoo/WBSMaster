@@ -50,6 +50,19 @@ describe("ConfirmActionCard", () => {
   });
 });
 
+describe("ConfirmActionCard danger", () => {
+  it("delete card shows red 삭제 button and calls confirm", async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ status: "CONFIRMED", resultRef: "m1", link: "/dashboard/milestones" })));
+    vi.stubGlobal("fetch", f);
+    render(<ConfirmActionCard action={{ id: "act-9", summary: "마일스톤 1건 삭제", fields: [], danger: true }} />);
+    const btn = screen.getByRole("button", { name: "삭제" });
+    expect(btn.className).toMatch(/red/);
+    expect(screen.queryByRole("button", { name: "등록" })).toBeNull();
+    fireEvent.click(btn);
+    expect(await screen.findByText(/삭제했습니다/)).toBeTruthy();
+  });
+});
+
 describe("CandidatePicker", () => {
   it("picker sends label", () => {
     const onPick = vi.fn();
