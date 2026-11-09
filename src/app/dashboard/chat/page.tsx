@@ -279,6 +279,11 @@ export default function ChatPage() {
   const handleSendMessage = useCallback(
     async (inputMessage: string) => {
       if (!inputMessage.trim() || isLoading) return;
+      // 프로젝트를 불러오기 전에는 보내지 않는다 (서버도 projectId 없으면 400)
+      if (!selectedProjectId) {
+        toast.error("프로젝트 정보를 불러오는 중입니다. 잠시 후 다시 보내 주세요.");
+        return;
+      }
 
       const userMessage: ChatMessage = {
         id: Date.now().toString(),

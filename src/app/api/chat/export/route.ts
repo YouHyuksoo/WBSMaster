@@ -8,12 +8,13 @@
  * 1. **POST /api/chat/export**: SQL 쿼리 실행 후 Excel 파일 반환
  *    - LIMIT 제한 없이 전체 데이터 조회
  *    - LLM 토큰 비용 없음
- * 2. **보안**: SELECT 쿼리만 허용 (INSERT, UPDATE, DELETE 차단)
+ * 2. **보안**: SELECT 쿼리만 허용 (INSERT, UPDATE, DELETE 차단).
+ *    본인 채팅 기록에 있는 조회만 실행하고, 그 기록의 프로젝트 멤버인지 확인한다 (임의 SQL·다른 프로젝트 조회 방지)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { findSensitiveSqlReference, runSafeSql } from "@/lib/llm/safe-sql";
 import * as XLSX from "xlsx";
 
@@ -71,7 +72,7 @@ function validateSelectQuery(sql: string): boolean {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) return error;
 
     const body = await request.json();
@@ -82,6 +83,23 @@ export async function POST(request: NextRequest) {
         { error: "SQL 쿼리가 필요합니다." },
         { status: 400 }
       );
+    }
+
+    // 임의 SQL 실행 방지: 본인 채팅에서 실제로 실행된 조회(chat_histories.sqlQuery)만 내보낸다
+    const history = await prisma.chatHistory.findFirst({
+      where: { userId: user!.id, sqlQuery },
+      select: { projectId: true },
+    });
+    if (!history) {
+      return NextResponse.json(
+        { error: "채팅에서 실행한 조회만 내보낼 수 있습니다." },
+        { status: 403 }
+      );
+    }
+    // 그 조회를 한 프로젝트의 멤버인지 다시 확인 (프로젝트에서 빠진 뒤 내보내기 방지)
+    if (history.projectId) {
+      const denied = await assertProjectAccess(history.projectId, user!);
+      if (denied) return denied;
     }
 
     // LIMIT 제거

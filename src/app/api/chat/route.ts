@@ -93,11 +93,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 다른 프로젝트 데이터를 묻지 못하게 프로젝트 멤버인지 확인
-    if (projectId) {
-      const denied = await assertProjectAccess(projectId, user!);
-      if (denied) return denied;
+    // 프로젝트 없이 보내면 SQL 이 전체 프로젝트를 조회하게 되므로 막는다
+    // (화면이 프로젝트를 불러오기 전에 보낸 질문이 다른 프로젝트 데이터로 답하던 문제)
+    if (!projectId || typeof projectId !== "string") {
+      return NextResponse.json({ error: "프로젝트를 먼저 선택해 주세요." }, { status: 400 });
     }
+
+    // 다른 프로젝트 데이터를 묻지 못하게 프로젝트 멤버인지 확인
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     // 페르소나 조회 (선택된 경우)
     let personaSystemPrompt: string | undefined;

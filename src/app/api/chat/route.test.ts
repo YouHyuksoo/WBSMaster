@@ -62,6 +62,15 @@ describe("POST /api/chat", () => {
     expect(agent.answerWithAgent).not.toHaveBeenCalled();
   });
 
+  it("no projectId → 400 without calling LLM (전체 프로젝트 조회 방지)", async () => {
+    const res = await post({ message: "지연된 WBS 보여줘" });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toContain("프로젝트");
+    expect(agent.answerWithAgent).not.toHaveBeenCalled();
+    expect(llm.processChatMessage).not.toHaveBeenCalled();
+    expect(db.chatHistory.create).not.toHaveBeenCalled();
+  });
+
   it("no ai settings → company chatgpt default", async () => {
     st.settings = null;
     await post({ message: "열린 이슈", projectId: "p1" });
