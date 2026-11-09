@@ -21,7 +21,7 @@ const modelFields = (model: string): Set<string> => {
   return new Set(m[1].split("\n").map((l) => l.trim().split(/\s+/)[0]).filter((w) => /^[a-z]\w*$/.test(w)));
 };
 /** 화면 API 가 받지만 모델 칼럼이 아닌 필드 (서버가 다른 칼럼으로 바꿈) */
-const NON_COLUMN = new Set(["parentCode"]);
+const NON_COLUMN = new Set(["parentCode", "contents"]);
 
 describe.each(ENTITY_SPECS.map((s) => [s.key, s] as const))("%s", (_k, spec) => {
   it("model exists and ref/field names are real columns", () => {

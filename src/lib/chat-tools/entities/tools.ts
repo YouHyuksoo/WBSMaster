@@ -27,6 +27,7 @@ function fieldGuide(f: EntityField): string {
   if (f.type === "enum") return `${f.key}${req}[${f.values!.map((v) => (f.labels?.[v] ? `${v}(${f.labels[v]})` : v)).join("|")}]`;
   if (f.type === "person") return `${f.key}${req}(사람 이름)`;
   if (f.type === "people") return `${f.key}${req}(이름 배열)`;
+  if (f.type === "list") return `${f.key}${req}(문자열 배열${f.createOnly ? ", 등록 때만" : ""})`;
   return `${f.key}${req}(${f.type === "date" ? "YYYY-MM-DD" : f.type})`;
 }
 
@@ -51,6 +52,7 @@ function parseValue(f: EntityField, v: unknown): unknown {
       if (!f.values!.includes(String(v))) throw new Error(`${f.key} 값이 올바르지 않습니다: ${String(v)}. 허용값: ${f.values!.join(", ")}`);
       return String(v);
     }
+    case "list":
     case "people": {
       const list = (Array.isArray(v) ? v : [v]).map((x) => String(x).trim()).filter(Boolean);
       return list.length ? list : undefined;
@@ -68,6 +70,7 @@ function parseFields(spec: EntitySpec, raw: unknown, forCreate: boolean): Record
   const out: Record<string, unknown> = {};
   for (const f of spec.fields) {
     const v = parseValue(f, input[f.key]);
+    if (!forCreate && f.createOnly && v !== undefined) throw new Error(`${f.key}(${f.label})는 등록할 때만 넣을 수 있습니다.`);
     if (forCreate && f.required && v === undefined) throw new Error(`${spec.label} 등록에는 ${f.key}(${f.label})가 필요합니다.`);
     if (v !== undefined) out[f.key] = v;
   }
@@ -131,7 +134,7 @@ async function resolvePeople(spec: EntitySpec, ctx: ToolContext, data: Record<st
 }
 
 function displayOf(spec: EntitySpec, data: Record<string, unknown>): { label: string; value: string }[] {
-  return spec.fields.filter((f) => f.type !== "person" && f.type !== "people" && data[f.key] !== undefined).map((f) => ({ label: f.label, value: f.labels?.[String(data[f.key])] ?? String(data[f.key]) }));
+  return spec.fields.filter((f) => f.type !== "person" && f.type !== "people" && data[f.key] !== undefined).map((f) => ({ label: f.label, value: Array.isArray(data[f.key]) ? (data[f.key] as string[]).join(" / ") : f.labels?.[String(data[f.key])] ?? String(data[f.key]) }));
 }
 
 async function savePending(ctx: ToolContext, kind: string, args: object, summary: string, fields: { label: string; value: string }[], danger = false): Promise<ToolResult> {

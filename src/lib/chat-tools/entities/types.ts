@@ -11,7 +11,8 @@
  */
 
 /** 필드 종류. person 은 이름 → 사용자 id(to), people 은 여러 이름 → id 배열(to) */
-export type EntityFieldType = "string" | "date" | "int" | "bool" | "enum" | "person" | "people";
+/** list: 문자열 배열 (사람 이름 변환 없음, 예: 회의 내용 줄들) */
+export type EntityFieldType = "string" | "date" | "int" | "bool" | "enum" | "person" | "people" | "list";
 
 export interface EntityField {
   key: string;
@@ -23,6 +24,8 @@ export interface EntityField {
   labels?: Record<string, string>;
   /** 등록 시 필수 */
   required?: boolean;
+  /** 등록에서만 받는다 (prepareCreate 가 다른 본문으로 바꾸는 필드) */
+  createOnly?: boolean;
   /** person/people: 화면 API 에 보낼 칼럼 이름 (예: assigneeId) */
   to?: string;
 }
