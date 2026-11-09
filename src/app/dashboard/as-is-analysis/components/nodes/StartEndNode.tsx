@@ -30,7 +30,7 @@ function StartEndNodeComponent({ id, data, selected }: NodeProps<StartEndNodeDat
   const borderColor = isStart ? "border-green-500" : "border-red-500";
   const iconColor = isStart ? "text-green-500" : "text-red-500";
   const handleColor = isStart ? "!bg-green-500" : "!bg-red-500";
-  const bgColor = isStart ? "bg-green-50" : "bg-red-50";
+  const bgColor = isStart ? "bg-green-500/10" : "bg-red-500/10";
 
   /**
    * 편집 모드 진입

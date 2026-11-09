@@ -158,10 +158,10 @@ function DecisionNodeComponent({ id, data, selected }: NodeProps<DecisionNodeDat
       />
 
       {/* Yes/No 라벨 */}
-      <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] text-green-600 font-medium">
+      <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] text-green-600 dark:text-green-400 font-medium">
         Yes
       </span>
-      <span className="absolute top-1/2 -right-4 -translate-y-1/2 text-[8px] text-red-600 font-medium">
+      <span className="absolute top-1/2 -right-4 -translate-y-1/2 text-[8px] text-red-600 dark:text-red-400 font-medium">
         No
       </span>
     </div>

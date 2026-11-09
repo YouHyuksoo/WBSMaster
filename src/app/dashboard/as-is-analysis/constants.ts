@@ -417,6 +417,13 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
   },
 };
 
+/**
+ * reactflow 확대/축소 버튼 다크 테마 (기본은 흰 버튼).
+ * reactflow v11 은 colorMode 가 없어서 하위 버튼에 다크 클래스를 준다. FlowChartCanvas · SwimlaneCanvas 공용.
+ */
+export const FLOW_CONTROLS_THEME =
+  "dark:[&_button]:!bg-slate-800 dark:[&_button]:!border-slate-700 dark:[&_button:hover]:!bg-slate-700 dark:[&_button_svg]:!fill-slate-200";
+
 // ============================================
 // 기본값 설정
 // ============================================

@@ -257,7 +257,7 @@ export function UnitAnalysisPanel({ item, onBack }: UnitAnalysisPanelProps) {
               {/* 섹션 A 헤더 */}
               <div className="p-4 rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50/50 dark:bg-teal-950/20">
                 <div className="flex items-center gap-2">
-                  <Icon name="folder" size="sm" className="text-teal-600" />
+                  <Icon name="folder" size="sm" className="text-teal-600 dark:text-teal-400" />
                   <span className="text-sm font-semibold text-teal-700 dark:text-teal-400">
                     문서/수기 관리 섹션
                   </span>
@@ -281,7 +281,7 @@ export function UnitAnalysisPanel({ item, onBack }: UnitAnalysisPanelProps) {
               {/* 섹션 B 헤더 */}
               <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
                 <div className="flex items-center gap-2">
-                  <Icon name="computer" size="sm" className="text-blue-600" />
+                  <Icon name="computer" size="sm" className="text-blue-600 dark:text-blue-400" />
                   <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">
                     시스템 분석 섹션
                   </span>

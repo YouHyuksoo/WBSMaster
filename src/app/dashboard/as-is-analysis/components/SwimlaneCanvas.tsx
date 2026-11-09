@@ -32,6 +32,7 @@ import "reactflow/dist/style.css";
 
 import { Icon, Button, Input } from "@/components/ui";
 import { swimlaneNodeTypes } from "./nodes";
+import { FLOW_CONTROLS_THEME } from "../constants";
 import type { SwimlaneData, SwimlaneHeader } from "../types";
 
 interface SwimlaneCanvasProps {
@@ -50,12 +51,12 @@ const LANE_HEIGHT = 150;
 
 /** 레인 색상 */
 const LANE_COLORS = [
-  { bg: "bg-blue-50", border: "border-blue-200", header: "bg-blue-100" },
-  { bg: "bg-green-50", border: "border-green-200", header: "bg-green-100" },
-  { bg: "bg-purple-50", border: "border-purple-200", header: "bg-purple-100" },
-  { bg: "bg-orange-50", border: "border-orange-200", header: "bg-orange-100" },
-  { bg: "bg-pink-50", border: "border-pink-200", header: "bg-pink-100" },
-  { bg: "bg-cyan-50", border: "border-cyan-200", header: "bg-cyan-100" },
+  { bg: "bg-blue-500/5", border: "border-blue-500/30", header: "bg-blue-500/15" },
+  { bg: "bg-green-500/5", border: "border-green-500/30", header: "bg-green-500/15" },
+  { bg: "bg-purple-500/5", border: "border-purple-500/30", header: "bg-purple-500/15" },
+  { bg: "bg-orange-500/5", border: "border-orange-500/30", header: "bg-orange-500/15" },
+  { bg: "bg-pink-500/5", border: "border-pink-500/30", header: "bg-pink-500/15" },
+  { bg: "bg-cyan-500/5", border: "border-cyan-500/30", header: "bg-cyan-500/15" },
 ];
 
 /**
@@ -163,13 +164,13 @@ function SwimlaneCanvasInner({ initialData, onSave, readOnly = false, isSaving =
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${colorSet.header} border ${colorSet.border}`}
                 >
                   <Icon name="person" size="xs" className="text-text-secondary" />
-                  <span className="text-xs font-medium text-text dark:text-slate-800">
+                  <span className="text-xs font-medium text-text dark:text-slate-100">
                     {lane.name}
                   </span>
                   {!readOnly && (
                     <button
                       onClick={() => handleRemoveLane(lane.id)}
-                      className="p-0.5 hover:bg-red-100 rounded"
+                      className="p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
                     >
                       <Icon name="close" size="xs" className="text-text-secondary hover:text-error" />
                     </button>
@@ -218,7 +219,7 @@ function SwimlaneCanvasInner({ initialData, onSave, readOnly = false, isSaving =
                 className={`${colorSet.header} border-b ${colorSet.border} flex items-center justify-center`}
                 style={{ height: LANE_HEIGHT }}
               >
-                <span className="text-xs font-medium text-text dark:text-slate-800 writing-mode-vertical"
+                <span className="text-xs font-medium text-text dark:text-slate-100 writing-mode-vertical"
                       style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}>
                   {lane.name}
                 </span>
@@ -283,8 +284,8 @@ function SwimlaneCanvasInner({ initialData, onSave, readOnly = false, isSaving =
             panOnScroll={false}
             zoomActivationKeyCode="Control"
           >
-            <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="#cbd5e1" />
-            <Controls showInteractive={!readOnly} className="!left-2 !bottom-2" />
+            <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="var(--border)" />
+            <Controls showInteractive={!readOnly} className={`!left-2 !bottom-2 ${FLOW_CONTROLS_THEME}`} />
 
             {/* 상단 패널 */}
             <Panel position="top-right" className="flex items-center gap-2">

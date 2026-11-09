@@ -33,6 +33,7 @@ import "reactflow/dist/style.css";
 
 import { Icon, Button } from "@/components/ui";
 import { flowChartNodeTypes } from "./nodes";
+import { FLOW_CONTROLS_THEME } from "../constants";
 import type { FlowChartData } from "../types";
 
 interface FlowChartCanvasProps {
@@ -48,16 +49,16 @@ interface FlowChartCanvasProps {
 
 /** 노드 팔레트 아이템 */
 const NODE_PALETTE = [
-  { type: "startEnd", label: "시작", icon: "play_circle", data: { label: "시작", type: "start" }, color: "text-green-600" },
-  { type: "process", label: "프로세스", icon: "crop_square", data: { label: "프로세스" }, color: "text-blue-600" },
-  { type: "subProcess", label: "서브프로세스", icon: "account_tree", data: { label: "서브프로세스" }, color: "text-cyan-600" },
-  { type: "decision", label: "판단", icon: "change_history", data: { label: "조건?" }, color: "text-orange-600" },
-  { type: "manualInput", label: "수동입력", icon: "keyboard", data: { label: "수동 입력" }, color: "text-pink-600" },
-  { type: "document", label: "문서", icon: "description", data: { label: "문서" }, color: "text-purple-600" },
-  { type: "data", label: "데이터", icon: "storage", data: { label: "데이터" }, color: "text-teal-600" },
-  { type: "interface", label: "인터페이스", icon: "swap_horiz", data: { label: "인터페이스" }, color: "text-indigo-600" },
-  { type: "database", label: "DB저장", icon: "database", data: { label: "DB" }, color: "text-amber-600" },
-  { type: "startEnd", label: "종료", icon: "stop_circle", data: { label: "종료", type: "end" }, color: "text-red-600" },
+  { type: "startEnd", label: "시작", icon: "play_circle", data: { label: "시작", type: "start" }, color: "text-green-600 dark:text-green-400" },
+  { type: "process", label: "프로세스", icon: "crop_square", data: { label: "프로세스" }, color: "text-blue-600 dark:text-blue-400" },
+  { type: "subProcess", label: "서브프로세스", icon: "account_tree", data: { label: "서브프로세스" }, color: "text-cyan-600 dark:text-cyan-400" },
+  { type: "decision", label: "판단", icon: "change_history", data: { label: "조건?" }, color: "text-orange-600 dark:text-orange-400" },
+  { type: "manualInput", label: "수동입력", icon: "keyboard", data: { label: "수동 입력" }, color: "text-pink-600 dark:text-pink-400" },
+  { type: "document", label: "문서", icon: "description", data: { label: "문서" }, color: "text-purple-600 dark:text-purple-400" },
+  { type: "data", label: "데이터", icon: "storage", data: { label: "데이터" }, color: "text-teal-600 dark:text-teal-400" },
+  { type: "interface", label: "인터페이스", icon: "swap_horiz", data: { label: "인터페이스" }, color: "text-indigo-600 dark:text-indigo-400" },
+  { type: "database", label: "DB저장", icon: "database", data: { label: "DB" }, color: "text-amber-600 dark:text-amber-400" },
+  { type: "startEnd", label: "종료", icon: "stop_circle", data: { label: "종료", type: "end" }, color: "text-red-600 dark:text-red-400" },
 ];
 
 /** 연결선 타입 */
@@ -262,8 +263,9 @@ function FlowChartCanvasInner({ initialData, onSave, readOnly = false, isSaving 
           }}
           deleteKeyCode="Delete"
         >
-          <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="#e2e8f0" />
-          <Controls showInteractive={!readOnly} />
+          {/* 점 · 조작 버튼 · 미니맵은 테마 변수/다크 클래스로 맞춘다 (reactflow v11 은 colorMode 가 없다) */}
+          <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="var(--border)" />
+          <Controls showInteractive={!readOnly} className={FLOW_CONTROLS_THEME} />
           <MiniMap
             nodeColor={(node) => {
               switch (node.type) {
@@ -289,6 +291,7 @@ function FlowChartCanvasInner({ initialData, onSave, readOnly = false, isSaving 
                   return "#94a3b8";
               }
             }}
+            maskColor="rgba(100, 116, 139, 0.25)"
             className="!bg-slate-100 dark:!bg-slate-800"
           />
 
