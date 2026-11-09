@@ -388,7 +388,7 @@ export default function IssuesPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                      <p className="text-[10px] text-text-secondary">전체</p>
+                      <p className="text-sm text-text-secondary">전체</p>
                     </div>
                   </div>
                 </div>
@@ -399,7 +399,7 @@ export default function IssuesPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.open}</p>
-                      <p className="text-[10px] text-text-secondary">열림</p>
+                      <p className="text-sm text-text-secondary">열림</p>
                     </div>
                   </div>
                 </div>
@@ -410,7 +410,7 @@ export default function IssuesPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.inProgress}</p>
-                      <p className="text-[10px] text-text-secondary">진행중</p>
+                      <p className="text-sm text-text-secondary">진행중</p>
                     </div>
                   </div>
                 </div>
@@ -421,7 +421,7 @@ export default function IssuesPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.resolved}</p>
-                      <p className="text-[10px] text-text-secondary">해결됨</p>
+                      <p className="text-sm text-text-secondary">해결됨</p>
                     </div>
                   </div>
                 </div>
@@ -434,11 +434,11 @@ export default function IssuesPage() {
                   <div className="flex items-center justify-between gap-1">
                     <div className="text-center flex-1">
                       <p className="text-lg font-bold text-error">{criticalStats.total}</p>
-                      <p className="text-[10px] text-text-secondary">건수</p>
+                      <p className="text-sm text-text-secondary">건수</p>
                     </div>
                     <div className="text-center flex-1">
                       <p className="text-lg font-bold text-success">{criticalStats.resolved}</p>
-                      <p className="text-[10px] text-text-secondary">해결</p>
+                      <p className="text-sm text-text-secondary">해결</p>
                     </div>
                     <div className="text-center flex-1">
                       <p className={`text-lg font-bold ${criticalStats.unresolvedRate > 50 ? "text-error" : criticalStats.unresolvedRate > 0 ? "text-warning" : "text-success"}`}>
@@ -626,7 +626,7 @@ export default function IssuesPage() {
       {/* 이슈 추가 모달 */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-md mx-4">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold text-text dark:text-white mb-4">
               새 이슈 등록
             </h2>
@@ -654,10 +654,10 @@ export default function IssuesPage() {
                     setNewIssue({ ...newIssue, description: e.target.value })
                   }
                   placeholder="이슈 상세 설명"
-                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary resize-none h-24"
+                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
                     우선순위
@@ -696,7 +696,7 @@ export default function IssuesPage() {
                 </div>
               </div>
               {/* 유형 & 목표 해결일 */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
                     유형
@@ -752,7 +752,7 @@ export default function IssuesPage() {
       {/* 이슈 수정 모달 */}
       {editingIssue && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold text-text dark:text-white mb-4">
               이슈 수정
             </h2>
@@ -783,12 +783,12 @@ export default function IssuesPage() {
                     setEditingIssue({ ...editingIssue, description: e.target.value })
                   }
                   placeholder="이슈 상세 설명"
-                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary resize-none h-24"
+                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
 
               {/* 상태 & 우선순위 */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
                     상태
@@ -827,7 +827,7 @@ export default function IssuesPage() {
               </div>
 
               {/* 카테고리 & 유형 */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
                     카테고리
@@ -880,7 +880,7 @@ export default function IssuesPage() {
               </div>
 
               {/* 보고자 & 담당자 */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
                     보고자
@@ -932,7 +932,7 @@ export default function IssuesPage() {
                     setEditingIssue({ ...editingIssue, resolution: e.target.value })
                   }
                   placeholder="이슈 처리 내용 (해결 방법, 조치 사항 등)"
-                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary resize-none h-24"
+                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
 

@@ -100,7 +100,7 @@ export function DocumentModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-semibold text-text dark:text-white mb-4">
           {mode === "create" ? "새 문서 등록" : "문서 수정"}
         </h2>
@@ -127,7 +127,7 @@ export function DocumentModal({
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="문서에 대한 간단한 설명"
-              className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary resize-none h-20"
+              className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary field-sizing-content min-h-20 max-h-[40vh] resize-y"
             />
           </div>
 

@@ -78,7 +78,7 @@ export function AddItemModal({ overviewId, projectId, onClose }: AddItemModalPro
       />
 
       {/* 모달 */}
-      <div className="relative bg-background-white dark:bg-surface-dark rounded-xl shadow-xl w-full max-w-lg mx-4">
+      <div className="relative bg-background-white dark:bg-surface-dark rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
         {/* 헤더 */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-border-dark">
           <h2 className="text-lg font-bold text-text dark:text-white flex items-center gap-2">
@@ -95,58 +95,62 @@ export function AddItemModal({ overviewId, projectId, onClose }: AddItemModalPro
 
         {/* 본문 */}
         <div className="p-6 space-y-4">
-          {/* AS-IS 관리번호 */}
-          <div>
-            <label className="block text-sm font-medium text-text dark:text-white mb-1.5">
-              AS-IS 관리번호
-            </label>
-            <Input
-              value={asIsManagementNo}
-              onChange={(e) => setAsIsManagementNo(e.target.value)}
-              placeholder="예: AS-001, AS-002"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* AS-IS 관리번호 */}
+            <div>
+              <label className="block text-sm font-medium text-text dark:text-white mb-1.5">
+                AS-IS 관리번호
+              </label>
+              <Input
+                value={asIsManagementNo}
+                onChange={(e) => setAsIsManagementNo(e.target.value)}
+                placeholder="예: AS-001, AS-002"
+              />
+            </div>
+
+            {/* 대분류 */}
+            <div>
+              <label className="block text-sm font-medium text-text dark:text-white mb-1.5">
+                대분류 <span className="text-error">*</span>
+              </label>
+              <select
+                value={majorCategory}
+                onChange={(e) => setMajorCategory(e.target.value as AsIsMajorCategory)}
+                className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                {MAJOR_CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* 대분류 */}
-          <div>
-            <label className="block text-sm font-medium text-text dark:text-white mb-1.5">
-              대분류 <span className="text-error">*</span>
-            </label>
-            <select
-              value={majorCategory}
-              onChange={(e) => setMajorCategory(e.target.value as AsIsMajorCategory)}
-              className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-            >
-              {MAJOR_CATEGORY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* 중분류 */}
+            <div>
+              <label className="block text-sm font-medium text-text dark:text-white mb-1.5">
+                중분류 <span className="text-error">*</span>
+              </label>
+              <Input
+                value={middleCategory}
+                onChange={(e) => setMiddleCategory(e.target.value)}
+                placeholder="예: 입고관리, 재고조정"
+              />
+            </div>
 
-          {/* 중분류 */}
-          <div>
-            <label className="block text-sm font-medium text-text dark:text-white mb-1.5">
-              중분류 <span className="text-error">*</span>
-            </label>
-            <Input
-              value={middleCategory}
-              onChange={(e) => setMiddleCategory(e.target.value)}
-              placeholder="예: 입고관리, 재고조정"
-            />
-          </div>
-
-          {/* 업무명 */}
-          <div>
-            <label className="block text-sm font-medium text-text dark:text-white mb-1.5">
-              업무명 <span className="text-error">*</span>
-            </label>
-            <Input
-              value={taskName}
-              onChange={(e) => setTaskName(e.target.value)}
-              placeholder="예: 입고검수, 재고실사"
-            />
+            {/* 업무명 */}
+            <div>
+              <label className="block text-sm font-medium text-text dark:text-white mb-1.5">
+                업무명 <span className="text-error">*</span>
+              </label>
+              <Input
+                value={taskName}
+                onChange={(e) => setTaskName(e.target.value)}
+                placeholder="예: 입고검수, 재고실사"
+              />
+            </div>
           </div>
 
           {/* 현행방식 */}
@@ -176,8 +180,7 @@ export function AddItemModal({ overviewId, projectId, onClose }: AddItemModalPro
               value={issueSummary}
               onChange={(e) => setIssueSummary(e.target.value)}
               placeholder="현행 업무의 주요 이슈를 입력하세요"
-              rows={3}
-              className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 field-sizing-content min-h-24 max-h-[40vh] resize-y"
             />
           </div>
 
@@ -190,8 +193,7 @@ export function AddItemModal({ overviewId, projectId, onClose }: AddItemModalPro
               value={details}
               onChange={(e) => setDetails(e.target.value)}
               placeholder="업무의 세부 내용을 입력하세요"
-              rows={3}
-              className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 field-sizing-content min-h-24 max-h-[40vh] resize-y"
             />
           </div>
         </div>

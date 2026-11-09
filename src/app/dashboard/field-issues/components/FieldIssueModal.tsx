@@ -221,8 +221,7 @@ export function FieldIssueModal({
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
                 placeholder="이슈 설명을 입력하세요"
-                rows={3}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 field-sizing-content min-h-24 max-h-[40vh] resize-y"
               />
             </div>
 
@@ -316,8 +315,7 @@ export function FieldIssueModal({
                 value={formData.proposedSolution}
                 onChange={(e) => handleChange("proposedSolution", e.target.value)}
                 placeholder="제안된 해결방안을 입력하세요"
-                rows={3}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 field-sizing-content min-h-24 max-h-[40vh] resize-y"
               />
             </div>
 
@@ -330,8 +328,7 @@ export function FieldIssueModal({
                 value={formData.finalSolution}
                 onChange={(e) => handleChange("finalSolution", e.target.value)}
                 placeholder="최종 적용방안을 입력하세요"
-                rows={3}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 field-sizing-content min-h-24 max-h-[40vh] resize-y"
               />
             </div>
 
@@ -344,8 +341,7 @@ export function FieldIssueModal({
                 value={formData.remarks}
                 onChange={(e) => handleChange("remarks", e.target.value)}
                 placeholder="추가 메모"
-                rows={2}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 field-sizing-content min-h-16 max-h-[25vh] resize-y"
               />
             </div>
           </div>

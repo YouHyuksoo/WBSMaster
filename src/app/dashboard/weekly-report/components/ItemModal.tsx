@@ -100,7 +100,7 @@ export function ItemModal({ isOpen, item, onClose, onSave }: ItemModalProps) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={getModalTitle()} size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={getModalTitle()} size="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* 카테고리 */}
         <div>
@@ -148,8 +148,7 @@ export function ItemModal({ isOpen, item, onClose, onSave }: ItemModalProps) {
               setFormData({ ...formData, description: e.target.value })
             }
             placeholder="상세 설명을 입력하세요"
-            rows={3}
-            className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+            className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary field-sizing-content min-h-24 max-h-[40vh] resize-y"
           />
         </div>
 

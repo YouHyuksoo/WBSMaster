@@ -262,8 +262,7 @@ export function InterviewModal({
                   value={formData.currentProcess}
                   onChange={(e) => handleChange("currentProcess", e.target.value)}
                   placeholder="현재 어떻게 업무를 진행하고 있는지 설명해주세요"
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
 
@@ -276,8 +275,7 @@ export function InterviewModal({
                   value={formData.painPoints}
                   onChange={(e) => handleChange("painPoints", e.target.value)}
                   placeholder="현재 겪고 있는 문제점이나 불편한 점을 설명해주세요"
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
 
@@ -290,8 +288,7 @@ export function InterviewModal({
                   value={formData.desiredResults}
                   onChange={(e) => handleChange("desiredResults", e.target.value)}
                   placeholder="개선 후 어떤 결과를 원하는지 설명해주세요"
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
 
@@ -304,8 +301,7 @@ export function InterviewModal({
                   value={formData.technicalConstraints}
                   onChange={(e) => handleChange("technicalConstraints", e.target.value)}
                   placeholder="기술적으로 제약이 있는 부분이나 고려사항을 설명해주세요"
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
 
@@ -318,8 +314,7 @@ export function InterviewModal({
                   value={formData.questions}
                   onChange={(e) => handleChange("questions", e.target.value)}
                   placeholder="추가로 궁금한 점이나 확인이 필요한 사항을 기재해주세요"
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
             </div>
@@ -333,8 +328,7 @@ export function InterviewModal({
                 value={formData.remarks}
                 onChange={(e) => handleChange("remarks", e.target.value)}
                 placeholder="추가 메모나 참고사항"
-                rows={2}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 field-sizing-content min-h-16 max-h-[25vh] resize-y"
               />
             </div>
           </div>

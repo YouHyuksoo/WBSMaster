@@ -266,7 +266,7 @@ export function ResponsibilityTable({ unitAnalysis }: ResponsibilityTableProps) 
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={handleCloseModal} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
               {/* 모달 헤더 */}
               <div className="flex items-center justify-between p-4 border-b border-border dark:border-border-dark">
                 <h3 className="text-lg font-bold text-text dark:text-white">
@@ -279,25 +279,27 @@ export function ResponsibilityTable({ unitAnalysis }: ResponsibilityTableProps) 
 
               {/* 모달 본문 */}
               <div className="p-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    역할/담당자 <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={formData.role}
-                    onChange={(e) => handleInputChange("role", e.target.value)}
-                    placeholder="예: 생산관리 담당자"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    부서
-                  </label>
-                  <Input
-                    value={formData.department}
-                    onChange={(e) => handleInputChange("department", e.target.value)}
-                    placeholder="예: 생산관리팀"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                      역할/담당자 <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={formData.role}
+                      onChange={(e) => handleInputChange("role", e.target.value)}
+                      placeholder="예: 생산관리 담당자"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                      부서
+                    </label>
+                    <Input
+                      value={formData.department}
+                      onChange={(e) => handleInputChange("department", e.target.value)}
+                      placeholder="예: 생산관리팀"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
@@ -307,29 +309,30 @@ export function ResponsibilityTable({ unitAnalysis }: ResponsibilityTableProps) 
                     value={formData.responsibility}
                     onChange={(e) => handleInputChange("responsibility", e.target.value)}
                     placeholder="담당 업무 내용을 입력하세요"
-                    rows={3}
-                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    권한
-                  </label>
-                  <Input
-                    value={formData.authority}
-                    onChange={(e) => handleInputChange("authority", e.target.value)}
-                    placeholder="예: 생산계획 승인"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    비고
-                  </label>
-                  <Input
-                    value={formData.remarks}
-                    onChange={(e) => handleInputChange("remarks", e.target.value)}
-                    placeholder="추가 메모"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                      권한
+                    </label>
+                    <Input
+                      value={formData.authority}
+                      onChange={(e) => handleInputChange("authority", e.target.value)}
+                      placeholder="예: 생산계획 승인"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                      비고
+                    </label>
+                    <Input
+                      value={formData.remarks}
+                      onChange={(e) => handleInputChange("remarks", e.target.value)}
+                      placeholder="추가 메모"
+                    />
+                  </div>
                 </div>
               </div>
 

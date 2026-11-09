@@ -331,7 +331,7 @@ export default function ProjectsPage() {
       {/* 새 프로젝트 모달 */}
       {showNewProjectModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-md w-full p-6">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-text dark:text-white">새 프로젝트</h2>
               <button
@@ -355,14 +355,13 @@ export default function ProjectsPage() {
                   설명
                 </label>
                 <textarea
-                  className="w-full px-4 py-3 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
-                  rows={3}
+                  className="w-full px-4 py-3 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary focus:ring-2 focus:ring-primary/50 focus:border-primary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                   placeholder="프로젝트에 대한 설명을 입력하세요"
                   value={newProjectDescription}
                   onChange={(e) => setNewProjectDescription(e.target.value)}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="시작일"
                   type="date"

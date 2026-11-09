@@ -444,7 +444,7 @@ export default function RequirementsPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                      <p className="text-[10px] text-text-secondary">전체</p>
+                      <p className="text-sm text-text-secondary">전체</p>
                     </div>
                   </div>
                 </div>
@@ -455,7 +455,7 @@ export default function RequirementsPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.approved}</p>
-                      <p className="text-[10px] text-text-secondary">승인</p>
+                      <p className="text-sm text-text-secondary">승인</p>
                     </div>
                   </div>
                 </div>
@@ -466,7 +466,7 @@ export default function RequirementsPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.implemented}</p>
-                      <p className="text-[10px] text-text-secondary">구현완료</p>
+                      <p className="text-sm text-text-secondary">구현완료</p>
                     </div>
                   </div>
                 </div>
@@ -477,7 +477,7 @@ export default function RequirementsPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.draft}</p>
-                      <p className="text-[10px] text-text-secondary">초안</p>
+                      <p className="text-sm text-text-secondary">초안</p>
                     </div>
                   </div>
                 </div>
@@ -752,7 +752,7 @@ export default function RequirementsPage() {
       {/* 업무협조 추가 모달 */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-md mx-4">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold text-text dark:text-white mb-4">
               새 업무협조 추가
             </h2>
@@ -780,10 +780,10 @@ export default function RequirementsPage() {
                     setNewRequirement({ ...newRequirement, description: e.target.value })
                   }
                   placeholder="업무협조 상세 설명"
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text placeholder:text-text-secondary resize-none h-24"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text placeholder:text-text-secondary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
                     우선순위
@@ -880,7 +880,7 @@ export default function RequirementsPage() {
       {/* 업무협조 수정 모달 */}
       {editingRequirement && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold text-text dark:text-white mb-4">
               업무협조 수정
             </h2>
@@ -911,12 +911,12 @@ export default function RequirementsPage() {
                     setEditingRequirement({ ...editingRequirement, description: e.target.value })
                   }
                   placeholder="업무협조 상세 설명"
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text placeholder:text-text-secondary resize-none h-24"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-text placeholder:text-text-secondary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
 
               {/* 상태 & 우선순위 */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
                     상태
@@ -954,7 +954,7 @@ export default function RequirementsPage() {
               </div>
 
               {/* 카테고리 & 마감일 */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
                     카테고리
@@ -993,7 +993,7 @@ export default function RequirementsPage() {
               </div>
 
               {/* 요청자 & 담당자 */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
                     요청자

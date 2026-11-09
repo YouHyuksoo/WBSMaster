@@ -174,8 +174,7 @@ export function EditTaskPanel({
           <textarea
             value={draft.description}
             onChange={(event) => set({ description: event.target.value })}
-            rows={3}
-            className="w-full resize-none rounded-lg border border-border bg-background-white px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary dark:border-border-dark dark:bg-surface-dark dark:text-white"
+            className="w-full rounded-lg border border-border bg-background-white px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary dark:border-border-dark dark:bg-surface-dark dark:text-white field-sizing-content min-h-24 max-h-[40vh] resize-y"
           />
         </Field>
 

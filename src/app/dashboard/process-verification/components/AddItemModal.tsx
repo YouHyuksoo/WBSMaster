@@ -355,7 +355,7 @@ export default function AddItemModal({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* 모달 */}
-      <div className="relative bg-white dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+      <div className="relative bg-white dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
         {/* 헤더 */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
@@ -563,9 +563,8 @@ export default function AddItemModal({
                 name="verificationDetail"
                 value={formData.verificationDetail}
                 onChange={handleChange}
-                rows={3}
                 placeholder="검증 내용을 입력하세요..."
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 field-sizing-content min-h-24 max-h-[40vh] resize-y"
               />
             </div>
 
@@ -625,8 +624,7 @@ export default function AddItemModal({
                 name="remarks"
                 value={formData.remarks}
                 onChange={handleChange}
-                rows={2}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 field-sizing-content min-h-16 max-h-[25vh] resize-y"
               />
             </div>
 

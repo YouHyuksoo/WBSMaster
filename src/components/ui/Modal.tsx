@@ -44,12 +44,16 @@ export interface ModalProps {
   showCloseButton?: boolean;
 }
 
-/** 모달 크기별 너비 클래스 */
+/**
+ * 모달 크기별 너비 클래스
+ * - sm: 확인 · 짧은 입력, md: 입력칸 몇 개, lg: 글 입력칸(textarea)이 있는 폼, xl: 넓은 표 · 2단 폼
+ * - 글 입력칸이 있으면 lg 이상 (modal-width.test.ts 가 검사)
+ */
 const sizeClasses: Record<ModalSize, string> = {
-  sm: "max-w-sm",
-  md: "max-w-md",
-  lg: "max-w-lg",
-  xl: "max-w-xl",
+  sm: "max-w-md",
+  md: "max-w-2xl",
+  lg: "max-w-3xl",
+  xl: "max-w-5xl",
   full: "max-w-[min(1280px,calc(100vw-2rem))]",
 };
 

@@ -887,7 +887,7 @@ export default function DashboardPage() {
       {/* 프로젝트 수정 모달 */}
       {showEditModal && editingProject && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-md">
+          <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-border dark:border-border-dark">
               <h2 className="text-lg font-bold text-text dark:text-white">
                 프로젝트 수정
@@ -921,7 +921,7 @@ export default function DashboardPage() {
                   value={editProject.description}
                   onChange={(e) => setEditProject({ ...editProject, description: e.target.value })}
                   placeholder="프로젝트 설명을 입력하세요"
-                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text resize-none h-20 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border text-text field-sizing-content min-h-24 max-h-[40vh] resize-y focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                 />
               </div>
               <div>
@@ -940,7 +940,7 @@ export default function DashboardPage() {
                   <option value="CANCELLED">취소</option>
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
                     시작일

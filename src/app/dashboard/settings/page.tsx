@@ -1017,7 +1017,7 @@ export default function SettingsPage() {
       {/* 페르소나 편집 모달 */}
       {isPersonaModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-card dark:bg-surface-dark rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
+          <div className="bg-card dark:bg-surface-dark rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
             <div className="p-6 border-b border-border dark:border-border-dark">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-text dark:text-white">
@@ -1033,7 +1033,8 @@ export default function SettingsPage() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* 이름 */}
+              {/* 이름 + 설명 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-text dark:text-white mb-2">
                   페르소나 이름 <span className="text-error">*</span>
@@ -1055,6 +1056,7 @@ export default function SettingsPage() {
                   value={personaForm.description}
                   onChange={(e) => setPersonaForm((prev) => ({ ...prev, description: e.target.value }))}
                 />
+              </div>
               </div>
 
               {/* 아이콘 선택 */}
@@ -1088,8 +1090,7 @@ export default function SettingsPage() {
                   placeholder="AI에게 전달할 역할과 지침을 입력하세요..."
                   value={personaForm.systemPrompt}
                   onChange={(e) => setPersonaForm((prev) => ({ ...prev, systemPrompt: e.target.value }))}
-                  rows={8}
-                  className="w-full px-4 py-3 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder-text-secondary resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono text-sm"
+                  className="w-full px-4 py-3 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder-text-secondary field-sizing-content min-h-48 max-h-[60vh] resize-y focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono text-sm"
                 />
                 <p className="text-xs text-text-secondary mt-2">
                   이 프롬프트는 모든 대화의 시작 부분에 AI에게 전달됩니다. 역할, 어조, 응답 형식 등을 지정하세요.

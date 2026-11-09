@@ -222,7 +222,7 @@ export function MilestoneModal({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* 모달 */}
-      <div className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-lg shadow-xl">
+      <div className="relative w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-lg shadow-xl">
         {/* 헤더 */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
           <h3 className="font-semibold text-slate-900 dark:text-slate-100">
@@ -262,13 +262,12 @@ export function MilestoneModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="마일스톤에 대한 설명..."
-              rows={2}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent field-sizing-content min-h-24 max-h-[40vh] resize-y"
             />
           </div>
 
           {/* 기간 (시작일 ~ 종료일) */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 시작일 *
@@ -295,6 +294,8 @@ export function MilestoneModal({
             </div>
           </div>
 
+          {/* 배치할 그룹 + 상태 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* 그룹 선택 (부모 행만 표시) */}
           {groupRows.length > 0 && (
             <div>
@@ -335,6 +336,7 @@ export function MilestoneModal({
                 </option>
               ))}
             </select>
+          </div>
           </div>
 
           {/* 색상 */}

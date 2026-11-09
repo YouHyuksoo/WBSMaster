@@ -290,7 +290,7 @@ export function DocumentTable({ unitAnalysis }: DocumentTableProps) {
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={handleCloseModal} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               {/* 모달 헤더 */}
               <div className="flex items-center justify-between p-4 border-b border-border dark:border-border-dark">
                 <h3 className="text-lg font-bold text-text dark:text-white">
@@ -313,7 +313,7 @@ export function DocumentTable({ unitAnalysis }: DocumentTableProps) {
                     placeholder="예: 생산일보"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-text dark:text-white mb-1">
                       문서 유형
@@ -343,11 +343,10 @@ export function DocumentTable({ unitAnalysis }: DocumentTableProps) {
                     value={formData.purpose}
                     onChange={(e) => handleInputChange("purpose", e.target.value)}
                     placeholder="문서의 작성 목적을 입력하세요"
-                    rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary field-sizing-content min-h-16 max-h-[25vh] resize-y"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-text dark:text-white mb-1">
                       작성 주기
@@ -369,25 +368,27 @@ export function DocumentTable({ unitAnalysis }: DocumentTableProps) {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    보관 위치
-                  </label>
-                  <Input
-                    value={formData.storageLocation}
-                    onChange={(e) => handleInputChange("storageLocation", e.target.value)}
-                    placeholder="예: 공유드라이브, 문서보관함"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    비고
-                  </label>
-                  <Input
-                    value={formData.remarks}
-                    onChange={(e) => handleInputChange("remarks", e.target.value)}
-                    placeholder="추가 메모"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                      보관 위치
+                    </label>
+                    <Input
+                      value={formData.storageLocation}
+                      onChange={(e) => handleInputChange("storageLocation", e.target.value)}
+                      placeholder="예: 공유드라이브, 문서보관함"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                      비고
+                    </label>
+                    <Input
+                      value={formData.remarks}
+                      onChange={(e) => handleInputChange("remarks", e.target.value)}
+                      placeholder="추가 메모"
+                    />
+                  </div>
                 </div>
               </div>
 

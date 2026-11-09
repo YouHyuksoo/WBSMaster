@@ -190,7 +190,7 @@ export function EquipmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-surface-dark rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+      <div className="bg-white dark:bg-surface-dark rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         {/* 헤더 */}
         <div className="p-6 border-b border-border dark:border-border-dark">
           <div className="flex items-center justify-between">
@@ -233,7 +233,7 @@ export function EquipmentModal({
             </div>
 
             {/* 타입 + 상태 */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-text dark:text-white mb-1 block">
                   타입 <span className="text-error">*</span>
@@ -269,7 +269,8 @@ export function EquipmentModal({
               </div>
             </div>
 
-            {/* 라인 */}
+            {/* 라인 + 위치 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-text dark:text-white mb-1 block">
                 라인코드
@@ -295,6 +296,7 @@ export function EquipmentModal({
                 placeholder="예: 1공장 2라인"
                 className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
+            </div>
             </div>
 
             {/* 이미지 URL */}
@@ -329,9 +331,8 @@ export function EquipmentModal({
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
                 placeholder="설비에 대한 상세 설명을 입력하세요"
-                className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary field-sizing-content min-h-24 max-h-[40vh] resize-y"
               />
             </div>
 
@@ -339,7 +340,7 @@ export function EquipmentModal({
             <div className="border-t border-border dark:border-border-dark pt-4">
               <h3 className="text-sm font-semibold text-text dark:text-white mb-3">제조사 정보 (선택)</h3>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs text-text-secondary mb-1 block">제조사</label>
                   <input
@@ -381,7 +382,7 @@ export function EquipmentModal({
 
               <div className="space-y-3">
                 {/* IP주소 + 포트 */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-text-secondary mb-1 block">IP주소</label>
                     <input
@@ -404,7 +405,8 @@ export function EquipmentModal({
                   </div>
                 </div>
 
-                {/* 시스템 종류 */}
+                {/* 시스템 종류 + 로그수집위치 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-text-secondary mb-1 block">시스템 종류</label>
                   <select
@@ -431,6 +433,7 @@ export function EquipmentModal({
                     placeholder="예: C:\Logs, /var/log"
                     className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
                   />
+                </div>
                 </div>
 
                 {/* 체크박스 옵션들 */}

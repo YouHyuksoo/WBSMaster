@@ -265,8 +265,7 @@ export function DiscussionItemModal({
             <textarea
               value={formData.description}
               onChange={(e) => handleChange("description", e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm field-sizing-content min-h-24 max-h-[40vh] resize-y"
               placeholder="협의가 필요한 이유와 배경을 입력하세요."
             />
           </div>
@@ -307,8 +306,7 @@ export function DiscussionItemModal({
                       <textarea
                         value={option.description}
                         onChange={(e) => handleOptionChange(index, "description", e.target.value)}
-                        rows={2}
-                        className="w-full px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-sm"
+                        className="w-full px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-sm field-sizing-content min-h-16 max-h-[25vh] resize-y"
                         placeholder="선택지 설명을 입력하세요."
                       />
                       {/* 선택: 비용, 기간 */}

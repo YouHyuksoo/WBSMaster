@@ -908,8 +908,7 @@ export function KanbanBoard() {
                   <textarea
                     value={selectedTask.description || ""}
                     onChange={(e) => setSelectedTask({ ...selectedTask, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
+                    className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                     placeholder="작업에 대한 설명..."
                   />
                 </div>
@@ -1229,8 +1228,7 @@ export function KanbanBoard() {
                       설명
                     </label>
                     <textarea
-                      className="w-full px-4 py-3 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
-                      rows={3}
+                      className="w-full px-4 py-3 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white placeholder:text-text-secondary focus:ring-2 focus:ring-primary/50 focus:border-primary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                       placeholder="작업에 대한 설명을 입력하세요"
                       value={newTaskDescription}
                       onChange={(e) => setNewTaskDescription(e.target.value)}

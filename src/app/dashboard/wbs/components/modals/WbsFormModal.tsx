@@ -127,7 +127,7 @@ export function WbsFormModal({
                   value={formData.description}
                   onChange={(e) => onFormChange({ description: e.target.value })}
                   placeholder="항목에 대한 상세 설명을 입력하세요"
-                  className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white resize-none h-24 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                  className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
 

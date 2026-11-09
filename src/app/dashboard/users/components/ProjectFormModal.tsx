@@ -56,7 +56,7 @@ export function ProjectFormModal({ isOpen, onClose, onCreated }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-md w-full p-6">
+      <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-text dark:text-white">새 프로젝트</h2>
           <button onClick={onClose} className="text-text-secondary hover:text-text dark:hover:text-white">
@@ -76,11 +76,10 @@ export function ProjectFormModal({ isOpen, onClose, onCreated }: Props) {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white"
+              className="w-full px-3 py-2.5 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white field-sizing-content min-h-24 max-h-[40vh] resize-y"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="시작일"
               type="date"

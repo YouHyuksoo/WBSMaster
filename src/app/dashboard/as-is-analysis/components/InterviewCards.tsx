@@ -234,7 +234,7 @@ export function InterviewCards({ unitAnalysis }: InterviewCardsProps) {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div className="size-10 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center">
-                          <Icon name="person" size="sm" className="text-orange-600" />
+                          <Icon name="person" size="sm" className="text-orange-600 dark:text-orange-400" />
                         </div>
                         <div>
                           <h4 className="text-sm font-bold text-text dark:text-white">
@@ -293,7 +293,7 @@ export function InterviewCards({ unitAnalysis }: InterviewCardsProps) {
                   <div className="p-4 space-y-3">
                     {interview.topic && (
                       <div>
-                        <span className="text-xs font-semibold text-orange-600 uppercase">
+                        <span className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase">
                           주제
                         </span>
                         <p className="text-sm text-text dark:text-white mt-0.5">
@@ -312,7 +312,7 @@ export function InterviewCards({ unitAnalysis }: InterviewCardsProps) {
                     {interview.keyFindings && (
                       <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                         <div className="flex items-start gap-1.5">
-                          <Icon name="lightbulb" size="xs" className="text-amber-600 mt-0.5" />
+                          <Icon name="lightbulb" size="xs" className="text-amber-600 dark:text-amber-400 mt-0.5" />
                           <div>
                             <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
                               주요 발견사항
@@ -327,7 +327,7 @@ export function InterviewCards({ unitAnalysis }: InterviewCardsProps) {
                     {interview.suggestions && (
                       <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                         <div className="flex items-start gap-1.5">
-                          <Icon name="tips_and_updates" size="xs" className="text-blue-600 mt-0.5" />
+                          <Icon name="tips_and_updates" size="xs" className="text-blue-600 dark:text-blue-400 mt-0.5" />
                           <div>
                             <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">
                               개선 제안
@@ -352,7 +352,7 @@ export function InterviewCards({ unitAnalysis }: InterviewCardsProps) {
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={handleCloseModal} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               {/* 모달 헤더 */}
               <div className="flex items-center justify-between p-4 border-b border-border dark:border-border-dark">
                 <h3 className="text-lg font-bold text-text dark:text-white">
@@ -365,7 +365,7 @@ export function InterviewCards({ unitAnalysis }: InterviewCardsProps) {
 
               {/* 모달 본문 */}
               <div className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-text dark:text-white mb-1">
                       인터뷰 대상자 <span className="text-red-500">*</span>
@@ -387,7 +387,7 @@ export function InterviewCards({ unitAnalysis }: InterviewCardsProps) {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-text dark:text-white mb-1">
                       부서
@@ -427,8 +427,7 @@ export function InterviewCards({ unitAnalysis }: InterviewCardsProps) {
                     value={formData.content}
                     onChange={(e) => handleInputChange("content", e.target.value)}
                     placeholder="인터뷰 내용을 입력하세요"
-                    rows={4}
-                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                   />
                 </div>
                 <div>
@@ -439,8 +438,7 @@ export function InterviewCards({ unitAnalysis }: InterviewCardsProps) {
                     value={formData.keyFindings}
                     onChange={(e) => handleInputChange("keyFindings", e.target.value)}
                     placeholder="핵심 인사이트"
-                    rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary field-sizing-content min-h-16 max-h-[25vh] resize-y"
                   />
                 </div>
                 <div>
@@ -451,8 +449,7 @@ export function InterviewCards({ unitAnalysis }: InterviewCardsProps) {
                     value={formData.suggestions}
                     onChange={(e) => handleInputChange("suggestions", e.target.value)}
                     placeholder="도출된 개선점"
-                    rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary field-sizing-content min-h-16 max-h-[25vh] resize-y"
                   />
                 </div>
                 <div>

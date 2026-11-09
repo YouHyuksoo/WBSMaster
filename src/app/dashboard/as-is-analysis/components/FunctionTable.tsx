@@ -305,7 +305,7 @@ export function FunctionTable({ unitAnalysis }: FunctionTableProps) {
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={handleCloseModal} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               {/* 모달 헤더 */}
               <div className="flex items-center justify-between p-4 border-b border-border dark:border-border-dark">
                 <h3 className="text-lg font-bold text-text dark:text-white">
@@ -318,25 +318,27 @@ export function FunctionTable({ unitAnalysis }: FunctionTableProps) {
 
               {/* 모달 본문 */}
               <div className="p-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    기능 ID
-                  </label>
-                  <Input
-                    value={formData.functionId}
-                    onChange={(e) => handleInputChange("functionId", e.target.value)}
-                    placeholder="예: FUNC001"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text dark:text-white mb-1">
-                    기능명 <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={formData.functionName}
-                    onChange={(e) => handleInputChange("functionName", e.target.value)}
-                    placeholder="예: 자재입고등록"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                      기능 ID
+                    </label>
+                    <Input
+                      value={formData.functionId}
+                      onChange={(e) => handleInputChange("functionId", e.target.value)}
+                      placeholder="예: FUNC001"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-1">
+                      기능명 <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={formData.functionName}
+                      onChange={(e) => handleInputChange("functionName", e.target.value)}
+                      placeholder="예: 자재입고등록"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1">
@@ -346,11 +348,10 @@ export function FunctionTable({ unitAnalysis }: FunctionTableProps) {
                     value={formData.description}
                     onChange={(e) => handleInputChange("description", e.target.value)}
                     placeholder="기능에 대한 상세 설명을 입력하세요"
-                    rows={3}
-                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-white dark:bg-slate-800 text-text dark:text-white placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary field-sizing-content min-h-24 max-h-[40vh] resize-y"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-text dark:text-white mb-1">
                       모듈
@@ -372,7 +373,7 @@ export function FunctionTable({ unitAnalysis }: FunctionTableProps) {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-text dark:text-white mb-1">
                       사용자 수

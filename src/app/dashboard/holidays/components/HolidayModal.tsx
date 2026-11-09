@@ -69,7 +69,7 @@ export function HolidayModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-background-white dark:bg-surface-dark rounded-xl p-6 w-full max-w-3xl mx-4 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-text dark:text-white">{title}</h2>
           {/* 수정 모드: 등록자 정보 */}
@@ -116,12 +116,14 @@ export function HolidayModal({
               value={formData.description}
               onChange={(e) => onFormChange({ description: e.target.value })}
               placeholder="일정에 대한 상세 설명"
-              rows={2}
-              className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white resize-none"
+              rows={4}
+              // 내용 길이만큼 늘어나고(최대 화면 40%), 그 이상은 칸 안에서 스크롤
+              className="w-full px-3 py-2 rounded-lg bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark text-text dark:text-white field-sizing-content min-h-28 max-h-[40vh] resize-y"
             />
           </div>
 
-          {/* 유형 */}
+          {/* 유형 · 담당자 (한 줄) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-text dark:text-white mb-1">
               유형
@@ -134,9 +136,9 @@ export function HolidayModal({
               <option value="PERSONAL_SCHEDULE">개인 일정</option>
               <option value="MEETING">회의</option>
               <option value="DEADLINE">마감일</option>
+              <option value="ONSITE_WORK">상주근무</option>
               <option value="COMPANY_HOLIDAY">회사 휴일</option>
               <option value="TEAM_OFFSITE">팀 오프사이트</option>
-              <option value="ONSITE_WORK">상주근무</option>
               <option value="PERSONAL_LEAVE">개인 휴가</option>
               <option value="OTHER">기타</option>
             </select>
@@ -159,6 +161,7 @@ export function HolidayModal({
                 </option>
               ))}
             </select>
+          </div>
           </div>
 
           {/* 종일 여부 */}

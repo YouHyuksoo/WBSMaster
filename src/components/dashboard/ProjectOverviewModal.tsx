@@ -281,7 +281,7 @@ export function ProjectOverviewModal({
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
                   placeholder="프로젝트의 핵심 목적과 배경을 작성하세요..."
-                  className="w-full px-4 py-3 rounded-xl bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white resize-none h-32 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all field-sizing-content min-h-32 max-h-[40vh] resize-y"
                 />
               </section>
 
@@ -402,7 +402,7 @@ export function ProjectOverviewModal({
                   value={futureVision}
                   onChange={(e) => setFutureVision(e.target.value)}
                   placeholder="프로젝트가 성공했을 때의 미래 모습을 그려보세요..."
-                  className="w-full px-4 py-3 rounded-xl bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white resize-none h-32 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all field-sizing-content min-h-32 max-h-[40vh] resize-y"
                 />
               </section>
 

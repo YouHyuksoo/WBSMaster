@@ -246,7 +246,7 @@ export function ProcessDefinitionTable({ unitAnalysis }: ProcessDefinitionTableP
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddModal(false)} />
-          <div className="relative bg-background-white dark:bg-surface-dark rounded-xl shadow-xl w-full max-w-lg mx-4">
+          <div className="relative bg-background-white dark:bg-surface-dark rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-border-dark">
               <h2 className="text-lg font-bold text-text dark:text-white flex items-center gap-2">
                 <Icon name="add_circle" size="sm" className="text-green-500" />
@@ -276,11 +276,10 @@ export function ProcessDefinitionTable({ unitAnalysis }: ProcessDefinitionTableP
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="프로세스에 대한 설명을 입력하세요"
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1.5">입력</label>
                   <Input
@@ -298,7 +297,7 @@ export function ProcessDefinitionTable({ unitAnalysis }: ProcessDefinitionTableP
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1.5">관련시스템</label>
                   <Input
@@ -333,7 +332,7 @@ export function ProcessDefinitionTable({ unitAnalysis }: ProcessDefinitionTableP
       {editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setEditTarget(null)} />
-          <div className="relative bg-background-white dark:bg-surface-dark rounded-xl shadow-xl w-full max-w-lg mx-4">
+          <div className="relative bg-background-white dark:bg-surface-dark rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-border-dark">
               <h2 className="text-lg font-bold text-text dark:text-white flex items-center gap-2">
                 <Icon name="edit" size="sm" className="text-primary" />
@@ -363,11 +362,10 @@ export function ProcessDefinitionTable({ unitAnalysis }: ProcessDefinitionTableP
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="프로세스에 대한 설명을 입력하세요"
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                  className="w-full px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 field-sizing-content min-h-24 max-h-[40vh] resize-y"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1.5">입력</label>
                   <Input
@@ -385,7 +383,7 @@ export function ProcessDefinitionTable({ unitAnalysis }: ProcessDefinitionTableP
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-text dark:text-white mb-1.5">관련시스템</label>
                   <Input

@@ -114,7 +114,7 @@ export function PinpointModal({
       isOpen={isOpen}
       onClose={onClose}
       title={pinpoint ? "핀포인트 수정" : "핀포인트 추가"}
-      size="sm"
+      size="lg"
     >
       <div className="space-y-4">
         {/* 이름 */}
@@ -179,8 +179,7 @@ export function PinpointModal({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="핀포인트에 대한 추가 설명"
-            rows={3}
-            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-white bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-white bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 outline-none field-sizing-content min-h-24 max-h-[40vh] resize-y"
           />
         </div>
 
