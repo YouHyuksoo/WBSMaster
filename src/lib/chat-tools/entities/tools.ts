@@ -150,7 +150,7 @@ export function makeEntityTools(specs: EntitySpec[]): ChatTool<{ spec: EntitySpe
   return [
     {
       name: "propose_create_record",
-      description: `여러 메뉴의 등록을 제안한다 (실행 안 됨, 확인 카드). * 는 필수. 전용 도구가 있는 TASK·이슈·고객이슈·협의요청은 그 도구를 쓴다. ${guide("create")}`,
+      description: `여러 메뉴의 등록을 제안한다 (실행 안 됨, 확인 카드). * 는 필수. 전용 도구가 있는 TASK·이슈·고객이슈·협의요청·주간보고 항목은 그 도구를 쓴다. ${guide("create")}`,
       parameters: { type: "object", properties: { entity: entityProp("create"), fields: { type: "object" } }, required: ["entity", "fields"], additionalProperties: false },
       kind: "write",
       parse: (args) => {

@@ -17,6 +17,7 @@ import { createFieldIssue, updateFieldIssue } from "@/lib/services/fieldIssueSer
 import { createDiscussionItem, updateDiscussionItem } from "@/lib/services/discussionItemService";
 import { updateWbsItems } from "@/lib/services/wbsService";
 import { ENTITY_SPECS, executeEntityAction } from "./entities";
+import { executeWeeklyAction } from "./weekly-report-execute";
 
 export type ActionOutcome = { ok: true; resultRef: string; link: string } | { ok: false; error: string; status: number };
 
@@ -37,6 +38,7 @@ export async function executePendingAction(action: PendingAction, user: AuthUser
   const p = action.projectId;
   // 공통 등록·수정·삭제는 화면 API 핸들러로 실행 (같은 요청의 로그인 쿠키 사용)
   if (action.kind.startsWith("entity_")) return executeEntityAction(action, ENTITY_SPECS);
+  if (action.kind.startsWith("weekly_item_")) return executeWeeklyAction(action);
   let out: ServiceOut;
   switch (action.kind) {
     case "create_task":

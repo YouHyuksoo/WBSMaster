@@ -21,14 +21,15 @@ function handler(mod: RouteModule, method: string): Handler | null {
   return typeof h === "function" ? (h as Handler) : null;
 }
 
-const request = (path: string, method: string, body?: unknown) =>
+/** 화면 API 핸들러에 넘길 내부 요청 (같은 요청의 쿠키는 next/headers 가 읽는다) */
+export const routeRequest = (path: string, method: string, body?: unknown) =>
   new NextRequest(new URL(path, "http://internal.local"), {
     method,
     headers: { "Content-Type": "application/json" },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 
-async function errorOf(res: Response): Promise<string> {
+export async function routeError(res: Response): Promise<string> {
   const body = (await res.json().catch(() => ({}))) as { error?: string };
   return body.error || `처리하지 못했습니다 (HTTP ${res.status})`;
 }
@@ -45,8 +46,8 @@ export async function executeEntityAction(
     const mod = spec.collectionRoute ? await spec.collectionRoute() : null;
     const POST = mod && handler(mod, "POST");
     if (!POST || !spec.collectionPath) return { ok: false, error: `${spec.label} 등록은 지원하지 않습니다.`, status: 400 };
-    const res = await POST(request(spec.collectionPath, "POST", { ...a.data, projectId: action.projectId }));
-    if (!res.ok) return { ok: false, error: await errorOf(res), status: res.status };
+    const res = await POST(routeRequest(spec.collectionPath, "POST", { ...a.data, projectId: action.projectId }));
+    if (!res.ok) return { ok: false, error: await routeError(res), status: res.status };
     const body = (await res.json().catch(() => ({}))) as { id?: string; data?: { id?: string } };
     return { ok: true, resultRef: body.id ?? body.data?.id ?? "", link: spec.link };
   }
@@ -60,9 +61,9 @@ export async function executeEntityAction(
   const ids = a.targetIds ?? [];
   let done = 0;
   for (const id of ids) {
-    const res = await fn(request(spec.itemPath(id), method, method === "DELETE" ? undefined : a.patch ?? {}), { params: Promise.resolve({ id }) });
+    const res = await fn(routeRequest(spec.itemPath(id), method, method === "DELETE" ? undefined : a.patch ?? {}), { params: Promise.resolve({ id }) });
     if (!res.ok) {
-      const msg = await errorOf(res);
+      const msg = await routeError(res);
       return { ok: false, error: done > 0 ? `${msg} (${done}건 처리 후 중단)` : msg, status: res.status };
     }
     done++;
