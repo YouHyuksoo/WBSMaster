@@ -15,6 +15,7 @@ import { createTask, updateTask } from "@/lib/services/taskService";
 import { createIssue, updateIssue } from "@/lib/services/issueService";
 import { createFieldIssue, updateFieldIssue } from "@/lib/services/fieldIssueService";
 import { createDiscussionItem, updateDiscussionItem } from "@/lib/services/discussionItemService";
+import { updateWbsItems } from "@/lib/services/wbsService";
 
 export type ActionOutcome = { ok: true; resultRef: string; link: string } | { ok: false; error: string; status: number };
 
@@ -26,6 +27,7 @@ const LINKS: Record<string, string> = {
   issue: "/dashboard/issues",
   field_issue: "/dashboard/field-issues",
   discussion_item: "/dashboard/discussion-items",
+  wbs: "/dashboard/wbs",
 };
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- args 는 제안 도구가 검증·정규화해 저장한 서비스 입력 */
@@ -63,6 +65,9 @@ export async function executePendingAction(action: PendingAction, user: AuthUser
       break;
     case "update_discussion_item":
       out = await updateDiscussionItem(a.targetId, p, a.patch);
+      break;
+    case "update_wbs":
+      out = await updateWbsItems(a.targetIds ?? [], p, a.patch ?? {}, a.mode === "replace" ? "replace" : "add");
       break;
     default:
       return { ok: false, error: `알 수 없는 제안 종류입니다: ${action.kind}`, status: 400 };

@@ -92,6 +92,46 @@ describe("propose tools", () => {
     expect((db.task.findFirst.mock.calls[0] as unknown as [{ where: unknown }])[0].where).toEqual({ id: "t-other", projectId: "p1" });
   });
 
+  it("update wbs: several codes with co-assignees", async () => {
+    members.list = [{ id: "k", name: "강승훈" }, { id: "h", name: "허민" }, { id: "y", name: "유혁수" }];
+    const { ctx, db } = makeCtx();
+    (db as Record<string, unknown>).wbsItem = { findMany: vi.fn(async () => [{ id: "w11", code: "1.1" }, { id: "w12", code: "1.2" }]) };
+    const t = PROPOSAL_TOOLS.propose_update_wbs;
+    const r = await t.execute(ctx, t.parse({ codes: ["1.1", "1.2"], assigneeNames: ["강승훈", "허민"] }));
+    expect(r.kind).toBe("proposal");
+    expect(db.chatPendingAction.create.mock.calls[0][0].data).toMatchObject({
+      kind: "update_wbs",
+      args: { targetIds: ["w11", "w12"], codes: ["1.1", "1.2"], mode: "add", patch: { assigneeIds: ["k", "h"] } },
+    });
+    if (r.kind === "proposal") expect(r.fields).toEqual(expect.arrayContaining([{ label: "대상", value: "1.1, 1.2" }, { label: "담당", value: "강승훈, 허민" }]));
+  });
+
+  it("update wbs: drops fields that already have the requested value", async () => {
+    members.list = [{ id: "k", name: "강승훈" }];
+    const { ctx, db } = makeCtx();
+    (db as Record<string, unknown>).wbsItem = {
+      findMany: vi.fn(async () => [
+        { id: "w11", code: "1.1", status: "PENDING", progress: 0, startDate: null, endDate: null },
+        { id: "w12", code: "1.2", status: "PENDING", progress: 0, startDate: null, endDate: null },
+      ]),
+    };
+    const t = PROPOSAL_TOOLS.propose_update_wbs;
+    const r = await t.execute(ctx, t.parse({ codes: ["1.1", "1.2"], assigneeNames: ["강승훈"], status: "PENDING", progress: 0 }));
+    expect(r.kind).toBe("proposal");
+    const args = db.chatPendingAction.create.mock.calls[0][0].data.args as { patch: Record<string, unknown> };
+    expect(args.patch).toEqual({ assigneeIds: ["k"] });
+    if (r.kind === "proposal") expect(r.fields.map((f) => f.label)).not.toContain("상태");
+  });
+
+  it("update wbs: unknown code → error", async () => {
+    const { ctx, db } = makeCtx();
+    (db as Record<string, unknown>).wbsItem = { findMany: vi.fn(async () => [{ id: "w11", code: "1.1" }]) };
+    const t = PROPOSAL_TOOLS.propose_update_wbs;
+    const r = await t.execute(ctx, t.parse({ codes: ["1.1", "9.9"], progress: 50 }));
+    expect(r.kind).toBe("error");
+    if (r.kind === "error") expect(r.message).toContain("9.9");
+  });
+
   it("parse validates enums and required fields", () => {
     expect(() => PROPOSAL_TOOLS.propose_create_task.parse({ title: "" })).toThrow();
     expect(() => PROPOSAL_TOOLS.propose_create_issue.parse({ title: "x", priority: "URGENT" })).toThrow(/CRITICAL/);

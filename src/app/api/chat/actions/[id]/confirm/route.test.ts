@@ -35,6 +35,8 @@ vi.mock("@/lib/services/taskService", () => ({ createTask: svc.createTask, updat
 vi.mock("@/lib/services/issueService", () => ({ createIssue: vi.fn(), updateIssue: svc.updateIssue }));
 vi.mock("@/lib/services/fieldIssueService", () => ({ createFieldIssue: vi.fn(), updateFieldIssue: vi.fn() }));
 vi.mock("@/lib/services/discussionItemService", () => ({ createDiscussionItem: vi.fn(), updateDiscussionItem: vi.fn() }));
+const wbs = vi.hoisted(() => ({ updateWbsItems: vi.fn(async (..._a: unknown[]) => ({ success: true, data: { id: "w11", updated: 2 } })) }));
+vi.mock("@/lib/services/wbsService", () => wbs);
 
 import { POST } from "./route";
 
@@ -83,6 +85,13 @@ describe("POST /api/chat/actions/[id]/confirm", () => {
     state.denied = new Response("{}", { status: 403 });
     expect((await call()).status).toBe(403);
     expect(svc.createTask).not.toHaveBeenCalled();
+  });
+
+  it("update_wbs assigns to every target with mode", async () => {
+    state.action = { ...state.action!, kind: "update_wbs", args: { targetIds: ["w11", "w12"], codes: ["1.1", "1.2"], mode: "add", patch: { assigneeIds: ["k", "h"] } } };
+    const res = await call();
+    expect(await res.json()).toMatchObject({ status: "CONFIRMED", link: "/dashboard/wbs" });
+    expect(wbs.updateWbsItems).toHaveBeenCalledWith(["w11", "w12"], "p1", { assigneeIds: ["k", "h"] }, "add");
   });
 
   it("service failure marks FAILED", async () => {
