@@ -26,9 +26,12 @@ export interface ToolContext {
   promptConfig?: ToolPromptConfig;
 }
 
+/** 확인 카드 버튼 문구를 정한다: create [등록] · update [수정] · delete [삭제] */
+export type ProposalOp = "create" | "update" | "delete";
+
 export type ToolResult =
   | { kind: "data"; summary: string; rows?: Record<string, unknown>[]; chartHint?: "bar" | "line" | "pie" | "mindmap" }
-  | { kind: "proposal"; actionId: string; summary: string; fields: { label: string; value: string }[]; danger?: boolean }
+  | { kind: "proposal"; actionId: string; summary: string; fields: { label: string; value: string }[]; op: ProposalOp; danger?: boolean }
   | { kind: "candidates"; prompt: string; options: { label: string; value: string }[] }
   | { kind: "error"; message: string };
 

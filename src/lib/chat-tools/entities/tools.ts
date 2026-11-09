@@ -14,7 +14,7 @@
 import { obj } from "../args";
 import { resolvePerson } from "../people";
 import { PENDING_ACTION_TTL_MS } from "../proposals";
-import type { ChatTool, ToolContext, ToolResult } from "../types";
+import type { ChatTool, ProposalOp, ToolContext, ToolResult } from "../types";
 import type { EntityField, EntitySpec } from "./types";
 
 export const MAX_DELETE = 20;
@@ -24,7 +24,7 @@ type Db = Record<string, { findMany(a: unknown): Promise<Record<string, unknown>
 
 function fieldGuide(f: EntityField): string {
   const req = f.required ? "*" : "";
-  if (f.type === "enum") return `${f.key}${req}[${f.values!.join("|")}]`;
+  if (f.type === "enum") return `${f.key}${req}[${f.values!.map((v) => (f.labels?.[v] ? `${v}(${f.labels[v]})` : v)).join("|")}]`;
   if (f.type === "person") return `${f.key}${req}(사람 이름)`;
   if (f.type === "people") return `${f.key}${req}(이름 배열)`;
   return `${f.key}${req}(${f.type === "date" ? "YYYY-MM-DD" : f.type})`;
@@ -44,9 +44,13 @@ function parseValue(f: EntityField, v: unknown): unknown {
     case "bool":
       if (typeof v !== "boolean") throw new Error(`${f.key} 는 true/false 여야 합니다.`);
       return v;
-    case "enum":
+    case "enum": {
+      // 한글 라벨로 와도 받아 준다 (예: "진행중" → IN_PROGRESS)
+      const byLabel = Object.entries(f.labels ?? {}).find(([, label]) => label === String(v).trim())?.[0];
+      if (byLabel) return byLabel;
       if (!f.values!.includes(String(v))) throw new Error(`${f.key} 값이 올바르지 않습니다: ${String(v)}. 허용값: ${f.values!.join(", ")}`);
       return String(v);
+    }
     case "people": {
       const list = (Array.isArray(v) ? v : [v]).map((x) => String(x).trim()).filter(Boolean);
       return list.length ? list : undefined;
@@ -127,14 +131,15 @@ async function resolvePeople(spec: EntitySpec, ctx: ToolContext, data: Record<st
 }
 
 function displayOf(spec: EntitySpec, data: Record<string, unknown>): { label: string; value: string }[] {
-  return spec.fields.filter((f) => f.type !== "person" && f.type !== "people" && data[f.key] !== undefined).map((f) => ({ label: f.label, value: String(data[f.key]) }));
+  return spec.fields.filter((f) => f.type !== "person" && f.type !== "people" && data[f.key] !== undefined).map((f) => ({ label: f.label, value: f.labels?.[String(data[f.key])] ?? String(data[f.key]) }));
 }
 
 async function savePending(ctx: ToolContext, kind: string, args: object, summary: string, fields: { label: string; value: string }[], danger = false): Promise<ToolResult> {
   const action = await (ctx.prisma as unknown as Db).chatPendingAction.create({
     data: { userId: ctx.user.id, projectId: ctx.projectId, kind, args, summary, status: "PENDING", expiresAt: new Date(Date.now() + PENDING_ACTION_TTL_MS) },
   });
-  return { kind: "proposal", actionId: action.id, summary, fields, ...(danger ? { danger: true } : {}) };
+  const op: ProposalOp = kind === "entity_delete" ? "delete" : kind === "entity_update" ? "update" : "create";
+  return { kind: "proposal", actionId: action.id, summary, fields, op, ...(danger ? { danger: true } : {}) };
 }
 
 export function makeEntityTools(specs: EntitySpec[]): ChatTool<{ spec: EntitySpec; refs?: string[]; data?: Record<string, unknown> }>[] {

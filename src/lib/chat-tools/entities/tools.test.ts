@@ -17,7 +17,7 @@ const spec: EntitySpec = {
   fields: [
     { key: "name", label: "이름", type: "string", required: true },
     { key: "startDate", label: "시작일", type: "date", required: true },
-    { key: "status", label: "상태", type: "enum", values: ["PENDING", "COMPLETED"] },
+    { key: "status", label: "상태", type: "enum", values: ["PENDING", "COMPLETED"], labels: { PENDING: "대기중", COMPLETED: "완료" } },
     { key: "assigneeName", label: "담당", type: "person", to: "assigneeId" },
   ],
   deleteImpact: async () => "하위 2건도 함께 삭제됩니다",
@@ -64,9 +64,17 @@ describe("propose_update_record", () => {
     const { db, ctx, tools } = setup([{ id: "m1", name: "킥오프" }]);
     const tool = t(tools, "propose_update_record");
     const r = await tool.execute(ctx, tool.parse({ entity: "milestone", refs: ["킥오프"], fields: { status: "COMPLETED" } }));
-    expect(r.kind).toBe("proposal");
+    expect(r).toMatchObject({ kind: "proposal", op: "update", fields: [{ label: "대상", value: "킥오프" }, { label: "상태", value: "완료" }] });
     expect((db.milestone.findMany.mock.calls[0] as unknown as [{ where: Record<string, unknown> }])[0].where).toMatchObject({ projectId: "p1" });
     expect(db.chatPendingAction.create.mock.calls[0][0].data).toMatchObject({ kind: "entity_update", args: { entity: "milestone", targetIds: ["m1"], patch: { status: "COMPLETED" } } });
+  });
+
+  it("한글 라벨 입력을 Enum 값으로 받는다 (회귀: 카드에 IN_PROGRESS 같은 영문 값이 보였다)", async () => {
+    const { db, ctx, tools } = setup([{ id: "m1", name: "킥오프" }]);
+    const tool = t(tools, "propose_update_record");
+    await tool.execute(ctx, tool.parse({ entity: "milestone", refs: ["킥오프"], fields: { status: "완료" } }));
+    expect(db.chatPendingAction.create.mock.calls[0][0].data).toMatchObject({ args: { patch: { status: "COMPLETED" } } });
+    expect(tool.description).toContain("COMPLETED(완료)");
   });
 
   it("missing ref → error", async () => {

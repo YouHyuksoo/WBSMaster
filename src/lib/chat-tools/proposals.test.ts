@@ -81,7 +81,8 @@ describe("propose tools", () => {
     db.issue.findFirst.mockResolvedValue({ id: "i-11" });
     const t = PROPOSAL_TOOLS.propose_update_issue;
     const r = await t.execute(ctx, t.parse({ code: "ISS-011", status: "CLOSED" }));
-    expect(r.kind).toBe("proposal");
+    // 회귀: 카드에 CLOSED 같은 영문 값이 보였다 → 한글 라벨, 버튼은 [수정]
+    expect(r).toMatchObject({ kind: "proposal", op: "update", fields: [{ label: "상태", value: "종료" }] });
     expect(db.chatPendingAction.create.mock.calls[0][0].data).toMatchObject({ kind: "update_issue", args: { targetId: "i-11", patch: { status: "CLOSED" } } });
   });
 

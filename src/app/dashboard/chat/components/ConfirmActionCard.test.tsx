@@ -63,6 +63,14 @@ describe("ConfirmActionCard danger", () => {
   });
 });
 
+describe("ConfirmActionCard op", () => {
+  it("수정 제안은 [수정] 버튼 (회귀: 수정 카드에 [등록]이 보였다)", () => {
+    render(<ConfirmActionCard action={{ id: "act-2", summary: "마일스톤 1건 수정", fields: [], op: "update" }} />);
+    expect(screen.getByRole("button", { name: "수정" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "등록" })).toBeNull();
+  });
+});
+
 describe("CandidatePicker", () => {
   it("picker sends label", () => {
     const onPick = vi.fn();

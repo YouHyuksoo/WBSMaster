@@ -19,6 +19,8 @@ export interface EntityField {
   type: EntityFieldType;
   /** enum 허용값 */
   values?: readonly string[];
+  /** enum 값 → 화면 한글 라벨 (확인 카드 표시, 한글 입력 허용) */
+  labels?: Record<string, string>;
   /** 등록 시 필수 */
   required?: boolean;
   /** person/people: 화면 API 에 보낼 칼럼 이름 (예: assigneeId) */

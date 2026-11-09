@@ -19,6 +19,8 @@ export interface PendingActionView {
   id: string;
   summary: string;
   fields: { label: string; value: string }[];
+  /** 등록·수정·삭제 구분 (버튼 문구). 예전 기록에는 없을 수 있다 */
+  op?: "create" | "update" | "delete";
   /** 삭제 제안 (빨간 카드·[삭제] 버튼) */
   danger?: boolean;
 }
@@ -70,7 +72,7 @@ export function ConfirmActionCard({ action }: { action: PendingActionView }) {
               onClick={() => send("confirm")}
               className={`px-3 py-1.5 rounded-lg text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 ${action.danger ? "bg-red-600" : "bg-primary"}`}
             >
-              {action.danger ? "삭제" : "등록"}
+              {action.danger || action.op === "delete" ? "삭제" : action.op === "update" ? "수정" : "등록"}
             </button>
             <button
               type="button"

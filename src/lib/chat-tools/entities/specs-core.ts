@@ -8,12 +8,13 @@
  * - WBS 등록은 parentCode(상위 WBS 코드)로 부모와 레벨을 서버가 정한다. 삭제는 하위 항목 수를 미리 알려 준다.
  */
 
-import { AsIsCurrentMethod, AsIsMajorCategory, type WbsLevel } from "@prisma/client";
+import type { WbsLevel } from "@prisma/client";
 import type { EntityCtx, EntityField, EntitySpec } from "./types";
+import { AS_IS_MAJOR_CATEGORY, AS_IS_CURRENT_METHOD } from "./enum-labels";
 
 const S = (key: string, label: string, required = false): EntityField => ({ key, label, type: "string", required });
 const D = (key: string, label: string): EntityField => ({ key, label, type: "date" });
-const E = (key: string, label: string, values: Record<string, string>, required = false): EntityField => ({ key, label, type: "enum", values: Object.values(values), required });
+const E = (key: string, label: string, labels: Record<string, string>, required = false): EntityField => ({ key, label, type: "enum", values: Object.keys(labels), labels, required });
 
 type WbsDb = { wbsItem: { findFirst(a: unknown): Promise<{ id: string; level: WbsLevel } | null>; findMany(a: unknown): Promise<{ id: string }[]> } };
 type AsIsDb = { asIsOverview: { findFirst(a: unknown): Promise<{ id: string } | null> } };
@@ -38,7 +39,7 @@ export const CORE_SPECS: EntitySpec[] = [
     scope: (projectId) => ({ overview: { projectId } }), link: "/dashboard/as-is-analysis", ops: { create: true, update: true, delete: true },
     collectionRoute: () => import("@/app/api/as-is-analysis/items/route"), collectionPath: "/api/as-is-analysis/items",
     itemRoute: () => import("@/app/api/as-is-analysis/items/[id]/route"), itemPath: (id) => `/api/as-is-analysis/items/${id}`,
-    fields: [S("taskName", "업무명", true), E("majorCategory", "대분류", AsIsMajorCategory, true), S("middleCategory", "중분류", true), E("currentMethod", "현행 방식", AsIsCurrentMethod), S("asIsManagementNo", "관리번호"), S("issueSummary", "문제 요약"), S("details", "상세"), S("remarks", "비고")],
+    fields: [S("taskName", "업무명", true), E("majorCategory", "대분류", AS_IS_MAJOR_CATEGORY, true), S("middleCategory", "중분류", true), E("currentMethod", "현행 방식", AS_IS_CURRENT_METHOD), S("asIsManagementNo", "관리번호"), S("issueSummary", "문제 요약"), S("details", "상세"), S("remarks", "비고")],
     // 프로젝트의 AS-IS 총괄표(프로젝트당 하나)에 넣는다
     prepareCreate: async (ctx, data) => {
       const overview = await (ctx.prisma as AsIsDb).asIsOverview.findFirst({ where: { projectId: ctx.projectId }, select: { id: true } });

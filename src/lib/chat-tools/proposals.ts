@@ -13,7 +13,7 @@
 import { enumList, obj, optDate, optString } from "./args";
 import { resolvePerson } from "./people";
 import { resolveRecordByCode } from "./records";
-import { termGuide, type TermDictionaryKey } from "./term-dictionary";
+import { termGuide, termLabel, type TermDictionaryKey } from "./term-dictionary";
 import type { ChatTool, ToolContext, ToolResult } from "./types";
 
 export const PENDING_ACTION_TTL_MS = 30 * 60_000;
@@ -124,7 +124,8 @@ async function executeProposal(spec: Spec, ctx: ToolContext, { code, taskId, val
   }
   for (const f of spec.fields) {
     if (f.type === "person" || values[f.key] === undefined) continue;
-    display.push({ label: f.label, value: Array.isArray(values[f.key]) ? (values[f.key] as string[]).join(" / ") : String(values[f.key]) });
+    const v = values[f.key];
+    display.push({ label: f.label, value: Array.isArray(v) ? (v as string[]).join(" / ") : f.type === "enum" ? termLabel(f.enumKey!, String(v)) : String(v) });
   }
   if (!display.length && targetId) return { kind: "error", message: "바꿀 내용이 없습니다." };
 
@@ -142,7 +143,7 @@ async function executeProposal(spec: Spec, ctx: ToolContext, { code, taskId, val
       expiresAt: new Date(Date.now() + PENDING_ACTION_TTL_MS),
     },
   });
-  return { kind: "proposal", actionId: action.id, summary, fields: display };
+  return { kind: "proposal", actionId: action.id, summary, fields: display, op: targetId ? "update" : "create" };
 }
 
 type WbsArgs = { codes: string[]; assigneeNames?: string[]; mode: "add" | "replace"; status?: string; progress?: number; startDate?: string; endDate?: string };
@@ -227,7 +228,7 @@ const proposeUpdateWbsTool: ChatTool<WbsArgs> = {
     for (const [k, label] of [["status", "상태"], ["progress", "진행률"], ["startDate", "시작일"], ["endDate", "종료일"]] as const) {
       if (a[k] !== undefined && !sameAsNow(k)) {
         patch[k] = a[k];
-        display.push({ label, value: String(a[k]) });
+        display.push({ label, value: k === "status" ? termLabel("taskStatus", String(a[k])) : String(a[k]) });
       }
     }
 
@@ -244,7 +245,7 @@ const proposeUpdateWbsTool: ChatTool<WbsArgs> = {
         expiresAt: new Date(Date.now() + PENDING_ACTION_TTL_MS),
       },
     });
-    return { kind: "proposal", actionId: action.id, summary, fields: display };
+    return { kind: "proposal", actionId: action.id, summary, fields: display, op: "update" };
   },
 };
 

@@ -46,7 +46,7 @@ function registry(execute = vi.fn(async () => ({ kind: "data" as const, summary:
   const propose: ChatTool<Record<string, never>> = {
     name: "propose_create_task", description: "제안", parameters: { type: "object", properties: {} }, kind: "write",
     parse: () => ({}),
-    execute: async () => ({ kind: "proposal", actionId: "act-1", summary: "TASK 등록: 제목 설비점검", fields: [{ label: "제목", value: "설비점검" }] }),
+    execute: async () => ({ kind: "proposal", actionId: "act-1", summary: "TASK 등록: 제목 설비점검", fields: [{ label: "제목", value: "설비점검" }], op: "create" }),
   };
   r.register(listIssues);
   r.register(propose);
@@ -84,7 +84,7 @@ describe("runAgent", () => {
     const llm = new FakeLLM([{ type: "tool_calls", calls: [{ id: "c1", name: "propose_create_task", arguments: "{}" }] }]);
     const res = await run(llm);
     expect(llm.calls).toHaveLength(1);
-    expect(res.pendingAction).toEqual({ id: "act-1", summary: "TASK 등록: 제목 설비점검", fields: [{ label: "제목", value: "설비점검" }] });
+    expect(res.pendingAction).toEqual({ id: "act-1", summary: "TASK 등록: 제목 설비점검", fields: [{ label: "제목", value: "설비점검" }], op: "create" });
     // 요약은 확인 카드에만 보인다 (본문에 같은 문장을 또 쓰지 않음)
     expect(res.content).toBe("아래 내용으로 진행할까요?");
   });
@@ -94,7 +94,7 @@ describe("runAgent", () => {
     r.register({
       name: "propose_delete_records", description: "삭제", parameters: { type: "object", properties: {} }, kind: "write",
       parse: () => ({}),
-      execute: async () => ({ kind: "proposal", actionId: "act-9", summary: "마일스톤 1건 삭제", fields: [], danger: true }),
+      execute: async () => ({ kind: "proposal", actionId: "act-9", summary: "마일스톤 1건 삭제", fields: [], op: "delete", danger: true }),
     });
     const res = await run(new FakeLLM([{ type: "tool_calls", calls: [{ id: "c1", name: "propose_delete_records", arguments: "{}" }] }]), r);
     expect(res.pendingAction).toMatchObject({ id: "act-9", danger: true });

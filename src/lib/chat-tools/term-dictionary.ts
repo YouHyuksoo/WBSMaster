@@ -104,6 +104,12 @@ export function termGuide(key: TermDictionaryKey): string {
     .join(", ");
 }
 
+/** 확인 카드에 보일 한글 라벨 (사전의 첫 표현). 없으면 값 그대로 */
+export function termLabel(key: TermDictionaryKey, value: string): string {
+  const words = (TERM_DICTIONARY[key] as Record<string, readonly string[]>)[value];
+  return words?.[0] ?? value;
+}
+
 /** 사전 키의 Enum 값 목록 */
 export function enumValues(key: TermDictionaryKey): string[] {
   return Object.keys(TERM_DICTIONARY[key]);
