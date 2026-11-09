@@ -22,13 +22,15 @@ import { Icon, Button, Input, Card, ConfirmModal } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { api, AiPersona } from "@/lib/api";
 import type { LLMProvider } from "@/lib/llm/config";
-import { ProviderButton, ApiKeyModelPanel, type ApiKeyProviderId } from "./components";
+import { ProviderButton, ApiKeyModelPanel, ChatGptConnection, ChatGptProviderButton, type ApiKeyProviderId } from "./components";
+import { useCurrentUser } from "@/hooks";
 
 /**
  * AI 설정 타입
  */
 interface AiSettings {
   provider: LLMProvider;
+  chatgptModel: string;
   geminiApiKey: string | null;
   geminiModel: string;
   mistralApiKey: string | null;
@@ -78,6 +80,8 @@ const API_KEY_PROVIDER_IDS = Object.keys(API_KEY_PROVIDER_FIELDS) as ApiKeyProvi
  */
 export default function SettingsPage() {
   const toast = useToast();
+  const { data: currentUser } = useCurrentUser();
+  const isAdmin = currentUser?.role === "ADMIN";
 
   // 일반 설정 상태
   const [settings, setSettings] = useState({
@@ -97,7 +101,8 @@ export default function SettingsPage() {
 
   // AI 설정 상태
   const [aiSettings, setAiSettings] = useState<AiSettings>({
-    provider: "gemini",
+    provider: "chatgpt",
+    chatgptModel: "gpt-6.1-sol",
     geminiApiKey: null,
     geminiModel: "gemini-1.5-flash",
     mistralApiKey: null,
@@ -294,6 +299,7 @@ export default function SettingsPage() {
 
       const payload: Record<string, unknown> = {
         provider: aiSettings.provider,
+        chatgptModel: aiSettings.chatgptModel,
         geminiModel: aiSettings.geminiModel,
         mistralModel: aiSettings.mistralModel,
         openaiModel: aiSettings.openaiModel,
@@ -403,6 +409,12 @@ export default function SettingsPage() {
                   LLM 제공자
                 </label>
                 <div className="flex gap-3">
+                  {/* 회사 ChatGPT 버튼 (서버 공용 구독 계정) */}
+                  <ChatGptProviderButton
+                    selected={aiSettings.provider === "chatgpt"}
+                    onSelect={() => setAiSettings((prev) => ({ ...prev, provider: "chatgpt" }))}
+                  />
+
                   {/* Gemini 버튼 */}
                   <button
                     onClick={() => setAiSettings((prev) => ({ ...prev, provider: "gemini" }))}
@@ -467,6 +479,24 @@ export default function SettingsPage() {
                   ))}
                 </div>
               </div>
+
+              {/* 회사 ChatGPT 설정 */}
+              {aiSettings.provider === "chatgpt" && (
+                <div className="space-y-4 p-4 rounded-lg bg-emerald-500/10">
+                  <div>
+                    <label className="block text-sm font-medium text-text dark:text-white mb-2">모델</label>
+                    <Input
+                      value={aiSettings.chatgptModel}
+                      onChange={(e) => setAiSettings((prev) => ({ ...prev, chatgptModel: e.target.value }))}
+                      placeholder="gpt-6.1-sol"
+                    />
+                    <p className="mt-1 text-xs text-text-secondary">
+                      회사 ChatGPT 구독 계정으로 호출합니다. API 키는 필요 없습니다.
+                    </p>
+                  </div>
+                  {isAdmin && <ChatGptConnection />}
+                </div>
+              )}
 
               {/* OpenAI · OpenRouter 설정 */}
               {API_KEY_PROVIDER_IDS.filter((id) => aiSettings.provider === id).map((id) => (
@@ -658,7 +688,7 @@ export default function SettingsPage() {
                 <Button
                   variant="ghost"
                   onClick={handleTestConnection}
-                  disabled={isTestingConnection || (!aiSettings.hasGeminiKey && !newGeminiKey && !aiSettings.hasMistralKey && !newMistralKey && !aiSettings.hasOpenaiKey && !newProviderKeys.openai && !aiSettings.hasOpenrouterKey && !newProviderKeys.openrouter)}
+                  disabled={isTestingConnection || (aiSettings.provider !== "chatgpt" && !aiSettings.hasGeminiKey && !newGeminiKey && !aiSettings.hasMistralKey && !newMistralKey && !aiSettings.hasOpenaiKey && !newProviderKeys.openai && !aiSettings.hasOpenrouterKey && !newProviderKeys.openrouter)}
                   leftIcon={isTestingConnection ? "progress_activity" : "network_check"}
                 >
                   연결 테스트

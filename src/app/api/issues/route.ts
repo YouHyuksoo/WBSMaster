@@ -11,6 +11,8 @@
  *    - ?priority=CRITICAL: 특정 우선순위의 이슈만 조회
  *    - ?category=BUG: 특정 카테고리의 이슈만 조회
  * 2. **POST /api/issues**: 새 이슈 생성
+ * 3. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만).
+ *    projectId 없이 부르면 ADMIN 은 전체, 그 외는 자신이 멤버인 프로젝트의 이슈만 본다
  *
  * 수정 방법:
  * - 정렬 추가: orderBy 조건 수정
@@ -19,7 +21,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { IssueStatus, IssuePriority, IssueCategory, Prisma } from "@prisma/client";
+import { createIssue } from "@/lib/services/issueService";
 
 /**
  * 이슈 목록 조회
@@ -27,6 +31,9 @@ import { IssueStatus, IssuePriority, IssueCategory, Prisma } from "@prisma/clien
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const status = searchParams.get("status") as IssueStatus | null;
@@ -36,7 +43,14 @@ export async function GET(request: NextRequest) {
     // 필터 조건 구성
     const where: Prisma.IssueWhereInput = {};
 
-    if (projectId) where.projectId = projectId;
+    if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
+      where.projectId = projectId;
+    } else if (user!.role !== "ADMIN") {
+      // 프로젝트 미선택 화면(대시보드 · 이슈 목록)이 projectId 없이 부른다 → 멤버 프로젝트로 제한
+      where.project = { teamMembers: { some: { userId: user!.id } } };
+    }
     if (status && Object.values(IssueStatus).includes(status)) where.status = status;
     if (priority && Object.values(IssuePriority).includes(priority)) where.priority = priority;
     if (category && Object.values(IssueCategory).includes(category)) where.category = category;
@@ -93,6 +107,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const body = await request.json();
     const {
       title,
@@ -113,96 +130,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 프로젝트 존재 확인
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
-    if (!project) {
-      return NextResponse.json(
-        { error: "프로젝트를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
+
+    // 코드 채번 · 생성 · 긴급 알림은 서비스에서 (AI 채팅 확인 카드와 같은 함수)
+    const result = await createIssue({ title, description, projectId, priority, category, dueDate, reporterId, assigneeId });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
-
-    // 이슈 코드 자동 생성 (ISS-001, ISS-002, ...)
-    const lastIssue = await prisma.issue.findFirst({
-      where: { projectId },
-      orderBy: { createdAt: "desc" },
-      select: { code: true },
-    });
-    const nextNumber = lastIssue?.code
-      ? parseInt(lastIssue.code.replace("ISS-", "")) + 1
-      : 1;
-    const code = `ISS-${String(nextNumber).padStart(3, "0")}`;
-
-    const issue = await prisma.issue.create({
-      data: {
-        code,
-        title,
-        description,
-        projectId,
-        priority: priority || "MEDIUM",
-        category: category || "BUG",
-        dueDate: dueDate ? new Date(dueDate) : null,
-        reporterId,
-        assigneeId,
-        status: "OPEN",
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        reporter: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-      },
-    });
-
-    // 긴급(CRITICAL) 이슈인 경우 프로젝트 멤버들에게 알림 생성
-    if (priority === "CRITICAL") {
-      try {
-        // 프로젝트 멤버 조회
-        const teamMembers = await prisma.teamMember.findMany({
-          where: { projectId },
-          select: { userId: true },
-        });
-
-        // 각 멤버에게 알림 생성 (보고자 제외)
-        const notificationData = teamMembers
-          .filter((tm) => tm.userId !== reporterId)
-          .map((tm) => ({
-            userId: tm.userId,
-            type: "ISSUE_URGENT" as const,
-            title: `긴급 이슈 발생: ${title}`,
-            message: `[${project.name}] 긴급 이슈 "${code}: ${title}"가 등록되었습니다.`,
-            link: "/dashboard/issues",
-            relatedId: issue.id,
-            projectId: projectId,
-            projectName: project.name,
-          }));
-
-        if (notificationData.length > 0) {
-          await prisma.notification.createMany({ data: notificationData });
-        }
-      } catch (notifError) {
-        console.error("긴급 이슈 알림 생성 실패:", notifError);
-        // 알림 실패해도 이슈 생성은 성공으로 처리
-      }
-    }
+    const issue = result.data;
 
     return NextResponse.json(issue, { status: 201 });
   } catch (error) {

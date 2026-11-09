@@ -21,10 +21,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
-import { processChatMessage, resolveLLMConfig, LLMConfig, SystemPromptConfig } from "@/lib/llm";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { processChatMessage, resolveLLMConfig, createLLMClient, LLMConfig, SystemPromptConfig } from "@/lib/llm";
+import { CHATGPT_DEFAULT_MODEL } from "@/lib/llm/chatgpt/constants";
+import { answerWithAgent } from "@/lib/chat-agent/handle-agent-chat";
 import { Prisma } from "@prisma/client";
-import { createTask } from "@/lib/services/taskService";
 import { runSafeSql } from "@/lib/llm/safe-sql";
 
 /**
@@ -92,6 +93,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 다른 프로젝트 데이터를 묻지 못하게 프로젝트 멤버인지 확인
+    if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
+    }
+
     // 페르소나 조회 (선택된 경우)
     let personaSystemPrompt: string | undefined;
     if (personaId) {
@@ -108,15 +115,16 @@ export async function POST(request: NextRequest) {
       where: { userId: user!.id },
     });
 
-    if (!aiSettings) {
-      return NextResponse.json(
-        { error: "AI 설정이 필요합니다. 설정 페이지에서 API 키를 등록해주세요." },
-        { status: 400 }
-      );
-    }
+    // 설정이 없으면 회사 ChatGPT(서버 공용 계정)를 기본으로 쓴다
+    const effectiveSettings = aiSettings ?? {
+      provider: "chatgpt", chatgptModel: CHATGPT_DEFAULT_MODEL,
+      geminiApiKey: null, geminiModel: "", mistralApiKey: null, mistralModel: "",
+      openaiApiKey: null, openaiModel: "", openrouterApiKey: null, openrouterModel: "",
+      sqlSystemPrompt: null, analysisSystemPrompt: null,
+    };
 
     // 현재 선택된 제공자의 API 키·모델
-    const resolved = resolveLLMConfig(aiSettings);
+    const resolved = resolveLLMConfig(effectiveSettings);
     if (!resolved.ok) {
       return NextResponse.json({ error: resolved.error }, { status: 400 });
     }
@@ -124,10 +132,19 @@ export async function POST(request: NextRequest) {
 
     // 시스템 프롬프트 설정 (DB 저장값 또는 undefined)
     const promptConfig: SystemPromptConfig = {
-      sqlSystemPrompt: aiSettings.sqlSystemPrompt || undefined,
-      analysisSystemPrompt: aiSettings.analysisSystemPrompt || undefined,
+      sqlSystemPrompt: effectiveSettings.sqlSystemPrompt || undefined,
+      analysisSystemPrompt: effectiveSettings.analysisSystemPrompt || undefined,
       personaSystemPrompt,
     };
+
+    // 도구 호출을 지원하는 제공자(회사 ChatGPT · OpenAI · OpenRouter)는 에이전트 경로
+    // (대화 맥락 · 조회/계산 도구 · 확인 후 쓰기). 그 밖에는 아래 기존 SQL 파이프라인.
+    const client = createLLMClient(llmConfig);
+    if (client.supportsTools && projectId) {
+      return NextResponse.json(
+        await answerWithAgent({ user: user!, projectId, message, personaId, client, promptConfig })
+      );
+    }
 
     // 처리 시간 측정 시작
     const startTime = Date.now();
@@ -146,48 +163,11 @@ export async function POST(request: NextRequest) {
 
     /**
      * SQL 실행 함수 (시간 측정 포함)
-     * Task INSERT는 서비스 레이어를 통해 처리하여 알림/후처리 통합
+     * 읽기 전용 트랜잭션에서만 실행한다. 등록·수정은 확인 카드를 거친 채팅 도구로 한다.
      */
     const executeQuery = async (sql: string): Promise<unknown[]> => {
       const execStart = Date.now();
-      const upperSql = sql.toUpperCase();
-
-      // Task INSERT 감지 → 서비스 레이어로 우회
-      if (upperSql.includes('INSERT INTO "TASKS"') || upperSql.includes("INSERT INTO \"TASKS\"")) {
-        try {
-          // SQL에서 title 추출 (VALUES 절에서 두 번째 값)
-          const titleMatch = sql.match(/VALUES\s*\([^,]+,\s*'([^']+)'/i);
-          const title = titleMatch ? titleMatch[1] : message.slice(0, 50);
-
-          // 서비스 레이어를 통한 Task 생성
-          const result = await createTask({
-            title,
-            projectId: projectId || "",
-            creatorId: user!.id,
-            creatorName: user!.name || user!.email || undefined,
-            assigneeId: user!.id, // AI 생성 시 본인이 담당자
-            priority: "MEDIUM",
-            isAiGenerated: true,
-          });
-
-          sqlExecTime = Date.now() - execStart;
-
-          if (result.success) {
-            console.log(`[Chat] Task 생성 (서비스 레이어): ${title}`);
-            return [{ message: "Task가 생성되었습니다.", task: result.task }];
-          } else {
-            throw new Error(result.error || "Task 생성 실패");
-          }
-        } catch (taskError) {
-          console.error("[Chat] Task 서비스 레이어 호출 실패:", taskError);
-          // 실패 시 원래 SQL 실행 시도 (비밀번호 차단 경로)
-          const results = await runSafeSql(prisma, sql);
-          sqlExecTime = Date.now() - execStart;
-          return results as unknown[];
-        }
-      }
-
-      // 일반 SQL 실행 (비밀번호 없는 users 뷰 위에서 실행, 결과의 password 키 제거)
+      // 비밀번호 없는 users 뷰 위에서 READ ONLY 로 실행, 결과의 password 키 제거
       const results = await runSafeSql(prisma, sql);
       sqlExecTime = Date.now() - execStart;
       return results as unknown[];
@@ -236,9 +216,6 @@ export async function POST(request: NextRequest) {
       sqlGenTime,
       sqlExecTime,
     });
-
-    // Task INSERT는 executeQuery에서 서비스 레이어를 통해 처리되므로
-    // 여기서 별도의 알림 처리가 필요 없음 (서비스 레이어에서 통합 처리)
 
     return NextResponse.json({
       id: assistantMessage.id, // 피드백 제출용 ID

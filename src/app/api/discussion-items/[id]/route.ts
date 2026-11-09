@@ -7,10 +7,13 @@
  * - GET /api/discussion-items/[id]: 단건 조회
  * - PATCH /api/discussion-items/[id]: 수정
  * - DELETE /api/discussion-items/[id]: 삭제
+ * - 인증: requireAuth + assertProjectAccess (레코드의 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { updateDiscussionItem } from "@/lib/services/discussionItemService";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -22,6 +25,9 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const discussionItem = await prisma.discussionItem.findUnique({
@@ -59,6 +65,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const denied = await assertProjectAccess(discussionItem.projectId, user!);
+    if (denied) return denied;
+
     return NextResponse.json(discussionItem);
   } catch (error) {
     console.error("협의요청 조회 실패:", error);
@@ -87,6 +96,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
     const body = await request.json();
 
@@ -102,60 +114,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 업데이트할 데이터 구성
-    const updateData: Record<string, unknown> = {};
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
-    if (body.title !== undefined) updateData.title = body.title;
-    if (body.description !== undefined) updateData.description = body.description || null;
-    if (body.stage !== undefined) updateData.stage = body.stage;
-    if (body.priority !== undefined) updateData.priority = body.priority;
-    if (body.status !== undefined) {
-      updateData.status = body.status;
-      // 완료 상태로 변경 시 결정 완료일 설정
-      if (body.status === "COMPLETED" && !existing.resolvedDate) {
-        updateData.resolvedDate = new Date();
-      }
+    // 넘어온 필드만 수정, 완료 시 결정 완료일 자동 (서비스, AI 채팅 확인 카드와 같은 함수)
+    const result = await updateDiscussionItem(id, existing.projectId, body);
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
-    if (body.options !== undefined) updateData.options = body.options;
-    if (body.decision !== undefined) updateData.decision = body.decision || null;
-    if (body.requesterName !== undefined) updateData.requesterName = body.requesterName || null;
-    if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
-    if (body.resolvedDate !== undefined) updateData.resolvedDate = body.resolvedDate ? new Date(body.resolvedDate) : null;
-    if (body.convertedToType !== undefined) updateData.convertedToType = body.convertedToType;
-    if (body.convertedToCode !== undefined) updateData.convertedToCode = body.convertedToCode;
-    if (body.referenceNote !== undefined) updateData.referenceNote = body.referenceNote;
 
-    // 업데이트 실행
-    const discussionItem = await prisma.discussionItem.update({
-      where: { id },
-      data: updateData,
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        reporter: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-      },
-    });
-
-    return NextResponse.json(discussionItem);
+    return NextResponse.json(result.data);
   } catch (error) {
     console.error("협의요청 수정 실패:", error);
     return NextResponse.json(
@@ -171,6 +139,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     // 존재 여부 확인
@@ -184,6 +155,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     // 삭제 실행
     await prisma.discussionItem.delete({

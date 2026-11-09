@@ -9,10 +9,10 @@
  * - 구조 검사: src 안에서 $queryRawUnsafe 는 safe-sql.ts 에만 있어야 한다. 실패하면 runSafeSql 을 쓰도록 바꾼다.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-import { findSensitiveSqlReference, redactSensitive, SAFE_USER_COLUMNS } from "./safe-sql";
+import { findSensitiveSqlReference, redactSensitive, runSafeSql, SAFE_USER_COLUMNS } from "./safe-sql";
 
 describe("findSensitiveSqlReference", () => {
   it.each([
@@ -49,6 +49,46 @@ describe("redactSensitive", () => {
 
   it("안전 컬럼 목록에 password 가 없다", () => {
     expect(SAFE_USER_COLUMNS.some((c) => /password/i.test(c))).toBe(false);
+  });
+});
+
+/**
+ * $transaction 목: 실제 Prisma 처럼 콜백이 던지면 롤백으로 보고 그 오류를 다시 던진다.
+ * tx 가 받은 SQL 을 순서대로 기록한다.
+ */
+function fakePrisma(rows: unknown[]) {
+  const calls: string[] = [];
+  const tx = {
+    $executeRawUnsafe: vi.fn(async (sql: string) => { calls.push(sql); return 0; }),
+    $queryRawUnsafe: vi.fn(async (sql: string) => { calls.push(`QUERY:${sql}`); return rows; }),
+  };
+  const prisma = {
+    $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+  };
+  return { prisma, calls };
+}
+
+describe("runSafeSql", () => {
+  it("뷰 → READ ONLY → timeout → 쿼리 순서로 실행하고 DROP 은 하지 않는다", async () => {
+    const { prisma, calls } = fakePrisma([{ n: 1 }]);
+    await runSafeSql(prisma as never, `SELECT 1 AS n`);
+    expect(calls[0]).toMatch(/^CREATE OR REPLACE TEMP VIEW "users"/);
+    expect(calls[1]).toBe("SET TRANSACTION READ ONLY");
+    expect(calls[2]).toBe("SET LOCAL statement_timeout = '10s'");
+    expect(calls[3]).toBe("QUERY:SELECT 1 AS n");
+    expect(calls.some((c) => /\bDROP\b/i.test(c))).toBe(false);
+  });
+
+  it("트랜잭션을 롤백시켜도 password 를 지운 결과를 돌려준다", async () => {
+    const { prisma } = fakePrisma([{ id: "1", password: "x" }]);
+    await expect(runSafeSql(prisma as never, `SELECT 1`)).resolves.toEqual([{ id: "1" }]);
+  });
+
+  it("쿼리 오류는 그대로 던진다", async () => {
+    const { prisma } = fakePrisma([]);
+    const tx = { $executeRawUnsafe: vi.fn(async () => 0), $queryRawUnsafe: vi.fn(async () => { throw new Error("read-only"); }) };
+    prisma.$transaction.mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
+    await expect(runSafeSql(prisma as never, `SELECT 1`)).rejects.toThrow("read-only");
   });
 });
 

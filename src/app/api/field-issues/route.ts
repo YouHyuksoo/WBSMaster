@@ -7,10 +7,13 @@
  * - GET /api/field-issues: 목록 조회 (필터링 지원)
  * - POST /api/field-issues: 새 현업이슈 생성
  *   (사업부는 받지 않는다. DB 기본값 POLE 으로 저장)
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만). 목록은 ADMIN 이 아니면 projectId 필수
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { createFieldIssue } from "@/lib/services/fieldIssueService";
 
 /**
  * 현업이슈 목록 조회
@@ -18,6 +21,9 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const status = searchParams.get("status");
@@ -27,7 +33,11 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
 
     if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
       where.projectId = projectId;
+    } else if (user!.role !== "ADMIN") {
+      return NextResponse.json({ error: "projectId 가 필요합니다." }, { status: 400 });
     }
 
 
@@ -77,6 +87,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const body = await request.json();
     const {
       projectId,
@@ -103,91 +116,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!title) {
-      return NextResponse.json(
-        { error: "이슈관리명은 필수입니다." },
-        { status: 400 }
-      );
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
+
+    // 채번 · 생성 · 멤버 알림은 서비스에서 (AI 채팅 확인 카드와 같은 함수)
+    const result = await createFieldIssue({
+      projectId, category, title, description, registeredDate, issuer, requirementCode, assignee,
+      status, targetDate, completedDate, proposedSolution, finalSolution, remarks,
+    });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    // 프로젝트 존재 확인
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-    });
-
-    if (!project) {
-      return NextResponse.json(
-        { error: "프로젝트를 찾을 수 없습니다." },
-        { status: 404 }
-      );
-    }
-
-    // 다음 이슈번호 생성 (IS0001 형식)
-    const lastIssue = await prisma.fieldIssue.findFirst({
-      where: { projectId },
-      orderBy: { sequence: "desc" },
-    });
-
-    const nextSequence = lastIssue ? lastIssue.sequence + 1 : 1;
-    const code = `IS${String(nextSequence).padStart(4, "0")}`;
-
-    // 현업이슈 생성
-    const fieldIssue = await prisma.fieldIssue.create({
-      data: {
-        projectId,
-        sequence: nextSequence,
-        code,
-        category: category || null,
-        title,
-        description: description || null,
-        registeredDate: registeredDate ? new Date(registeredDate) : null,
-        issuer: issuer || null,
-        requirementCode: requirementCode || null,
-        assignee: assignee || null,
-        status: status || "OPEN",
-        targetDate: targetDate ? new Date(targetDate) : null,
-        completedDate: completedDate ? new Date(completedDate) : null,
-        proposedSolution: proposedSolution || null,
-        finalSolution: finalSolution || null,
-        remarks: remarks || null,
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    // 프로젝트 팀 멤버들에게 알림 생성
-    try {
-      const teamMembers = await prisma.teamMember.findMany({
-        where: { projectId },
-        select: { userId: true },
-      });
-
-      if (teamMembers.length > 0) {
-        await prisma.notification.createMany({
-          data: teamMembers.map((member) => ({
-            userId: member.userId,
-            type: "FIELD_ISSUE_CREATED",
-            title: `고객이슈 등록: ${code}`,
-            message: `[${project.name}] "${title}" 고객이슈가 등록되었습니다.`,
-            link: "/dashboard/field-issues",
-            relatedId: fieldIssue.id,
-            projectId: projectId,
-            projectName: project.name,
-          })),
-        });
-      }
-    } catch (notifError) {
-      // 알림 생성 실패해도 이슈 생성은 성공 처리
-      console.error("알림 생성 실패:", notifError);
-    }
-
-    return NextResponse.json(fieldIssue, { status: 201 });
+    return NextResponse.json(result.data, { status: 201 });
   } catch (error) {
     console.error("현업이슈 생성 실패:", error);
     return NextResponse.json(

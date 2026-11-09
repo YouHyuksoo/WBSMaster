@@ -317,6 +317,9 @@ export default function ChatPage() {
             processingTimeMs: data.processingTimeMs,
             totalCount: data.totalCount,
             displayedCount: data.displayedCount,
+            pendingAction: data.pendingAction,
+            candidates: data.candidates,
+            usedFallback: data.usedFallback,
           };
           setMessages((prev) => [...prev, assistantMessage]);
         } else {
@@ -776,6 +779,7 @@ export default function ChatPage() {
               onFeedbackComment={handleFeedbackComment}
               onFullscreenMindmap={handleFullscreenMindmap}
               onExcelDownload={handleExcelDownload}
+              onPickCandidate={handleSendMessage}
             />
           ))
         )}

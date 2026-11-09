@@ -536,7 +536,8 @@ model AiSetting {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  provider         String  @default("gemini") // "gemini" | "mistral" | "openai" | "openrouter" (src/lib/llm/config.ts LLM_PROVIDERS)
+  provider         String  @default("chatgpt") // "chatgpt" | "gemini" | "mistral" | "openai" | "openrouter" (src/lib/llm/config.ts LLM_PROVIDERS)
+  chatgptModel     String  @default("gpt-6.1-sol") // 회사 ChatGPT 구독 계정(서버 공용 OAuth) 모델
   geminiApiKey     String? // Google AI Studio API 키
   geminiModel      String  @default("gemini-1.5-flash")
   mistralApiKey    String? // Mistral API 키
@@ -638,6 +639,8 @@ model ChatHistory {
   sqlExecTimeMs    Int? // SQL 실행 시간 (ms)
   personaId        String? // 사용된 페르소나 ID
   errorMessage     String? // 에러 발생 시 메시지
+  toolSummary      Json? // 이 답에서 쓴 채팅 도구 요약 [{tool, summary}] (다음 질문 맥락용)
+  pendingActionId  String? // 이 답이 띄운 쓰기 확인 카드 (chat_pending_actions.id)
 
   createdAt DateTime @default(now())
 
@@ -647,6 +650,27 @@ model ChatHistory {
   @@index([userId, projectId])
   @@index([createdAt])
   @@map("chat_histories")
+}
+
+// ============================================
+// AI 채팅 쓰기 제안 (확인 카드)
+// LLM 이 propose_* 도구로 만든 등록·수정 제안. 사용자가 [등록]을 눌러야 서비스 계층으로 실행된다.
+// ============================================
+model ChatPendingAction {
+  id        String    @id @default(uuid())
+  userId    String // 제안을 받은 사용자 (본인만 확인 가능)
+  projectId String
+  kind      String // create_task | update_task | create_issue | update_issue | create_field_issue | update_field_issue | create_discussion_item | update_discussion_item
+  args      Json // 검증·정규화된 서비스 입력
+  summary   String // 확인 카드 문장
+  status    String    @default("PENDING") // PENDING | CONFIRMED | CANCELLED | EXPIRED | FAILED
+  resultRef String? // 생성·수정된 레코드 id
+  error     String?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([userId, status])
+  @@map("chat_pending_actions")
 }
 
 // ============================================

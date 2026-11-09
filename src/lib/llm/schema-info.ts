@@ -10,6 +10,18 @@
  */
 
 /**
+ * AI 채팅 SQL 이 볼 수 있는 테이블 (2026-11-09 정리)
+ * 베트남 잔재(업무기능추적표, AS-IS 상세 분석)와 설정·알림·채팅 테이블은 뺐다.
+ * 늘리려면 이 목록, DATABASE_SCHEMA, TABLE_SUMMARIES 를 함께 고친다 (schema-info.test.ts 가 검사).
+ */
+export const CHAT_SCHEMA_TABLES = [
+  "users", "projects", "team_members", "tasks", "task_assignees", "wbs_items", "wbs_assignees",
+  "milestones", "timeline_rows", "issues", "requirements", "customer_requirements", "field_issues",
+  "discussion_items", "interviews", "equipments", "equipment_connections", "weekly_reports",
+  "weekly_report_items", "documents", "as_is_overviews", "as_is_overview_items",
+] as const;
+
+/**
  * 데이터베이스 스키마 정보
  * LLM에게 전달할 테이블 구조 정보
  */
@@ -214,29 +226,6 @@ export const DATABASE_SCHEMA = {
       assignedAt: { type: "datetime", description: "담당자 지정일" },
     },
   },
-  holidays: {
-    tableName: "holidays",
-    description: "일정 관리 테이블 (휴무 + 개인 일정)",
-    columns: {
-      id: { type: "uuid", description: "일정 고유 ID (Primary Key)" },
-      title: { type: "string", description: "일정 제목" },
-      description: { type: "string?", description: "일정 상세 설명" },
-      date: { type: "datetime", description: "일정 날짜 또는 시작일 (컬럼명은 'date'임, startDate 아님!)" },
-      endDate: { type: "datetime?", description: "종료일 (기간 일정용)" },
-      type: {
-        type: "enum",
-        description: "일정 종류",
-        values: ["COMPANY_HOLIDAY", "TEAM_OFFSITE", "PERSONAL_LEAVE", "PERSONAL_SCHEDULE", "MEETING", "DEADLINE", "OTHER"],
-      },
-      isAllDay: { type: "boolean", description: "종일 일정 여부" },
-      startTime: { type: "string?", description: "시작 시간 (HH:mm 형식)" },
-      endTime: { type: "string?", description: "종료 시간 (HH:mm 형식)" },
-      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
-      userId: { type: "uuid?", description: "개인 일정인 경우 사용자 ID" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
   team_members: {
     tableName: "team_members",
     description: "프로젝트 팀멤버 테이블",
@@ -253,47 +242,6 @@ export const DATABASE_SCHEMA = {
       projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
       userId: { type: "uuid", description: "사용자 ID (FK -> users.id)" },
       joinedAt: { type: "datetime", description: "합류일" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
-  process_verification_categories: {
-    tableName: "process_verification_categories",
-    description: "기능추적표(공정검증) 카테고리 테이블 - 재료관리, SMD공정관리, 검사관리 등의 카테고리",
-    columns: {
-      id: { type: "uuid", description: "카테고리 고유 ID (Primary Key)" },
-      name: { type: "string", description: "카테고리명 (예: 재료관리, SMD공정관리, 검사관리)" },
-      code: { type: "string", description: "영문 코드 (예: MATERIAL, SMD_PROCESS, INSPECTION)" },
-      order: { type: "int", description: "정렬 순서" },
-      description: { type: "string?", description: "카테고리 설명" },
-      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
-  process_verification_items: {
-    tableName: "process_verification_items",
-    description: "기능추적표(공정검증) 항목 테이블 - 각 카테고리 내 세부 검증 항목",
-    columns: {
-      id: { type: "uuid", description: "항목 고유 ID (Primary Key)" },
-      category: { type: "string", description: "구분 (재료, 공정, 검사 등)" },
-      isApplied: { type: "boolean", description: "적용 여부 (Y/N)" },
-      managementArea: { type: "string", description: "(L1) 관리 영역" },
-      detailItem: { type: "string", description: "(L2) 세부 관리 항목" },
-      mesMapping: { type: "string?", description: "(L3) MES/IT 매핑 기능명" },
-      verificationDetail: { type: "string?", description: "세부 검증 내용 및 점검 기준" },
-      managementCode: { type: "string", description: "관리코드 (M-1-01, P-1-01 등)" },
-      acceptanceStatus: { type: "string?", description: "수용 여부" },
-      existingMes: { type: "boolean", description: "기존 MES 유무 (Y/N)" },
-      customerRequest: { type: "string?", description: "고객 요청 여부" },
-      order: { type: "int", description: "정렬 순서" },
-      remarks: { type: "string?", description: "비고" },
-      status: {
-        type: "enum",
-        description: "검증 상태",
-        values: ["PENDING", "IN_PROGRESS", "VERIFIED", "NOT_APPLICABLE"],
-      },
-      categoryId: { type: "uuid", description: "카테고리 ID (FK -> process_verification_categories.id)" },
       createdAt: { type: "datetime", description: "생성일시" },
       updatedAt: { type: "datetime", description: "수정일시" },
     },
@@ -394,21 +342,6 @@ export const DATABASE_SCHEMA = {
       updatedAt: { type: "datetime", description: "수정일시" },
     },
   },
-  pinpoints: {
-    tableName: "pinpoints",
-    description: "핀포인트 테이블 - 타임라인 상의 중요 시점 마커",
-    columns: {
-      id: { type: "uuid", description: "핀포인트 고유 ID (Primary Key)" },
-      name: { type: "string", description: "핀포인트 이름 (예: 오픈, 베타, 런칭)" },
-      description: { type: "string?", description: "상세 설명" },
-      date: { type: "datetime", description: "핀포인트 날짜" },
-      color: { type: "string", description: "삼각형 색상 (HEX)" },
-      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
-      rowId: { type: "uuid", description: "타임라인 행 ID (FK -> timeline_rows.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
   weekly_reports: {
     tableName: "weekly_reports",
     description: "주간보고 테이블 - 사용자별 주간 업무보고",
@@ -461,28 +394,6 @@ export const DATABASE_SCHEMA = {
       updatedAt: { type: "datetime", description: "수정일시" },
     },
   },
-  weekly_summaries: {
-    tableName: "weekly_summaries",
-    description: "주간보고 취합 테이블 - 여러 멤버의 주간보고를 통합 분석",
-    columns: {
-      id: { type: "uuid", description: "취합 고유 ID (Primary Key)" },
-      year: { type: "int", description: "연도 (예: 2026)" },
-      weekNumber: { type: "int", description: "주차 (1~53)" },
-      weekStart: { type: "datetime", description: "해당 주 시작일 (월요일)" },
-      weekEnd: { type: "datetime", description: "해당 주 종료일 (일요일)" },
-      title: { type: "string", description: "취합 보고서 제목" },
-      memberIds: { type: "string[]", description: "포함된 멤버 ID 목록 (배열)" },
-      reportIds: { type: "string[]", description: "포함된 주간보고 ID 목록 (배열)" },
-      memberSummaries: { type: "json?", description: "멤버별 요약 JSON (memberId, memberName, previousResults, nextPlans)" },
-      llmSummary: { type: "string?", description: "LLM 요약 (전주실적/차주계획 통합)" },
-      llmInsights: { type: "string?", description: "LLM 인사이트 (리스크, 개선점, 제안)" },
-      llmAnalyzedAt: { type: "datetime?", description: "LLM 분석 완료 시간" },
-      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
-      createdById: { type: "uuid", description: "생성자 ID (FK -> users.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
   equipments: {
     tableName: "equipments",
     description: "MES 설비 관리 테이블 - 노드 기반 시각화",
@@ -526,25 +437,6 @@ export const DATABASE_SCHEMA = {
       updatedAt: { type: "datetime", description: "수정일시" },
     },
   },
-  equipment_properties: {
-    tableName: "equipment_properties",
-    description: "설비 동적 속성 테이블 - 사용자가 설비별로 커스텀 속성 추가",
-    columns: {
-      id: { type: "uuid", description: "속성 고유 ID (Primary Key)" },
-      key: { type: "string", description: "속성명 (예: 온도, 압력, 용량)" },
-      value: { type: "string", description: "속성값" },
-      valueType: {
-        type: "enum",
-        description: "값 타입",
-        values: ["TEXT", "NUMBER", "DATE", "BOOLEAN"],
-      },
-      unit: { type: "string?", description: "단위 (예: ℃, MPa, ton)" },
-      order: { type: "int", description: "표시 순서" },
-      equipmentId: { type: "uuid", description: "설비 ID (FK -> equipments.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
   equipment_connections: {
     tableName: "equipment_connections",
     description: "설비 연결 테이블 - 설비 간의 흐름/연결 관계 (React Flow Edge용)",
@@ -565,27 +457,6 @@ export const DATABASE_SCHEMA = {
       toEquipmentId: { type: "uuid", description: "도착 설비 ID (FK -> equipments.id)" },
       createdAt: { type: "datetime", description: "생성일시" },
       updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
-  notifications: {
-    tableName: "notifications",
-    description: "알림 테이블 - 사용자별 알림 관리",
-    columns: {
-      id: { type: "uuid", description: "알림 고유 ID (Primary Key)" },
-      type: {
-        type: "enum",
-        description: "알림 타입",
-        values: ["TASK_ASSIGNED", "MILESTONE_DUE_SOON", "ISSUE_URGENT", "FIELD_ISSUE_CREATED", "CUSTOMER_REQ_CREATED", "DISCUSSION_CREATED"],
-      },
-      title: { type: "string", description: "알림 제목" },
-      message: { type: "string", description: "알림 내용" },
-      link: { type: "string?", description: "클릭 시 이동 경로" },
-      isRead: { type: "boolean", description: "읽음 여부" },
-      relatedId: { type: "string?", description: "관련 엔티티 ID" },
-      projectId: { type: "string?", description: "관련 프로젝트 ID" },
-      projectName: { type: "string?", description: "프로젝트명 (삭제되어도 남음)" },
-      userId: { type: "uuid", description: "사용자 ID (FK -> users.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
     },
   },
 
@@ -741,457 +612,36 @@ export const DATABASE_SCHEMA = {
     },
   },
 
-  task_connections: {
-    tableName: "task_connections",
-    description: "태스크 연결 관계 테이블 - 태스크 간 의존관계",
-    columns: {
-      id: { type: "uuid", description: "연결 고유 ID (Primary Key)" },
-      sourceTaskId: { type: "uuid", description: "출발 태스크 ID (FK -> tasks.id)" },
-      targetTaskId: { type: "uuid", description: "도착 태스크 ID (FK -> tasks.id)" },
-      type: {
-        type: "enum",
-        description: "연결 타입",
-        values: ["FINISH_TO_START", "START_TO_START", "FINISH_TO_FINISH", "START_TO_FINISH"],
-      },
-      label: { type: "string?", description: "연결 라벨" },
-      color: { type: "string?", description: "선 색상" },
-      animated: { type: "boolean", description: "애니메이션 효과" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  ai_settings: {
-    tableName: "ai_settings",
-    description: "AI 설정 테이블 - 사용자별 AI API 키 및 모델 설정",
-    columns: {
-      id: { type: "uuid", description: "설정 고유 ID (Primary Key)" },
-      provider: { type: "string", description: "현재 선택된 제공자 (gemini/mistral/openai/openrouter)" },
-      geminiApiKey: { type: "string?", description: "Gemini API 키 (암호화)" },
-      geminiModel: { type: "string", description: "Gemini 모델명" },
-      mistralApiKey: { type: "string?", description: "Mistral API 키 (암호화)" },
-      mistralModel: { type: "string", description: "Mistral 모델명" },
-      openaiApiKey: { type: "string?", description: "OpenAI API 키" },
-      openaiModel: { type: "string", description: "OpenAI 모델명 (gpt-4.1-mini 등)" },
-      openrouterApiKey: { type: "string?", description: "OpenRouter API 키" },
-      openrouterModel: { type: "string", description: "OpenRouter 모델명 (회사/모델 형식)" },
-      sqlSystemPrompt: { type: "string?", description: "SQL 생성 시스템 프롬프트 (커스텀)" },
-      analysisSystemPrompt: { type: "string?", description: "분석 시스템 프롬프트 (커스텀)" },
-      userId: { type: "uuid", description: "사용자 ID (FK -> users.id, Unique)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  chat_history: {
-    tableName: "chat_history",
-    description: "AI 채팅 기록 테이블 - 사용자와 AI 간의 대화 기록",
-    columns: {
-      id: { type: "uuid", description: "채팅 고유 ID (Primary Key)" },
-      role: { type: "string", description: "발화자 역할 (user/assistant)" },
-      content: { type: "string", description: "메시지 내용" },
-      sqlQuery: { type: "string?", description: "실행된 SQL 쿼리" },
-      chartType: { type: "string?", description: "차트 타입" },
-      chartData: { type: "json?", description: "차트 데이터 (JSON)" },
-      mindmapData: { type: "json?", description: "마인드맵 데이터 (JSON)" },
-      userQuery: { type: "string?", description: "원본 사용자 질문 (분석용)" },
-      processingTimeMs: { type: "int?", description: "처리 시간 (밀리초)" },
-      sqlGenTimeMs: { type: "int?", description: "SQL 생성 시간 (밀리초)" },
-      sqlExecTimeMs: { type: "int?", description: "SQL 실행 시간 (밀리초)" },
-      personaId: { type: "uuid?", description: "사용된 페르소나 ID" },
-      userId: { type: "uuid", description: "사용자 ID (FK -> users.id)" },
-      projectId: { type: "uuid?", description: "프로젝트 ID (FK -> projects.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-    },
-  },
 
-  ai_personas: {
-    tableName: "ai_personas",
-    description: "AI 페르소나 테이블 - 사용자 정의 AI 캐릭터",
-    columns: {
-      id: { type: "uuid", description: "페르소나 고유 ID (Primary Key)" },
-      name: { type: "string", description: "페르소나 이름" },
-      description: { type: "string?", description: "페르소나 설명" },
-      systemPrompt: { type: "string", description: "시스템 프롬프트" },
-      isDefault: { type: "boolean", description: "기본 페르소나 여부" },
-      userId: { type: "uuid", description: "사용자 ID (FK -> users.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  chat_feedback: {
-    tableName: "chat_feedback",
-    description: "채팅 피드백 테이블 - 응답 품질 피드백",
-    columns: {
-      id: { type: "uuid", description: "피드백 고유 ID (Primary Key)" },
-      rating: {
-        type: "enum",
-        description: "평가",
-        values: ["GOOD", "BAD"],
-      },
-      comment: { type: "string?", description: "추가 코멘트" },
-      chatHistoryId: { type: "uuid", description: "채팅 기록 ID (FK -> chat_history.id)" },
-      userId: { type: "uuid", description: "사용자 ID (FK -> users.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-    },
-  },
 
-  slack_settings: {
-    tableName: "slack_settings",
-    description: "Slack 연동 설정 테이블",
-    columns: {
-      id: { type: "uuid", description: "설정 고유 ID (Primary Key)" },
-      webhookUrl: { type: "string", description: "Slack 웹훅 URL" },
-      channel: { type: "string?", description: "알림 채널명" },
-      isEnabled: { type: "boolean", description: "활성화 여부" },
-      notifyOnTaskCreate: { type: "boolean", description: "태스크 생성 시 알림" },
-      notifyOnTaskComplete: { type: "boolean", description: "태스크 완료 시 알림" },
-      notifyOnIssueCreate: { type: "boolean", description: "이슈 생성 시 알림" },
-      notifyOnMilestone: { type: "boolean", description: "마일스톤 알림" },
-      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id, Unique)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  workload_analyses: {
-    tableName: "workload_analyses",
-    description: "업무량 분석 테이블",
-    columns: {
-      id: { type: "uuid", description: "분석 고유 ID (Primary Key)" },
-      year: { type: "int", description: "연도" },
-      weekNumber: { type: "int", description: "주차" },
-      totalTasks: { type: "int", description: "전체 태스크 수" },
-      completedTasks: { type: "int", description: "완료된 태스크 수" },
-      overdueTasks: { type: "int", description: "지연된 태스크 수" },
-      avgCompletionTime: { type: "float?", description: "평균 완료 시간 (시간)" },
-      projectId: { type: "uuid", description: "프로젝트 ID (FK -> projects.id)" },
-      userId: { type: "uuid?", description: "사용자 ID (FK -> users.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-    },
-  },
 
   // ============================================
   // AS-IS 단위업무 분석 관련 테이블 (2026-01-20)
   // ============================================
 
-  as_is_unit_analyses: {
-    tableName: "as_is_unit_analyses",
-    description: "AS-IS 단위업무 상세 분석 테이블 (개요 항목별 1:1 연결)",
-    columns: {
-      id: { type: "uuid", description: "분석 고유 ID (Primary Key)" },
-      flowChartData: { type: "json?", description: "React Flow 노드/엣지 데이터 (JSON)" },
-      swimlaneData: { type: "json?", description: "Swimlane 노드/엣지 데이터 (JSON)" },
-      overviewItemId: { type: "uuid", description: "개요 항목 ID (FK -> as_is_overview_items.id, Unique)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_process_definitions: {
-    tableName: "as_is_process_definitions",
-    description: "AS-IS 업무 프로세스 정의서 테이블",
-    columns: {
-      id: { type: "uuid", description: "정의 고유 ID (Primary Key)" },
-      stepNumber: { type: "int", description: "순서 번호" },
-      processName: { type: "string", description: "프로세스명" },
-      description: { type: "string?", description: "설명" },
-      input: { type: "string?", description: "입력" },
-      output: { type: "string?", description: "출력" },
-      relatedSystem: { type: "string?", description: "관련 시스템" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_flow_chart_details: {
-    tableName: "as_is_flow_chart_details",
-    description: "AS-IS Flow Chart 상세 정보 테이블",
-    columns: {
-      id: { type: "uuid", description: "상세 고유 ID (Primary Key)" },
-      nodeId: { type: "string?", description: "React Flow 노드 ID (연동용)" },
-      stepNumber: { type: "int", description: "순서 번호" },
-      processName: { type: "string", description: "프로세스명" },
-      description: { type: "string?", description: "설명" },
-      responsible: { type: "string?", description: "담당자/부서" },
-      systemUsed: { type: "string?", description: "사용 시스템" },
-      inputData: { type: "string?", description: "입력 데이터" },
-      outputData: { type: "string?", description: "출력 데이터" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_responsibilities: {
-    tableName: "as_is_responsibilities",
-    description: "AS-IS R&R (역할과 책임) 정의 테이블",
-    columns: {
-      id: { type: "uuid", description: "R&R 고유 ID (Primary Key)" },
-      role: { type: "string", description: "역할/담당자" },
-      department: { type: "string?", description: "부서" },
-      responsibility: { type: "string", description: "책임/업무" },
-      authority: { type: "string?", description: "권한" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_interviews: {
-    tableName: "as_is_interviews",
-    description: "AS-IS 현업 인터뷰 결과 테이블",
-    columns: {
-      id: { type: "uuid", description: "인터뷰 고유 ID (Primary Key)" },
-      interviewee: { type: "string", description: "인터뷰 대상자" },
-      department: { type: "string?", description: "부서" },
-      position: { type: "string?", description: "직책" },
-      interviewDate: { type: "datetime?", description: "인터뷰 일자" },
-      topic: { type: "string?", description: "인터뷰 주제" },
-      content: { type: "string", description: "인터뷰 내용" },
-      keyFindings: { type: "string?", description: "주요 발견사항" },
-      suggestions: { type: "string?", description: "개선 제안" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_issues: {
-    tableName: "as_is_issues",
-    description: "AS-IS 이슈/Pain Point 테이블",
-    columns: {
-      id: { type: "uuid", description: "이슈 고유 ID (Primary Key)" },
-      issueType: {
-        type: "enum",
-        description: "이슈 유형",
-        values: ["PAIN_POINT", "BOTTLENECK", "GAP", "OTHER"],
-      },
-      title: { type: "string", description: "이슈 제목" },
-      description: { type: "string?", description: "상세 설명" },
-      impact: { type: "string?", description: "영향도" },
-      frequency: { type: "string?", description: "발생 빈도" },
-      priority: { type: "string?", description: "우선순위 (HIGH, MEDIUM, LOW)" },
-      suggestedFix: { type: "string?", description: "개선 제안" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_documents: {
-    tableName: "as_is_documents",
-    description: "AS-IS 관련 문서 목록 테이블",
-    columns: {
-      id: { type: "uuid", description: "문서 고유 ID (Primary Key)" },
-      documentName: { type: "string", description: "문서명" },
-      documentType: { type: "string?", description: "문서 유형 (양식, 보고서, 대장 등)" },
-      purpose: { type: "string?", description: "용도" },
-      creator: { type: "string?", description: "작성 주체" },
-      frequency: { type: "string?", description: "작성 빈도" },
-      storageLocation: { type: "string?", description: "보관 위치" },
-      retentionPeriod: { type: "string?", description: "보관 기간" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_document_analyses: {
-    tableName: "as_is_document_analyses",
-    description: "AS-IS 문서 분석 (필드 단위) 테이블",
-    columns: {
-      id: { type: "uuid", description: "분석 고유 ID (Primary Key)" },
-      documentName: { type: "string", description: "분석 대상 문서명" },
-      fieldName: { type: "string", description: "필드/항목명" },
-      dataType: { type: "string?", description: "데이터 타입" },
-      sampleData: { type: "string?", description: "샘플 데이터" },
-      isMandatory: { type: "boolean", description: "필수 여부" },
-      validationRule: { type: "string?", description: "검증 규칙" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_functions: {
-    tableName: "as_is_functions",
-    description: "AS-IS 기능 목록 테이블",
-    columns: {
-      id: { type: "uuid", description: "기능 고유 ID (Primary Key)" },
-      functionId: { type: "string?", description: "기능 ID" },
-      functionName: { type: "string", description: "기능명" },
-      description: { type: "string?", description: "기능 설명" },
-      module: { type: "string?", description: "모듈명" },
-      usageFrequency: { type: "string?", description: "사용 빈도" },
-      userCount: { type: "string?", description: "사용자 수" },
-      importance: { type: "string?", description: "중요도 (HIGH, MEDIUM, LOW)" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_screens: {
-    tableName: "as_is_screens",
-    description: "AS-IS 화면 목록 테이블",
-    columns: {
-      id: { type: "uuid", description: "화면 고유 ID (Primary Key)" },
-      screenId: { type: "string?", description: "화면 ID" },
-      screenName: { type: "string", description: "화면명" },
-      description: { type: "string?", description: "화면 설명" },
-      menuPath: { type: "string?", description: "메뉴 경로" },
-      screenType: { type: "string?", description: "화면 유형 (조회, 등록, 수정, 리포트 등)" },
-      relatedFunction: { type: "string?", description: "연관 기능" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_interfaces: {
-    tableName: "as_is_interfaces",
-    description: "AS-IS 인터페이스 정의 테이블",
-    columns: {
-      id: { type: "uuid", description: "인터페이스 고유 ID (Primary Key)" },
-      interfaceId: { type: "string?", description: "인터페이스 ID" },
-      interfaceName: { type: "string", description: "인터페이스명" },
-      description: { type: "string?", description: "설명" },
-      sourceSystem: { type: "string?", description: "송신 시스템" },
-      targetSystem: { type: "string?", description: "수신 시스템" },
-      interfaceType: { type: "string?", description: "유형 (실시간, 배치, 파일 등)" },
-      protocol: { type: "string?", description: "프로토콜 (REST, SOAP, FILE 등)" },
-      frequency: { type: "string?", description: "연동 빈도" },
-      dataVolume: { type: "string?", description: "데이터 건수" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_data_models: {
-    tableName: "as_is_data_models",
-    description: "AS-IS 데이터 모델 (테이블/컬럼 정의) 테이블",
-    columns: {
-      id: { type: "uuid", description: "모델 고유 ID (Primary Key)" },
-      tableName: { type: "string", description: "테이블명" },
-      tableNameKr: { type: "string?", description: "테이블 한글명" },
-      description: { type: "string?", description: "설명" },
-      columnName: { type: "string?", description: "컬럼명" },
-      columnNameKr: { type: "string?", description: "컬럼 한글명" },
-      dataType: { type: "string?", description: "데이터 타입" },
-      length: { type: "string?", description: "길이" },
-      isPrimaryKey: { type: "boolean", description: "PK 여부" },
-      isForeignKey: { type: "boolean", description: "FK 여부" },
-      isNullable: { type: "boolean", description: "NULL 허용" },
-      defaultValue: { type: "string?", description: "기본값" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  as_is_code_definitions: {
-    tableName: "as_is_code_definitions",
-    description: "AS-IS 코드 정의 (공통코드) 테이블",
-    columns: {
-      id: { type: "uuid", description: "코드 고유 ID (Primary Key)" },
-      codeGroup: { type: "string", description: "코드 그룹" },
-      codeGroupName: { type: "string?", description: "코드 그룹명" },
-      codeValue: { type: "string", description: "코드 값" },
-      codeName: { type: "string", description: "코드명" },
-      description: { type: "string?", description: "설명" },
-      isActive: { type: "boolean", description: "사용 여부" },
-      remarks: { type: "string?", description: "비고" },
-      order: { type: "int", description: "정렬 순서" },
-      unitAnalysisId: { type: "uuid", description: "단위분석 ID (FK -> as_is_unit_analyses.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
   // ============================================
   // 기타 누락 테이블 (2026-01-20)
   // ============================================
 
-  task_nudges: {
-    tableName: "task_nudges",
-    description: "태스크 넛지 (리마인더/재촉) 테이블",
-    columns: {
-      id: { type: "uuid", description: "넛지 고유 ID (Primary Key)" },
-      message: { type: "string?", description: "재촉 메시지" },
-      taskId: { type: "uuid", description: "태스크 ID (FK -> tasks.id)" },
-      nudgerId: { type: "uuid", description: "재촉한 사람 ID (FK -> users.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-    },
-  },
 
-  process_verification_masters: {
-    tableName: "process_verification_masters",
-    description: "공정검증 마스터 (관리코드별 정보) 테이블",
-    columns: {
-      id: { type: "uuid", description: "마스터 고유 ID (Primary Key)" },
-      managementCode: { type: "string", description: "관리코드 (M-1-01, P-1-01 등)" },
-      productType: { type: "string", description: "제품유형 (SMD, HANES 등)" },
-      category: { type: "string", description: "구분 (재료관리, SMD공정관리 등)" },
-      managementArea: { type: "string", description: "(L1) 관리 영역" },
-      detailItem: { type: "string", description: "(L2) 세부 관리 항목" },
-      mesMapping: { type: "string?", description: "(L3) MES/IT 매핑 기능명" },
-      verificationDetail: { type: "string?", description: "세부 검증 내용 및 점검 기준" },
-      acceptanceStatus: { type: "string?", description: "수용 여부" },
-      existingMes: { type: "boolean", description: "기존MES유무 (Y/N)" },
-      customerRequest: { type: "string?", description: "고객요청여부" },
-      asIsCode: { type: "string?", description: "AS-IS 관리번호" },
-      toBeCode: { type: "string?", description: "TO-BE 관리번호" },
-      order: { type: "int", description: "정렬 순서" },
-      remarks: { type: "string?", description: "비고" },
-      categoryId: { type: "uuid", description: "카테고리 ID (FK -> process_verification_categories.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 
-  process_verification_business_units: {
-    tableName: "process_verification_business_units",
-    description: "공정검증 항목별 적용 여부·상태 테이블 (마스터당 1행, businessUnit=POLE)",
-    columns: {
-      id: { type: "uuid", description: "적용 고유 ID (Primary Key)" },
-      businessUnit: { type: "string", description: "내부 고정값 POLE (화면에서 사업부 구분 안 함, 필터에 쓰지 말 것)" },
-      isApplied: { type: "boolean", description: "적용여부 (Y/N)" },
-      status: {
-        type: "enum",
-        description: "검증 상태",
-        values: ["PENDING", "IN_PROGRESS", "COMPLETED", "NA"],
-      },
-      masterId: { type: "uuid", description: "마스터 ID (FK -> process_verification_masters.id)" },
-      createdAt: { type: "datetime", description: "생성일시" },
-      updatedAt: { type: "datetime", description: "수정일시" },
-    },
-  },
 };
 
 /**
@@ -1207,20 +657,15 @@ export const TABLE_RELATIONSHIPS = `
    - 1:N → requirements (요청자/담당자로)
    - 1:N → issues (보고자/담당자로)
    - 1:N → weekly_reports (주간보고 작성자)
-   - 1:N → weekly_summaries (취합 보고서 생성자)
    - 1:N → documents (문서 등록자)
-   - 1:N → notifications (알림)
 
 2. **projects** (프로젝트)
-   - 1:N → tasks, requirements, issues, wbs_items, holidays, team_members
-   - 1:N → process_verification_categories (기능추적표 카테고리)
+   - 1:N → tasks, requirements, issues, wbs_items, team_members
    - 1:N → customer_requirements (고객요구사항)
    - 1:N → documents (문서함)
    - 1:N → timeline_rows (타임라인 행)
    - 1:N → milestones (마일스톤)
-   - 1:N → pinpoints (핀포인트)
    - 1:N → weekly_reports (주간보고)
-   - 1:N → weekly_summaries (주간보고 취합)
    - 1:N → equipments (설비 목록)
    - N:1 → users (소유자)
 
@@ -1237,13 +682,6 @@ export const TABLE_RELATIONSHIPS = `
    - 1:N → weekly_report_items (주간보고 항목 연결)
    - WBS 마인드맵/트리 조회 시: id, code, name, level, parentId, status, progress 사용
 
-5. **process_verification_categories** (기능추적표 카테고리)
-   - N:1 → projects
-   - 1:N → process_verification_items (카테고리 내 항목들)
-
-6. **process_verification_items** (기능추적표 항목)
-   - N:1 → process_verification_categories
-
 7. **customer_requirements** (고객요구사항)
    - N:1 → projects
 
@@ -1255,15 +693,10 @@ export const TABLE_RELATIONSHIPS = `
    - 자기참조 (parentId로 계층 구조)
    - N:1 → projects
    - 1:N → milestones (행에 속한 마일스톤들)
-   - 1:N → pinpoints (행에 속한 핀포인트들)
 
 10. **milestones** (마일스톤)
     - N:1 → projects
     - N:1 → timeline_rows (선택적 연결)
-
-11. **pinpoints** (핀포인트)
-    - N:1 → projects
-    - N:1 → timeline_rows
 
 12. **weekly_reports** (주간보고)
     - N:1 → projects
@@ -1275,24 +708,13 @@ export const TABLE_RELATIONSHIPS = `
     - N:1 → tasks (선택적 연결)
     - N:1 → wbs_items (선택적 연결)
 
-14. **weekly_summaries** (주간보고 취합)
-    - N:1 → projects
-    - N:1 → users (생성자)
-
 15. **equipments** (설비)
     - N:1 → projects
-    - 1:N → equipment_properties (동적 속성)
     - N:M → equipments (equipment_connections를 통해)
-
-16. **equipment_properties** (설비 동적 속성)
-    - N:1 → equipments
 
 17. **equipment_connections** (설비 연결)
     - N:1 → equipments (출발 설비)
     - N:1 → equipments (도착 설비)
-
-18. **notifications** (알림)
-    - N:1 → users
 
 19. **field_issues** (필드이슈/고객이슈)
     - N:1 → projects
@@ -1310,33 +732,7 @@ export const TABLE_RELATIONSHIPS = `
 
 23. **as_is_overview_items** (AS-IS 업무 항목)
     - N:1 → as_is_overviews
-    - 1:1 → as_is_unit_analyses (단위업무 상세 분석)
 
-24. **as_is_unit_analyses** (AS-IS 단위업무 분석)
-    - 1:1 → as_is_overview_items
-    - 1:N → as_is_process_definitions (프로세스 정의서)
-    - 1:N → as_is_flow_chart_details (플로우차트 상세)
-    - 1:N → as_is_responsibilities (R&R)
-    - 1:N → as_is_interviews (현업 인터뷰)
-    - 1:N → as_is_issues (이슈/Pain Point)
-    - 1:N → as_is_documents (관련 문서)
-    - 1:N → as_is_document_analyses (문서 분석)
-    - 1:N → as_is_functions (기능 목록)
-    - 1:N → as_is_screens (화면 목록)
-    - 1:N → as_is_interfaces (인터페이스)
-    - 1:N → as_is_data_models (데이터 모델)
-    - 1:N → as_is_code_definitions (코드 정의)
-
-25. **task_nudges** (태스크 넛지/리마인더)
-    - N:1 → tasks
-    - N:1 → users (재촉한 사람)
-
-26. **process_verification_masters** (공정검증 마스터)
-    - N:1 → process_verification_categories
-    - 1:N → process_verification_business_units (적용 여부·상태)
-
-27. **process_verification_business_units** (공정검증 적용 여부·상태)
-    - N:1 → process_verification_masters
 `;
 
 /**
@@ -1384,10 +780,8 @@ export function getProjectFilterInfo(projectId?: string): string {
 프로젝트 관련 테이블 조회 시 \`"projectId" = '${projectId}'\` 조건을 사용하세요.
 
 **⚠️ projectId가 없는 테이블 (조건 추가 금지!)**:
-- ai_settings (userId만 있음)
 - users
-- notifications
-- ai_personas`;
+- task_assignees, wbs_assignees, weekly_report_items, equipment_connections, as_is_overview_items (부모 테이블을 JOIN 해서 projectId 로 거른다)`;
 }
 
 // ============================================
@@ -1456,10 +850,6 @@ export const TABLE_SUMMARIES: Record<string, { description: string; keywords: st
   },
 
   // === 일정/타임라인 ===
-  holidays: {
-    description: "일정/휴무 관리",
-    keywords: ["일정", "휴무", "휴가", "미팅", "데드라인", "스케줄", "달력", "캘린더"]
-  },
   timeline_rows: {
     description: "타임라인 행 (계층형)",
     keywords: ["타임라인", "timeline", "행", "row", "간트차트"]
@@ -1467,10 +857,6 @@ export const TABLE_SUMMARIES: Record<string, { description: string; keywords: st
   milestones: {
     description: "마일스톤 (프로젝트 이정표)",
     keywords: ["마일스톤", "milestone", "이정표", "일정", "기간", "막대"]
-  },
-  pinpoints: {
-    description: "핀포인트 (중요 시점 마커)",
-    keywords: ["핀포인트", "pinpoint", "시점", "마커", "오픈", "런칭", "베타"]
   },
 
   // === 주간보고 ===
@@ -1482,10 +868,6 @@ export const TABLE_SUMMARIES: Record<string, { description: string; keywords: st
     description: "주간보고 항목 (전주실적/차주계획)",
     keywords: ["주간항목", "실적", "계획", "업무내용", "진행률", "완료여부"]
   },
-  weekly_summaries: {
-    description: "주간보고 취합/LLM 분석",
-    keywords: ["취합", "통합", "LLM분석", "인사이트", "요약"]
-  },
 
   // === 팀/조직 ===
   team_members: {
@@ -1494,14 +876,6 @@ export const TABLE_SUMMARIES: Record<string, { description: string; keywords: st
   },
 
   // === 공정검증표 (기능추적표) ===
-  process_verification_categories: {
-    description: "공정검증 카테고리",
-    keywords: ["공정검증", "기능추적", "카테고리", "재료관리", "SMD", "검사"]
-  },
-  process_verification_items: {
-    description: "공정검증 항목",
-    keywords: ["공정항목", "검증항목", "MES매핑", "관리코드", "수용여부"]
-  },
 
   // === 문서 관리 ===
   documents: {
@@ -1514,38 +888,14 @@ export const TABLE_SUMMARIES: Record<string, { description: string; keywords: st
     description: "MES 설비 관리",
     keywords: ["설비", "equipment", "기계", "장비", "노드", "라인", "IP주소", "인터락"]
   },
-  equipment_properties: {
-    description: "설비 동적 속성",
-    keywords: ["설비속성", "온도", "압력", "용량", "커스텀속성"]
-  },
   equipment_connections: {
     description: "설비 연결 관계 (Flow)",
     keywords: ["설비연결", "흐름", "신호", "의존관계", "엣지"]
   },
 
   // === 알림 ===
-  notifications: {
-    description: "사용자 알림",
-    keywords: ["알림", "notification", "읽음", "미확인", "마일스톤임박"]
-  },
 
   // === AI/채팅 ===
-  ai_settings: {
-    description: "AI 설정 (API 키, 모델)",
-    keywords: ["AI설정", "Gemini", "Mistral", "API키", "모델"]
-  },
-  ai_personas: {
-    description: "AI 페르소나",
-    keywords: ["페르소나", "캐릭터", "시스템프롬프트"]
-  },
-  chat_history: {
-    description: "AI 채팅 기록",
-    keywords: ["채팅", "대화", "질문", "응답", "SQL"]
-  },
-  chat_feedback: {
-    description: "채팅 피드백",
-    keywords: ["피드백", "좋아요", "싫어요", "평가"]
-  },
 
   // === AS-IS 분석 ===
   as_is_overviews: {
@@ -1556,84 +906,8 @@ export const TABLE_SUMMARIES: Record<string, { description: string; keywords: st
     description: "AS-IS 업무 항목 (대/중분류)",
     keywords: ["AS-IS항목", "대분류", "중분류", "업무명", "현행방식", "수기", "엑셀", "시스템"]
   },
-  as_is_unit_analyses: {
-    description: "AS-IS 단위업무 분석",
-    keywords: ["단위업무", "분석", "Input", "Output", "시스템연동"]
-  },
-  as_is_process_definitions: {
-    description: "AS-IS 프로세스 정의",
-    keywords: ["프로세스", "절차", "단계", "흐름"]
-  },
-  as_is_flow_chart_details: {
-    description: "AS-IS 플로우차트 상세",
-    keywords: ["플로우차트", "flowchart", "상세흐름"]
-  },
-  as_is_responsibilities: {
-    description: "AS-IS R&R (역할과 책임)",
-    keywords: ["R&R", "역할", "책임", "담당"]
-  },
-  as_is_interviews: {
-    description: "AS-IS 인터뷰 내용",
-    keywords: ["AS-IS인터뷰", "현업면담", "Pain Point"]
-  },
-  as_is_issues: {
-    description: "AS-IS 이슈 목록",
-    keywords: ["AS-IS이슈", "현행문제", "개선점"]
-  },
-  as_is_documents: {
-    description: "AS-IS 관련 문서",
-    keywords: ["AS-IS문서", "현행문서", "참고자료"]
-  },
-  as_is_document_analyses: {
-    description: "AS-IS 문서 분석",
-    keywords: ["문서분석", "현행분석"]
-  },
-  as_is_functions: {
-    description: "AS-IS 기능 목록",
-    keywords: ["AS-IS기능", "현행기능", "시스템기능"]
-  },
-  as_is_screens: {
-    description: "AS-IS 화면 목록",
-    keywords: ["AS-IS화면", "현행화면", "UI"]
-  },
-  as_is_interfaces: {
-    description: "AS-IS 인터페이스",
-    keywords: ["인터페이스", "연동", "API", "데이터교환"]
-  },
-  as_is_data_models: {
-    description: "AS-IS 데이터 모델",
-    keywords: ["데이터모델", "테이블", "ERD", "스키마"]
-  },
-  as_is_code_definitions: {
-    description: "AS-IS 코드 정의",
-    keywords: ["코드정의", "공통코드", "코드값"]
-  },
 
   // === 기타 ===
-  task_connections: {
-    description: "태스크 연결 관계",
-    keywords: ["태스크연결", "의존관계", "선후관계"]
-  },
-  task_nudges: {
-    description: "태스크 넛지 (리마인더)",
-    keywords: ["넛지", "리마인더", "알림", "독촉"]
-  },
-  slack_settings: {
-    description: "Slack 연동 설정",
-    keywords: ["슬랙", "Slack", "웹훅", "알림"]
-  },
-  workload_analyses: {
-    description: "업무량 분석",
-    keywords: ["업무량", "워크로드", "부하", "분석"]
-  },
-  process_verification_masters: {
-    description: "공정검증 마스터",
-    keywords: ["검증마스터", "템플릿"]
-  },
-  process_verification_business_units: {
-    description: "공정검증 적용 여부·상태",
-    keywords: ["적용여부", "검증상태"]
-  },
 };
 
 /**

@@ -18,6 +18,8 @@ import remarkGfm from "remark-gfm";
 import { Icon, Card } from "@/components/ui";
 import ChartRenderer from "./ChartRenderer";
 import MindmapRenderer, { MindmapNode } from "./MindmapRenderer";
+import { ConfirmActionCard, type PendingActionView } from "./ConfirmActionCard";
+import { CandidatePicker, type CandidatesView } from "./CandidatePicker";
 
 /**
  * 피드백 타입
@@ -45,6 +47,12 @@ export interface ChatMessage {
     rating: FeedbackRating;
     comment?: string;
   };
+  /** AI 가 제안한 등록·수정 (확인 카드) */
+  pendingAction?: PendingActionView;
+  /** 사람 이름이 애매할 때 후보 */
+  candidates?: CandidatesView;
+  /** 회사 ChatGPT 대신 대체 모델로 답했는지 */
+  usedFallback?: boolean;
 }
 
 interface ChatMessageItemProps {
@@ -54,6 +62,8 @@ interface ChatMessageItemProps {
   onFullscreenMindmap: (data: MindmapNode) => void;
   /** Excel 다운로드 핸들러 (SQL 쿼리를 전달받아 전체 데이터 Excel 다운로드) */
   onExcelDownload?: (sqlQuery: string) => void;
+  /** 후보 선택 시 그 이름을 다음 메시지로 보낸다 */
+  onPickCandidate?: (label: string) => void;
 }
 
 /**
@@ -65,6 +75,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
   onFeedbackComment,
   onFullscreenMindmap,
   onExcelDownload,
+  onPickCandidate,
 }: ChatMessageItemProps) {
   const [feedbackInput, setFeedbackInput] = useState("");
   const messageRef = useRef<HTMLDivElement>(null);
@@ -153,6 +164,12 @@ const ChatMessageItem = memo(function ChatMessageItem({
                 {message.content}
               </ReactMarkdown>
             </div>
+
+            {/* 등록·수정 확인 카드 / 사람 후보 선택 */}
+            {message.pendingAction && <ConfirmActionCard action={message.pendingAction} />}
+            {message.candidates && onPickCandidate && (
+              <CandidatePicker candidates={message.candidates} onPick={onPickCandidate} />
+            )}
 
             {/* SQL 쿼리 표시 */}
             {message.sqlQuery && (
@@ -299,6 +316,11 @@ const ChatMessageItem = memo(function ChatMessageItem({
                 {message.processingTimeMs && (
                   <span className="text-[10px] text-text-secondary">
                     {(message.processingTimeMs / 1000).toFixed(1)}초
+                  </span>
+                )}
+                {message.usedFallback && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    대체 모델로 답함
                   </span>
                 )}
               </div>

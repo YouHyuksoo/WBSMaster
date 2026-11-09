@@ -27,6 +27,9 @@ import { prisma } from "@/lib/prisma";
 import { sendTaskCreatedNotification } from "@/lib/slack";
 import { TaskPriority } from "@prisma/client";
 
+// 수정은 taskUpdate.ts (300줄 분리). 같은 진입점에서 쓰도록 다시 export
+export { updateTask, type UpdateTaskInput } from "./taskUpdate";
+
 /** Task 생성 입력 타입 */
 export interface CreateTaskInput {
   /** Task 제목 (필수) */

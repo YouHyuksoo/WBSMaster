@@ -71,15 +71,29 @@ export async function runSafeSql(prisma: Pick<PrismaClient, "$transaction">, sql
   const blocked = findSensitiveSqlReference(sql);
   if (blocked) throw new Error(blocked);
 
-  const rows = await prisma.$transaction(
-    async (tx) => {
-      await tx.$executeRawUnsafe(SAFE_USERS_VIEW_SQL);
-      const result = (await tx.$queryRawUnsafe(sql)) as unknown[];
-      // 성공 시 뷰를 지운다. 실패하면 트랜잭션 롤백으로 뷰도 함께 사라진다.
-      await tx.$executeRawUnsafe(`DROP VIEW IF EXISTS pg_temp."users"`);
-      return result;
-    },
-    { timeout: 30_000 }
-  );
-  return redactSensitive(rows);
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        // READ ONLY 에서는 임시 뷰 CREATE/DROP 도 막히므로 뷰를 먼저 만들고 그다음 읽기 전용으로 바꾼다
+        await tx.$executeRawUnsafe(SAFE_USERS_VIEW_SQL);
+        await tx.$executeRawUnsafe("SET TRANSACTION READ ONLY");
+        await tx.$executeRawUnsafe("SET LOCAL statement_timeout = '10s'");
+        const result = (await tx.$queryRawUnsafe(sql)) as unknown[];
+        // 결과를 들고 던져 트랜잭션을 롤백한다 (임시 뷰도 함께 사라짐)
+        throw new RollbackWithRows(result);
+      },
+      { timeout: 30_000 }
+    );
+  } catch (e) {
+    if (e instanceof RollbackWithRows) return redactSensitive(e.rows);
+    throw e;
+  }
+  throw new Error("runSafeSql: 도달할 수 없는 경로");
+}
+
+/** 조회 결과를 담아 트랜잭션을 롤백시키는 신호 */
+class RollbackWithRows extends Error {
+  constructor(public rows: unknown[]) {
+    super("rollback-with-rows");
+  }
 }

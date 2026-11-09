@@ -8,6 +8,7 @@
  * 1. **GET /api/issues/:id**: 특정 이슈 상세 조회
  * 2. **PATCH /api/issues/:id**: 이슈 정보 수정
  * 3. **DELETE /api/issues/:id**: 이슈 삭제
+ * 4. 인증: requireAuth + assertProjectAccess (레코드의 프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 반환 필드 추가: include에 필드 추가
@@ -16,6 +17,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { updateIssue } from "@/lib/services/issueService";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -27,6 +30,9 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const issue = await prisma.issue.findUnique({
@@ -64,6 +70,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const denied = await assertProjectAccess(issue.projectId, user!);
+    if (denied) return denied;
+
     return NextResponse.json(issue);
   } catch (error) {
     console.error("이슈 조회 실패:", error);
@@ -80,6 +89,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
     const body = await request.json();
     const {
@@ -104,60 +116,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 상태가 RESOLVED나 CLOSED로 변경될 때 resolvedDate 자동 설정
-    let finalResolvedDate = resolvedDate !== undefined
-      ? (resolvedDate ? new Date(resolvedDate) : null)
-      : existingIssue.resolvedDate;
+    const denied = await assertProjectAccess(existingIssue.projectId, user!);
+    if (denied) return denied;
 
-    if (status === "RESOLVED" || status === "CLOSED") {
-      if (!finalResolvedDate) {
-        finalResolvedDate = new Date();
-      }
-    } else if (status === "OPEN" || status === "IN_PROGRESS") {
-      finalResolvedDate = null;
+    // 해결일 자동 설정 등 수정 규칙은 서비스에서 (AI 채팅 확인 카드와 같은 함수)
+    const result = await updateIssue(id, existingIssue.projectId, {
+      title, description, status, priority, category, dueDate, resolvedDate, reporterId, assigneeId, isDelayed,
+    });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    const issue = await prisma.issue.update({
-      where: { id },
-      data: {
-        ...(title !== undefined && { title }),
-        ...(description !== undefined && { description }),
-        ...(status !== undefined && { status }),
-        ...(priority !== undefined && { priority }),
-        ...(category !== undefined && { category }),
-        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
-        resolvedDate: finalResolvedDate,
-        ...(reporterId !== undefined && { reporterId: reporterId || null }),
-        ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),
-        ...(isDelayed !== undefined && { isDelayed }),
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        reporter: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-      },
-    });
-
-    return NextResponse.json(issue);
+    return NextResponse.json(result.data);
   } catch (error) {
     console.error("이슈 수정 실패:", error);
     return NextResponse.json(
@@ -173,6 +143,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     // 이슈 존재 확인
@@ -183,6 +156,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existingIssue.projectId, user!);
+    if (denied) return denied;
 
     await prisma.issue.delete({ where: { id } });
 

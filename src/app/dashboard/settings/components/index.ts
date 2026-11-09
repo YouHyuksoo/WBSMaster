@@ -7,3 +7,4 @@
  */
 export { ProviderButton, ApiKeyModelPanel, API_KEY_PROVIDERS } from "./ApiKeyProviderSettings";
 export type { ApiKeyProviderId } from "./ApiKeyProviderSettings";
+export { ChatGptConnection, ChatGptProviderButton } from "./ChatGptConnection";

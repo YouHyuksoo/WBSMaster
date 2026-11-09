@@ -8,6 +8,7 @@
  * 1. **GET /api/tasks/:id**: 태스크 상세 정보 조회
  * 2. **PATCH /api/tasks/:id**: 태스크 정보 수정 (상태 변경, 담당자 변경 등)
  * 3. **DELETE /api/tasks/:id**: 태스크 삭제
+ * 4. 인증: requireAuth + assertProjectAccess (태스크의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 반환 필드 추가: include에 관계 추가
@@ -16,8 +17,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { TaskStatus } from "@prisma/client";
-import { sendTaskCompletedNotification } from "@/lib/slack";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { updateTask } from "@/lib/services/taskService";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -31,6 +32,9 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const task = await prisma.task.findUnique({
@@ -100,6 +104,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const denied = await assertProjectAccess(task.projectId, user!);
+    if (denied) return denied;
+
     // 응답 형식 변환 (assignees 배열 평탄화)
     // 주의: 지연 여부는 프론트엔드에서 계산하여 표시만 함 (상태 변경 안함)
     const transformedTask = {
@@ -127,6 +134,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
     const body = await request.json();
     const { title, description, status, priority, progress, assigneeId, assigneeIds, startDate, dueDate, actualStartDate, actualEndDate, order, requirementId, wbsItemId, flowX, flowY } = body;
@@ -140,121 +150,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 담당자 업데이트가 있는 경우 (기존 담당자 삭제 후 새로 생성)
-    if (assigneeIds !== undefined) {
-      // 기존 담당자 모두 삭제
-      await prisma.taskAssignee.deleteMany({
-        where: { taskId: id },
-      });
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
-      // 새 담당자 추가
-      if (Array.isArray(assigneeIds) && assigneeIds.length > 0) {
-        await prisma.taskAssignee.createMany({
-          data: assigneeIds.map((userId: string) => ({
-            taskId: id,
-            userId,
-          })),
-        });
-      }
-    }
-
-    const task = await prisma.task.update({
-      where: { id },
-      data: {
-        ...(title !== undefined && { title }),
-        ...(description !== undefined && { description }),
-        ...(status !== undefined && { status }),
-        ...(priority !== undefined && { priority }),
-        ...(progress !== undefined && { progress }),  // 진행률
-        ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),  // 주 담당자
-        ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),  // 계획 시작일
-        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),          // 계획 마감일
-        ...(actualStartDate !== undefined && { actualStartDate: actualStartDate ? new Date(actualStartDate) : null }),  // 실제 시작일
-        ...(actualEndDate !== undefined && { actualEndDate: actualEndDate ? new Date(actualEndDate) : null }),          // 실제 마감일
-        ...(order !== undefined && { order }),
-        ...(requirementId !== undefined && { requirementId: requirementId || null }),
-        ...(wbsItemId !== undefined && { wbsItemId: wbsItemId || null }),
-        ...(flowX !== undefined && { flowX }),  // 플로우 캔버스 X 좌표
-        ...(flowY !== undefined && { flowY }),  // 플로우 캔버스 Y 좌표
-      },
-      include: {
-        // 주 담당자 조회
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        // 부 담당자 조회
-        assignees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true,
-              },
-            },
-          },
-        },
-        creator: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        requirement: {
-          select: {
-            id: true,
-            code: true,
-            title: true,
-            status: true,
-            priority: true,
-          },
-        },
-        wbsItem: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-            level: true,
-          },
-        },
-      },
+    // 담당자 교체 · 수정 · 완료 Slack 알림은 서비스에서 (AI 채팅 확인 카드와 같은 함수)
+    const result = await updateTask(id, existing.projectId, {
+      title, description, status, priority, progress, assigneeId, assigneeIds, startDate, dueDate,
+      actualStartDate, actualEndDate, order, requirementId, wbsItemId, flowX, flowY,
     });
-
-    // 응답 형식 변환 (assignees 배열을 평탄화)
-    const transformedTask = {
-      ...task,
-      assignees: task.assignees.map((a) => a.user).filter((u) => u !== null),
-    };
-
-    // Task가 완료 상태로 변경되었을 때 Slack 알림 전송
-    if (status === "COMPLETED" && existing.status !== "COMPLETED") {
-      // 프로젝트 정보 조회
-      const project = await prisma.project.findUnique({
-        where: { id: task.projectId },
-        select: { name: true },
-      });
-
-      // 담당자 이름 (주 담당자 또는 부 담당자 첫 번째)
-      const assigneeName = task.assignee?.name
-        || (task.assignees.length > 0 ? task.assignees[0].user.name : null);
-
-      // Slack 알림 전송 (비동기, 실패해도 응답에 영향 없음)
-      sendTaskCompletedNotification({
-        taskTitle: task.title,
-        projectName: project?.name,
-        assigneeName: assigneeName || undefined,
-        completedAt: new Date(),
-      }).catch((err) => {
-        console.error("[Slack] Task 완료 알림 전송 실패:", err);
-      });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    return NextResponse.json(transformedTask);
+    return NextResponse.json(result.data);
   } catch (error) {
     console.error("태스크 수정 실패:", error);
     return NextResponse.json(
@@ -270,6 +178,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     // 태스크 존재 확인
@@ -280,6 +191,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     await prisma.task.delete({ where: { id } });
 

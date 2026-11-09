@@ -7,6 +7,9 @@
  * 초보자 가이드:
  * 1. **GET /api/wbs/schedule-stats**: 프로젝트 일정 통계 조회
  *    - ?projectId=xxx: 특정 프로젝트 (필수)
+ *    - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
+ * 2. 계산은 src/lib/wbs/schedule-stats.ts 의 loadWbsScheduleStats 한 곳에서 한다.
+ *    AI 채팅 도구(wbs_schedule_stats)도 같은 함수를 써서 화면과 같은 숫자를 낸다.
  *
  * 계산 방식 (말단 업무 기준 통일):
  * - **계획 진척률**: 각 대분류(LEVEL1)별 (가중치 × 말단 평균기간경과비율)의 합계
@@ -17,71 +20,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
-
-/**
- * 두 날짜 사이의 주말 수 계산 (토,일)
- */
-function countWeekends(start: Date, end: Date): number {
-  let count = 0;
-  const current = new Date(start);
-  current.setHours(0, 0, 0, 0);
-  const endDate = new Date(end);
-  endDate.setHours(0, 0, 0, 0);
-
-  while (current <= endDate) {
-    const day = current.getDay();
-    if (day === 0 || day === 6) {
-      count++;
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  return count;
-}
-
-/**
- * 두 날짜 사이의 일수 계산 (양 끝 포함)
- */
-function daysBetween(start: Date, end: Date): number {
-  const startDate = new Date(start);
-  startDate.setHours(0, 0, 0, 0);
-  const endDate = new Date(end);
-  endDate.setHours(0, 0, 0, 0);
-
-  const diffTime = endDate.getTime() - startDate.getTime();
-  return Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-}
-
-/**
- * 작업일 계산 (주말 + 휴일 제외)
- */
-function countWorkingDays(start: Date, end: Date, holidays: Date[]): number {
-  let count = 0;
-  const current = new Date(start);
-  current.setHours(0, 0, 0, 0);
-  const endDate = new Date(end);
-  endDate.setHours(0, 0, 0, 0);
-
-  const holidaySet = new Set(
-    holidays.map((h) => {
-      const d = new Date(h);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
-    })
-  );
-
-  while (current <= endDate) {
-    const day = current.getDay();
-    const isWeekend = day === 0 || day === 6;
-    const isHoliday = holidaySet.has(current.getTime());
-
-    if (!isWeekend && !isHoliday) {
-      count++;
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  return count;
-}
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { loadWbsScheduleStats } from "@/lib/wbs/schedule-stats";
 
 /**
  * WBS 프로젝트 일정 통계 조회
@@ -103,267 +43,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 프로젝트 조회
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: {
-        id: true,
-        name: true,
-        startDate: true,
-        endDate: true,
-        progress: true,
-      },
-    });
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
-    if (!project) {
+    const stats = await loadWbsScheduleStats(prisma, projectId);
+    if (!stats) {
       return NextResponse.json(
         { error: "프로젝트를 찾을 수 없습니다." },
         { status: 404 }
       );
     }
-
-    // 프로젝트 기간이 없으면 빈 통계 반환
-    if (!project.startDate || !project.endDate) {
-      return NextResponse.json({
-        project: {
-          id: project.id,
-          name: project.name,
-        },
-        schedule: null,
-        wbs: null,
-        message: "프로젝트 시작일/종료일이 설정되지 않았습니다.",
-      });
-    }
-
-    const startDate = new Date(project.startDate);
-    const endDate = new Date(project.endDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // 휴일 조회 (프로젝트 기간 내)
-    const holidays = await prisma.holiday.findMany({
-      where: {
-        projectId,
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-        type: {
-          in: ["COMPANY_HOLIDAY", "TEAM_OFFSITE"],
-        },
-      },
-      select: {
-        date: true,
-      },
-    });
-
-    const holidayDates = holidays.map((h) => h.date);
-
-    // 일정 통계 계산
-    const totalDays = daysBetween(startDate, endDate);
-    const weekendDays = countWeekends(startDate, endDate);
-    const holidayCount = holidayDates.length;
-    const workingDays = countWorkingDays(startDate, endDate, holidayDates);
-
-    // 진행일/남은일 계산
-    let elapsedDays = 0;
-    let remainingDays = 0;
-    let elapsedWorkingDays = 0;
-    let remainingWorkingDays = 0;
-
-    if (today < startDate) {
-      // 프로젝트 시작 전
-      remainingDays = totalDays;
-      remainingWorkingDays = workingDays;
-    } else if (today > endDate) {
-      // 프로젝트 종료 후
-      elapsedDays = totalDays;
-      elapsedWorkingDays = workingDays;
-    } else {
-      // 프로젝트 진행 중
-      elapsedDays = daysBetween(startDate, today);
-      remainingDays = totalDays - elapsedDays; // 오늘 중복 방지
-      elapsedWorkingDays = countWorkingDays(startDate, today, holidayDates);
-      remainingWorkingDays = workingDays - elapsedWorkingDays; // 오늘 중복 방지
-    }
-
-    // 일정 진행률 (기대 진행률)
-    const expectedProgress = workingDays > 0
-      ? Math.round((elapsedWorkingDays / workingDays) * 100)
-      : 0;
-
-    // ============================================
-    // 엑셀 WBS 산식 기반 계획/실적 계산
-    // ============================================
-
-    // LEVEL1(대분류) 항목들 조회 (하위 항목 포함)
-    const level1Items = await prisma.wbsItem.findMany({
-      where: {
-        projectId,
-        level: "LEVEL1",
-      },
-      include: {
-        children: {
-          include: {
-            children: {
-              include: {
-                children: true, // LEVEL4까지
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // 말단 노드만 수집하여 전체 통계 계산
-    const leafItems: { status: string; progress: number; endDate: Date | null; actualEndDate: Date | null }[] = [];
-    const collectLeafItems = (items: typeof level1Items) => {
-      items.forEach((item) => {
-        if (!item.children || item.children.length === 0) {
-          leafItems.push({
-            status: item.status,
-            progress: item.progress,
-            endDate: item.endDate,
-            actualEndDate: item.actualEndDate,
-          });
-        } else {
-          collectLeafItems(item.children as typeof level1Items);
-        }
-      });
-    };
-    collectLeafItems(level1Items);
-
-    const totalWbs = leafItems.length;
-    let completedWbs = 0;
-    let inProgressWbs = 0;
-    let delayedWbs = 0;
-
-    leafItems.forEach((item) => {
-      if (item.status === "COMPLETED") {
-        completedWbs++;
-      } else if (item.status === "IN_PROGRESS") {
-        inProgressWbs++;
-      }
-
-      // 지연 체크: isDelayed() 기준 통일
-      if (item.endDate && item.status !== "CANCELLED") {
-        const itemEndDate = new Date(item.endDate);
-        itemEndDate.setHours(0, 0, 0, 0);
-        if (item.progress >= 100) {
-          // 달성율 100%: actualEndDate 없으면 오늘 기준으로 비교
-          const compareDate = item.actualEndDate ? new Date(item.actualEndDate) : new Date();
-          compareDate.setHours(0, 0, 0, 0);
-          if (compareDate > itemEndDate) {
-            delayedWbs++;
-          }
-        } else {
-          // 달성율 미달: 계획종료일이 오늘보다 이전이면 지연
-          if (itemEndDate < today) {
-            delayedWbs++;
-          }
-        }
-      }
-    });
-
-    // ============================================
-    // 계획/실적 진척률 계산 (말단 업무 기준 통일)
-    // 계획: Σ(가중치 × 말단 평균기간경과비율) / 100
-    // 실적: Σ(가중치 × 말단 평균진행률) / 100
-    // ============================================
-    let plannedProgress = 0;
-    let actualProgress = 0;
-    let totalWeight = 0;
-
-    /** 말단 업무의 기간경과비율 계산 */
-    const calcLeafPeriodProgress = (leaf: { startDate: Date | null; endDate: Date | null }): number => {
-      if (!leaf.startDate || !leaf.endDate) return 0;
-      const leafStart = new Date(leaf.startDate);
-      const leafEnd = new Date(leaf.endDate);
-      leafStart.setHours(0, 0, 0, 0);
-      leafEnd.setHours(0, 0, 0, 0);
-      if (today < leafStart) return 0;
-      if (today >= leafEnd) return 100;
-      const total = leafEnd.getTime() - leafStart.getTime();
-      const elapsed = today.getTime() - leafStart.getTime();
-      return total > 0 ? (elapsed / total) * 100 : 0;
-    };
-
-    level1Items.forEach((level1) => {
-      const weight = level1.weight || 0;
-      totalWeight += weight;
-
-      // 해당 대분류의 하위 말단 항목들 수집
-      const level1LeafItems: { progress: number; startDate: Date | null; endDate: Date | null }[] = [];
-      const collectLevel1Leaves = (items: typeof level1Items) => {
-        items.forEach((item) => {
-          if (!item.children || item.children.length === 0) {
-            level1LeafItems.push({ progress: item.progress, startDate: item.startDate, endDate: item.endDate });
-          } else {
-            collectLevel1Leaves(item.children as typeof level1Items);
-          }
-        });
-      };
-      collectLevel1Leaves([level1]);
-
-      // 대분류 내 말단 평균 진행률 (실적)
-      const avgProgressLevel1 = level1LeafItems.length > 0
-        ? level1LeafItems.reduce((sum, i) => sum + i.progress, 0) / level1LeafItems.length
-        : 0;
-
-      // 대분류 내 말단 평균 기간경과비율 (계획)
-      const avgPeriodProgress = level1LeafItems.length > 0
-        ? level1LeafItems.reduce((sum, i) => sum + calcLeafPeriodProgress(i), 0) / level1LeafItems.length
-        : 0;
-
-      // 실적 진척률: 가중치 × 말단 평균진행률 / 100
-      actualProgress += (weight * avgProgressLevel1) / 100;
-
-      // 계획 진척률: 가중치 × 말단 평균기간경과비율 / 100
-      plannedProgress += (weight * avgPeriodProgress) / 100;
-    });
-
-    // 소수점 첫째자리까지 반올림
-    plannedProgress = Math.round(plannedProgress * 10) / 10;
-    actualProgress = Math.round(actualProgress * 10) / 10;
-
-    // 지연율: 계획 - 실적 (양수면 지연, 음수면 선행)
-    const delayRate = Math.round((plannedProgress - actualProgress) * 10) / 10;
-
-    // 달성률: (실적 / 계획) × 100
-    const achievementRate = plannedProgress > 0
-      ? Math.round((actualProgress / plannedProgress) * 100)
-      : actualProgress > 0 ? 100 : 0;
-
-    return NextResponse.json({
-      project: {
-        id: project.id,
-        name: project.name,
-        startDate: project.startDate,
-        endDate: project.endDate,
-      },
-      schedule: {
-        totalDays,           // 총 일수
-        weekendDays,         // 주말 일수
-        holidayCount,        // 휴일 수
-        workingDays,         // 작업일 수
-        elapsedDays,         // 경과 일수 (총)
-        remainingDays,       // 남은 일수 (총)
-        elapsedWorkingDays,  // 경과 작업일
-        remainingWorkingDays, // 남은 작업일
-        expectedProgress,    // 기대 진행률 (일정 기준)
-      },
-      wbs: {
-        total: totalWbs,
-        completed: completedWbs,
-        inProgress: inProgressWbs,
-        delayed: delayedWbs,
-        plannedProgress,     // 계획 진척률 (엑셀 산식: 대분류별 기간경과비율×가중치 합계)
-        actualProgress,      // 실적 진척률 (엑셀 산식: 대분류별 가중치×평균진행률 합계)
-        delayRate,           // 지연율 (계획 - 실적, 양수면 지연)
-        achievementRate,     // 달성률 (실적 / 계획 × 100)
-        totalWeight,         // 가중치 합계 (100이어야 정상)
-      },
-    });
+    return NextResponse.json(stats);
   } catch (error) {
     console.error("WBS 일정 통계 조회 실패:", error);
     return NextResponse.json(

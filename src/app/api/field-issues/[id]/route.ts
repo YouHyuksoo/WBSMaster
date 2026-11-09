@@ -7,10 +7,13 @@
  * - GET /api/field-issues/:id: 단건 조회
  * - PATCH /api/field-issues/:id: 수정
  * - DELETE /api/field-issues/:id: 삭제
+ * - 인증: requireAuth + assertProjectAccess (레코드의 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { updateFieldIssue } from "@/lib/services/fieldIssueService";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -25,6 +28,9 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await context.params;
 
     const fieldIssue = await prisma.fieldIssue.findUnique({
@@ -46,6 +52,9 @@ export async function GET(
       );
     }
 
+    const denied = await assertProjectAccess(fieldIssue.projectId, user!);
+    if (denied) return denied;
+
     return NextResponse.json(fieldIssue);
   } catch (error) {
     console.error("현업이슈 조회 실패:", error);
@@ -65,6 +74,9 @@ export async function PATCH(
   context: RouteContext
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await context.params;
     const body = await request.json();
 
@@ -80,63 +92,16 @@ export async function PATCH(
       );
     }
 
-    // 업데이트할 데이터 구성
-    const updateData: Record<string, unknown> = {};
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
-    if (body.category !== undefined) {
-      updateData.category = body.category || null;
-    }
-    if (body.title !== undefined) {
-      updateData.title = body.title;
-    }
-    if (body.description !== undefined) {
-      updateData.description = body.description || null;
-    }
-    if (body.registeredDate !== undefined) {
-      updateData.registeredDate = body.registeredDate ? new Date(body.registeredDate) : null;
-    }
-    if (body.issuer !== undefined) {
-      updateData.issuer = body.issuer || null;
-    }
-    if (body.requirementCode !== undefined) {
-      updateData.requirementCode = body.requirementCode || null;
-    }
-    if (body.assignee !== undefined) {
-      updateData.assignee = body.assignee || null;
-    }
-    if (body.status !== undefined) {
-      updateData.status = body.status;
-    }
-    if (body.targetDate !== undefined) {
-      updateData.targetDate = body.targetDate ? new Date(body.targetDate) : null;
-    }
-    if (body.completedDate !== undefined) {
-      updateData.completedDate = body.completedDate ? new Date(body.completedDate) : null;
-    }
-    if (body.proposedSolution !== undefined) {
-      updateData.proposedSolution = body.proposedSolution || null;
-    }
-    if (body.finalSolution !== undefined) {
-      updateData.finalSolution = body.finalSolution || null;
-    }
-    if (body.remarks !== undefined) {
-      updateData.remarks = body.remarks || null;
+    // 넘어온 필드만 수정 (서비스, AI 채팅 확인 카드와 같은 함수)
+    const result = await updateFieldIssue(id, existing.projectId, body);
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    const fieldIssue = await prisma.fieldIssue.update({
-      where: { id },
-      data: updateData,
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    return NextResponse.json(fieldIssue);
+    return NextResponse.json(result.data);
   } catch (error) {
     console.error("현업이슈 수정 실패:", error);
     return NextResponse.json(
@@ -155,6 +120,9 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await context.params;
 
     // 존재 확인
@@ -168,6 +136,9 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     await prisma.fieldIssue.delete({
       where: { id },

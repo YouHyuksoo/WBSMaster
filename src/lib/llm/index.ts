@@ -26,9 +26,18 @@ import {
   getProjectFilterInfo,
   getTableSummariesForLLM,
   getDynamicSchemaInfo,
+  CHAT_SCHEMA_TABLES,
 } from "./schema-info";
 import type { LLMConfig } from "./config";
 import { withRateLimitRetry } from "./retry";
+import { LLMClient } from "./client-base";
+import { OpenAICompatibleClient } from "./clients/openai-compatible";
+import { ChatGptClient } from "./clients/chatgpt";
+import { FallbackClient, fallbackFromEnv } from "./clients/fallback";
+import type { ChatMessage, ToolDefinition, ToolTurn } from "./tool-calling";
+
+export { LLMClient } from "./client-base";
+export type { ChatMessage, ToolCall, ToolDefinition, ToolTurn } from "./tool-calling";
 
 export type { LLMConfig, LLMProvider } from "./config";
 export { resolveLLMConfig, providerLabel, LLM_PROVIDERS, isLLMProvider } from "./config";
@@ -76,49 +85,19 @@ export const DEFAULT_SQL_SYSTEM_PROMPT = `WBS Master SQL 생성 AI. PostgreSQL �
 - 컬럼명: camelCase + 쌍따옴표 ("projectId", "startDate")
 - 문자열: 작은따옴표 ('ACTIVE')
 - SELECT: LIMIT 100
-- INSERT: id=gen_random_uuid(), createdAt/updatedAt=NOW()
-- DELETE 금지
+- **조회(SELECT · WITH)만 생성한다.** INSERT · UPDATE · DELETE 는 실행되지 않는다.
+  등록·수정 요청이면 SQL 대신 "NO_SQL" 을 반환한다 (등록·수정은 채팅 도구가 확인 카드로 처리).
 - **🚨 단일 쿼리만 생성! 여러 개의 SQL을 세미콜론으로 연결하지 마세요!**
   - ❌ SELECT ...; SELECT ...; (다중 쿼리 금지)
   - ✅ 하나의 SELECT 문만 반환
-
-## UPDATE 안전 규칙 ⚠️
-- WHERE 절 필수 (id, name, code, title 중 하나로 특정)
-- 범위/전체 업데이트 금지
-- ✅ UPDATE "wbs_items" SET "progress"=50 WHERE "name"='설계'
-- ❌ UPDATE "wbs_items" SET "endDate"='2025-01-10' (WHERE 없음!)
-
-## INSERT 필수 필드 (⚠️ 담당자 필수!)
-- tasks: id, title, status, priority, projectId, creatorId, **assigneeId**, order, isAiGenerated, createdAt, updatedAt
-- issues: id, title, status, priority, type, projectId, reporterId, assigneeId, createdAt, updatedAt (+ resolution 선택)
-- requirements: id, title, status, priority, projectId, requesterId, assigneeId, createdAt, updatedAt
-- wbs_items: id, name, level, status, projectId, createdAt, updatedAt
-
-## 🚨 담당자 자동 지정 (매우 중요!) 🚨
-**INSERT 시 사용자가 담당자를 언급하지 않으면, 반드시 현재 로그인한 사용자(userId)를 담당자로 지정하세요!**
-
-- tasks: creatorId=userId, assigneeId=userId (주담당자)
-- issues: reporterId=userId, assigneeId=userId
-- requirements: requesterId=userId, assigneeId=userId
-
-## 🚨 날짜 자동 지정 (매우 중요!) 🚨
-**INSERT 시 사용자가 시작일/종료일/마감일을 언급하지 않으면, 오늘 날짜(NOW())로 지정하세요!**
-
-- tasks: startDate=NOW(), dueDate=NOW()
-- issues: reportDate=NOW(), dueDate=NOW()
-- requirements: requestDate=NOW(), dueDate=NOW()
-- wbs_items: startDate=NOW(), endDate=NOW()
-
-tasks INSERT 전체 예시:
-INSERT INTO "tasks" ("id", "title", "status", "priority", "projectId", "creatorId", "assigneeId", "startDate", "dueDate", "order", "isAiGenerated", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), '태스크 제목', 'PENDING', 'MEDIUM', '프로젝트ID', '현재userId', '현재userId', NOW(), NOW(), 0, true, NOW(), NOW())
+- 서로 다른 Enum 칼럼(예: issues.status 와 requirements.status)을 UNION 할 때는 ::text 로 바꾼다.
 
 ## 상태값
-- tasks/wbs: PENDING, IN_PROGRESS, COMPLETED, ON_HOLD
-- issues: OPEN, IN_PROGRESS, RESOLVED, CLOSED
-- issues type (유형): FUNCTIONAL (기능), NON_FUNCTIONAL (비기능)
+- tasks / wbs_items: PENDING, IN_PROGRESS, HOLDING, DELAYED, COMPLETED, CANCELLED
+- tasks priority: LOW, MEDIUM, HIGH
+- issues: OPEN, IN_PROGRESS, RESOLVED, CLOSED, WONT_FIX
+- issues priority: CRITICAL(긴급), HIGH, MEDIUM, LOW
 - requirements: DRAFT, REVIEW, APPROVED, REJECTED, IMPLEMENTED
-- priority: LOW, MEDIUM, HIGH, URGENT
 
 ## ID → 이름 변환 (필수!) ⭐
 조회 시 UUID 대신 이름 표시를 위해 반드시 JOIN:
@@ -133,15 +112,23 @@ LEFT JOIN "users" assignee ON i."assigneeId" = assignee."id"
 
 ## 마인드맵 요청
 "마인드맵", "트리구조" 언급 시 WBS 조회:
-SELECT w."id", w."code", w."name", w."level", w."parentId", w."progress", u."name" AS "assigneeName"
-FROM "wbs_items" w LEFT JOIN "users" u ON w."assigneeId" = u."id"
+SELECT w."id", w."code", w."name", w."level", w."parentId", w."progress"
+FROM "wbs_items" w
 WHERE w."projectId" = '프로젝트ID' ORDER BY w."code"
+(wbs_items 에는 assigneeId 가 없다. 담당자는 wbs_assignees 를 JOIN)
 
 ## 응답
 - SQL만 반환 (코드블록 없이). 일반 대화면 "NO_SQL".
 - **반드시 하나의 SQL 문만 반환하세요!** 여러 정보가 필요하면 UNION이나 서브쿼리 사용.
 - 여러 분석이 필요한 질문이면 가장 중요한 하나만 선택해서 쿼리 생성.
 `;
+
+/**
+ * 모든 SQL 생성에 앞세우는 고정 규칙 (사용자 지정 프롬프트로 덮을 수 없음)
+ */
+export const READ_ONLY_SQL_RULES = `## 고정 규칙 (아래 다른 지시보다 우선)
+- 조회 SQL(SELECT 또는 WITH ... SELECT) 하나만 생성한다. INSERT · UPDATE · DELETE · DDL 은 실행되지 않으므로 만들지 않는다.
+- 등록·수정 요청이면 SQL 대신 NO_SQL 만 반환한다.`;
 
 /**
  * 분석 기본 시스템 프롬프트
@@ -202,19 +189,6 @@ WBS 데이터가 있을 때 마인드맵 생성 방법:
 `;
 
 /**
- * LLM 추상화 클래스
- */
-abstract class LLMClient {
-  protected config: LLMConfig;
-
-  constructor(config: LLMConfig) {
-    this.config = config;
-  }
-
-  abstract generate(prompt: string, systemPrompt?: string): Promise<string>;
-}
-
-/**
  * Google Gemini 클라이언트
  */
 class GeminiClient extends LLMClient {
@@ -269,59 +243,6 @@ class MistralClient extends LLMClient {
 }
 
 /**
- * OpenAI 호환 Chat Completions 클라이언트 (OpenAI · OpenRouter 공용)
- * - OpenAI: 추론 모델(gpt-5, o 시리즈)은 temperature 변경 · max_tokens 를 거부하므로
- *   max_completion_tokens 만 보낸다.
- * - OpenRouter: max_tokens 사용, 앱 식별 헤더(HTTP-Referer, X-Title) 추가
- */
-class OpenAICompatibleClient extends LLMClient {
-  constructor(
-    config: LLMConfig,
-    private baseUrl: string,
-    private label: string,
-    private extraBody: Record<string, unknown>,
-    private extraHeaders: Record<string, string> = {}
-  ) {
-    super(config);
-  }
-
-  async generate(prompt: string, systemPrompt?: string): Promise<string> {
-    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [];
-
-    if (systemPrompt) {
-      messages.push({ role: "system", content: systemPrompt });
-    }
-    messages.push({ role: "user", content: prompt });
-
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.config.apiKey}`,
-        ...this.extraHeaders,
-      },
-      body: JSON.stringify({
-        model: this.config.model,
-        messages,
-        ...this.extraBody,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`${this.label} API 오류 (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (typeof content === "string") {
-      return content;
-    }
-    return "";
-  }
-}
-
-/**
  * 429(호출 한도 초과) 시 재시도하는 래퍼
  * AI 채팅은 질문 하나에 LLM 을 2~3번 연달아 부르므로 초당 한도가 낮은 요금제에서 필요하다.
  */
@@ -330,14 +251,34 @@ class RateLimitRetryClient extends LLMClient {
     super(config);
   }
 
+  get supportsTools(): boolean {
+    return this.inner.supportsTools;
+  }
+
   generate(prompt: string, systemPrompt?: string): Promise<string> {
-    return withRateLimitRetry(() => this.inner.generate(prompt, systemPrompt));
+    return withRateLimitRetry(() => this.run(() => this.inner.generate(prompt, systemPrompt)));
+  }
+
+  chatWithTools(messages: ChatMessage[], tools: ToolDefinition[]): Promise<ToolTurn> {
+    return withRateLimitRetry(() => this.run(() => this.inner.chatWithTools(messages, tools)));
+  }
+
+  /** 안쪽 클라이언트의 대체 경로 사용 여부를 그대로 노출 */
+  private async run<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } finally {
+      this.usedFallback = this.inner.usedFallback;
+    }
   }
 }
 
 /** 제공자별 실제 클라이언트 */
 function createProviderClient(config: LLMConfig): LLMClient {
   switch (config.provider) {
+    case "chatgpt":
+      // 회사 ChatGPT 계정 (서버 공용 OAuth). 끊기거나 429 면 CHAT_FALLBACK_* 제공자로 넘긴다
+      return new FallbackClient(new ChatGptClient(config), fallbackFromEnv());
     case "gemini":
       return new GeminiClient(config);
     case "mistral":
@@ -444,9 +385,10 @@ ${userMessage}
       return ["tasks", "users", "projects"];
     }
 
-    // 기본 테이블 추가 (users, projects는 거의 항상 필요)
-    const resultSet = new Set(tables);
-    if (!resultSet.has("projects") && tables.some(t => !["users", "notifications", "ai_settings", "chat_history"].includes(t))) {
+    // 채팅 대상 테이블만 남기고, 기본 테이블 추가 (users, projects는 거의 항상 필요)
+    const allowed = new Set<string>(CHAT_SCHEMA_TABLES);
+    const resultSet = new Set(tables.filter((t) => allowed.has(t)));
+    if (!resultSet.has("projects") && resultSet.size > 0 && [...resultSet].some((t) => t !== "users")) {
       resultSet.add("projects");
     }
     if (tables.some(t => ["tasks", "requirements", "issues", "wbs_items", "milestones", "field_issues", "discussion_items"].includes(t))) {
@@ -468,7 +410,7 @@ ${userMessage}
  * @param client LLM 클라이언트
  * @param userMessage 사용자 메시지
  * @param projectId 프로젝트 ID (선택)
- * @param userId 현재 로그인한 사용자 ID (INSERT/UPDATE에 필요)
+ * @param userId 현재 로그인한 사용자 ID ("내 태스크" 같은 질문용)
  * @param sqlSystemPrompt 커스텀 SQL 시스템 프롬프트 (선택, 없으면 기본값 사용)
  * @param selectedTables 선택된 테이블 목록 (2단계 파이프라인용, 없으면 전체 스키마 사용)
  * @returns 생성된 SQL 쿼리 또는 null
@@ -494,25 +436,14 @@ export async function generateSQL(
   const currentDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
   const currentYear = now.getFullYear();
 
-  // 현재 사용자/프로젝트 ID 정보 추가 (INSERT/UPDATE 시 사용)
+  // 현재 사용자/프로젝트 정보 ("내 태스크" 같은 질문용)
   const contextInfo = `
-## 현재 컨텍스트 정보 (INSERT/UPDATE 시 반드시 이 값을 사용하세요)
+## 현재 컨텍스트 정보
 - 오늘 날짜: ${currentDate} (${currentYear}년)
 - 현재 사용자 ID: '${userId || "UNKNOWN_USER"}'
 - 현재 프로젝트 ID: '${projectId || "UNKNOWN_PROJECT"}'
 
 ※ 날짜 관련 쿼리 시 현재 연도(${currentYear})를 기준으로 하세요. "1월", "이번 달" 등은 ${currentYear}년을 의미합니다.
-
-## 🚨 tasks INSERT 필수 규칙 (반드시 지켜야 함!) 🚨
-tasks INSERT 시 아래 필드를 **반드시 모두 포함**하세요:
-- "creatorId": '${userId || "UNKNOWN_USER"}' (필수)
-- "assigneeId": '${userId || "UNKNOWN_USER"}' (필수! 담당자 미지정 시 현재 사용자)
-- "startDate": NOW() (필수! 시작일 미지정 시 오늘)
-- "dueDate": NOW() (필수! 종료일 미지정 시 오늘)
-
-tasks INSERT 전체 예시 (이 형식 그대로 사용):
-INSERT INTO "tasks" ("id", "title", "description", "status", "priority", "projectId", "creatorId", "assigneeId", "startDate", "dueDate", "order", "isAiGenerated", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), '제목', '', 'PENDING', 'MEDIUM', '${projectId || "UNKNOWN_PROJECT"}', '${userId || "UNKNOWN_USER"}', '${userId || "UNKNOWN_USER"}', NOW(), NOW(), 0, true, NOW(), NOW());
 `;
 
   const prompt = `${schemaInfo}${projectFilter}${contextInfo}
@@ -522,8 +453,9 @@ ${userMessage}
 
 위 질문에 대한 SQL 쿼리를 생성하세요.`;
 
-  // 커스텀 시스템 프롬프트가 있으면 사용, 없으면 기본값 사용
-  const systemPrompt = sqlSystemPrompt || DEFAULT_SQL_SYSTEM_PROMPT;
+  // 읽기 전용 규칙을 항상 앞에 두고, 커스텀 시스템 프롬프트가 있으면 그 뒤에 붙인다
+  // (DB 에 저장된 예전 커스텀 프롬프트의 INSERT 지시가 이 규칙을 덮지 못하게)
+  const systemPrompt = `${READ_ONLY_SQL_RULES}\n\n${sqlSystemPrompt || DEFAULT_SQL_SYSTEM_PROMPT}`;
   const response = await client.generate(prompt, systemPrompt);
   const trimmed = response.trim();
 
@@ -550,28 +482,20 @@ ${userMessage}
 
 /**
  * SQL 쿼리 검증 (보안)
- * SELECT, INSERT, UPDATE는 허용, DELETE 및 위험한 명령어는 차단
- * WITH 절(CTE)도 허용 (내부에 SELECT/INSERT/UPDATE 포함 시)
+ * 읽기 문(SELECT · WITH)만 허용하고 INSERT · UPDATE · DELETE · DDL 은 차단 (보조 검사)
+ * 실제 차단은 runSafeSql 의 READ ONLY 트랜잭션이 한다.
  * @param sql SQL 쿼리
  * @returns 안전한 쿼리인지 여부
  */
 export function validateSQL(sql: string): { valid: boolean; error?: string } {
   const upperSQL = sql.toUpperCase().trim();
 
-  // 허용되는 SQL 문 타입 확인 (WITH 절도 허용)
-  const allowedStatements = ["SELECT", "INSERT", "UPDATE", "WITH"];
-  const startsWithAllowed = allowedStatements.some(stmt => upperSQL.startsWith(stmt));
-
-  if (!startsWithAllowed) {
-    return { valid: false, error: "SELECT, INSERT, UPDATE 문만 허용됩니다." };
+  // 읽기 문(SELECT · WITH)만 허용한다. 쓰기는 확인 카드를 거친 채팅 도구로만 한다.
+  if (!upperSQL.startsWith("SELECT") && !upperSQL.startsWith("WITH")) {
+    return { valid: false, error: "SELECT 문만 허용됩니다." };
   }
-
-  // WITH 절인 경우, 내부에 SELECT/INSERT/UPDATE가 있는지 확인
-  if (upperSQL.startsWith("WITH")) {
-    const hasValidStatement = /\b(SELECT|INSERT|UPDATE)\b/.test(upperSQL);
-    if (!hasValidStatement) {
-      return { valid: false, error: "WITH 절 내에 유효한 SELECT/INSERT/UPDATE가 없습니다." };
-    }
+  if (/\b(INSERT|UPDATE|MERGE)\b/.test(upperSQL)) {
+    return { valid: false, error: "데이터 변경 SQL 은 허용되지 않습니다. 등록·수정은 채팅 도구로 요청하세요." };
   }
 
   // 위험한 키워드 차단 (DELETE 포함)
@@ -594,51 +518,6 @@ export function validateSQL(sql: string): { valid: boolean; error?: string } {
   for (const { pattern, name } of dangerousPatterns) {
     if (pattern.test(upperSQL)) {
       return { valid: false, error: `금지된 키워드가 포함되어 있습니다: ${name}` };
-    }
-  }
-
-  // INSERT/UPDATE 시 허용되는 테이블만 체크 (WITH 절 포함)
-  const allowedTables = ["TASKS", "REQUIREMENTS", "ISSUES", "WBS_ITEMS", "HOLIDAYS", "TASK_ASSIGNEES"];
-
-  // 모든 INSERT INTO 테이블 찾기
-  const insertMatches = upperSQL.matchAll(/INSERT\s+INTO\s+"?(\w+)"?/gi);
-  for (const match of insertMatches) {
-    const tableName = match[1].toUpperCase();
-    if (!allowedTables.includes(tableName)) {
-      return { valid: false, error: `${tableName} 테이블에 대한 INSERT는 허용되지 않습니다.` };
-    }
-  }
-
-  // 모든 UPDATE 테이블 찾기
-  const updateMatches = upperSQL.matchAll(/UPDATE\s+"?(\w+)"?/gi);
-  for (const match of updateMatches) {
-    const tableName = match[1].toUpperCase();
-    if (!allowedTables.includes(tableName)) {
-      return { valid: false, error: `${tableName} 테이블에 대한 UPDATE는 허용되지 않습니다.` };
-    }
-  }
-
-  // ⚠️ UPDATE 안전장치: WHERE 절 필수
-  // UPDATE 쿼리가 있으면 반드시 WHERE 절이 있어야 함 (전체 업데이트 방지)
-  if (/\bUPDATE\b/i.test(upperSQL)) {
-    // WHERE 절이 없으면 차단
-    if (!/\bWHERE\b/i.test(upperSQL)) {
-      return { valid: false, error: "UPDATE 문에는 반드시 WHERE 절이 필요합니다. 전체 업데이트는 허용되지 않습니다." };
-    }
-
-    // WHERE 절에 id 조건이 있는지 확인 (권장)
-    // WHERE "id" = 'xxx' 또는 WHERE id = 'xxx' 형태
-    const hasIdCondition = /WHERE\s+.*"?id"?\s*=/i.test(upperSQL);
-    const hasNameCondition = /WHERE\s+.*"?name"?\s*=/i.test(upperSQL);
-    const hasCodeCondition = /WHERE\s+.*"?code"?\s*=/i.test(upperSQL);
-    const hasTitleCondition = /WHERE\s+.*"?title"?\s*=/i.test(upperSQL);
-
-    // id, name, code, title 중 하나라도 있으면 허용
-    if (!hasIdCondition && !hasNameCondition && !hasCodeCondition && !hasTitleCondition) {
-      return {
-        valid: false,
-        error: "UPDATE 문의 WHERE 절에는 id, name, code, title 중 하나의 조건이 필요합니다. 전체 또는 범위 업데이트는 허용되지 않습니다."
-      };
     }
   }
 
@@ -712,12 +591,36 @@ ${JSON.stringify(results, (_, value) => typeof value === "bigint" ? Number(value
   // 디버깅: LLM 응답 확인
   console.log("[LLM] Raw response (last 500 chars):", response.slice(-500));
 
+  const { content, chartType, chartData, mindmapData } = extractChartAndMindmap(response, results, userMessage);
+
+  return {
+    content,
+    sql: sql || undefined,
+    chartType,
+    chartData,
+    mindmapData,
+  };
+}
+
+
+/**
+ * LLM 답에서 차트([CHART:*], [CHART_DATA:*])·마인드맵([MINDMAP_DATA:*]) 태그를 꺼내고 본문에서 지운다.
+ * 사용자가 마인드맵을 원했는데 태그가 없으면 결과 행(results)으로 자동 생성한다.
+ * 예전 분석 파이프라인(analyzeResults)과 새 에이전트 루프(runAgent)가 같이 쓴다.
+ */
+export function extractChartAndMindmap(
+  response: string,
+  results: unknown[] | null,
+  userMessage: string
+): Pick<LLMResponse, "content" | "chartType" | "chartData" | "mindmapData"> {
   // 차트 정보 파싱 (bar_3d, bar-chart 같은 변형도 처리)
   const chartTypeMatch = response.match(/\[CHART:([a-z_\-0-9]+)\]/i);
   const chartDataMatch = response.match(/\[CHART_DATA:(\{[\s\S]*?\})\]/);
 
   // 마인드맵 데이터 파싱 (중첩 JSON을 위한 별도 처리)
   let mindmapDataMatch: RegExpMatchArray | null = null;
+  /** 본문에서 지울 마인드맵 태그 전체 ("[MINDMAP_DATA:" + 괄호 짝이 맞는 JSON + "]") */
+  let mindmapTag = "";
   const mindmapStartIndex = response.indexOf("[MINDMAP_DATA:");
   if (mindmapStartIndex !== -1) {
     const jsonStart = mindmapStartIndex + "[MINDMAP_DATA:".length;
@@ -734,6 +637,8 @@ ${JSON.stringify(results, (_, value) => typeof value === "bigint" ? Number(value
     if (jsonEnd > jsonStart) {
       const jsonStr = response.slice(jsonStart, jsonEnd);
       mindmapDataMatch = ["", jsonStr] as unknown as RegExpMatchArray;
+      const tagEnd = response[jsonEnd] === "]" ? jsonEnd + 1 : jsonEnd;
+      mindmapTag = response.slice(mindmapStartIndex, tagEnd);
     }
   }
 
@@ -785,10 +690,10 @@ ${JSON.stringify(results, (_, value) => typeof value === "bigint" ? Number(value
   }
 
   // 응답에서 차트/마인드맵 태그 제거 (모든 변형 포함)
-  let content = response
+  // 마인드맵 JSON 은 중첩돼 있어 정규식(첫 "}]" 에서 멈춤)으로 지우면 찌꺼기가 남는다 → 괄호 짝으로 찾은 범위를 지운다
+  const content = (mindmapTag ? response.replace(mindmapTag, "") : response)
     .replace(/\[CHART:[a-z_\-0-9]+\]/gi, "")
     .replace(/\[CHART_DATA:\{[\s\S]*?\}\]/g, "")
-    .replace(/\[MINDMAP_DATA:\{[\s\S]*?\}\]/g, "")
     .trim();
 
   // 마인드맵 자동 생성: 사용자가 마인드맵을 요청했는데 LLM이 생성 안 한 경우
@@ -813,13 +718,8 @@ ${JSON.stringify(results, (_, value) => typeof value === "bigint" ? Number(value
     }
   }
 
-  return {
-    content,
-    sql: sql || undefined,
-    chartType,
-    chartData,
-    mindmapData,
-  };
+
+  return { content, chartType, chartData, mindmapData };
 }
 
 /**
@@ -1019,7 +919,7 @@ function generateCountQuery(sql: string): string | null {
  * @param config LLM 설정
  * @param userMessage 사용자 메시지
  * @param projectId 프로젝트 ID
- * @param userId 현재 로그인한 사용자 ID (INSERT/UPDATE에 필요)
+ * @param userId 현재 로그인한 사용자 ID ("내 태스크" 같은 질문용)
  * @param executeQuery SQL 실행 함수
  * @param promptConfig 시스템 프롬프트 설정
  * @returns LLM 응답

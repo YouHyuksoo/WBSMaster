@@ -19,8 +19,10 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { DEFAULT_SQL_SYSTEM_PROMPT, DEFAULT_ANALYSIS_SYSTEM_PROMPT, isLLMProvider } from "@/lib/llm";
 import type { AiSetting } from "@prisma/client";
+import { CHATGPT_DEFAULT_MODEL } from "@/lib/llm/chatgpt/constants";
 
 const DEFAULTS = {
+  chatgptModel: CHATGPT_DEFAULT_MODEL,
   geminiModel: "gemini-1.5-flash",
   mistralModel: "mistral-small-latest",
   openaiModel: "gpt-4.1-mini",
@@ -41,6 +43,7 @@ function maskApiKey(key: string | null): string | null {
 function toResponse(settings: AiSetting) {
   return {
     provider: settings.provider,
+    chatgptModel: settings.chatgptModel,
     geminiApiKey: maskApiKey(settings.geminiApiKey),
     geminiModel: settings.geminiModel,
     mistralApiKey: maskApiKey(settings.mistralApiKey),
@@ -83,7 +86,7 @@ export async function GET() {
     if (!settings) {
       // 설정이 없으면 기본값 반환 (시스템 프롬프트도 기본값 포함)
       return NextResponse.json({
-        provider: "gemini",
+        provider: "chatgpt",
         geminiApiKey: null,
         mistralApiKey: null,
         openaiApiKey: null,
@@ -137,6 +140,7 @@ export async function POST(request: NextRequest) {
       openrouterApiKey: newKey(body.openrouterApiKey),
     };
     const models = {
+      chatgptModel: modelName(body.chatgptModel),
       geminiModel: modelName(body.geminiModel),
       mistralModel: modelName(body.mistralModel),
       openaiModel: modelName(body.openaiModel),
@@ -159,7 +163,8 @@ export async function POST(request: NextRequest) {
       },
       create: {
         userId: user!.id,
-        provider: provider || "gemini",
+        provider: provider || "chatgpt",
+        chatgptModel: models.chatgptModel ?? DEFAULTS.chatgptModel,
         geminiApiKey: keys.geminiApiKey ?? null,
         mistralApiKey: keys.mistralApiKey ?? null,
         openaiApiKey: keys.openaiApiKey ?? null,

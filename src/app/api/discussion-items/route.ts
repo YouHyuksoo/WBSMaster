@@ -11,10 +11,13 @@
  * - 버그도 아니고 새 기능도 아닌, 어떻게 할지 PM과 협의가 필요한 사항
  * - 예: 화면 레이아웃 결정, 프로세스 변경 여부, 기술 스택 선택 등
  * - 최소 2개 이상의 선택지를 제시하고 PM이 최종 결정
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만). 목록은 ADMIN 이 아니면 projectId 필수
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { createDiscussionItem } from "@/lib/services/discussionItemService";
 
 /**
  * 협의요청 목록 조회
@@ -28,6 +31,9 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const status = searchParams.get("status");
@@ -38,7 +44,11 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
 
     if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
       where.projectId = projectId;
+    } else if (user!.role !== "ADMIN") {
+      return NextResponse.json({ error: "projectId 가 필요합니다." }, { status: 400 });
     }
 
 
@@ -120,6 +130,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const body = await request.json();
     const {
       projectId,
@@ -142,128 +155,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!title) {
-      return NextResponse.json(
-        { error: "협의 주제는 필수입니다." },
-        { status: 400 }
-      );
-    }
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
-    if (!stage) {
-      return NextResponse.json(
-        { error: "발생 단계는 필수입니다." },
-        { status: 400 }
-      );
-    }
-
-    // 선택지 검증 (최소 2개 이상)
-    if (!options || !Array.isArray(options) || options.length < 2) {
-      return NextResponse.json(
-        { error: "선택지는 최소 2개 이상이어야 합니다." },
-        { status: 400 }
-      );
-    }
-
-    // 프로젝트 존재 확인
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
+    // 필수 검사 · 채번 · 생성 · 멤버 알림은 서비스에서 (AI 채팅 확인 카드와 같은 함수)
+    const result = await createDiscussionItem({
+      projectId, title, description, stage, priority, options, requesterName, reporterId, assigneeId, dueDate,
     });
-
-    if (!project) {
-      return NextResponse.json(
-        { error: "프로젝트를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    // 다음 협의요청 코드 생성 (DIS-0001 형식)
-    const lastItem = await prisma.discussionItem.findFirst({
-      where: { projectId },
-      orderBy: { createdAt: "desc" },
-    });
-
-    let nextNumber = 1;
-    if (lastItem && lastItem.code) {
-      const match = lastItem.code.match(/DIS-(\d+)/);
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
-      }
-    }
-
-    const code = `DIS-${String(nextNumber).padStart(4, "0")}`;
-
-    // 기본 협의 기한 설정 (7일 후)
-    const defaultDueDate = new Date();
-    defaultDueDate.setDate(defaultDueDate.getDate() + 7);
-
-    // 협의요청 생성
-    const discussionItem = await prisma.discussionItem.create({
-      data: {
-        projectId,
-        code,
-        title,
-        description: description || null,
-        stage,
-        priority: priority || "MEDIUM",
-        options,
-        requesterName: requesterName || null,
-        reporterId: reporterId || null,
-        assigneeId: assigneeId || null,
-        dueDate: dueDate ? new Date(dueDate) : defaultDueDate,
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        reporter: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-      },
-    });
-
-    // 프로젝트 팀 멤버들에게 알림 생성
-    try {
-      const teamMembers = await prisma.teamMember.findMany({
-        where: { projectId },
-        select: { userId: true },
-      });
-
-      if (teamMembers.length > 0) {
-        await prisma.notification.createMany({
-          data: teamMembers.map((member) => ({
-            userId: member.userId,
-            type: "DISCUSSION_CREATED",
-            title: `협의요청 등록: ${code}`,
-            message: `[${project.name}] "${title}" 협의요청이 등록되었습니다.`,
-            link: "/dashboard/discussion-items",
-            relatedId: discussionItem.id,
-            projectId: projectId,
-            projectName: project.name,
-          })),
-        });
-      }
-    } catch (notifError) {
-      // 알림 생성 실패해도 협의요청 생성은 성공 처리
-      console.error("알림 생성 실패:", notifError);
-    }
-
-    return NextResponse.json(discussionItem, { status: 201 });
+    return NextResponse.json(result.data, { status: 201 });
   } catch (error) {
     console.error("협의요청 생성 실패:", error);
     return NextResponse.json(

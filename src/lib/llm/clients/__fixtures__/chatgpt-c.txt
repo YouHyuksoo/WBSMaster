@@ -1,0 +1,74 @@
+# status 200 content-type null
+# request {"model":"gpt-6.1-sol","instructions":"한국어로 짧게 답한다.","store":false,"stream":true,"tools":[{"type":"function","name":"get_weather","description":"도시의 현재 날씨를 조회한다","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"],"additionalProperties":false}}],"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"서울 날씨 알려줘"}]},{"type":"function_call","call_id":"call_d420c730ab2b48879c3c59738bc4b380","name":"get_weather","arguments":"{\"city\":\"서울\"}"},{"type":"function_call_output","call_id":"call_d420c730ab2b48879c3c59738bc4b380","output":"{\"city\":\"서울\",\"temp\":12,\"sky\":\"맑음\"}"}]}
+event: response.created
+data: {"type":"response.created","sequence_number":0,"safety_buffering":false,"response":{"id":"resp_04a86b734958cba7016af1b2564bf887d0abfa812917c55849","object":"response","created_at":1794224726,"completed_at":null,"status":"in_progress","background":false,"frequency_penalty":0.0,"presence_penalty":0.0,"moderation":null,"model":"gpt-6.1-sol","access_programs":{"cyber":"standard"},"previous_response_id":null,"instructions":"한국어로 짧게 답한다.","output":[],"error":null,"incomplete_details":null,"tools":[{"type":"function","name":"get_weather","description":"도시의 현재 날씨를 조회한다","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"],"additionalProperties":false},"output_schema":null,"strict":true}],"tool_choice":"auto","parallel_tool_calls":true,"prompt_cache_key":"ce16951e-fcad-48e8-9b14-e7082d7124e9","prompt_cache_retention":"24h","text":{"format":{"type":"text"},"verbosity":"medium"},"top_p":0.98,"top_logprobs":0,"temperature":1.0,"reasoning":{"effort":"medium","context":"all_turns","summary":null,"mode":"standard"},"user":null,"usage":null,"tool_usage":{"image_gen":{"input_tokens":0,"output_tokens":0,"total_tokens":0,"input_tokens_details":{"text_tokens":0,"image_tokens":0},"output_tokens_details":{"image_tokens":0,"text_tokens":0}},"web_search":{"num_requests":0}},"safety_identifier":"user-0CG58k8Qf4VxEpQcACkZBuKt","store":false,"metadata":{},"max_output_tokens":null,"max_tool_calls":null,"service_tier":"auto","truncation":"disabled","image":{"context_compression":"disabled"}}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"safety_buffering":false,"response":{"id":"resp_04a86b734958cba7016af1b2564bf887d0abfa812917c55849","object":"response","created_at":1794224726,"completed_at":null,"status":"in_progress","background":false,"frequency_penalty":0.0,"presence_penalty":0.0,"moderation":null,"model":"gpt-6.1-sol","access_programs":{"cyber":"standard"},"previous_response_id":null,"instructions":"한국어로 짧게 답한다.","output":[],"error":null,"incomplete_details":null,"tools":[{"type":"function","name":"get_weather","description":"도시의 현재 날씨를 조회한다","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"],"additionalProperties":false},"output_schema":null,"strict":true}],"tool_choice":"auto","parallel_tool_calls":true,"prompt_cache_key":"ce16951e-fcad-48e8-9b14-e7082d7124e9","prompt_cache_retention":"24h","text":{"format":{"type":"text"},"verbosity":"medium"},"top_p":0.98,"top_logprobs":0,"temperature":1.0,"reasoning":{"effort":"medium","context":"all_turns","summary":null,"mode":"standard"},"user":null,"usage":null,"tool_usage":{"image_gen":{"input_tokens":0,"output_tokens":0,"total_tokens":0,"input_tokens_details":{"text_tokens":0,"image_tokens":0},"output_tokens_details":{"image_tokens":0,"text_tokens":0}},"web_search":{"num_requests":0}},"safety_identifier":"user-0CG58k8Qf4VxEpQcACkZBuKt","store":false,"metadata":{},"max_output_tokens":null,"max_tool_calls":null,"service_tier":"auto","truncation":"disabled","image":{"context_compression":"disabled"}}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","role":"assistant","status":"in_progress","content":[],"phase":"final_answer"}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[],"logprobs":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":"현재","logprobs":[],"safety_buffering":false,"obfuscation":"w0k33nPzD1iXem"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":5,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":" 서울","logprobs":[],"safety_buffering":false,"obfuscation":"TEYZnh3eBVPC7"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":6,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":"은","logprobs":[],"safety_buffering":false,"obfuscation":"h7BoXyufJBfkyRZ"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":7,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":" 맑","logprobs":[],"safety_buffering":false,"obfuscation":"noP6ygUw50VEJk"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":8,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":"고","logprobs":[],"safety_buffering":false,"obfuscation":"lVFj5UXV7aK1rJy"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":9,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":",","logprobs":[],"safety_buffering":false,"obfuscation":"VYeE3nJamq8EoJD"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":10,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":" 기","logprobs":[],"safety_buffering":false,"obfuscation":"pZjDaakgB9evg0"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":11,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":"온","logprobs":[],"safety_buffering":false,"obfuscation":"pOhQG0mPXvQW7KX"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":12,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":"은","logprobs":[],"safety_buffering":false,"obfuscation":"ye7dDMk9RTov6hb"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":13,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":" ","logprobs":[],"safety_buffering":false,"obfuscation":"aDt0ZUni0RbAl0G"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":14,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":"12","logprobs":[],"safety_buffering":false,"obfuscation":"nfEg2N5f4hZ7uJ"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":15,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":"°C","logprobs":[],"safety_buffering":false,"obfuscation":"6hNW6RAetgD7AX"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":16,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":"예","logprobs":[],"safety_buffering":false,"obfuscation":"KaTboGVfJNeAIsW"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":17,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":"요","logprobs":[],"safety_buffering":false,"obfuscation":"tCqeslTwqoDE5Zw"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":18,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"delta":".","logprobs":[],"safety_buffering":false,"obfuscation":"VJatJURMkq5Xf0O"}
+
+event: response.metadata
+data: {"type":"response.metadata","sequence_number":19,"response_id":"resp_04a86b734958cba7016af1b2564bf887d0abfa812917c55849","metadata":{"openai_chatgpt_moderation_metadata":{"prompt":{"omnimod":{"protection_type":"omnimod","outputs":[{"results":[{"category_flags":{"A1":false,"A2":false,"A3":false,"C1":false,"C11":false,"C2":false,"E1":false,"E2":false,"E3":false,"H1":false,"H2":false,"H3":false,"JB1":false,"K1":false,"K2":false,"K3":false,"K4":false,"P1":false,"P2":false,"P3":false,"P4":false,"PD1":false,"PD4":false,"S1":false,"S3+":false,"S4":false,"SH":false,"TXT-C3":false,"TXT-C4":false,"V1":false,"V2+":false,"V4+":false,"REFUSED":false,"CBRN-B1+":false,"IMG-C1":false,"IMG-C11":false,"IMG-C2":false,"IMG-S1":false,"IMG-SH":false,"IMG-V1":false,"IMG-V2+":false,"IMG-V4+":false}}],"is_blocked":false}]}},"generation":{},"tool_call":{},"tool_response":{}}}}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","sequence_number":20,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"text":"현재 서울은 맑고, 기온은 12°C예요.","logprobs":[]}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","sequence_number":21,"item_id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","output_index":0,"content_index":0,"part":{"type":"output_text","text":"현재 서울은 맑고, 기온은 12°C예요.","annotations":[],"logprobs":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":22,"output_index":0,"item":{"type":"message","id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","role":"assistant","status":"completed","content":[{"type":"output_text","text":"현재 서울은 맑고, 기온은 12°C예요.","annotations":[],"logprobs":[]}],"phase":"final_answer"}}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":23,"safety_buffering":false,"response":{"id":"resp_04a86b734958cba7016af1b2564bf887d0abfa812917c55849","object":"response","created_at":1794224726,"completed_at":1794224727,"status":"completed","background":false,"frequency_penalty":0.0,"presence_penalty":0.0,"moderation":null,"model":"gpt-6.1-sol","access_programs":{"cyber":"standard"},"previous_response_id":null,"instructions":"한국어로 짧게 답한다.","output":[{"type":"message","id":"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2","role":"assistant","status":"completed","content":[{"type":"output_text","text":"현재 서울은 맑고, 기온은 12°C예요.","annotations":[],"logprobs":[]}],"phase":"final_answer"}],"error":null,"incomplete_details":null,"tools":[{"type":"function","name":"get_weather","description":"도시의 현재 날씨를 조회한다","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"],"additionalProperties":false},"output_schema":null,"strict":true}],"tool_choice":"auto","parallel_tool_calls":true,"prompt_cache_key":"ce16951e-fcad-48e8-9b14-e7082d7124e9","prompt_cache_retention":"24h","text":{"format":{"type":"text"},"verbosity":"medium"},"top_p":0.98,"top_logprobs":0,"temperature":1.0,"reasoning":{"effort":"medium","context":"all_turns","summary":null,"mode":"standard"},"user":null,"usage":{"input_tokens":107,"input_tokens_details":{"cached_tokens":0,"cache_write_tokens":0},"output_tokens":20,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":127,"attribution":{"items":{"fc_04a86b734958cba7016af1b2564cd487d08cb83d3359301c06":{"input_tokens":20,"cached_tokens":0,"cache_write_tokens":0,"output_tokens":0},"fc_04a86b734958cba7016af1b2564cd487d0b284c45f3fc5bc9e":{"input_tokens":24,"cached_tokens":0,"cache_write_tokens":0,"output_tokens":0,"content":[{"input_tokens":24,"cached_tokens":0,"cache_write_tokens":0,"output_tokens":0}]},"msg_04a86b734958cba7016af1b2564cd487d081ee04f60cf740a1":{"input_tokens":9,"cached_tokens":0,"cache_write_tokens":0,"output_tokens":0,"content":[{"input_tokens":9,"cached_tokens":0,"cache_write_tokens":0,"output_tokens":0}]},"msg_04a86b734958cba7016af1b25783c087d0885088c43e1eafd2":{"input_tokens":2,"cached_tokens":0,"cache_write_tokens":0,"output_tokens":20,"content":[{"input_tokens":2,"cached_tokens":0,"cache_write_tokens":0,"output_tokens":20}]}},"request_fields":{"instructions":{"input_tokens":13,"cached_tokens":0,"cache_write_tokens":0,"output_tokens":0},"tools":{"input_tokens":39,"cached_tokens":0,"cache_write_tokens":0,"output_tokens":0}}}},"tool_usage":{"image_gen":{"input_tokens":0,"output_tokens":0,"total_tokens":0,"input_tokens_details":{"text_tokens":0,"image_tokens":0},"output_tokens_details":{"image_tokens":0,"text_tokens":0}},"web_search":{"num_requests":0}},"safety_identifier":"user-0CG58k8Qf4VxEpQcACkZBuKt","store":false,"metadata":{},"max_output_tokens":null,"max_tool_calls":null,"service_tier":"default","truncation":"disabled","image":{"context_compression":"disabled"}}}
+

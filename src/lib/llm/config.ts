@@ -12,7 +12,7 @@
  */
 
 /** 지원 LLM 제공자 */
-export const LLM_PROVIDERS = ["gemini", "mistral", "openai", "openrouter"] as const;
+export const LLM_PROVIDERS = ["chatgpt", "gemini", "mistral", "openai", "openrouter"] as const;
 export type LLMProvider = (typeof LLM_PROVIDERS)[number];
 
 /** LLM 호출 설정 */
@@ -33,9 +33,15 @@ export interface AiSettingFields {
   openaiModel: string;
   openrouterApiKey: string | null;
   openrouterModel: string;
+  chatgptModel: string;
 }
 
-const PROVIDER_FIELDS: Record<LLMProvider, { key: keyof AiSettingFields; model: keyof AiSettingFields; label: string }> = {
+/**
+ * chatgpt 는 회사 계정 하나를 서버가 공용으로 쓰므로(OAuth 토큰은 서버 파일) 사용자 키가 없다.
+ * key 가 null 이면 키 검사를 하지 않는다.
+ */
+const PROVIDER_FIELDS: Record<LLMProvider, { key: keyof AiSettingFields | null; model: keyof AiSettingFields; label: string }> = {
+  chatgpt: { key: null, model: "chatgptModel", label: "회사 ChatGPT" },
   gemini: { key: "geminiApiKey", model: "geminiModel", label: "Gemini" },
   mistral: { key: "mistralApiKey", model: "mistralModel", label: "Mistral" },
   openai: { key: "openaiApiKey", model: "openaiModel", label: "OpenAI" },
@@ -63,6 +69,9 @@ export function resolveLLMConfig(
     return { ok: false, error: `지원하지 않는 LLM 제공자입니다: ${setting.provider}. 설정 페이지에서 제공자를 다시 선택해주세요.` };
   }
   const fields = PROVIDER_FIELDS[setting.provider];
+  if (fields.key === null) {
+    return { ok: true, config: { provider: setting.provider, apiKey: "", model: String(setting[fields.model]) } };
+  }
   const apiKey = setting[fields.key];
   if (!apiKey) {
     return { ok: false, error: `${fields.label} API 키가 설정되지 않았습니다. 설정 페이지에서 API 키를 등록해주세요.` };

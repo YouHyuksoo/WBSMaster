@@ -18,6 +18,7 @@ const base: AiSettingFields = {
   openaiModel: "gpt-m",
   openrouterApiKey: "r-key",
   openrouterModel: "vendor/model",
+  chatgptModel: "gpt-x",
 };
 
 describe("resolveLLMConfig", () => {
@@ -43,7 +44,13 @@ describe("resolveLLMConfig", () => {
     if (!r.ok) expect(r.error).toContain("kimi");
   });
 
+  it("chatgpt 제공자는 키 없이 회사 계정 모델을 쓴다", () => {
+    const r = resolveLLMConfig({ ...base, provider: "chatgpt" });
+    expect(r).toEqual({ ok: true, config: { provider: "chatgpt", apiKey: "", model: "gpt-x" } });
+  });
+
   it("providerLabel", () => {
+    expect(providerLabel("chatgpt")).toBe("회사 ChatGPT");
     expect(providerLabel("openrouter")).toBe("OpenRouter");
     expect(providerLabel("unknown")).toBe("unknown");
   });
