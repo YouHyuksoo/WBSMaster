@@ -178,6 +178,16 @@ export {
   interviewKeys,
 } from "./useInterviews";
 
+// 회의록 관리 hooks
+export {
+  useMeetingMinutes,
+  useCreateMeetingMinute,
+  useUpdateMeetingMinute,
+  useDeleteMeetingMinute,
+  useImportMeetingMinutes,
+  meetingMinuteKeys,
+} from "./useMeetingMinutes";
+
 // 진도 task hooks
 export {
   useProgressTasks,

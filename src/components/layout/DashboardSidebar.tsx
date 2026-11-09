@@ -59,6 +59,7 @@ const menuItems: MenuItem[] = [
   { label: "TASK 관리", icon: "view_kanban", href: "/dashboard/kanban" },
   { label: "일정 관리", icon: "event", href: "/dashboard/holidays" },
   { label: "인터뷰 관리", icon: "mic", href: "/dashboard/interviews" },
+  { label: "회의록관리", icon: "event_note", href: "/dashboard/meeting-minutes" },
   { label: "AS-IS 분석", icon: "analytics", href: "/dashboard/as-is-analysis" },
   { label: "고객요구사항", icon: "contact_page", href: "/dashboard/customer-requirements" },
   { label: "고객이슈관리", icon: "support_agent", href: "/dashboard/field-issues" },

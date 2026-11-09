@@ -141,6 +141,7 @@ model Project {
   asIsOverviews                 AsIsOverview[] // AS-IS 현행 분석 (사업부별 1:N)
   discussionItems               DiscussionItem[] // 협의요청 목록
   interviews                    Interview[] // 인터뷰 관리 목록
+  meetingMinutes                MeetingMinute[] // 회의록 목록
   progressTasks                 ProgressTask[] // 진도 task 목록
   stageDefs                     ProgressStageDef[] // 진도 단계 정의
   categoryPlans                 ProgressCategoryPlan[] // 진도 카테고리별 오픈 기준일
@@ -1577,6 +1578,52 @@ enum InterviewTransferType {
   CUSTOMER_REQUIREMENT // 고객요구사항
   FIELD_ISSUE // 현업이슈
   DISCUSSION_ITEM // 협의요청
+}
+
+// ============================================
+// 회의록 모델
+// 회의록 양식(261026 MES v2 고도화 회의록.xlsx) 항목 기준
+// ============================================
+model MeetingMinute {
+  id          String   @id @default(uuid())
+  sequence    Int // 프로젝트 내 순번 (자동 부여)
+  code        String // 문서번호 (YYYYMMDD-NNN, 회의 일자별 순번, 생성 후 고정)
+  title       String // 회의 목적 (Title)
+  meetingDate DateTime // 일자
+  startTime   String? // 시작 시간 (HH:mm)
+  endTime     String? // 종료 시간 (HH:mm)
+  location    String? // 장소
+  author      String? // 작성자
+  attendees   String? // 참석자 (여러 줄)
+  remarks     String? // 비고
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projectId String
+  project   Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items     MeetingMinuteItem[] // 회의 내용 (Contents)
+
+  @@unique([projectId, code])
+  @@index([projectId])
+  @@map("meeting_minutes")
+}
+
+// ============================================
+// 회의록 내용 항목 (내용 · 담당자 · 일정 · 추진현황)
+// ============================================
+model MeetingMinuteItem {
+  id        String  @id @default(uuid())
+  sortOrder Int     @default(0) // 표시 순서
+  content   String // 내용 (여러 줄)
+  assignee  String? // 담당자
+  dueDate   String? // 일정 (자유 입력: "11/2", "12월 말" 등)
+  status    String  @default("PLANNED") // 추진현황: PLANNED(예정) / IN_PROGRESS(진행중) / DONE(완료) / HOLD(보류)
+
+  minuteId String
+  minute   MeetingMinute @relation(fields: [minuteId], references: [id], onDelete: Cascade)
+
+  @@index([minuteId])
+  @@map("meeting_minute_items")
 }
 
 // ============================================

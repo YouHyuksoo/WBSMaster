@@ -764,6 +764,61 @@ export interface Interview {
   };
 }
 
+/** 회의록 추진현황 (src/lib/meeting-minutes.ts MEETING_ITEM_STATUSES) */
+export type MeetingItemStatus = "PLANNED" | "IN_PROGRESS" | "DONE" | "HOLD";
+
+/** 회의록 내용 항목 */
+export interface MeetingMinuteItem {
+  id: string;
+  sortOrder: number;
+  content: string;              // 내용 (여러 줄)
+  assignee?: string | null;     // 담당자
+  dueDate?: string | null;      // 일정 (자유 입력)
+  status: MeetingItemStatus;    // 추진현황
+  minuteId: string;
+}
+
+/** 회의록 */
+export interface MeetingMinute {
+  id: string;
+  sequence: number;
+  code: string;                 // 문서번호 (YYYYMMDD-NNN)
+  title: string;                // 회의 목적
+  meetingDate: string;          // 일자
+  startTime?: string | null;    // 시작 시간 (HH:mm)
+  endTime?: string | null;      // 종료 시간 (HH:mm)
+  location?: string | null;     // 장소
+  author?: string | null;       // 작성자
+  attendees?: string | null;    // 참석자
+  remarks?: string | null;      // 비고
+  createdAt: string;
+  updatedAt: string;
+  projectId: string;
+  items: MeetingMinuteItem[];
+}
+
+/** 회의록 생성/수정 입력 (items 를 보내면 전체 교체) */
+export interface MeetingMinuteInput {
+  title?: string;
+  meetingDate?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  author?: string;
+  attendees?: string;
+  remarks?: string;
+  items?: Array<{ content: string; assignee?: string; dueDate?: string; status?: MeetingItemStatus }>;
+}
+
+/** 회의록 엑셀 가져오기 결과 */
+export interface MeetingMinuteImportResult {
+  success: boolean;
+  message: string;
+  created: Array<{ code: string; title: string; sheet: string; via: "양식" | "AI" }>;
+  skipped: string[];
+  errors: string[];
+}
+
 /** 고객요구사항 타입 */
 export interface CustomerRequirement {
   id: string;
@@ -1739,6 +1794,30 @@ export const api = {
       patch<Interview>(`/api/interviews/${id}`, data),
     /** 삭제 */
     delete: (id: string) => del<{ message: string }>(`/api/interviews/${id}`),
+  },
+
+  // ============================================
+  // 회의록 관리 API
+  // ============================================
+  meetingMinutes: {
+    /** 목록 조회 (projectId 필수) */
+    list: (params: { projectId: string; search?: string }) =>
+      get<MeetingMinute[]>("/api/meeting-minutes", params),
+    /** 단건 조회 */
+    get: (id: string) => get<MeetingMinute>(`/api/meeting-minutes/${id}`),
+    /** 생성 (문서번호 자동 부여) */
+    create: (data: MeetingMinuteInput & { projectId: string; title: string; meetingDate: string }) =>
+      post<MeetingMinute>("/api/meeting-minutes", data),
+    /** 수정 */
+    update: (id: string, data: MeetingMinuteInput) =>
+      patch<MeetingMinute>(`/api/meeting-minutes/${id}`, data),
+    /** 삭제 */
+    delete: (id: string) => del<{ message: string }>(`/api/meeting-minutes/${id}`),
+    /** 회의록 양식 엑셀 가져오기 (FormData: projectId, file 여러 개) */
+    import: async (formData: FormData): Promise<MeetingMinuteImportResult> => {
+      const response = await fetch("/api/meeting-minutes/import", { method: "POST", body: formData });
+      return handleResponse<MeetingMinuteImportResult>(response);
+    },
   },
 
   // ============================================
