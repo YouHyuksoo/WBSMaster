@@ -22,6 +22,14 @@ import { AddItemModal } from "./AddItemModal";
 import { EditItemModal } from "./EditItemModal";
 
 /**
+ * 총괄표 칼럼 폭 (헤더 · 행 공용)
+ * 업무명 · 이슈 요약은 최소 200px 을 지키고, 표가 좁으면 가로 스크롤한다
+ * (1fr 만 쓰면 왼쪽 패널이 열린 화면에서 0에 가깝게 줄어 글자가 한 자씩 세로로 쌓였다)
+ */
+const OVERVIEW_GRID_COLUMNS =
+  "100px 120px 150px minmax(200px, 1fr) 100px 150px minmax(200px, 1fr) 40px 40px 40px";
+
+/**
  * 툴팁 위치 정보 타입
  */
 interface TooltipPosition {
@@ -161,11 +169,11 @@ export function OverviewTable({
       </div>
 
       {/* 테이블 */}
-      <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden">
+      <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
         {/* 테이블 헤더 */}
         <div
-          className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase"
-          style={{ gridTemplateColumns: "100px 120px 150px 1fr 100px 150px 1fr 40px 40px 40px" }}
+          className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1250px]"
+          style={{ gridTemplateColumns: OVERVIEW_GRID_COLUMNS }}
         >
           <div>관리번호</div>
           <div>대분류</div>
@@ -203,12 +211,12 @@ export function OverviewTable({
                 return (
                   <div
                     key={item.id}
-                    className={`grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark transition-colors items-center ${
+                    className={`grid gap-2 px-4 py-3 border-b border-border dark:border-border-dark transition-colors items-center min-w-[1250px] ${
                       isSelected
                         ? "bg-primary/5 border-l-2 border-l-primary"
                         : "hover:bg-surface dark:hover:bg-background-dark"
                     }`}
-                    style={{ gridTemplateColumns: "100px 120px 150px 1fr 100px 150px 1fr 40px 40px 40px" }}
+                    style={{ gridTemplateColumns: OVERVIEW_GRID_COLUMNS }}
                   >
                     {/* AS-IS 관리번호 */}
                     <div className="text-xs font-mono text-primary">

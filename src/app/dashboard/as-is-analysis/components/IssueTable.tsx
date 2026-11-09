@@ -77,7 +77,7 @@ export function IssueTable({ unitAnalysis }: IssueTableProps) {
   // 우선순위 설정 가져오기
   const getPriorityConfig = (priority: string) => {
     const config = PRIORITIES[priority as Priority];
-    return config || { label: priority, color: "text-text-secondary", bgColor: "bg-slate-100", icon: "remove", value: priority };
+    return config || { label: priority, color: "text-text-secondary", bgColor: "bg-slate-500/10", icon: "remove", value: priority };
   };
 
   /**
