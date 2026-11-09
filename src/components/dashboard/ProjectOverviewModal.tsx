@@ -378,7 +378,7 @@ export function ProjectOverviewModal({
                   {indicators.map((indicator, idx) => (
                     <span
                       key={idx}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-sm"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-full text-sm"
                     >
                       {indicator}
                       <button
@@ -461,7 +461,7 @@ export function ProjectOverviewModal({
                   <div className="space-y-6">
                     {/* 프로젝트 목적 */}
                     {project.purpose && (
-                      <section className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-5 border border-primary/20">
+                      <section className="bg-background-white dark:bg-surface-dark rounded-xl p-5 border border-border dark:border-border-dark">
                         <h3 className="flex items-center gap-2 text-sm font-bold text-primary mb-3">
                           <Icon name="flag" size="sm" />
                           프로젝트 목적
@@ -474,7 +474,7 @@ export function ProjectOverviewModal({
 
                     {/* 성공지표 */}
                     {project.successIndicators && project.successIndicators.length > 0 && (
-                      <section className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl p-5 border border-amber-200 dark:border-amber-800">
+                      <section className="bg-background-white dark:bg-surface-dark rounded-xl p-5 border border-border dark:border-border-dark">
                         <h3 className="flex items-center gap-2 text-sm font-bold text-amber-600 dark:text-amber-400 mb-3">
                           <Icon name="trending_up" size="sm" />
                           성공지표
@@ -499,7 +499,7 @@ export function ProjectOverviewModal({
 
                     {/* 조직도 */}
                     {project.organizationChart && project.organizationChart.length > 0 && (
-                      <section className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl p-5 border border-emerald-200 dark:border-emerald-800">
+                      <section className="bg-background-white dark:bg-surface-dark rounded-xl p-5 border border-border dark:border-border-dark">
                         <h3 className="flex items-center gap-2 text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-3">
                           <Icon name="groups" size="sm" />
                           프로젝트 조직도
@@ -508,7 +508,7 @@ export function ProjectOverviewModal({
                           {project.organizationChart.map((member) => (
                             <div
                               key={member.id}
-                              className="flex items-center gap-3 bg-white dark:bg-surface-dark rounded-lg p-3 border border-emerald-100 dark:border-emerald-900"
+                              className="flex items-center gap-3 bg-surface dark:bg-background-dark rounded-lg p-3 border border-border dark:border-border-dark"
                             >
                               <div className="size-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
                                 <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
@@ -535,7 +535,7 @@ export function ProjectOverviewModal({
                   <div className="space-y-6">
                     {/* 미래 비전 */}
                     {project.futureVision && (
-                      <section className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-xl p-5 border border-violet-200 dark:border-violet-800">
+                      <section className="bg-background-white dark:bg-surface-dark rounded-xl p-5 border border-border dark:border-border-dark">
                         <h3 className="flex items-center gap-2 text-sm font-bold text-violet-600 dark:text-violet-400 mb-3">
                           <Icon name="rocket_launch" size="sm" />
                           추구하는 미래 모습
