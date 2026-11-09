@@ -48,13 +48,15 @@ export async function GET(request: NextRequest) {
       where.projectId = projectId;
     }
 
-    const chatHistory = await prisma.chatHistory.findMany({
+    // 최근 limit 건을 가져와 시간순으로 돌려준다
+    // (예전에는 오래된 순 limit 건이라 기록이 많으면 최근 대화가 보이지 않았다)
+    const recent = await prisma.chatHistory.findMany({
       where,
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
       take: limit,
     });
 
-    return NextResponse.json(chatHistory);
+    return NextResponse.json(recent.reverse());
   } catch (error) {
     console.error("채팅 기록 조회 실패:", error);
     return NextResponse.json(
@@ -72,6 +74,7 @@ export async function GET(request: NextRequest) {
  * Request Body:
  * - message: 사용자 메시지
  * - projectId: 프로젝트 ID (선택)
+ * (설정 화면 연결 테스트는 /api/ai-settings/test 를 쓴다. 이 API 는 항상 기록을 남긴다)
  */
 export async function POST(request: NextRequest) {
   try {

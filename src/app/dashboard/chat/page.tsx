@@ -49,6 +49,8 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  /** 채팅 기록 조회 요청 번호 (마지막 요청의 응답만 반영) */
+  const historyRequestRef = useRef(0);
 
   // 페르소나 상태
   const [personas, setPersonas] = useState<AiPersona[]>([]);
@@ -143,6 +145,10 @@ export default function ChatPage() {
    * 채팅 기록 불러오기
    */
   const loadChatHistory = useCallback(async () => {
+    // 늦게 도착한 이전 요청의 응답은 버린다.
+    // (처음 열 때 "전체" 조회 직후 상단 프로젝트로 다시 조회하는데, "전체" 응답이 늦게 오면
+    //  다른 프로젝트·프로젝트 없음 기록까지 보여서 삭제한 기록이 되살아난 것처럼 보였다)
+    const requestId = ++historyRequestRef.current;
     try {
       setIsLoadingHistory(true);
       const params = new URLSearchParams();
@@ -152,8 +158,10 @@ export default function ChatPage() {
       params.append("limit", "100");
 
       const res = await fetch(`/api/chat?${params.toString()}`);
+      if (requestId !== historyRequestRef.current) return;
       if (res.ok) {
         const data = await res.json();
+        if (requestId !== historyRequestRef.current) return;
         // chartData 유효성 검사 후 설정 (잘못된 데이터 필터링)
         const sanitizedData = data.map((msg: ChatMessage) => ({
           ...msg,
@@ -164,7 +172,7 @@ export default function ChatPage() {
     } catch (error) {
       console.error("채팅 기록 로드 실패:", error);
     } finally {
-      setIsLoadingHistory(false);
+      if (requestId === historyRequestRef.current) setIsLoadingHistory(false);
     }
   }, [selectedProjectId]);
 
@@ -574,8 +582,12 @@ export default function ChatPage() {
       });
 
       if (res.ok) {
+        historyRequestRef.current++; // 진행 중인 조회 응답이 빈 화면을 덮어쓰지 않게
+        setIsLoadingHistory(false); // 버려진 조회는 로딩을 끄지 않으므로 여기서 끈다
         setMessages([]);
         toast.success("채팅 기록이 삭제되었습니다.");
+      } else {
+        toast.error("채팅 기록을 삭제하지 못했습니다.");
       }
     } catch (error) {
       console.error("채팅 기록 삭제 실패:", error);
@@ -841,7 +853,9 @@ export default function ChatPage() {
 
               {/* 메시지 */}
               <p className="text-text-secondary text-center mb-6">
-                모든 채팅 기록이 삭제됩니다.
+                {selectedProjectId
+                  ? `'${projects?.find((p) => p.id === selectedProjectId)?.name ?? "선택한"}' 프로젝트의 채팅 기록이 삭제됩니다.`
+                  : "모든 프로젝트의 채팅 기록이 삭제됩니다."}
                 <br />
                 이 작업은 되돌릴 수 없습니다.
               </p>

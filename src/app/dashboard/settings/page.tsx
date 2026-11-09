@@ -351,12 +351,8 @@ export default function SettingsPage() {
       // 먼저 설정 저장
       await handleSaveAiSettings();
 
-      // 간단한 테스트 메시지 전송
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "안녕하세요, 연결 테스트입니다." }),
-      });
+      // 연결 테스트 전용 API (SQL 실행 없음, 채팅 기록 안 남김)
+      const res = await fetch("/api/ai-settings/test", { method: "POST" });
 
       if (res.ok) {
         toast.success("연결 테스트 성공! API가 정상 작동합니다.");
