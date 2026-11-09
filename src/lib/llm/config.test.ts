@@ -6,7 +6,7 @@
  * - 회귀: 예전 라우트 일부는 gemini 가 아니면 무조건 mistral 키를 써서 다른 제공자 사용자가 잘못된 키로 호출됐다.
  */
 import { describe, expect, it } from "vitest";
-import { resolveLLMConfig, providerLabel, type AiSettingFields } from "./config";
+import { resolveLLMConfig, providerLabel, providerBadge, type AiSettingFields } from "./config";
 
 const base: AiSettingFields = {
   provider: "gemini",
@@ -47,6 +47,17 @@ describe("resolveLLMConfig", () => {
   it("chatgpt 제공자는 키 없이 회사 계정 모델을 쓴다", () => {
     const r = resolveLLMConfig({ ...base, provider: "chatgpt" });
     expect(r).toEqual({ ok: true, config: { provider: "chatgpt", apiKey: "", model: "gpt-x" } });
+  });
+
+  it.each(["chatgpt", "gemini", "mistral", "openai", "openrouter"])("providerBadge: %s 는 이름과 모델을 보여 준다", (provider) => {
+    const badge = providerBadge({ ...base, provider });
+    expect(badge).not.toContain("설정 필요");
+    expect(badge).toContain(providerLabel(provider));
+  });
+
+  it("providerBadge: 모르는 제공자는 설정 필요", () => {
+    expect(providerBadge({ ...base, provider: "kimi" })).toBe("kimi (설정 필요)");
+    expect(providerBadge({ provider: "chatgpt", chatgptModel: "gpt-6.1-sol" })).toBe("회사 ChatGPT gpt-6.1-sol");
   });
 
   it("providerLabel", () => {

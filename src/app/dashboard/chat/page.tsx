@@ -23,6 +23,7 @@ import { Icon, Button } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { useProject } from "@/contexts";
 import { api, AiPersona } from "@/lib/api";
+import { providerBadge } from "@/lib/llm/config";
 
 // 최적화된 컴포넌트들
 import ChatMessageItem, { ChatMessage } from "./components/ChatMessageItem";
@@ -61,6 +62,7 @@ export default function ChatPage() {
   // AI 설정 상태 (현재 사용 중인 모델 표시용)
   const [aiSettings, setAiSettings] = useState<{
     provider: string;
+    chatgptModel?: string;
     geminiModel: string;
     mistralModel: string;
     openaiModel?: string;
@@ -215,6 +217,7 @@ export default function ChatPage() {
         const data = await res.json();
         setAiSettings({
           provider: data.provider,
+          chatgptModel: data.chatgptModel,
           geminiModel: data.geminiModel,
           mistralModel: data.mistralModel,
           openaiModel: data.openaiModel,
@@ -676,17 +679,12 @@ export default function ChatPage() {
                     ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
                     : aiSettings.provider === "openrouter"
                     ? "bg-violet-500/20 text-violet-600 dark:text-violet-400"
+                    : aiSettings.provider === "chatgpt"
+                    ? "bg-teal-500/20 text-teal-600 dark:text-teal-400"
                     : "bg-orange-500/20 text-orange-500"
                 }`}>
-                  {aiSettings.provider === "gemini"
-                    ? `Gemini ${aiSettings.geminiModel.replace("gemini-", "").replace("-latest", "")}`
-                    : aiSettings.provider === "openai"
-                    ? `OpenAI ${aiSettings.openaiModel ?? ""}`
-                    : aiSettings.provider === "openrouter"
-                    ? `OpenRouter ${aiSettings.openrouterModel ?? ""}`
-                    : aiSettings.provider === "mistral"
-                    ? `Mistral ${aiSettings.mistralModel.replace("mistral-", "").replace("-latest", "")}`
-                    : `${aiSettings.provider} (설정 필요)`}
+                  {/* 제공자 목록(config.ts)에서 이름·모델을 만든다 — 새 제공자도 빠지지 않음 */}
+                  {providerBadge(aiSettings)}
                 </span>
               )}
             </div>

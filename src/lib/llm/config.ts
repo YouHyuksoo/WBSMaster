@@ -59,6 +59,17 @@ export function providerLabel(provider: string): string {
 }
 
 /**
+ * 화면 배지용 "제공자 이름 + 모델" (예: "회사 ChatGPT gpt-6.1-sol").
+ * 제공자 목록(PROVIDER_FIELDS)에서 만들므로 새 제공자를 추가해도 빠지지 않는다.
+ */
+export function providerBadge(setting: { provider: string } & Partial<Record<keyof AiSettingFields, unknown>>): string {
+  if (!isLLMProvider(setting.provider)) return `${setting.provider} (설정 필요)`;
+  const fields = PROVIDER_FIELDS[setting.provider];
+  const model = setting[fields.model];
+  return model ? `${fields.label} ${String(model)}` : fields.label;
+}
+
+/**
  * 현재 선택된 제공자의 키·모델로 LLMConfig 를 만든다.
  * 지원하지 않는 제공자이거나 키가 비어 있으면 error 메시지를 돌려준다.
  */

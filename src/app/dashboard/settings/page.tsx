@@ -408,7 +408,7 @@ export default function SettingsPage() {
                 <label className="block text-sm font-medium text-text dark:text-white mb-3">
                   LLM 제공자
                 </label>
-                <div className="flex gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
                   {/* 회사 ChatGPT 버튼 (서버 공용 구독 계정) */}
                   <ChatGptProviderButton
                     selected={aiSettings.provider === "chatgpt"}

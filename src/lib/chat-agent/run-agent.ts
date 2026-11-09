@@ -85,7 +85,8 @@ export async function runAgent(opts: {
       const r = await runTool(registry, opts.ctx, call);
       if (r.kind === "proposal") {
         toolSummary.push({ tool: call.name, summary: r.summary });
-        return finish(`아래 내용으로 진행할까요?\n\n**${r.summary}**`, { pendingAction: { id: r.actionId, summary: r.summary, fields: r.fields } });
+        // 요약은 확인 카드가 보여 주므로 본문은 질문만 (같은 문장 두 번 방지). 기록에는 toolSummary 로 남는다
+        return finish("아래 내용으로 진행할까요?", { pendingAction: { id: r.actionId, summary: r.summary, fields: r.fields } });
       }
       if (r.kind === "candidates") {
         return finish(r.prompt, { candidates: { prompt: r.prompt, options: r.options } });

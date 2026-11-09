@@ -85,7 +85,8 @@ describe("runAgent", () => {
     const res = await run(llm);
     expect(llm.calls).toHaveLength(1);
     expect(res.pendingAction).toEqual({ id: "act-1", summary: "TASK 등록: 제목 설비점검", fields: [{ label: "제목", value: "설비점검" }] });
-    expect(res.content).toContain("설비점검");
+    // 요약은 확인 카드에만 보인다 (본문에 같은 문장을 또 쓰지 않음)
+    expect(res.content).toBe("아래 내용으로 진행할까요?");
   });
 
   it("unknown tool", async () => {
