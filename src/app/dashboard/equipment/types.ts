@@ -47,74 +47,38 @@ export const STATUS_CONFIG = {
   },
 } as const;
 
-/** 설비 타입 설정 */
+/**
+ * 설비 타입 설정 (prisma enum EquipmentType 과 같은 순서 · 같은 키)
+ * 오창 절곡 라인 문서(킥오프 v7 · 고객요구사항 · AS-IS 분석)의 설비 기준
+ */
 export const TYPE_CONFIG = {
-  // 일반 설비
-  MACHINE: { label: "기계", icon: "precision_manufacturing" },
-  TOOL: { label: "공구", icon: "handyman" },
-  DEVICE: { label: "장치", icon: "developer_board" },
-  CONVEYOR: { label: "컨베이어", icon: "conveyor_belt" },
-  STORAGE: { label: "보관", icon: "warehouse" },
-  INSPECTION: { label: "검사", icon: "fact_check" },
-  PC: { label: "PC", icon: "computer" },
+  // 절곡 라인 (LBC 신규: 절곡융착 4 + 절곡 4)
+  BENDING_FUSION: { label: "절곡융착기", icon: "merge" },
+  BENDING: { label: "절곡기", icon: "turn_right" },
+  AMR: { label: "AMR", icon: "smart_toy" },
+
+  // 현행 라인
+  FUSION: { label: "융착기", icon: "local_fire_department" },
+  EDGE: { label: "엣지 설비", icon: "content_cut" },
+  SURFACE_TREATMENT: { label: "표면처리 설비", icon: "layers" },
+
+  // 검사
+  VISION_INSPECTION: { label: "비전검사기", icon: "center_focus_strong" },
+  INSPECTION: { label: "검사장비", icon: "fact_check" },
+
+  // 연계 장치
+  PLC: { label: "PLC", icon: "developer_board" },
+  OPC_SERVER: { label: "OPC 서버", icon: "hub" },
+  BARCODE_PRINTER: { label: "바코드 발행기", icon: "qr_code_2" },
   PRINTER: { label: "프린터", icon: "print" },
-  SCANNER: { label: "스캐너", icon: "scanner" },
-  DIO: { label: "DIO", icon: "settings_input_component" },
+  SCANNER: { label: "스캐너", icon: "barcode_scanner" },
+  PDA: { label: "PDA", icon: "phone_android" },
+  PC: { label: "PC · POP", icon: "computer" },
 
-  // 자동창고/물류
-  AUTO_RACK_IN: { label: "자동렉입고", icon: "input" },
-  AUTO_RACK_OUT_REQUEST: { label: "자동렉출고요청", icon: "request_quote" },
-  AUTO_RACK_OUT: { label: "자동렉출고", icon: "output" },
-
-  // 마킹/부착/투입
-  PID_MARKING: { label: "PID마킹", icon: "qr_code" },
-  PID_ATTACH: { label: "PID부착", icon: "label" },
-  PCB_INPUT: { label: "PCB투입", icon: "input_circle" },
-  TAPE_ATTACH: { label: "테이프부착", icon: "sticky_note_2" },
-
-  // SMD 제조 설비
-  SCREEN_PRINTER: { label: "스크린프린터", icon: "water_drop" },
-  SPI: { label: "SPI", icon: "visibility" },
-  CHIP_MOUNTER: { label: "칩마운터", icon: "memory" },
-  MOI: { label: "MOI", icon: "center_focus_strong" },
-  REFLOW_OVEN: { label: "리플로우오븐", icon: "local_fire_department" },
-  AOI: { label: "AOI", icon: "search" },
-  ICT: { label: "ICT", icon: "electrical_services" },
-  FCT: { label: "FCT", icon: "science" },
-  CURING: { label: "경화기", icon: "wb_sunny" },
-  ROUTER: { label: "라우터", icon: "router" },
-
-  // HANES (와이어 하네스) 제조 설비
-  WIRE_CUTTING: { label: "전선절단기", icon: "content_cut" },
-  WIRE_STRIPPING: { label: "피복제거기", icon: "remove_circle" },
-  CRIMPING: { label: "압착기", icon: "compress" },
-  TWIST_MACHINE: { label: "트위스트머신", icon: "swap_calls" },
-  HARNESS_ASSEMBLY: { label: "하네스조립대", icon: "construction" },
-  TAPING_MACHINE: { label: "테이핑머신", icon: "tape" },
-  CONNECTOR_INSERT: { label: "커넥터삽입기", icon: "cable" },
-  HARNESS_TESTER: { label: "하네스테스터", icon: "electric_bolt" },
-  SOLDERING: { label: "솔더링", icon: "whatshot" },
-  SEALING: { label: "실링", icon: "water_drop" },
-
-  // X-RAY
-  XRAY_INSPECTOR: { label: "X-Ray Inspector", icon: "sensors" },
-  XRAY_COUNTER: { label: "X-Ray Counter", icon: "numbers" },
-
-  // ODC/IC
-  ODC_WRITE: { label: "ODC-Write", icon: "edit" },
-  ODC_VERIFY: { label: "ODC-Verify", icon: "verified" },
-  TEMP_IC: { label: "Temp IC", icon: "memory" },
-  VERIFY_TEMP_IC: { label: "Verify Temp IC", icon: "check_circle" },
-
-  // 검사/측정
-  CONFORMAL_COATING_INSPECTION: { label: "컨포멀코팅검사", icon: "water_damage" },
-  TENSION_METER: { label: "텐션측정기", icon: "straighten" },
-  VISCOSITY_METER: { label: "점도측정기", icon: "opacity" },
-  THERMO_HYGROMETER: { label: "온습도계", icon: "thermostat" },
-
-  // 기타
-  ESG_GATE: { label: "ESG GATE", icon: "sensor_door" },
-  LOADER: { label: "로더", icon: "upload" },
+  // 일반
+  MACHINE: { label: "기계", icon: "precision_manufacturing" },
+  DEVICE: { label: "장치", icon: "sensors" },
+  CONVEYOR: { label: "컨베이어", icon: "conveyor_belt" },
   OTHER: { label: "기타", icon: "category" },
 } as const;
 

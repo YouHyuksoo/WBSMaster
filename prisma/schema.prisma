@@ -1334,71 +1334,33 @@ model Equipment {
 // 설비 타입 Enum
 // ============================================
 enum EquipmentType {
-  MACHINE // 기계 (예: 사출기, CNC)
-  TOOL // 공구/도구
-  DEVICE // 장치 (예: 센서, 컨트롤러)
-  CONVEYOR // 컨베이어/운반장치
-  STORAGE // 보관/저장설비
-  INSPECTION // 검사장비
-  PC // PC/컴퓨터
-  PRINTER // 프린터
-  SCANNER // 스캐너
-  DIO // DIO (Digital Input/Output)
+  // 절곡 라인 (LBC 신규, 오창 킥오프 v7: 절곡융착 4 + 절곡 4)
+  BENDING_FUSION // 절곡융착기 (FA, 융착 + 비전 포함)
+  BENDING // 절곡기 (GA, 절곡 + 절곡비전 포함)
+  AMR // AMR (트레이 이송 로봇, MES 연계 없음)
 
-  // 자동창고/물류
-  AUTO_RACK_IN // 자동렉 입고
-  AUTO_RACK_OUT_REQUEST // 자동렉 출고요청
-  AUTO_RACK_OUT // 자동렉 출고
+  // 현행 라인
+  FUSION // 융착기 (융착다열 · 융착이열)
+  EDGE // 엣지 설비
+  SURFACE_TREATMENT // 표면처리 설비
 
-  // 마킹/부착/투입
-  PID_MARKING // PID 마킹
-  PID_ATTACH // PID 부착
-  PCB_INPUT // PCB 투입
-  TAPE_ATTACH // 테이프 부착
+  // 검사
+  VISION_INSPECTION // 비전검사기
+  INSPECTION // 기타 검사장비
 
-  // SMD 제조 설비
-  SCREEN_PRINTER // 스크린 프린터 (솔더 페이스트 도포)
-  SPI // SPI (Solder Paste Inspection)
-  CHIP_MOUNTER // 칩 마운터/픽앤플레이스 (SMT)
-  MOI // MOI (Mount Optical Inspection)
-  REFLOW_OVEN // 리플로우 오븐
-  AOI // AOI (Automated Optical Inspection)
-  ICT // ICT (In-Circuit Test)
-  FCT // FCT (Functional Circuit Test)
-  CURING // 경화기
-  ROUTER // 라우터
+  // 연계 장치
+  PLC // PLC
+  OPC_SERVER // OPC 서버 (설비 TAG 수집)
+  BARCODE_PRINTER // 바코드 발행기 (라벨)
+  PRINTER // 일반 프린터
+  SCANNER // 스캐너 (설비 입구 · 출구)
+  PDA // PDA
+  PC // PC · POP 단말
 
-  // HANES (와이어 하네스) 제조 설비
-  WIRE_CUTTING // 전선 절단기
-  WIRE_STRIPPING // 피복 제거기
-  CRIMPING // 압착기 (터미널 압착)
-  TWIST_MACHINE // 트위스트 머신 (전선 꼬기)
-  HARNESS_ASSEMBLY // 하네스 조립대/지그
-  TAPING_MACHINE // 테이핑 머신
-  CONNECTOR_INSERT // 커넥터 삽입기
-  HARNESS_TESTER // 하네스 테스터 (도통 검사)
-  SOLDERING // 솔더링 장비
-  SEALING // 실링 장비
-
-  // X-RAY
-  XRAY_INSPECTOR // X-Ray Inspector
-  XRAY_COUNTER // X-Ray Counter
-
-  // ODC/IC
-  ODC_WRITE // ODC-Write
-  ODC_VERIFY // ODC-Verify
-  TEMP_IC // Temp IC
-  VERIFY_TEMP_IC // Verify Temp IC
-
-  // 검사/측정
-  CONFORMAL_COATING_INSPECTION // 컨포멀 코팅검사
-  TENSION_METER // 텐션측정기
-  VISCOSITY_METER // 점도측정기
-  THERMO_HYGROMETER // 온습도계
-
-  // 기타
-  ESG_GATE // ESG GATE
-  LOADER // 로더/언로더
+  // 일반
+  MACHINE // 기타 기계
+  DEVICE // 장치 (센서, 컨트롤러)
+  CONVEYOR // 컨베이어
   OTHER // 기타
 }
 

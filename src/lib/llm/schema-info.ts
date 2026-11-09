@@ -404,7 +404,7 @@ export const DATABASE_SCHEMA = {
       type: {
         type: "enum",
         description: "설비 타입",
-        values: ["MACHINE", "TOOL", "DEVICE", "CONVEYOR", "STORAGE", "INSPECTION", "PC", "PRINTER", "SCANNER", "DIO", "SCREEN_PRINTER", "SPI", "CHIP_MOUNTER", "MOI", "REFLOW_OVEN", "AOI", "ICT", "FCT", "OTHER"],
+        values: ["BENDING_FUSION", "BENDING", "AMR", "FUSION", "EDGE", "SURFACE_TREATMENT", "VISION_INSPECTION", "INSPECTION", "PLC", "OPC_SERVER", "BARCODE_PRINTER", "PRINTER", "SCANNER", "PDA", "PC", "MACHINE", "DEVICE", "CONVEYOR", "OTHER"],
       },
       status: {
         type: "enum",

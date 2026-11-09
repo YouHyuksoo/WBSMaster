@@ -11,49 +11,21 @@
  *    - 사업부(구분코드)는 받지 않는다. divisionCode 는 null 로 저장
  * 3. **설비 타입**: 명칭으로 자동 유추
  * 4. **상태**: 기본값 ACTIVE (가동)
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 컬럼 매핑: inferEquipmentFromRow 함수 수정
- * - 타입 유추: inferEquipmentType 함수 수정
+ * - 타입 유추: src/lib/equipment-type.ts 의 inferEquipmentType 규칙 수정
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
-import { EquipmentType, EquipmentStatus } from "@prisma/client";
-import { getUser } from "@/lib/auth";
+import { EquipmentStatus } from "@prisma/client";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { DEFAULT_BUSINESS_UNIT } from "@/constants/business-units";
+import { inferEquipmentType } from "@/lib/equipment-type";
 
-/** 설비 타입 유추 함수 */
-function inferEquipmentType(name: string): EquipmentType {
-  const nameLower = name.toLowerCase();
-
-  // 키워드 매칭
-  if (nameLower.includes("사출") || nameLower.includes("cnc") || nameLower.includes("기계")) {
-    return "MACHINE";
-  }
-  if (nameLower.includes("센서") || nameLower.includes("컨트롤러") || nameLower.includes("장치")) {
-    return "DEVICE";
-  }
-  if (nameLower.includes("컨베이어") || nameLower.includes("운반")) {
-    return "CONVEYOR";
-  }
-  if (nameLower.includes("검사") || nameLower.includes("측정")) {
-    return "INSPECTION";
-  }
-  if (nameLower.includes("pc") || nameLower.includes("컴퓨터")) {
-    return "PC";
-  }
-  if (nameLower.includes("프린터") || nameLower.includes("printer")) {
-    return "PRINTER";
-  }
-  if (nameLower.includes("스캐너") || nameLower.includes("scanner")) {
-    return "SCANNER";
-  }
-
-  // 기본값
-  return "MACHINE";
-}
 
 /** 엑셀 행에서 설비 정보 추출 */
 function inferEquipmentFromRow(row: any, index: number) {
@@ -107,10 +79,8 @@ function inferEquipmentFromRow(row: any, index: number) {
 export async function POST(request: NextRequest) {
   try {
     // 인증 확인
-    const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-    }
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
 
     const formData = await request.formData();
     const file = formData.get("file") as File;
@@ -133,6 +103,9 @@ export async function POST(request: NextRequest) {
     if (!project) {
       return NextResponse.json({ error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     // 엑셀 파일 읽기
     const arrayBuffer = await file.arrayBuffer();

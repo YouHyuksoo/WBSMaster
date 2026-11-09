@@ -937,63 +937,29 @@ export interface WeeklySummary {
 
 /** 설비 타입 */
 export type EquipmentType =
-  | "MACHINE"
-  | "TOOL"
-  | "DEVICE"
-  | "CONVEYOR"
-  | "STORAGE"
+  // 절곡 라인 (LBC 신규)
+  | "BENDING_FUSION"
+  | "BENDING"
+  | "AMR"
+  // 현행 라인
+  | "FUSION"
+  | "EDGE"
+  | "SURFACE_TREATMENT"
+  // 검사
+  | "VISION_INSPECTION"
   | "INSPECTION"
-  | "PC"
+  // 연계 장치
+  | "PLC"
+  | "OPC_SERVER"
+  | "BARCODE_PRINTER"
   | "PRINTER"
   | "SCANNER"
-  | "DIO"
-  // 자동창고/물류
-  | "AUTO_RACK_IN"
-  | "AUTO_RACK_OUT_REQUEST"
-  | "AUTO_RACK_OUT"
-  // 마킹/부착/투입
-  | "PID_MARKING"
-  | "PID_ATTACH"
-  | "PCB_INPUT"
-  | "TAPE_ATTACH"
-  // SMD 제조
-  | "SCREEN_PRINTER"
-  | "SPI"
-  | "CHIP_MOUNTER"
-  | "MOI"
-  | "REFLOW_OVEN"
-  | "AOI"
-  | "ICT"
-  | "FCT"
-  | "CURING"
-  | "ROUTER"
-  // HANES (와이어 하네스) 제조
-  | "WIRE_CUTTING"
-  | "WIRE_STRIPPING"
-  | "CRIMPING"
-  | "TWIST_MACHINE"
-  | "HARNESS_ASSEMBLY"
-  | "TAPING_MACHINE"
-  | "CONNECTOR_INSERT"
-  | "HARNESS_TESTER"
-  | "SOLDERING"
-  | "SEALING"
-  // X-RAY
-  | "XRAY_INSPECTOR"
-  | "XRAY_COUNTER"
-  // ODC/IC
-  | "ODC_WRITE"
-  | "ODC_VERIFY"
-  | "TEMP_IC"
-  | "VERIFY_TEMP_IC"
-  // 검사/측정
-  | "CONFORMAL_COATING_INSPECTION"
-  | "TENSION_METER"
-  | "VISCOSITY_METER"
-  | "THERMO_HYGROMETER"
-  // 기타
-  | "ESG_GATE"
-  | "LOADER"
+  | "PDA"
+  | "PC"
+  // 일반
+  | "MACHINE"
+  | "DEVICE"
+  | "CONVEYOR"
   | "OTHER";
 
 /** 설비 상태 */
