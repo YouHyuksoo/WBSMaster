@@ -7,6 +7,7 @@
  * 초보자 가이드:
  * 1. **GET /api/ai-settings**: 현재 사용자의 AI 설정 조회
  * 2. **POST /api/ai-settings**: AI 설정 생성/수정
+ * 3. 제공자: gemini · mistral · openai · openrouter (Kimi 는 2026-11-09 제거)
  *
  * 보안 주의사항:
  * - API 키는 서버 사이드에서만 저장/사용
@@ -19,7 +20,12 @@ import { requireAuth } from "@/lib/auth";
 import { DEFAULT_SQL_SYSTEM_PROMPT, DEFAULT_ANALYSIS_SYSTEM_PROMPT, isLLMProvider } from "@/lib/llm";
 import type { AiSetting } from "@prisma/client";
 
-const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+const DEFAULTS = {
+  geminiModel: "gemini-1.5-flash",
+  mistralModel: "mistral-small-latest",
+  openaiModel: "gpt-4.1-mini",
+  openrouterModel: "openai/gpt-4.1-mini",
+};
 
 /**
  * API 키 마스킹 유틸리티
@@ -39,14 +45,14 @@ function toResponse(settings: AiSetting) {
     geminiModel: settings.geminiModel,
     mistralApiKey: maskApiKey(settings.mistralApiKey),
     mistralModel: settings.mistralModel,
-    kimiApiKey: maskApiKey(settings.kimiApiKey),
-    kimiModel: settings.kimiModel,
     openaiApiKey: maskApiKey(settings.openaiApiKey),
     openaiModel: settings.openaiModel,
+    openrouterApiKey: maskApiKey(settings.openrouterApiKey),
+    openrouterModel: settings.openrouterModel,
     hasGeminiKey: !!settings.geminiApiKey,
     hasMistralKey: !!settings.mistralApiKey,
-    hasKimiKey: !!settings.kimiApiKey,
     hasOpenaiKey: !!settings.openaiApiKey,
+    hasOpenrouterKey: !!settings.openrouterApiKey,
     sqlSystemPrompt: settings.sqlSystemPrompt || DEFAULT_SQL_SYSTEM_PROMPT,
     analysisSystemPrompt: settings.analysisSystemPrompt || DEFAULT_ANALYSIS_SYSTEM_PROMPT,
   };
@@ -54,7 +60,11 @@ function toResponse(settings: AiSetting) {
 
 /** 마스킹된 값("abcd...wxyz")이 아닌 새 키만 저장 대상 */
 const newKey = (key: unknown): string | undefined =>
-  typeof key === "string" && key && !key.includes("...") ? key : undefined;
+  typeof key === "string" && key.trim() && !key.includes("...") ? key.trim() : undefined;
+
+/** 비어 있지 않은 모델명만 저장 대상 */
+const modelName = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim() ? value.trim() : undefined;
 
 /**
  * AI 설정 조회
@@ -63,7 +73,6 @@ const newKey = (key: unknown): string | undefined =>
  */
 export async function GET() {
   try {
-    // 인증 확인
     const { user, error } = await requireAuth();
     if (error) return error;
 
@@ -76,23 +85,19 @@ export async function GET() {
       return NextResponse.json({
         provider: "gemini",
         geminiApiKey: null,
-        geminiModel: "gemini-1.5-flash",
         mistralApiKey: null,
-        mistralModel: "mistral-small-latest",
-        kimiApiKey: null,
-        kimiModel: "moonshot-v1-8k",
         openaiApiKey: null,
-        openaiModel: DEFAULT_OPENAI_MODEL,
+        openrouterApiKey: null,
+        ...DEFAULTS,
         hasGeminiKey: false,
         hasMistralKey: false,
-        hasKimiKey: false,
         hasOpenaiKey: false,
+        hasOpenrouterKey: false,
         sqlSystemPrompt: DEFAULT_SQL_SYSTEM_PROMPT,
         analysisSystemPrompt: DEFAULT_ANALYSIS_SYSTEM_PROMPT,
       });
     }
 
-    // API 키는 마스킹하여 반환, 시스템 프롬프트는 DB 값 또는 기본값
     return NextResponse.json(toResponse(settings));
   } catch (error) {
     console.error("AI 설정 조회 실패:", error);
@@ -110,24 +115,11 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    // 인증 확인
     const { user, error } = await requireAuth();
     if (error) return error;
 
     const body = await request.json();
-    const {
-      provider,
-      geminiApiKey,
-      geminiModel,
-      mistralApiKey,
-      mistralModel,
-      kimiApiKey,
-      kimiModel,
-      openaiApiKey,
-      openaiModel,
-      sqlSystemPrompt,
-      analysisSystemPrompt,
-    } = body;
+    const { provider, sqlSystemPrompt, analysisSystemPrompt } = body;
 
     // 유효성 검증
     if (provider && !isLLMProvider(provider)) {
@@ -137,79 +129,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 사용자가 users 테이블에 없으면 먼저 생성
-    await prisma.user.upsert({
-      where: { id: user!.id },
-      update: {},
-      create: {
-        id: user!.id,
-        email: user!.email,
-        name: user!.name || null,
-        avatar: user!.avatar || null,
-      },
-    });
+    // 제공자별 키(새로 입력한 값만) · 모델
+    const keys = {
+      geminiApiKey: newKey(body.geminiApiKey),
+      mistralApiKey: newKey(body.mistralApiKey),
+      openaiApiKey: newKey(body.openaiApiKey),
+      openrouterApiKey: newKey(body.openrouterApiKey),
+    };
+    const models = {
+      geminiModel: modelName(body.geminiModel),
+      mistralModel: modelName(body.mistralModel),
+      openaiModel: modelName(body.openaiModel),
+      openrouterModel: modelName(body.openrouterModel),
+    };
+    const prompts = {
+      ...(sqlSystemPrompt !== undefined && { sqlSystemPrompt: String(sqlSystemPrompt).trim() || null }),
+      ...(analysisSystemPrompt !== undefined && { analysisSystemPrompt: String(analysisSystemPrompt).trim() || null }),
+    };
+    const defined = <T extends Record<string, unknown>>(o: T) =>
+      Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
 
-    // 기존 설정 조회
-    const existingSettings = await prisma.aiSetting.findUnique({
-      where: { userId: user!.id },
-    });
-
-    // 업데이트할 데이터 구성 (null이 아닌 값만 업데이트)
-    const updateData: {
-      provider?: string;
-      geminiApiKey?: string;
-      geminiModel?: string;
-      mistralApiKey?: string;
-      mistralModel?: string;
-      kimiApiKey?: string;
-      kimiModel?: string;
-      openaiApiKey?: string;
-      openaiModel?: string;
-      sqlSystemPrompt?: string | null;
-      analysisSystemPrompt?: string | null;
-    } = {};
-
-    if (provider !== undefined) updateData.provider = provider;
-    if (geminiModel !== undefined) updateData.geminiModel = geminiModel;
-    if (mistralModel !== undefined) updateData.mistralModel = mistralModel;
-    if (kimiModel !== undefined) updateData.kimiModel = kimiModel;
-    if (openaiModel !== undefined) updateData.openaiModel = openaiModel;
-
-    // API 키는 마스킹된 값이 아닌 경우에만 업데이트
-    if (newKey(geminiApiKey)) updateData.geminiApiKey = newKey(geminiApiKey);
-    if (newKey(mistralApiKey)) updateData.mistralApiKey = newKey(mistralApiKey);
-    if (newKey(kimiApiKey)) updateData.kimiApiKey = newKey(kimiApiKey);
-    if (newKey(openaiApiKey)) updateData.openaiApiKey = newKey(openaiApiKey);
-
-    // 시스템 프롬프트 업데이트 (빈 문자열이면 null로 저장하여 기본값 사용)
-    if (sqlSystemPrompt !== undefined) {
-      updateData.sqlSystemPrompt = sqlSystemPrompt.trim() || null;
-    }
-    if (analysisSystemPrompt !== undefined) {
-      updateData.analysisSystemPrompt = analysisSystemPrompt.trim() || null;
-    }
-
-    // upsert로 생성 또는 수정
     const settings = await prisma.aiSetting.upsert({
       where: { userId: user!.id },
-      update: updateData,
+      update: {
+        ...(provider && { provider }),
+        ...defined(keys),
+        ...defined(models),
+        ...prompts,
+      },
       create: {
         userId: user!.id,
         provider: provider || "gemini",
-        geminiApiKey: geminiApiKey && !geminiApiKey.includes("...") ? geminiApiKey : null,
-        geminiModel: geminiModel || "gemini-1.5-flash",
-        mistralApiKey: mistralApiKey && !mistralApiKey.includes("...") ? mistralApiKey : null,
-        mistralModel: mistralModel || "mistral-small-latest",
-        kimiApiKey: kimiApiKey && !kimiApiKey.includes("...") ? kimiApiKey : null,
-        kimiModel: kimiModel || "kimi-k2-2-5",
-        openaiApiKey: newKey(openaiApiKey) ?? null,
-        openaiModel: openaiModel || DEFAULT_OPENAI_MODEL,
-        sqlSystemPrompt: sqlSystemPrompt?.trim() || null,
-        analysisSystemPrompt: analysisSystemPrompt?.trim() || null,
+        geminiApiKey: keys.geminiApiKey ?? null,
+        mistralApiKey: keys.mistralApiKey ?? null,
+        openaiApiKey: keys.openaiApiKey ?? null,
+        openrouterApiKey: keys.openrouterApiKey ?? null,
+        geminiModel: models.geminiModel ?? DEFAULTS.geminiModel,
+        mistralModel: models.mistralModel ?? DEFAULTS.mistralModel,
+        openaiModel: models.openaiModel ?? DEFAULTS.openaiModel,
+        openrouterModel: models.openrouterModel ?? DEFAULTS.openrouterModel,
+        sqlSystemPrompt: prompts.sqlSystemPrompt ?? null,
+        analysisSystemPrompt: prompts.analysisSystemPrompt ?? null,
       },
     });
 
-    // API 키는 마스킹하여 반환, 시스템 프롬프트는 DB 값 또는 기본값
     return NextResponse.json(toResponse(settings));
   } catch (error) {
     console.error("AI 설정 저장 실패:", error);

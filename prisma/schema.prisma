@@ -534,15 +534,17 @@ model AiSetting {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  provider      String  @default("gemini") // "gemini" | "mistral" | "kimi" | "openai" (src/lib/llm/config.ts LLM_PROVIDERS)
+  provider      String  @default("gemini") // "gemini" | "mistral" | "openai" | "openrouter" (src/lib/llm/config.ts LLM_PROVIDERS)
   geminiApiKey  String? // Google AI Studio API 키
   geminiModel   String  @default("gemini-1.5-flash")
   mistralApiKey String? // Mistral API 키
   mistralModel  String  @default("mistral-small-latest")
-  kimiApiKey    String? // Kimi (Moonshot) API 키
-  kimiModel     String  @default("moonshot-v1-8k")
+  kimiApiKey    String? // 사용 중단 (2026-11-09 Kimi 제공자 제거, 저장된 값 보존용)
+  kimiModel     String  @default("moonshot-v1-8k") // 사용 중단
   openaiApiKey  String? // OpenAI API 키
   openaiModel   String  @default("gpt-4.1-mini")
+  openrouterApiKey String? // OpenRouter API 키
+  openrouterModel  String  @default("openai/gpt-4.1-mini") // "회사/모델" 형식
 
   // 현재 선택된 페르소나
   activePersonaId String?

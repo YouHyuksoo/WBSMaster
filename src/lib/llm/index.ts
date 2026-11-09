@@ -2,10 +2,10 @@
  * @file src/lib/llm/index.ts
  * @description
  * LLM (Large Language Model) 클라이언트 통합 모듈입니다.
- * Google Gemini, Mistral AI, Kimi AI (Moonshot), OpenAI 를 지원합니다.
+ * Google Gemini, Mistral AI, OpenAI, OpenRouter 를 지원합니다.
  *
  * 초보자 가이드:
- * 1. **LLMClient**: LLM 추상화 클래스 (Gemini/Mistral/Kimi/OpenAI 공통 인터페이스)
+ * 1. **LLMClient**: LLM 추상화 클래스 (Gemini/Mistral/OpenAI/OpenRouter 공통 인터페이스)
  * 2. **createLLMClient()**: 설정에 따라 적절한 LLM 클라이언트 생성
  * 3. **generateSQL()**: 사용자 질문을 SQL로 변환
  * 4. **analyzeResults()**: SQL 실행 결과를 분석하여 응답 생성
@@ -13,9 +13,10 @@
  * 지원 LLM:
  * - Google Gemini: @google/generative-ai SDK 사용
  * - Mistral AI: @mistralai/mistralai SDK 사용
- * - Kimi AI (Moonshot): OpenAI 호환 API 직접 호출 (https://api.moonshot.ai/v1)
  * - OpenAI: Chat Completions API 직접 호출 (https://api.openai.com/v1)
+ * - OpenRouter: OpenAI 호환 API 직접 호출 (https://openrouter.ai/api/v1), 모델명은 "회사/모델" 형식
  * - 사용자 설정 → LLMConfig 변환은 ./config 의 resolveLLMConfig() 를 쓴다.
+ * - 모든 호출은 429(호출 한도 초과) 시 ./retry 의 withRateLimitRetry() 로 재시도한다.
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -27,6 +28,7 @@ import {
   getDynamicSchemaInfo,
 } from "./schema-info";
 import type { LLMConfig } from "./config";
+import { withRateLimitRetry } from "./retry";
 
 export type { LLMConfig, LLMProvider } from "./config";
 export { resolveLLMConfig, providerLabel, LLM_PROVIDERS, isLLMProvider } from "./config";
@@ -267,17 +269,18 @@ class MistralClient extends LLMClient {
 }
 
 /**
- * OpenAI 호환 Chat Completions 클라이언트 (Kimi · OpenAI 공용)
- * - Kimi: max_tokens + temperature 0.3 (기존 동작 유지)
+ * OpenAI 호환 Chat Completions 클라이언트 (OpenAI · OpenRouter 공용)
  * - OpenAI: 추론 모델(gpt-5, o 시리즈)은 temperature 변경 · max_tokens 를 거부하므로
  *   max_completion_tokens 만 보낸다.
+ * - OpenRouter: max_tokens 사용, 앱 식별 헤더(HTTP-Referer, X-Title) 추가
  */
 class OpenAICompatibleClient extends LLMClient {
   constructor(
     config: LLMConfig,
     private baseUrl: string,
     private label: string,
-    private extraBody: Record<string, unknown>
+    private extraBody: Record<string, unknown>,
+    private extraHeaders: Record<string, string> = {}
   ) {
     super(config);
   }
@@ -295,6 +298,7 @@ class OpenAICompatibleClient extends LLMClient {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.config.apiKey}`,
+        ...this.extraHeaders,
       },
       body: JSON.stringify({
         model: this.config.model,
@@ -318,28 +322,50 @@ class OpenAICompatibleClient extends LLMClient {
 }
 
 /**
- * LLM 클라이언트 팩토리 함수
- * @param config LLM 설정
- * @returns LLM 클라이언트 인스턴스
+ * 429(호출 한도 초과) 시 재시도하는 래퍼
+ * AI 채팅은 질문 하나에 LLM 을 2~3번 연달아 부르므로 초당 한도가 낮은 요금제에서 필요하다.
  */
-export function createLLMClient(config: LLMConfig): LLMClient {
+class RateLimitRetryClient extends LLMClient {
+  constructor(config: LLMConfig, private inner: LLMClient) {
+    super(config);
+  }
+
+  generate(prompt: string, systemPrompt?: string): Promise<string> {
+    return withRateLimitRetry(() => this.inner.generate(prompt, systemPrompt));
+  }
+}
+
+/** 제공자별 실제 클라이언트 */
+function createProviderClient(config: LLMConfig): LLMClient {
   switch (config.provider) {
     case "gemini":
       return new GeminiClient(config);
     case "mistral":
       return new MistralClient(config);
-    case "kimi":
-      return new OpenAICompatibleClient(config, "https://api.moonshot.ai/v1", "Kimi", {
-        max_tokens: 4096, // 응답 잘림 방지
-        temperature: 0.3, // SQL 생성 시 일관성 향상
-      });
     case "openai":
       return new OpenAICompatibleClient(config, "https://api.openai.com/v1", "OpenAI", {
         max_completion_tokens: 8192, // 추론 모델은 추론 토큰도 이 한도에 포함
       });
+    case "openrouter":
+      return new OpenAICompatibleClient(
+        config,
+        "https://openrouter.ai/api/v1",
+        "OpenRouter",
+        { max_tokens: 4096 },
+        { "HTTP-Referer": "https://wbs.jisheng.co.kr", "X-Title": "WBS Master" }
+      );
     default:
       throw new Error(`지원하지 않는 LLM 제공자: ${config.provider}`);
   }
+}
+
+/**
+ * LLM 클라이언트 팩토리 함수
+ * @param config LLM 설정
+ * @returns LLM 클라이언트 인스턴스 (429 재시도 포함)
+ */
+export function createLLMClient(config: LLMConfig): LLMClient {
+  return new RateLimitRetryClient(config, createProviderClient(config));
 }
 
 // ============================================

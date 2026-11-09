@@ -8,10 +8,11 @@
  * - LLM_PROVIDERS: 지원 제공자 목록 (새 제공자는 여기와 PROVIDER_FIELDS 에만 추가)
  * - resolveLLMConfig(setting): { ok: true, config } 또는 { ok: false, error } 를 돌려줍니다.
  * - providerLabel(provider): 화면·오류 메시지용 이름
+ * - Kimi 는 2026-11-09 제거됐다 (DB 칼럼만 남음).
  */
 
 /** 지원 LLM 제공자 */
-export const LLM_PROVIDERS = ["gemini", "mistral", "kimi", "openai"] as const;
+export const LLM_PROVIDERS = ["gemini", "mistral", "openai", "openrouter"] as const;
 export type LLMProvider = (typeof LLM_PROVIDERS)[number];
 
 /** LLM 호출 설정 */
@@ -28,17 +29,17 @@ export interface AiSettingFields {
   geminiModel: string;
   mistralApiKey: string | null;
   mistralModel: string;
-  kimiApiKey: string | null;
-  kimiModel: string;
   openaiApiKey: string | null;
   openaiModel: string;
+  openrouterApiKey: string | null;
+  openrouterModel: string;
 }
 
 const PROVIDER_FIELDS: Record<LLMProvider, { key: keyof AiSettingFields; model: keyof AiSettingFields; label: string }> = {
   gemini: { key: "geminiApiKey", model: "geminiModel", label: "Gemini" },
   mistral: { key: "mistralApiKey", model: "mistralModel", label: "Mistral" },
-  kimi: { key: "kimiApiKey", model: "kimiModel", label: "Kimi" },
   openai: { key: "openaiApiKey", model: "openaiModel", label: "OpenAI" },
+  openrouter: { key: "openrouterApiKey", model: "openrouterModel", label: "OpenRouter" },
 };
 
 /** 문자열이 지원 제공자인지 확인 */
@@ -59,7 +60,7 @@ export function resolveLLMConfig(
   setting: AiSettingFields
 ): { ok: true; config: LLMConfig } | { ok: false; error: string } {
   if (!isLLMProvider(setting.provider)) {
-    return { ok: false, error: `지원하지 않는 LLM 제공자입니다: ${setting.provider}` };
+    return { ok: false, error: `지원하지 않는 LLM 제공자입니다: ${setting.provider}. 설정 페이지에서 제공자를 다시 선택해주세요.` };
   }
   const fields = PROVIDER_FIELDS[setting.provider];
   const apiKey = setting[fields.key];
