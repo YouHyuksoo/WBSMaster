@@ -10,10 +10,14 @@
  *    - ?projectId=xxx: 프로젝트 전체 항목 조회
  *    - ?isApplied=true: 적용 항목만 필터링
  * 2. **POST /api/process-verification/items**: 새 항목 생성
+ * 3. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
+ *    - projectId 없이 조회하면 ADMIN 외에는 내가 멤버인 프로젝트의 항목만 돌려준다
+ *      (AddItemModal 이 ?search= 만으로 관리코드 순번을 조회한다)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 항목 목록 조회
@@ -21,6 +25,9 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get("categoryId");
     const projectId = searchParams.get("projectId");
@@ -36,7 +43,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
       where.categoryRef = { projectId };
+    } else if (user!.role !== "ADMIN") {
+      // projectId 가 없으면 내가 멤버인 프로젝트의 항목만
+      where.categoryRef = {
+        project: { teamMembers: { some: { userId: user!.id } } },
+      };
     }
 
     if (isApplied === "true") {
@@ -89,6 +103,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const body = await request.json();
     const {
       categoryId,
@@ -128,6 +145,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(categoryRef.projectId, user!);
+    if (denied) return denied;
 
     const item = await prisma.processVerificationItem.create({
       data: {

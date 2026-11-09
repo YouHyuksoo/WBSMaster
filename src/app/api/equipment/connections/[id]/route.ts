@@ -7,6 +7,7 @@
  * 초보자 가이드:
  * 1. **PATCH /api/equipment/connections/:id**: 연결 정보 수정 (라벨, 색상, 애니메이션 등)
  * 2. **DELETE /api/equipment/connections/:id**: 연결 삭제
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 수정 가능 필드 추가: PATCH의 data에 필드 추가
@@ -14,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { ConnectionType } from "@prisma/client";
 
 type RouteParams = {
@@ -26,18 +28,26 @@ type RouteParams = {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
     const body = await request.json();
     const { label, type, color, animated, order } = body;
 
     // 연결 존재 확인
-    const existing = await prisma.equipmentConnection.findUnique({ where: { id } });
+    const existing = await prisma.equipmentConnection.findUnique({
+      where: { id },
+      include: { fromEquipment: { select: { projectId: true } } },
+    });
     if (!existing) {
       return NextResponse.json(
         { error: "연결을 찾을 수 없습니다." },
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.fromEquipment.projectId, user!);
+    if (accessError) return accessError;
 
     // 타입 유효성 검증
     if (type !== undefined && !Object.values(ConnectionType).includes(type)) {
@@ -94,16 +104,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     // 연결 존재 확인
-    const existing = await prisma.equipmentConnection.findUnique({ where: { id } });
+    const existing = await prisma.equipmentConnection.findUnique({
+      where: { id },
+      include: { fromEquipment: { select: { projectId: true } } },
+    });
     if (!existing) {
       return NextResponse.json(
         { error: "연결을 찾을 수 없습니다." },
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.fromEquipment.projectId, user!);
+    if (accessError) return accessError;
 
     await prisma.equipmentConnection.delete({ where: { id } });
 

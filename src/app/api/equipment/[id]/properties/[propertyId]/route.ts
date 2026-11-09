@@ -7,10 +7,12 @@
  * 초보자 가이드:
  * 1. **PATCH /api/equipment/:id/properties/:propertyId**: 속성 수정
  * 2. **DELETE /api/equipment/:id/properties/:propertyId**: 속성 삭제
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { PropertyValueType } from "@prisma/client";
 
 type RouteParams = {
@@ -23,6 +25,8 @@ type RouteParams = {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id, propertyId } = await params;
     const body = await request.json();
     const { key, value, valueType, unit, order } = body;
@@ -30,6 +34,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // 속성 존재 확인
     const existing = await prisma.equipmentProperty.findUnique({
       where: { id: propertyId },
+      include: { equipment: { select: { projectId: true } } },
     });
 
     if (!existing) {
@@ -46,6 +51,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.equipment.projectId, user!);
+    if (accessError) return accessError;
 
     // 타입 유효성 검증
     if (valueType !== undefined && !Object.values(PropertyValueType).includes(valueType)) {
@@ -82,11 +90,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id, propertyId } = await params;
 
     // 속성 존재 확인
     const existing = await prisma.equipmentProperty.findUnique({
       where: { id: propertyId },
+      include: { equipment: { select: { projectId: true } } },
     });
 
     if (!existing) {
@@ -103,6 +114,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.equipment.projectId, user!);
+    if (accessError) return accessError;
 
     await prisma.equipmentProperty.delete({ where: { id: propertyId } });
 

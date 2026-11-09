@@ -8,12 +8,13 @@
  * 1. **GET /api/weekly-reports/:id**: 주간보고 상세 조회
  * 2. **PATCH /api/weekly-reports/:id**: 주간보고 수정
  * 3. **DELETE /api/weekly-reports/:id**: 주간보고 삭제
+ * 4. 인증: requireAuth. GET 은 assertProjectAccess (보고서의 projectId 기준), PATCH · DELETE 는 작성자 본인만
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ReportStatus } from "@prisma/client";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -77,6 +78,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(report.projectId, user!);
+    if (denied) return denied;
 
     return NextResponse.json(report);
   } catch (error) {

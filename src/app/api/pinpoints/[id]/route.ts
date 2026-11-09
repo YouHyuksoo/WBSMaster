@@ -3,10 +3,14 @@
  * @description
  * 개별 핀포인트 API 라우트입니다.
  * 핀포인트 상세 조회(GET), 수정(PATCH), 삭제(DELETE)를 처리합니다.
+ *
+ * 초보자 가이드:
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -18,6 +22,8 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     const pinpoint = await prisma.pinpoint.findUnique({
@@ -40,6 +46,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const accessError = await assertProjectAccess(pinpoint.projectId, user!);
+    if (accessError) return accessError;
+
     return NextResponse.json(pinpoint);
   } catch (error) {
     console.error("핀포인트 조회 실패:", error);
@@ -56,6 +65,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
     const body = await request.json();
     const { name, date, color, description } = body;
@@ -71,6 +82,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     // 핀포인트 수정
     const pinpoint = await prisma.pinpoint.update({
@@ -99,6 +113,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     // 핀포인트 존재 확인
@@ -112,6 +128,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     // 핀포인트 삭제
     await prisma.pinpoint.delete({

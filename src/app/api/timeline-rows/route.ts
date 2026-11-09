@@ -8,6 +8,7 @@
  * 1. **GET /api/timeline-rows**: 프로젝트별 타임라인 행 목록 조회
  *    - ?projectId=xxx: 특정 프로젝트의 행만 조회 (필수)
  * 2. **POST /api/timeline-rows**: 새 행 생성
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 정렬 변경: orderBy 조건 수정
@@ -16,6 +17,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 타임라인 행 목록 조회
@@ -23,6 +25,8 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
 
@@ -33,6 +37,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     const rows = await prisma.timelineRow.findMany({
       where: { projectId },
@@ -60,6 +67,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const body = await request.json();
     const { name, color, projectId, isDefault, parentId } = body;
 
@@ -82,6 +91,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     // parentId가 지정된 경우, 부모 행이 같은 프로젝트에 속하는지 확인
     if (parentId) {

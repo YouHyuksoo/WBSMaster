@@ -9,11 +9,13 @@
  *   - isPersonal=true: 개인문서함 (프로젝트 내 본인 문서만)
  *   - isPersonal=false: 공용문서함 (프로젝트 내 모든 공용 문서)
  * - POST /api/documents: 새 문서 등록
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
+ *   GET 에서 projectId 를 빼면 ADMIN 만 전체 조회, 그 외는 400 (useDocuments 는 projectId 가 있을 때만 호출)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 문서 목록 조회
@@ -37,9 +39,13 @@ export async function GET(request: NextRequest) {
     // 필터 조건 구성
     const where: Record<string, unknown> = {};
 
-    // 프로젝트 필터
+    // 프로젝트 필터 (멤버 확인)
     if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
       where.projectId = projectId;
+    } else if (user!.role !== "ADMIN") {
+      return NextResponse.json({ error: "projectId 가 필요합니다." }, { status: 400 });
     }
 
     // 공용/개인 구분
@@ -140,6 +146,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     // 소스 타입에 따른 검증
     if ((sourceType === "ONEDRIVE" || sourceType === "GOOGLE" || sourceType === "EXTERNAL_LINK") && !url) {

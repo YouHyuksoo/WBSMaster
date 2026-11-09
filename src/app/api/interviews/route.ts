@@ -7,10 +7,12 @@
  * - GET /api/interviews: 목록 조회 (필터링 지원)
  * - POST /api/interviews: 새 인터뷰 생성
  *   (사업부는 받지 않는다. DB 기본값 POLE 으로 저장)
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만). 목록은 ADMIN 이 아니면 projectId 필수
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 인터뷰 목록 조회
@@ -18,6 +20,9 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const transferStatus = searchParams.get("transferStatus");
@@ -27,7 +32,11 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
 
     if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
       where.projectId = projectId;
+    } else if (user!.role !== "ADMIN") {
+      return NextResponse.json({ error: "projectId 가 필요합니다." }, { status: 400 });
     }
 
 
@@ -76,6 +85,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const body = await request.json();
     const {
       projectId,
@@ -99,6 +111,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     if (!title) {
       return NextResponse.json(

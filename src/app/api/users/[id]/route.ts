@@ -8,6 +8,7 @@
  * 1. **GET /api/users/:id**: 사용자 상세 정보 조회
  * 2. **PATCH /api/users/:id**: 사용자 정보 수정 (이름, 역할 등)
  * 3. **DELETE /api/users/:id**: 사용자 삭제 (관련 데이터 주의)
+ * - 인증: 모두 로그인 필요. 수정은 본인 또는 ADMIN, 역할 · 소속 변경과 삭제는 ADMIN 만
  *
  * 수정 방법:
  * - 반환 필드 추가: select에 필드 추가
@@ -18,6 +19,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -29,6 +31,9 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const user = await prisma.user.findUnique({
@@ -81,9 +86,21 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user: me, error } = await requireAuth();
+    if (!me) return error!;
+
     const { id } = await params;
     const body = await request.json();
     const { email, name, role, avatar, affiliation, password } = body;
+
+    // 본인 또는 관리자만 수정. 역할 · 소속은 관리자만 바꾼다 (자기 권한 올리기 방지)
+    const isAdmin = me.role === "ADMIN";
+    if (!isAdmin && me.id !== id) {
+      return NextResponse.json({ error: "본인 정보만 수정할 수 있습니다." }, { status: 403 });
+    }
+    if (!isAdmin && (role !== undefined || affiliation !== undefined)) {
+      return NextResponse.json({ error: "역할 · 소속은 관리자만 바꿀 수 있습니다." }, { status: 403 });
+    }
 
     // 사용자 존재 확인
     const existing = await prisma.user.findUnique({ where: { id } });
@@ -162,6 +179,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    // 사용자 삭제는 관리자만
+    const { user: me, error } = await requireAuth();
+    if (!me) return error!;
+    if (me.role !== "ADMIN") {
+      return NextResponse.json({ error: "관리자만 사용자를 삭제할 수 있습니다." }, { status: 403 });
+    }
+
     const { id } = await params;
 
     // 사용자 존재 확인

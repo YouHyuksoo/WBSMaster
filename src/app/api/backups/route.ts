@@ -5,6 +5,7 @@
  * 백업 파일 목록 조회(GET)와 새 백업 생성(POST)을 처리합니다.
  *
  * 초보자 가이드:
+ * - 인증: 모든 요청은 ADMIN 만 (아니면 403)
  * 1. **GET**: backups/ 디렉토리의 .sql 파일 목록 반환
  * 2. **POST**: DB 전체 백업을 실행하여 .sql 파일 생성
  */
@@ -30,8 +31,17 @@ const BACKUP_DIR = path.join(process.cwd(), "backups");
  * 백업 파일 목록 조회
  */
 export async function GET() {
-  const { error } = await requireAuth();
-  if (error) return error;
+  // DB 전체 백업(모든 계정 정보 포함)은 관리자만
+
+  const { user, error } = await requireAuth();
+
+  if (!user) return error!;
+
+  if (user.role !== "ADMIN") {
+
+    return NextResponse.json({ error: "관리자만 사용할 수 있습니다." }, { status: 403 });
+
+  }
 
   try {
     // 백업 디렉토리가 없으면 빈 배열 반환
@@ -85,8 +95,17 @@ function getTimestamp(): string {
  * 새 백업 생성 (DB 전체 덤프)
  */
 export async function POST() {
-  const { error } = await requireAuth();
-  if (error) return error;
+  // DB 전체 백업(모든 계정 정보 포함)은 관리자만
+
+  const { user, error } = await requireAuth();
+
+  if (!user) return error!;
+
+  if (user.role !== "ADMIN") {
+
+    return NextResponse.json({ error: "관리자만 사용할 수 있습니다." }, { status: 403 });
+
+  }
 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 

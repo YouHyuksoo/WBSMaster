@@ -7,10 +7,13 @@
  * 초보자 가이드:
  * 1. **GET**: 취합 보고서 목록 조회 (프로젝트별)
  * 2. **POST**: 새 취합 보고서 생성 (선택된 멤버 주간보고 취합)
+ * 3. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
+ *    - 취합할 주간보고는 같은 프로젝트 것만 읽고, 생성자는 로그인 사용자로 저장한다
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * GET /api/weekly-summaries
@@ -19,6 +22,9 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const year = searchParams.get("year");
@@ -30,6 +36,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     const where: Record<string, unknown> = { projectId };
 
@@ -79,6 +88,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const body = await request.json();
     const {
       projectId,
@@ -88,21 +100,24 @@ export async function POST(request: NextRequest) {
       weekEnd,
       title,
       reportIds,
-      createdById,
     } = body;
 
     // 필수 필드 검증
-    if (!projectId || !year || !weekNumber || !title || !reportIds?.length || !createdById) {
+    if (!projectId || !year || !weekNumber || !title || !reportIds?.length) {
       return NextResponse.json(
-        { error: "Missing required fields: projectId, year, weekNumber, title, reportIds, createdById" },
+        { error: "Missing required fields: projectId, year, weekNumber, title, reportIds" },
         { status: 400 }
       );
     }
 
-    // 선택된 주간보고들 조회
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
+
+    // 선택된 주간보고들 조회 (같은 프로젝트 것만)
     const reports = await prisma.weeklyReport.findMany({
       where: {
         id: { in: reportIds },
+        projectId,
       },
       include: {
         user: {
@@ -162,7 +177,7 @@ export async function POST(request: NextRequest) {
         memberIds,
         reportIds,
         memberSummaries,
-        createdById,
+        createdById: user!.id,
       },
       include: {
         createdBy: {

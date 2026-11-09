@@ -9,10 +9,12 @@
  * 2. **POST**: 새 마스터 생성 (+ 적용 행 1건 자동 생성)
  * 3. 적용 행은 마스터당 하나이며 businessUnit 은 항상 DEFAULT_BUSINESS_UNIT 이다.
  *    (2026-11-09 화면에서 사업부 구분 제거)
+ * 4. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만, POST 는 카테고리의 projectId 기준)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { DEFAULT_BUSINESS_UNIT } from "@/constants/business-units";
 
 /** 검증 상태 값 */
@@ -36,6 +38,9 @@ const APPLY_INCLUDE = {
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const categoryId = searchParams.get("categoryId");
@@ -49,6 +54,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     // 필터 조건 구성
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,6 +128,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const body = await request.json();
     const {
       categoryId,
@@ -150,6 +161,20 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // 카테고리 존재 · 프로젝트 권한 확인
+    const categoryRef = await prisma.processVerificationCategory.findUnique({
+      where: { id: categoryId },
+      select: { projectId: true },
+    });
+    if (!categoryRef) {
+      return NextResponse.json(
+        { error: "카테고리를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+    const denied = await assertProjectAccess(categoryRef.projectId, user!);
+    if (denied) return denied;
 
     // 제품유형 + 관리코드 중복 확인
     const existing = await prisma.processVerificationMaster.findUnique({

@@ -7,6 +7,7 @@
  * 초보자 가이드:
  * 1. **GET /api/equipment/:id/properties**: 설비의 속성 목록 조회
  * 2. **POST /api/equipment/:id/properties**: 새 속성 추가
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 정렬 추가: orderBy 조건 수정
@@ -14,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { PropertyValueType } from "@prisma/client";
 
 type RouteParams = {
@@ -26,6 +28,8 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     // 설비 존재 확인
@@ -36,6 +40,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(equipment.projectId, user!);
+    if (accessError) return accessError;
 
     const properties = await prisma.equipmentProperty.findMany({
       where: { equipmentId: id },
@@ -58,6 +65,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
     const body = await request.json();
     const { key, value, valueType, unit, order } = body;
@@ -78,6 +87,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(equipment.projectId, user!);
+    if (accessError) return accessError;
 
     // 타입 유효성 검증
     if (valueType && !Object.values(PropertyValueType).includes(valueType)) {

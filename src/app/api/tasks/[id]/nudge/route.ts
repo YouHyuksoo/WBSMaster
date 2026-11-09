@@ -8,11 +8,14 @@
  * - POST: 재촉 보내기
  * - GET: 재촉 목록 조회
  * - DELETE: 재촉 취소 (본인이 보낸 것만)
+ *
+ * 초보자 가이드:
+ * - 인증: requireAuth + assertProjectAccess (태스크의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUser } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -24,7 +27,25 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user: authUser, error } = await requireAuth();
+    if (error) return error;
+    const user = authUser!;
+
     const { id: taskId } = await params;
+
+    // 태스크 존재 · 프로젝트 권한 확인
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { projectId: true },
+    });
+    if (!task) {
+      return NextResponse.json(
+        { error: "태스크를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+    const denied = await assertProjectAccess(task.projectId, user);
+    if (denied) return denied;
 
     const nudges = await prisma.taskNudge.findMany({
       where: { taskId },
@@ -57,13 +78,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await getUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const { user: authUser, error } = await requireAuth();
+    if (error) return error;
+    const user = authUser!;
 
     const { id: taskId } = await params;
     const body = await request.json().catch(() => ({}));
@@ -84,6 +101,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(task.projectId, user);
+    if (denied) return denied;
 
     // 본인 태스크에는 재촉 불가
     const isMyTask =
@@ -150,15 +170,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await getUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const { user: authUser, error } = await requireAuth();
+    if (error) return error;
+    const user = authUser!;
 
     const { id: taskId } = await params;
+
+    // 태스크 존재 · 프로젝트 권한 확인
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { projectId: true },
+    });
+    if (!task) {
+      return NextResponse.json(
+        { error: "태스크를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+    const denied = await assertProjectAccess(task.projectId, user);
+    if (denied) return denied;
 
     // 본인이 보낸 재촉만 삭제
     const deleted = await prisma.taskNudge.deleteMany({

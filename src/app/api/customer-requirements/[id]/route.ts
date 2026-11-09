@@ -7,10 +7,12 @@
  * - GET /api/customer-requirements/:id: 단건 조회
  * - PATCH /api/customer-requirements/:id: 수정
  * - DELETE /api/customer-requirements/:id: 삭제
+ * - 인증: requireAuth + assertProjectAccess (레코드의 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -25,6 +27,9 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await context.params;
 
     const requirement = await prisma.customerRequirement.findUnique({
@@ -46,6 +51,9 @@ export async function GET(
       );
     }
 
+    const denied = await assertProjectAccess(requirement.projectId, user!);
+    if (denied) return denied;
+
     return NextResponse.json(requirement);
   } catch (error) {
     console.error("고객요구사항 조회 실패:", error);
@@ -65,6 +73,9 @@ export async function PATCH(
   context: RouteContext
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await context.params;
     const body = await request.json();
 
@@ -79,6 +90,9 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     // 업데이트할 데이터 구성
     const updateData: Record<string, unknown> = {};
@@ -143,6 +157,9 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await context.params;
 
     // 존재 확인
@@ -156,6 +173,9 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     await prisma.customerRequirement.delete({
       where: { id },

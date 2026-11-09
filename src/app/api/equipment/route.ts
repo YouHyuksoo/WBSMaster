@@ -8,6 +8,7 @@
  * 1. **GET /api/equipment**: 프로젝트별 설비 목록 조회
  *    - ?projectId=xxx: 특정 프로젝트의 설비만 조회
  * 2. **POST /api/equipment**: 새 설비 생성 (코드 자동 생성)
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만, projectId 없는 전체 조회는 ADMIN 만)
  *
  * 수정 방법:
  * - 정렬 추가: orderBy 조건 수정
@@ -16,6 +17,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { EquipmentType, EquipmentStatus, Prisma } from "@prisma/client";
 
 /**
@@ -24,9 +26,20 @@ import { EquipmentType, EquipmentStatus, Prisma } from "@prisma/client";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const lineCode = searchParams.get("lineCode");
+
+    // projectId 없는 전체 조회는 ADMIN 만 (화면은 항상 projectId 를 보낸다)
+    if (!projectId && user!.role !== "ADMIN") {
+      return NextResponse.json({ error: "projectId 가 필요합니다." }, { status: 400 });
+    }
+    if (projectId) {
+      const accessError = await assertProjectAccess(projectId, user!);
+      if (accessError) return accessError;
+    }
 
     // 필터 조건 구성 (사업부/구분코드 필터는 2026-11-09 제거)
     const where: Prisma.EquipmentWhereInput = {};
@@ -107,6 +120,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const body = await request.json();
     const {
       projectId,
@@ -148,6 +163,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     // 설비 코드 자동 생성 (EQ-001, EQ-002, ...)
     const lastEquipment = await prisma.equipment.findFirst({

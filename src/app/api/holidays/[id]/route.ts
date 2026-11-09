@@ -8,6 +8,8 @@
  * 1. **GET /api/holidays/:id**: 휴무 상세 정보 조회
  * 2. **PATCH /api/holidays/:id**: 휴무 정보 수정
  * 3. **DELETE /api/holidays/:id**: 휴무 삭제
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
+ * - 담당자(userId)는 같은 프로젝트 팀 멤버만 지정할 수 있다 (아니면 400)
  *
  * 수정 방법:
  * - 반환 필드 추가: include에 관계 추가
@@ -16,6 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -27,6 +30,8 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     const holiday = await prisma.holiday.findUnique({
@@ -48,6 +53,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const accessError = await assertProjectAccess(holiday.projectId, user!);
+    if (accessError) return accessError;
+
     return NextResponse.json(holiday);
   } catch (error) {
     console.error("휴무 조회 실패:", error);
@@ -65,6 +73,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
     const body = await request.json();
     const {
@@ -86,6 +96,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { error: "휴무를 찾을 수 없습니다." },
         { status: 404 }
       );
+    }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
+
+    // 일정 담당자(userId)는 같은 프로젝트 팀 멤버만 (null/빈값은 공통 일정)
+    if (userId) {
+      const member = await prisma.teamMember.findUnique({
+        where: { projectId_userId: { projectId: existing.projectId, userId } },
+        select: { id: true },
+      });
+      if (!member) {
+        return NextResponse.json(
+          { error: "담당자가 이 프로젝트의 팀 멤버가 아닙니다." },
+          { status: 400 }
+        );
+      }
     }
 
     const holiday = await prisma.holiday.update({
@@ -135,6 +162,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     // 휴무 존재 확인
@@ -145,6 +174,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     await prisma.holiday.delete({ where: { id } });
 

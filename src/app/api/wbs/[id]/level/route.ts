@@ -9,6 +9,7 @@
  *    - 부모의 형제가 됨 (조부모 아래로 이동)
  * 2. **레벨 다운**: 현재 항목을 하위 레벨로 내림 (LEVEL3 → LEVEL4)
  *    - 이전 형제의 자식이 됨
+ * 3. 인증: requireAuth + assertProjectAccess (WBS 항목의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  *
  * @example
  * // 레벨 업 (LEVEL4 → LEVEL3)
@@ -23,7 +24,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { WbsLevel, TaskStatus } from "@prisma/client";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /** 레벨 순서 (숫자가 클수록 하위) */
 const levelOrder: WbsLevel[] = ["LEVEL1", "LEVEL2", "LEVEL3", "LEVEL4"];
@@ -87,6 +88,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(item.projectId, user!);
+    if (denied) return denied;
 
     const currentLevelIndex = levelOrder.indexOf(item.level);
 

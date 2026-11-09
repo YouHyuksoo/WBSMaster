@@ -13,10 +13,12 @@
  * 이슈번호, 업무구분, 이슈관리명, 이슈 설명, 등록일, 이슈어,
  * 요구사항 번호, 담당자, 상태, 타겟일, 완료일, 제안된 해결 방안, 최종 적용된 방안, 참고
  * 사업부 컬럼은 없다. businessUnit 은 DB 기본값(POLE)으로 저장된다.
+ * 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { FieldIssueStatus } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { hasLegacyBusinessUnitColumn, LEGACY_TEMPLATE_MESSAGE } from "@/lib/import-guards";
@@ -83,6 +85,9 @@ function parseExcelDate(value: number | string | undefined | null): Date | null 
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     // FormData 파싱
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -103,6 +108,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     // 파일 확장자 검증
     const fileName = file.name.toLowerCase();

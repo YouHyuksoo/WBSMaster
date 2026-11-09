@@ -9,6 +9,9 @@
  *    - ?projectId=xxx: 특정 프로젝트의 태스크만 조회
  *    - ?status=IN_PROGRESS: 특정 상태의 태스크만 조회
  * 2. **POST /api/tasks**: 새 태스크 생성
+ * 3. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
+ *    - GET 에서 projectId 를 빼면 ADMIN 만 전체 조회, 그 외는 400
+ *    - POST 의 requirementId · wbsItemId 는 같은 프로젝트 것이어야 한다
  *
  * 수정 방법:
  * - 정렬 추가: orderBy 조건 수정
@@ -18,7 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { TaskStatus, Prisma } from "@prisma/client";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { createTask } from "@/lib/services/taskService";
 
 /**
@@ -29,10 +32,21 @@ import { createTask } from "@/lib/services/taskService";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const status = searchParams.get("status") as TaskStatus | null;
     const assigneeId = searchParams.get("assigneeId");
+
+    // useTasks 는 projectId 가 있을 때만 호출한다. 없으면 ADMIN 만 전체 조회
+    if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
+    } else if (user!.role !== "ADMIN") {
+      return NextResponse.json({ error: "projectId 가 필요합니다." }, { status: 400 });
+    }
 
     // 필터 조건 구성
     const where: Prisma.TaskWhereInput = {};
@@ -167,6 +181,35 @@ export async function POST(request: NextRequest) {
         { error: "태스크 제목과 프로젝트 ID는 필수입니다." },
         { status: 400 }
       );
+    }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
+
+    // 연결 대상은 같은 프로젝트 것만
+    if (requirementId) {
+      const requirement = await prisma.requirement.findUnique({
+        where: { id: requirementId },
+        select: { projectId: true },
+      });
+      if (!requirement || requirement.projectId !== projectId) {
+        return NextResponse.json(
+          { error: "연결할 요구사항이 같은 프로젝트에 없습니다." },
+          { status: 400 }
+        );
+      }
+    }
+    if (wbsItemId) {
+      const wbsItem = await prisma.wbsItem.findUnique({
+        where: { id: wbsItemId },
+        select: { projectId: true },
+      });
+      if (!wbsItem || wbsItem.projectId !== projectId) {
+        return NextResponse.json(
+          { error: "연결할 WBS 항목이 같은 프로젝트에 없습니다." },
+          { status: 400 }
+        );
+      }
     }
 
     // 서비스 레이어를 통한 Task 생성

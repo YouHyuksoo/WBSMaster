@@ -8,10 +8,12 @@
  * 2. upsert 사용: 적용 행이 없으면 생성, 있으면 업데이트
  * 3. 적용 행은 마스터당 하나(businessUnit = DEFAULT_BUSINESS_UNIT)다. 요청의 businessUnit 은 받지 않는다.
  *    (2026-11-09 화면에서 사업부 구분 제거)
+ * 4. 인증: requireAuth + assertProjectAccess (마스터 → 카테고리의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { DEFAULT_BUSINESS_UNIT } from "@/constants/business-units";
 
 /**
@@ -27,14 +29,18 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id: masterId } = await params;
     const body = await request.json();
     const { isApplied, status } = body;
     const businessUnit = DEFAULT_BUSINESS_UNIT;
 
-    // 마스터 존재 확인
+    // 마스터 존재 · 프로젝트 권한 확인
     const master = await prisma.processVerificationMaster.findUnique({
       where: { id: masterId },
+      select: { categoryRef: { select: { projectId: true } } },
     });
 
     if (!master) {
@@ -43,6 +49,9 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(master.categoryRef.projectId, user!);
+    if (denied) return denied;
 
     // 업데이트 데이터 구성
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,9 +102,28 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id: masterId } = await params;
     const { searchParams } = new URL(request.url);
     const businessUnit = DEFAULT_BUSINESS_UNIT;
+
+    // 마스터 존재 · 프로젝트 권한 확인
+    const master = await prisma.processVerificationMaster.findUnique({
+      where: { id: masterId },
+      select: { categoryRef: { select: { projectId: true } } },
+    });
+
+    if (!master) {
+      return NextResponse.json(
+        { error: "마스터를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    const denied = await assertProjectAccess(master.categoryRef.projectId, user!);
+    if (denied) return denied;
 
     const apply = await prisma.processVerificationBusinessUnit.findUnique({
       where: {

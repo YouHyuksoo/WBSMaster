@@ -8,6 +8,7 @@
  * 1. **GET /api/holidays/today**: 오늘의 일정 목록 조회
  *    - ?projectId=xxx: 특정 프로젝트의 일정만 조회
  *    - ?userId=xxx: 특정 사용자의 개인 일정만 조회
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만, projectId 없으면 멤버 프로젝트 일정만)
  *
  * 수정 방법:
  * - 조회 조건 변경: where 조건 수정
@@ -16,6 +17,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 
 /**
@@ -24,6 +26,8 @@ import { Prisma } from "@prisma/client";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const userId = searchParams.get("userId");
@@ -55,7 +59,12 @@ export async function GET(request: NextRequest) {
 
     // 프로젝트 필터
     if (projectId) {
+      const accessError = await assertProjectAccess(projectId, user!);
+      if (accessError) return accessError;
       where.projectId = projectId;
+    } else if (user!.role !== "ADMIN") {
+      // projectId 없이 부르면 내가 멤버인 프로젝트의 일정만 보여 준다
+      where.project = { teamMembers: { some: { userId: user!.id } } };
     }
 
     // 사용자 필터 (개인 일정 또는 전체 공통 일정)

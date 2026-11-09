@@ -9,6 +9,7 @@
  *    - ?projectId=xxx: 프로젝트의 모든 핀포인트
  *    - ?rowId=xxx: 특정 행의 핀포인트만
  * 2. **POST /api/pinpoints**: 새 핀포인트 생성
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 정렬 변경: orderBy 조건 수정
@@ -17,6 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 핀포인트 목록 조회
@@ -24,6 +26,8 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const rowId = searchParams.get("rowId");
@@ -35,6 +39,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     const where: any = { projectId };
     if (rowId) {
@@ -62,6 +69,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const body = await request.json();
     const { name, date, color, description, projectId, rowId } = body;
 
@@ -84,6 +93,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     // 행 존재 확인
     const row = await prisma.timelineRow.findUnique({

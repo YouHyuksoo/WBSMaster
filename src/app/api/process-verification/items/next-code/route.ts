@@ -8,10 +8,12 @@
  * GET /api/process-verification/items/next-code?categoryId=xxx
  * - categoryId: 카테고리 ID (필수)
  * - 반환값: { nextCode: "MATERIAL-005", pattern: "MATERIAL-###" }
+ * - 인증: requireAuth + assertProjectAccess (카테고리의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 관리코드에서 숫자 부분 추출
@@ -47,6 +49,9 @@ function padNumber(num: number, digits: number): string {
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get("categoryId");
 
@@ -68,6 +73,9 @@ export async function GET(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(category.projectId, user!);
+    if (denied) return denied;
 
     // 해당 카테고리의 모든 항목 관리코드 조회
     const items = await prisma.processVerificationItem.findMany({

@@ -3,10 +3,14 @@
  * @description
  * 개별 공정검증 항목 API 라우트입니다.
  * 항목 상세 조회(GET), 수정(PATCH), 삭제(DELETE)를 처리합니다.
+ *
+ * 초보자 가이드:
+ * - 인증: requireAuth + assertProjectAccess (항목 → 카테고리의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -18,6 +22,9 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const item = await prisma.processVerificationItem.findUnique({
@@ -41,6 +48,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const denied = await assertProjectAccess(item.categoryRef.projectId, user!);
+    if (denied) return denied;
+
     return NextResponse.json(item);
   } catch (error) {
     console.error("항목 조회 실패:", error);
@@ -57,6 +67,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
     const body = await request.json();
     const {
@@ -80,6 +93,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // 항목 존재 확인
     const existing = await prisma.processVerificationItem.findUnique({
       where: { id },
+      include: { categoryRef: { select: { projectId: true } } },
     });
 
     if (!existing) {
@@ -88,6 +102,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.categoryRef.projectId, user!);
+    if (denied) return denied;
 
     const item = await prisma.processVerificationItem.update({
       where: { id },
@@ -135,11 +152,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     // 항목 존재 확인
     const existing = await prisma.processVerificationItem.findUnique({
       where: { id },
+      include: { categoryRef: { select: { projectId: true } } },
     });
 
     if (!existing) {
@@ -148,6 +169,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.categoryRef.projectId, user!);
+    if (denied) return denied;
 
     await prisma.processVerificationItem.delete({ where: { id } });
 

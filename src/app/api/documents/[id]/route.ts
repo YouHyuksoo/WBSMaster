@@ -7,11 +7,13 @@
  * - GET /api/documents/[id]: 단건 조회
  * - PATCH /api/documents/[id]: 수정
  * - DELETE /api/documents/[id]: 삭제
+ * - 인증: requireAuth + assertProjectAccess (문서의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
+ *   개인문서(isPersonal)는 작성자 본인만 조회 · 수정 · 삭제할 수 있다
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -23,6 +25,9 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const document = await prisma.document.findUnique({
@@ -52,6 +57,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const denied = await assertProjectAccess(document.projectId, user!);
+    if (denied) return denied;
+    // 개인문서는 작성자 본인만 (목록 API 와 같은 기준)
+    if (document.isPersonal && document.createdById !== user!.id) {
+      return NextResponse.json(
+        { error: "문서에 접근할 권한이 없습니다." },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json(document);
   } catch (error) {
     console.error("문서 조회 실패:", error);
@@ -68,7 +83,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) {
       return error;
     }
@@ -85,6 +100,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: "문서를 찾을 수 없습니다." },
         { status: 404 }
+      );
+    }
+
+    const denied = await assertProjectAccess(existingDocument.projectId, user!);
+    if (denied) return denied;
+    // 개인문서는 작성자 본인만 (목록 API 와 같은 기준)
+    if (existingDocument.isPersonal && existingDocument.createdById !== user!.id) {
+      return NextResponse.json(
+        { error: "문서에 접근할 권한이 없습니다." },
+        { status: 403 }
       );
     }
 
@@ -149,7 +174,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) {
       return error;
     }
@@ -165,6 +190,16 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { error: "문서를 찾을 수 없습니다." },
         { status: 404 }
+      );
+    }
+
+    const denied = await assertProjectAccess(existingDocument.projectId, user!);
+    if (denied) return denied;
+    // 개인문서는 작성자 본인만 (목록 API 와 같은 기준)
+    if (existingDocument.isPersonal && existingDocument.createdById !== user!.id) {
+      return NextResponse.json(
+        { error: "문서에 접근할 권한이 없습니다." },
+        { status: 403 }
       );
     }
 

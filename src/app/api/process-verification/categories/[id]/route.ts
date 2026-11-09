@@ -3,10 +3,14 @@
  * @description
  * 개별 공정검증 카테고리 API 라우트입니다.
  * 카테고리 상세 조회(GET), 수정(PATCH), 삭제(DELETE)를 처리합니다.
+ *
+ * 초보자 가이드:
+ * - 인증: requireAuth + assertProjectAccess (카테고리의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -18,6 +22,9 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const category = await prisma.processVerificationCategory.findUnique({
@@ -39,6 +46,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const denied = await assertProjectAccess(category.projectId, user!);
+    if (denied) return denied;
+
     return NextResponse.json(category);
   } catch (error) {
     console.error("카테고리 조회 실패:", error);
@@ -55,6 +65,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
     const body = await request.json();
     const { name, code, order, description } = body;
@@ -70,6 +83,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     // 코드 중복 체크 (다른 카테고리와 충돌)
     if (code && code !== existing.code) {
@@ -111,6 +127,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     // 카테고리 존재 확인
@@ -129,6 +148,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     // 카테고리 삭제 (항목도 Cascade로 함께 삭제)
     await prisma.processVerificationCategory.delete({ where: { id } });

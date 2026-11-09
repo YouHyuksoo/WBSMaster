@@ -8,6 +8,7 @@
  * 1. **POST /api/equipment/bulk-update**: 여러 설비 위치 일괄 업데이트
  *    - 캔버스에서 정렬/분배 후 저장 버튼 클릭 시 사용
  *    - 개별 API 호출 대신 한 번에 처리하여 성능 최적화
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 업데이트 가능 필드 추가: updates 타입에 필드 추가
@@ -15,6 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /** 업데이트 항목 타입 */
 interface EquipmentPositionUpdate {
@@ -29,6 +31,8 @@ interface EquipmentPositionUpdate {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const body = await request.json();
     const { updates } = body as { updates: EquipmentPositionUpdate[] };
 
@@ -48,6 +52,20 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    // 권한 확인: 대상 설비가 모두 있어야 하고, 그 프로젝트들에 모두 접근 가능해야 한다
+    const uniqueIds = Array.from(new Set(updates.map((u) => u.id)));
+    const targets = await prisma.equipment.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { projectId: true },
+    });
+    if (targets.length !== uniqueIds.length) {
+      return NextResponse.json({ error: "설비를 찾을 수 없습니다." }, { status: 404 });
+    }
+    for (const projectId of Array.from(new Set(targets.map((t) => t.projectId)))) {
+      const accessError = await assertProjectAccess(projectId, user!);
+      if (accessError) return accessError;
     }
 
     // 트랜잭션으로 일괄 업데이트 (Interactive transaction - 타임아웃 60초)

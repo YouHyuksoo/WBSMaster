@@ -11,12 +11,15 @@
  *    - ?year=2026: 연도 필터
  *    - ?weekNumber=2: 주차 필터
  * 2. **POST /api/weekly-reports**: 새 주간보고 생성
+ * 3. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
+ *    - GET 에서 projectId 를 빼면 ADMIN 외에는 내가 멤버인 프로젝트의 보고서만 돌려준다
+ *      (주간보고 화면은 프로젝트를 고르기 전에도 projectId 없이 조회한다)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 주간보고 목록 조회
@@ -37,7 +40,12 @@ export async function GET(request: NextRequest) {
     const where: Prisma.WeeklyReportWhereInput = {};
 
     if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
       where.projectId = projectId;
+    } else if (user!.role !== "ADMIN") {
+      // projectId 가 없으면 내가 멤버인 프로젝트의 보고서만
+      where.project = { teamMembers: { some: { userId: user!.id } } };
     }
     // userId가 지정되면 해당 사용자, 아니면 현재 사용자 필터 적용
     if (userId) {
@@ -94,6 +102,10 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // 현재 로그인한 사용자 확인 (입력 검사보다 먼저)
+    const { user: currentUser, error } = await requireAuth();
+    if (error) return error;
+
     const body = await request.json();
     const { projectId, year, weekNumber, weekStart, weekEnd, issueContent, userId } = body;
 
@@ -104,11 +116,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // 현재 로그인한 사용자 확인
-    const { user: currentUser, error } = await requireAuth();
-    if (error) return error;
-
     const currentUserId = currentUser!.id;
 
     // 프로젝트 존재 확인
@@ -122,6 +129,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, currentUser!);
+    if (denied) return denied;
 
     // 중복 체크 (같은 프로젝트, 사용자, 연도, 주차)
     const existingReport = await prisma.weeklyReport.findUnique({

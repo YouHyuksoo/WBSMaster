@@ -9,6 +9,7 @@
  *    - ?projectId=xxx: 특정 프로젝트의 요구사항만 조회
  *    - ?status=PENDING: 특정 상태의 요구사항만 조회
  * 2. **POST /api/requirements**: 새 요구사항 생성
+ * 3. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만). 목록은 ADMIN 이 아니면 projectId 필수
  *
  * 수정 방법:
  * - 정렬 추가: orderBy 조건 수정
@@ -17,6 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { RequirementStatus, Prisma } from "@prisma/client";
 import { sendRequirementCreatedNotification } from "@/lib/slack";
 
@@ -26,6 +28,9 @@ import { sendRequirementCreatedNotification } from "@/lib/slack";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const status = searchParams.get("status") as RequirementStatus | null;
@@ -33,7 +38,13 @@ export async function GET(request: NextRequest) {
     // 필터 조건 구성
     const where: Prisma.RequirementWhereInput = {};
 
-    if (projectId) where.projectId = projectId;
+    if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
+      where.projectId = projectId;
+    } else if (user!.role !== "ADMIN") {
+      return NextResponse.json({ error: "projectId 가 필요합니다." }, { status: 400 });
+    }
     if (status && Object.values(RequirementStatus).includes(status)) where.status = status;
 
     const requirements = await prisma.requirement.findMany({
@@ -105,6 +116,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const body = await request.json();
     const {
       title,
@@ -125,6 +139,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     // 프로젝트 존재 확인
     const project = await prisma.project.findUnique({ where: { id: projectId } });

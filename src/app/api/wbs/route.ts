@@ -9,6 +9,8 @@
  *    - ?projectId=xxx: 특정 프로젝트의 WBS 조회
  *    - ?flat=true: 평탄화된 목록으로 조회
  * 2. **POST /api/wbs**: 새 WBS 항목 생성
+ * 3. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
+ *    - POST 의 parentId 는 같은 프로젝트의 항목이어야 한다
  *
  * WBS 레벨 설명:
  * - LEVEL1: 대분류 (분석, 설계, 개발, 테스트, 이행)
@@ -20,7 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { WbsLevel, Prisma } from "@prisma/client";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /** WBS 레벨별 숫자 매핑 */
 const levelToNumber: Record<WbsLevel, number> = {
@@ -74,6 +76,9 @@ function buildWbsTree(items: any[]): any[] {
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const flat = searchParams.get("flat") === "true";
@@ -85,6 +90,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     // 필터 조건 구성
     const where: Prisma.WbsItemWhereInput = { projectId };
@@ -227,6 +235,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
+
     // 부모 항목 확인 (있는 경우)
     let parentCode: string | null = null;
     if (parentId) {
@@ -235,6 +246,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: "부모 항목을 찾을 수 없습니다." },
           { status: 404 }
+        );
+      }
+      // 다른 프로젝트의 항목 아래에는 만들 수 없다
+      if (parent.projectId !== projectId) {
+        return NextResponse.json(
+          { error: "부모 항목이 같은 프로젝트에 없습니다." },
+          { status: 400 }
         );
       }
       parentCode = parent.code;

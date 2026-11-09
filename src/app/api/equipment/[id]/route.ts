@@ -8,6 +8,7 @@
  * 1. **GET /api/equipment/:id**: 설비 상세 정보 조회
  * 2. **PATCH /api/equipment/:id**: 설비 정보 수정 (위치, 상태 등)
  * 3. **DELETE /api/equipment/:id**: 설비 삭제
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 반환 필드 추가: include에 관계 추가
@@ -16,6 +17,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { EquipmentType, EquipmentStatus } from "@prisma/client";
 
 type RouteParams = {
@@ -28,6 +30,8 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     const equipment = await prisma.equipment.findUnique({
@@ -88,6 +92,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const accessError = await assertProjectAccess(equipment.projectId, user!);
+    if (accessError) return accessError;
+
     return NextResponse.json(equipment);
   } catch (error) {
     console.error("설비 조회 실패:", error);
@@ -104,6 +111,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
     const body = await request.json();
     const {
@@ -136,6 +145,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     // 타입 유효성 검증
     if (type !== undefined && !Object.values(EquipmentType).includes(type)) {
@@ -203,6 +215,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     // 설비 존재 확인
@@ -213,6 +227,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     // Prisma Cascade로 자동 삭제되므로 별도 처리 불필요
     // - properties: onDelete: Cascade

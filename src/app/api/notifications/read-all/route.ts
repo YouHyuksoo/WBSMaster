@@ -6,7 +6,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUser } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * PATCH /api/notifications/read-all
@@ -14,10 +14,8 @@ import { getUser } from "@/lib/auth";
  */
 export async function PATCH() {
   try {
-    const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-    }
+    const { user, error } = await requireAuth();
+    if (!user) return error!;
 
     // 읽지 않은 모든 알림 읽음 처리
     const result = await prisma.notification.updateMany({

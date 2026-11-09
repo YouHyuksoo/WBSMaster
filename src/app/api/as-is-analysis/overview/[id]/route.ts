@@ -8,11 +8,12 @@
  * - GET: 특정 AS-IS 총괄 조회
  * - PATCH: AS-IS 총괄 정보 수정
  * - DELETE: AS-IS 총괄 삭제 (모든 항목도 함께 삭제)
+ * - 인증: requireAuth + assertProjectAccess (레코드가 속한 프로젝트의 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -62,6 +63,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // 프로젝트 멤버 확인
+    const accessError = await assertProjectAccess(overview.projectId, user!);
+    if (accessError) return accessError;
+
     return NextResponse.json(overview);
   } catch (error) {
     console.error("AS-IS 총괄 조회 오류:", error);
@@ -97,6 +102,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    // 프로젝트 멤버 확인
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     // 업데이트
     const overview = await prisma.asIsOverview.update({
@@ -155,6 +164,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    // 프로젝트 멤버 확인
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     // 삭제 (Cascade로 items도 함께 삭제됨)
     await prisma.asIsOverview.delete({

@@ -11,12 +11,13 @@
  *    - members: 멤버별 태스크 할당 정보
  *    - dateRange: 분석 기간
  * 3. **하루 8시간 기준**: 업무 부하를 8시간 근무 기준으로 분석
+ * 4. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createLLMClient, resolveLLMConfig, LLMConfig } from "@/lib/llm";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /** 멤버별 부하 데이터 타입 */
 interface MemberWorkload {
@@ -103,6 +104,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
+
     // 마지막 분석 결과 조회
     const lastAnalysis = await prisma.workloadAnalysis.findFirst({
       where: { projectId },
@@ -172,6 +176,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     if (!members || members.length === 0) {
       return NextResponse.json(

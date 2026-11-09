@@ -7,10 +7,13 @@
  * 1. **GET**: 마스터 상세 조회
  * 2. **PATCH**: 마스터 수정
  * 3. **DELETE**: 마스터 삭제 (연결된 적용 행도 함께 삭제)
+ * 4. 인증: requireAuth + assertProjectAccess (마스터 → 카테고리의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
+ *    - PATCH 로 categoryId 를 바꾸면 옮겨 갈 카테고리의 프로젝트 권한도 검사한다
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 마스터 상세 조회
@@ -21,12 +24,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const master = await prisma.processVerificationMaster.findUnique({
       where: { id },
       include: {
-        categoryRef: { select: { id: true, name: true, code: true } },
+        categoryRef: { select: { id: true, name: true, code: true, projectId: true } },
         businessUnitApplies: { orderBy: { businessUnit: "asc" } },
       },
     });
@@ -37,6 +43,9 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(master.categoryRef.projectId, user!);
+    if (denied) return denied;
 
     return NextResponse.json(master);
   } catch (error) {
@@ -59,12 +68,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
     const body = await request.json();
 
     // 존재 확인
     const existing = await prisma.processVerificationMaster.findUnique({
       where: { id },
+      include: { categoryRef: { select: { projectId: true } } },
     });
 
     if (!existing) {
@@ -72,6 +85,25 @@ export async function PATCH(
         { error: "마스터를 찾을 수 없습니다." },
         { status: 404 }
       );
+    }
+
+    const denied = await assertProjectAccess(existing.categoryRef.projectId, user!);
+    if (denied) return denied;
+
+    // 카테고리를 옮기면 대상 카테고리의 프로젝트 권한도 확인
+    if (body.categoryId !== undefined && body.categoryId !== existing.categoryId) {
+      const targetCategory = await prisma.processVerificationCategory.findUnique({
+        where: { id: body.categoryId },
+        select: { projectId: true },
+      });
+      if (!targetCategory) {
+        return NextResponse.json(
+          { error: "카테고리를 찾을 수 없습니다." },
+          { status: 404 }
+        );
+      }
+      const denied = await assertProjectAccess(targetCategory.projectId, user!);
+      if (denied) return denied;
     }
 
     // 관리코드 또는 제품유형 변경 시 복합키 중복 확인
@@ -170,11 +202,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     // 존재 확인
     const existing = await prisma.processVerificationMaster.findUnique({
       where: { id },
+      include: { categoryRef: { select: { projectId: true } } },
     });
 
     if (!existing) {
@@ -183,6 +219,9 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.categoryRef.projectId, user!);
+    if (denied) return denied;
 
     // 삭제 (Cascade로 businessUnitApplies도 함께 삭제됨)
     await prisma.processVerificationMaster.delete({

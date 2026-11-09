@@ -8,12 +8,13 @@
  * 1. **GET /api/wbs/[id]**: 특정 WBS 항목 상세 조회
  * 2. **PATCH /api/wbs/[id]**: WBS 항목 수정
  * 3. **DELETE /api/wbs/[id]**: WBS 항목 삭제 (자식도 함께 삭제됨)
+ * 4. 인증: requireAuth + assertProjectAccess (WBS 항목의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { WbsLevel, TaskStatus } from "@prisma/client";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /** WBS 레벨별 숫자 매핑 */
 const levelToNumber: Record<WbsLevel, number> = {
@@ -33,6 +34,9 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const wbsItem = await prisma.wbsItem.findUnique({
@@ -88,6 +92,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(wbsItem.projectId, user!);
+    if (denied) return denied;
 
     // 응답 형식 변환
     const transformedItem = {
@@ -152,6 +159,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     // 상태 검증
     if (status && !Object.values(TaskStatus).includes(status)) {
@@ -322,6 +332,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     const parentId = existing.parentId;
 

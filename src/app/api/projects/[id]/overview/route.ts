@@ -6,6 +6,7 @@
  * 주요 기능:
  * - PUT: 프로젝트 개요 정보 업데이트
  * - GET: 프로젝트 개요 정보 조회
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *
  * @example
  * PUT /api/projects/{id}/overview
@@ -19,7 +20,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -61,6 +62,9 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(project.id, user!);
+    if (denied) return denied;
 
     return NextResponse.json(project);
   } catch (error) {
@@ -107,6 +111,9 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existingProject.id, user!);
+    if (denied) return denied;
 
     // 프로젝트 개요 정보 업데이트
     const updatedProject = await prisma.project.update({

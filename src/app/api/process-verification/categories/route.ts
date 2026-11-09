@@ -8,10 +8,12 @@
  * 1. **GET /api/process-verification/categories**: 카테고리 목록 조회
  *    - ?projectId=xxx: 프로젝트별 카테고리 조회 (필수)
  * 2. **POST /api/process-verification/categories**: 새 카테고리 생성
+ * 3. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 카테고리 목록 조회
@@ -19,6 +21,9 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
 
@@ -28,6 +33,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     const categories = await prisma.processVerificationCategory.findMany({
       where: { projectId },
@@ -55,6 +63,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const body = await request.json();
     const { projectId, name, code, order, description } = body;
 
@@ -65,6 +76,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     // 중복 코드 체크
     const existing = await prisma.processVerificationCategory.findUnique({

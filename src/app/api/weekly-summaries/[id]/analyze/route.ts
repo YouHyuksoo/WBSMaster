@@ -7,10 +7,12 @@
  * 초보자 가이드:
  * 1. **POST**: 취합 보고서에 대해 LLM 분석 실행
  * 2. **분석 내용**: 전주실적/차주계획 요약, 리스크 분석, 인사이트 제공
+ * 3. 인증: requireAuth + assertProjectAccess (취합 보고서의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { createLLMClient, resolveLLMConfig, LLMConfig } from "@/lib/llm";
 
 interface RouteParams {
@@ -78,6 +80,9 @@ const SUMMARY_ANALYSIS_PROMPT = `당신은 프로젝트 관리 전문가입니�
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     // 취합 보고서 조회
@@ -91,6 +96,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(summary.projectId, user!);
+    if (denied) return denied;
 
     // AI 설정 조회 (생성자의 설정 사용)
     const aiSetting = await prisma.aiSetting.findUnique({

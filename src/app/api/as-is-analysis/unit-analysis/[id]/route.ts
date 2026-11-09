@@ -8,11 +8,13 @@
  * - GET: 특정 단위업무 분석 조회
  * - PATCH: 단위업무 분석 수정 (다이어그램 데이터 등)
  * - DELETE: 단위업무 분석 삭제
+ * - 인증: requireAuth + assertProjectAccess (레코드가 속한 프로젝트의 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { getAsIsUnitAnalysisProjectId } from "@/lib/as-is-access";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -25,7 +27,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     // 인증 확인
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) return error;
 
     const { id } = await params;
@@ -64,6 +66,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // 프로젝트 멤버 확인 (단위업무 분석 → 총괄 항목 → 총괄표 → 프로젝트)
+    const projectId = await getAsIsUnitAnalysisProjectId(id);
+    const accessError = projectId
+      ? await assertProjectAccess(projectId, user!)
+      : NextResponse.json({ error: "단위업무 분석을 찾을 수 없습니다." }, { status: 404 });
+    if (accessError) return accessError;
+
     return NextResponse.json(unitAnalysis);
   } catch (error) {
     console.error("단위업무 분석 조회 오류:", error);
@@ -82,7 +91,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     // 인증 확인
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) return error;
 
     const { id } = await params;
@@ -100,6 +109,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    // 프로젝트 멤버 확인 (단위업무 분석 → 총괄 항목 → 총괄표 → 프로젝트)
+    const projectId = await getAsIsUnitAnalysisProjectId(id);
+    const accessError = projectId
+      ? await assertProjectAccess(projectId, user!)
+      : NextResponse.json({ error: "단위업무 분석을 찾을 수 없습니다." }, { status: 404 });
+    if (accessError) return accessError;
 
     // 트랜잭션으로 처리 (flowChartData와 flowChartDetails 동기화)
     const unitAnalysis = await prisma.$transaction(async (tx) => {
@@ -205,7 +221,7 @@ function getNodeTypeName(type: string): string {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // 인증 확인
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) return error;
 
     const { id } = await params;
@@ -221,6 +237,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    // 프로젝트 멤버 확인 (단위업무 분석 → 총괄 항목 → 총괄표 → 프로젝트)
+    const projectId = await getAsIsUnitAnalysisProjectId(id);
+    const accessError = projectId
+      ? await assertProjectAccess(projectId, user!)
+      : NextResponse.json({ error: "단위업무 분석을 찾을 수 없습니다." }, { status: 404 });
+    if (accessError) return accessError;
 
     // 삭제 (Cascade로 모든 하위 데이터도 함께 삭제됨)
     await prisma.asIsUnitAnalysis.delete({

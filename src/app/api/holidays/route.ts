@@ -10,6 +10,8 @@
  *    - ?type=COMPANY_HOLIDAY: 특정 유형의 일정만 조회
  *    - ?year=2024&month=1: 특정 연월의 일정만 조회
  * 2. **POST /api/holidays**: 새 일정 생성
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만, projectId 없으면 멤버 프로젝트 일정만)
+ * - 담당자(userId)는 같은 프로젝트 팀 멤버만 지정할 수 있다 (아니면 400)
  *
  * 수정 방법:
  * - 정렬 추가: orderBy 조건 수정
@@ -18,6 +20,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { HolidayType, Prisma } from "@prisma/client";
 
 /**
@@ -26,6 +29,8 @@ import { HolidayType, Prisma } from "@prisma/client";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const type = searchParams.get("type") as HolidayType | null;
@@ -35,7 +40,14 @@ export async function GET(request: NextRequest) {
     // 필터 조건 구성
     const where: Prisma.HolidayWhereInput = {};
 
-    if (projectId) where.projectId = projectId;
+    if (projectId) {
+      const accessError = await assertProjectAccess(projectId, user!);
+      if (accessError) return accessError;
+      where.projectId = projectId;
+    } else if (user!.role !== "ADMIN") {
+      // projectId 없이 부르면 내가 멤버인 프로젝트의 일정만 보여 준다
+      where.project = { teamMembers: { some: { userId: user!.id } } };
+    }
     if (type && Object.values(HolidayType).includes(type)) where.type = type;
 
     // 연월 필터링
@@ -94,6 +106,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const body = await request.json();
     const {
       title,
@@ -127,6 +141,23 @@ export async function POST(request: NextRequest) {
         { error: "프로젝트를 찾을 수 없습니다." },
         { status: 404 }
       );
+    }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
+
+    // 일정 담당자(userId)는 같은 프로젝트 팀 멤버만 (null/빈값은 공통 일정)
+    if (userId) {
+      const member = await prisma.teamMember.findUnique({
+        where: { projectId_userId: { projectId: projectId, userId } },
+        select: { id: true },
+      });
+      if (!member) {
+        return NextResponse.json(
+          { error: "담당자가 이 프로젝트의 팀 멤버가 아닙니다." },
+          { status: 400 }
+        );
+      }
     }
 
     const holiday = await prisma.holiday.create({

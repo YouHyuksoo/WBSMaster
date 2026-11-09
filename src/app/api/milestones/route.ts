@@ -9,6 +9,7 @@
  *    - ?projectId=xxx: 특정 프로젝트의 마일스톤만 조회 (필수)
  *    - ?rowId=xxx: 특정 행의 마일스톤만 조회 (선택)
  * 2. **POST /api/milestones**: 새 마일스톤 생성
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 정렬 변경: orderBy 조건 수정
@@ -17,6 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { MilestoneStatus, Prisma } from "@prisma/client";
 
 /**
@@ -25,6 +27,8 @@ import { MilestoneStatus, Prisma } from "@prisma/client";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const rowId = searchParams.get("rowId");
@@ -37,6 +41,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     // 필터 조건 구성
     const where: Prisma.MilestoneWhereInput = {
@@ -94,6 +101,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const body = await request.json();
     const { name, description, startDate, endDate, status, color, order, projectId, rowId } = body;
 
@@ -117,6 +126,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
+
     // rowId가 제공된 경우 행 존재 확인
     if (rowId) {
       const row = await prisma.timelineRow.findUnique({
@@ -127,6 +139,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: "타임라인 행을 찾을 수 없습니다." },
           { status: 404 }
+        );
+      }
+
+      if (row.projectId !== projectId) {
+        return NextResponse.json(
+          { error: "행이 프로젝트에 속하지 않습니다." },
+          { status: 400 }
         );
       }
     }

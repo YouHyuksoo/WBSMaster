@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { createLLMClient, resolveLLMConfig, LLMConfig } from "@/lib/llm";
 import { EXAMPLE_GROUPS, ExampleGroup } from "@/app/dashboard/chat/components/constants";
 
@@ -74,6 +74,12 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { projectId } = body;
+
+    // projectId 를 주면 그 프로젝트 멤버(또는 ADMIN)인지 확인
+    if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
+    }
 
     // AI 설정 조회
     const aiSettings = await prisma.aiSetting.findFirst({

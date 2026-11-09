@@ -8,10 +8,12 @@
  * 1. **GET /api/milestones/:id**: 마일스톤 상세 조회
  * 2. **PATCH /api/milestones/:id**: 마일스톤 수정 (드래그/리사이즈 포함)
  * 3. **DELETE /api/milestones/:id**: 마일스톤 삭제
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { MilestoneStatus } from "@prisma/client";
 
 interface RouteParams {
@@ -24,6 +26,8 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     const milestone = await prisma.milestone.findUnique({
@@ -54,6 +58,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const accessError = await assertProjectAccess(milestone.projectId, user!);
+    if (accessError) return accessError;
+
     return NextResponse.json(milestone);
   } catch (error) {
     console.error("마일스톤 조회 실패:", error);
@@ -75,6 +82,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
     const body = await request.json();
     const { name, description, startDate, endDate, status, color, order, rowId } = body;
@@ -90,6 +99,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     // 상태 유효성 검증
     if (status && !Object.values(MilestoneStatus).includes(status)) {
@@ -109,6 +121,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         return NextResponse.json(
           { error: "타임라인 행을 찾을 수 없습니다." },
           { status: 404 }
+        );
+      }
+
+      if (row.projectId !== existing.projectId) {
+        return NextResponse.json(
+          { error: "행이 프로젝트에 속하지 않습니다." },
+          { status: 400 }
         );
       }
     }
@@ -159,6 +178,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     // 마일스톤 존재 확인
@@ -172,6 +193,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     // 마일스톤 삭제
     await prisma.milestone.delete({

@@ -4,6 +4,7 @@
  * 개별 백업 파일 다운로드(GET)와 삭제(DELETE) API 라우트입니다.
  *
  * 초보자 가이드:
+ * - 인증: 모든 요청은 ADMIN 만 (아니면 403)
  * 1. **GET**: .sql 파일을 스트리밍 다운로드
  * 2. **DELETE**: 백업 파일 삭제
  * 3. **보안**: path traversal(..) 차단
@@ -36,8 +37,17 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ filename: string }> }
 ) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  // DB 전체 백업(모든 계정 정보 포함)은 관리자만
+
+  const { user, error } = await requireAuth();
+
+  if (!user) return error!;
+
+  if (user.role !== "ADMIN") {
+
+    return NextResponse.json({ error: "관리자만 사용할 수 있습니다." }, { status: 403 });
+
+  }
 
   const { filename } = await params;
   const decodedFilename = decodeURIComponent(filename);
@@ -85,8 +95,17 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ filename: string }> }
 ) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  // DB 전체 백업(모든 계정 정보 포함)은 관리자만
+
+  const { user, error } = await requireAuth();
+
+  if (!user) return error!;
+
+  if (user.role !== "ADMIN") {
+
+    return NextResponse.json({ error: "관리자만 사용할 수 있습니다." }, { status: 403 });
+
+  }
 
   const { filename } = await params;
   const decodedFilename = decodeURIComponent(filename);

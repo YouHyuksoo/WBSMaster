@@ -9,11 +9,12 @@
  * - POST: 새 AS-IS 총괄 생성 (프로젝트당 1개만 허용)
  * - 사업부 구분은 쓰지 않는다. DB 의 businessUnit 컬럼은 요청 값과 무관하게
  *   항상 DEFAULT_BUSINESS_UNIT("POLE")으로 조회·저장한다.
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { DEFAULT_BUSINESS_UNIT } from "@/constants/business-units";
 
 /**
@@ -37,6 +38,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     // AS-IS 총괄 조회 (항목 포함)
     const overview = await prisma.asIsOverview.findUnique({
@@ -98,6 +102,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     // 이미 존재하는지 확인 (프로젝트당 1개)
     const existing = await prisma.asIsOverview.findUnique({

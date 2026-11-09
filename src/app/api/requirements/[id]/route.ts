@@ -8,6 +8,7 @@
  * 1. **GET /api/requirements/:id**: 요구사항 상세 정보 조회
  * 2. **PATCH /api/requirements/:id**: 요구사항 정보 수정
  * 3. **DELETE /api/requirements/:id**: 요구사항 삭제
+ * 4. 인증: requireAuth + assertProjectAccess (레코드의 프로젝트 멤버 · ADMIN 만)
  *
  * 수정 방법:
  * - 반환 필드 추가: include에 관계 추가
@@ -16,6 +17,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -27,6 +29,9 @@ type RouteParams = {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const requirement = await prisma.requirement.findUnique({
@@ -48,6 +53,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const denied = await assertProjectAccess(requirement.projectId, user!);
+    if (denied) return denied;
+
     return NextResponse.json(requirement);
   } catch (error) {
     console.error("요구사항 조회 실패:", error);
@@ -64,6 +72,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
     const body = await request.json();
     const {
@@ -87,6 +98,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     const requirement = await prisma.requirement.update({
       where: { id },
@@ -144,6 +158,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     // 요구사항 존재 확인
@@ -154,6 +171,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     await prisma.requirement.delete({ where: { id } });
 

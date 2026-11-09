@@ -8,10 +8,12 @@
  * 1. **GET /api/timeline-rows/:id**: 행 상세 조회
  * 2. **PATCH /api/timeline-rows/:id**: 행 수정
  * 3. **DELETE /api/timeline-rows/:id**: 행 삭제 (기본 행은 삭제 불가)
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -23,6 +25,8 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     const row = await prisma.timelineRow.findUnique({
@@ -47,6 +51,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const accessError = await assertProjectAccess(row.projectId, user!);
+    if (accessError) return accessError;
+
     return NextResponse.json(row);
   } catch (error) {
     console.error("타임라인 행 조회 실패:", error);
@@ -63,6 +70,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
     const body = await request.json();
     const { name, color, order, parentId } = body;
@@ -78,6 +87,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     // parentId가 지정된 경우 (다른 부모로 변경), 부모 행이 같은 프로젝트에 속하는지 확인
     if (parentId !== undefined) {
@@ -135,6 +147,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { id } = await params;
 
     // 행 존재 확인
@@ -148,6 +162,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.projectId, user!);
+    if (accessError) return accessError;
 
     // 기본 행은 삭제 불가
     if (existing.isDefault) {

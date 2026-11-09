@@ -17,7 +17,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * WBS 단위업무 기반 통계 조회
@@ -31,6 +31,12 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
+
+    // projectId 를 주면 그 프로젝트 멤버(또는 ADMIN)인지 확인
+    if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
+    }
 
     // 사용자가 속한 프로젝트 찾기
     const userProjects = await prisma.teamMember.findMany({

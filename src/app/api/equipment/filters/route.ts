@@ -6,10 +6,12 @@
  * 초보자 가이드:
  * - GET /api/equipment/filters?projectId=xxx → { lines: string[] }
  * - 사업부(구분코드) 단위 관리는 2026-11-09 제거됐다. 라인은 프로젝트 전체 기준이다.
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * GET /api/equipment/filters
@@ -17,6 +19,8 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireAuth();
+    if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
 
@@ -26,6 +30,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
 
     const lines = await prisma.equipment.findMany({
       where: { projectId, lineCode: { not: null } },

@@ -9,11 +9,13 @@
  * 2. **병렬 집계**: Promise.all로 4개 count 쿼리 동시 실행
  * 3. **프로젝트 필터**: projectId 파라미터로 특정 프로젝트만 조회
  * 4. **성능**: Prisma count는 SELECT COUNT(*) 쿼리 생성 (최적화됨)
+ * 5. 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
+ *    - projectId 를 빼면 ADMIN 만 전체 집계, 그 외는 400 (useTodayStats 는 projectId 가 있을 때만 호출)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * 오늘 등록된 데이터 통계 조회
@@ -36,6 +38,13 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
+
+    if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
+    } else if (user!.role !== "ADMIN") {
+      return NextResponse.json({ error: "projectId 가 필요합니다." }, { status: 400 });
+    }
 
     // 오늘 날짜 범위 계산 (00:00:00 ~ 23:59:59)
     const today = new Date();

@@ -7,12 +7,13 @@
  * 초보자 가이드:
  * 1. **GET /api/weekly-reports/:id/items**: 항목 목록 조회
  * 2. **POST /api/weekly-reports/:id/items**: 새 항목 추가
+ * 3. 인증: requireAuth. GET 은 assertProjectAccess (보고서의 projectId 기준), POST 는 작성자 본인만
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { WorkCategory, ReportItemType } from "@prisma/client";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -40,6 +41,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(report.projectId, user!);
+    if (denied) return denied;
 
     const items = await prisma.weeklyReportItem.findMany({
       where: { reportId },
@@ -83,6 +87,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    // 로그인 확인 (입력 검사보다 먼저)
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id: reportId } = await params;
     const body = await request.json();
     const {
@@ -109,9 +117,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // 보고서 존재 확인
-    const { user, error } = await requireAuth();
-    if (error) return error;
-
     const report = await prisma.weeklyReport.findUnique({
       where: { id: reportId },
     });

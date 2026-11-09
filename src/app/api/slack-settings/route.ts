@@ -5,7 +5,7 @@
  * Slack 웹훅 설정의 조회(GET), 생성/수정(POST)을 처리합니다.
  *
  * 초보자 가이드:
- * 1. **GET /api/slack-settings**: 현재 Slack 설정 조회
+ * 1. **GET /api/slack-settings**: 현재 Slack 설정 조회 (인증 필요, webhookUrl 포함)
  * 2. **POST /api/slack-settings**: Slack 설정 생성 또는 수정
  */
 
@@ -19,6 +19,10 @@ import { requireAuth } from "@/lib/auth";
  */
 export async function GET(request: NextRequest) {
   try {
+    // 인증 확인 (webhookUrl 이 들어 있어 로그인 사용자만)
+    const { error } = await requireAuth();
+    if (error) return error;
+
     // 설정은 하나만 존재 (첫 번째 레코드 조회)
     const settings = await prisma.slackSettings.findFirst({
       orderBy: { createdAt: "asc" },

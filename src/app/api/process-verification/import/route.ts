@@ -15,10 +15,12 @@
  * - 각 시트의 "구분" 컬럼 값으로 카테고리를 자동 생성합니다
  * - 개요, 용어집 등 메타데이터 시트는 자동으로 스킵합니다
  * - businessUnit 은 DB 기본값(POLE)으로 저장됩니다 (2026-11-09 사업부 관리 제거)
+ * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import * as XLSX from "xlsx";
 
 /**
@@ -67,6 +69,9 @@ function parseYesNo(value: string | undefined | null): boolean {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     // FormData 파싱
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -108,6 +113,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     // 파일을 ArrayBuffer로 변환 후 XLSX 파싱
     const arrayBuffer = await file.arrayBuffer();

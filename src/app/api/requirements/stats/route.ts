@@ -8,11 +8,12 @@
  * 1. **GET /api/requirements/stats**: 요구사항 통계 조회
  *    - ?projectId=xxx: 특정 프로젝트만 (선택)
  *    - 없으면 모든 프로젝트 통합 통계
+ * 2. 인증: requireAuth. projectId 를 주면 assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /** 상태 라벨 매핑 */
 const statusLabels: Record<string, string> = {
@@ -34,6 +35,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
+    if (projectId) {
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
+    }
 
     // 사용자가 속한 프로젝트 찾기
     const userProjects = await prisma.teamMember.findMany({

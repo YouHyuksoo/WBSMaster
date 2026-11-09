@@ -7,6 +7,7 @@
  * 1. **POST /api/excel/import**: 매핑 정보와 데이터를 받아 DB에 벌크 생성
  * 2. **트랜잭션**: 모든 생성이 성공하거나 모두 롤백
  * 3. **반환 데이터**: success(성공 건수), failed(실패 건수), errors(오류 목록)
+ * 4. **인증**: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *
  * @example
  * const res = await fetch("/api/excel/import", {
@@ -21,7 +22,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -174,9 +175,9 @@ function parseDate(value: unknown): Date | null {
 }
 
 /**
- * 담당자 이름으로 User ID 찾기
+ * 담당자 이름 · 이메일로 User ID 찾기 (이 프로젝트 팀 멤버 안에서만)
  */
-async function findUserId(name: unknown): Promise<string | null> {
+async function findUserId(name: unknown, projectId: string): Promise<string | null> {
   if (!name || typeof name !== "string") return null;
 
   const trimmed = name.trim();
@@ -184,6 +185,7 @@ async function findUserId(name: unknown): Promise<string | null> {
 
   const user = await prisma.user.findFirst({
     where: {
+      teamMembers: { some: { projectId } },
       OR: [
         { name: { contains: trimmed, mode: "insensitive" } },
         { email: { contains: trimmed, mode: "insensitive" } },
@@ -258,6 +260,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const accessError = await assertProjectAccess(projectId, user!);
+    if (accessError) return accessError;
+
     // 결과 추적
     const results = {
       success: 0,
@@ -299,7 +304,7 @@ export async function POST(request: NextRequest) {
         const startDate = parseDate(startDateRaw);
 
         // 담당자 찾기
-        const assigneeId = await findUserId(assigneeRaw);
+        const assigneeId = await findUserId(assigneeRaw, projectId);
 
         // 타겟별 생성
         switch (targetType) {

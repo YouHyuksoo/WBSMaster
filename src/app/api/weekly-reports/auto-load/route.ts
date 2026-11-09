@@ -13,11 +13,13 @@
  * 반환 데이터:
  * - previousPlanItems: 전주 차주계획 항목들 (NEXT_PLAN → PREVIOUS_RESULT로 변환 가능)
  * - completedTasks: 해당 주에 완료된 Task 목록
+ *
+ * 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUser } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
  * ISO 주차 계산 함수
@@ -55,6 +57,9 @@ function getWeekDateRange(year: number, weekNumber: number): { start: Date; end:
  */
 export async function GET(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const yearStr = searchParams.get("year");
@@ -68,20 +73,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
+
     const year = parseInt(yearStr, 10);
     const weekNumber = parseInt(weekNumberStr, 10);
 
-    // 현재 사용자 확인
-    const currentUser = await getUser();
-
-    if (!currentUser) {
-      return NextResponse.json(
-        { error: "사용자 인증이 필요합니다." },
-        { status: 401 }
-      );
-    }
-
-    const currentUserId = currentUser.id;
+    const currentUserId = user!.id;
 
     // 전주 계산
     let prevYear = year;

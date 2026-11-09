@@ -1,6 +1,7 @@
 /**
  * @file src/app/api/verify-delay-rate/route.ts
  * @description
+ * (관리자 전용: ADMIN 이 아니면 403)
  * WBS 지연율 검증 API 엔드포인트입니다.
  * 실제 데이터를 조회하여 지연율을 계산하고 상세 정보를 반환합니다.
  *
@@ -10,6 +11,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * 지연 여부 판단
@@ -62,6 +64,13 @@ function getDelayDays(endDate: Date | null, progress: number = 0, actualEndDate?
 
 export async function GET() {
   try {
+    // 관리자 전용 (전체 프로젝트 데이터를 다룬다)
+    const { user, error } = await requireAuth();
+    if (!user) return error!;
+    if (user.role !== "ADMIN") {
+      return NextResponse.json({ error: "관리자만 사용할 수 있습니다." }, { status: 403 });
+    }
+
     // 모든 프로젝트 조회
     const projects = await prisma.project.findMany({
       select: {

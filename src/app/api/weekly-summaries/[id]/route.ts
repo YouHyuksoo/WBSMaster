@@ -8,10 +8,13 @@
  * 1. **GET**: 단일 취합 보고서 조회
  * 2. **PATCH**: 취합 보고서 수정 (제목, LLM 분석 결과 등)
  * 3. **DELETE**: 취합 보고서 삭제
+ * 4. 인증: requireAuth + assertProjectAccess (취합 보고서의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
+ *    - 재취합 시 같은 프로젝트의 주간보고만 읽는다
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -23,6 +26,9 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
 
     const summary = await prisma.weeklySummary.findUnique({
@@ -52,6 +58,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const denied = await assertProjectAccess(summary.projectId, user!);
+    if (denied) return denied;
+
     return NextResponse.json(summary);
   } catch (error) {
     console.error("Failed to fetch weekly summary:", error);
@@ -68,7 +77,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
+
+    const owner = await prisma.weeklySummary.findUnique({
+      where: { id },
+      select: { projectId: true },
+    });
+    if (!owner) {
+      return NextResponse.json(
+        { error: "Weekly summary not found" },
+        { status: 404 }
+      );
+    }
+    const denied = await assertProjectAccess(owner.projectId, user!);
+    if (denied) return denied;
+
     const body = await request.json();
 
     const { title, llmSummary, llmInsights, llmAnalyzedAt, reportIds } = body;
@@ -83,7 +109,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // 재취합: reportIds가 전달되면 보고서 데이터를 다시 취합
     if (reportIds && Array.isArray(reportIds) && reportIds.length > 0) {
       const reports = await prisma.weeklyReport.findMany({
-        where: { id: { in: reportIds } },
+        where: { id: { in: reportIds }, projectId: owner.projectId },
         include: {
           user: { select: { id: true, name: true, email: true } },
           items: true,
@@ -159,7 +185,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
+
+    const owner = await prisma.weeklySummary.findUnique({
+      where: { id },
+      select: { projectId: true },
+    });
+    if (!owner) {
+      return NextResponse.json(
+        { error: "Weekly summary not found" },
+        { status: 404 }
+      );
+    }
+    const denied = await assertProjectAccess(owner.projectId, user!);
+    if (denied) return denied;
 
     await prisma.weeklySummary.delete({
       where: { id },

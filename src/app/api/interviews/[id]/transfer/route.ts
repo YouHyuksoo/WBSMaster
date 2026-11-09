@@ -6,10 +6,12 @@
  * 초보자 가이드:
  * - POST /api/interviews/[id]/transfer: 인터뷰 이관
  *   - transferType: "CUSTOMER_REQUIREMENT" | "FIELD_ISSUE" | "DISCUSSION_ITEM"
+ * - 인증: requireAuth + assertProjectAccess (인터뷰가 속한 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /** Route 파라미터 타입 */
 interface RouteParams {
@@ -25,6 +27,9 @@ export async function POST(
   { params }: RouteParams
 ) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
     const body = await request.json();
     const { transferType } = body;
@@ -55,6 +60,9 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    const denied = await assertProjectAccess(interview.projectId, user!);
+    if (denied) return denied;
 
     // 이미 이관된 경우 확인
     if (interview.transferStatus === "TRANSFERRED") {

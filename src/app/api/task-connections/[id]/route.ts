@@ -3,11 +3,14 @@
  * @description
  * 태스크 연결 개별 API
  * DELETE: 연결 삭제
+ *
+ * 초보자 가이드:
+ * - 인증: requireAuth + assertProjectAccess (연결의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -17,10 +20,23 @@ type RouteParams = { params: Promise<{ id: string }> };
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) return error;
 
     const { id } = await params;
+
+    const existing = await prisma.taskConnection.findUnique({
+      where: { id },
+      select: { projectId: true },
+    });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "연결을 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+    const denied = await assertProjectAccess(existing.projectId, user!);
+    if (denied) return denied;
 
     await prisma.taskConnection.delete({
       where: { id },

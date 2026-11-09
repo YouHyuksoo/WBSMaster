@@ -8,7 +8,9 @@
  * 1. **GET /api/users**: 사용자 목록 조회 (팀 멤버 추가 시 검색용)
  *    - ?email=xxx: 이메일로 사용자 검색
  *    - ?name=xxx: 이름으로 사용자 검색
- * 2. **POST /api/users**: 새 사용자 생성 (Supabase Auth 연동 시 사용)
+ * 2. **POST /api/users**: 새 사용자 생성 (로그인 화면 회원가입 · 관리자 등록)
+ * - 인증: GET 은 로그인 필요. POST 는 회원가입이라 공개지만 role · id · 기본 비밀번호는 ADMIN 만 지정한다
+ *   (그 외 요청은 role=USER 고정, 비밀번호 필수). route-auth.test.ts 의 PUBLIC 목록에 이유가 있다.
  *
  * 수정 방법:
  * - 필터링 추가: where 조건 추가
@@ -17,6 +19,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUser, requireAuth } from "@/lib/auth";
 
 /**
  * 사용자 목록 조회
@@ -24,6 +27,9 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const email = searchParams.get("email");
     const name = searchParams.get("name");
@@ -95,6 +101,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { id, email, password, name, avatar, role, affiliation } = body;
 
+    // 회원가입은 공개. 역할 · ID · 기본 비밀번호는 관리자만 지정할 수 있다 (자가 ADMIN 가입 방지)
+    const requester = await getUser();
+    const isAdmin = requester?.role === "ADMIN";
+    if (!isAdmin && (!password || String(password).trim() === "")) {
+      return NextResponse.json({ error: "비밀번호는 필수입니다." }, { status: 400 });
+    }
+
     // 필수 필드 검증
     if (!email) {
       return NextResponse.json(
@@ -126,12 +139,12 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.create({
       data: {
-        ...(id && { id }),
+        ...(isAdmin && id && { id }),
         email,
         password: password || "admin123", // 기본 비밀번호
         name: name || email.split("@")[0],
         avatar,
-        role: role || "USER", // 시스템 역할 (기본: USER)
+        role: isAdmin ? role || "USER" : "USER", // 시스템 역할 (관리자만 지정, 기본: USER)
         affiliation: affiliation || null, // 소속
       },
       select: {

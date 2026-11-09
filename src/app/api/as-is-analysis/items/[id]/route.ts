@@ -8,11 +8,12 @@
  * - GET: 특정 항목 조회
  * - PATCH: 항목 수정
  * - DELETE: 항목 삭제
+ * - 인증: requireAuth + assertProjectAccess (총괄표의 프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -25,7 +26,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     // 인증 확인
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) return error;
 
     const { id } = await params;
@@ -50,6 +51,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const accessError = await assertProjectAccess(item.overview.projectId, user!);
+    if (accessError) return accessError;
+
     return NextResponse.json(item);
   } catch (error) {
     console.error("AS-IS 항목 조회 오류:", error);
@@ -67,7 +71,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     // 인증 확인
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) return error;
 
     const { id } = await params;
@@ -87,6 +91,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // 존재 여부 확인
     const existing = await prisma.asIsOverviewItem.findUnique({
       where: { id },
+      include: { overview: { select: { projectId: true } } },
     });
 
     if (!existing) {
@@ -95,6 +100,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.overview.projectId, user!);
+    if (accessError) return accessError;
 
     // 업데이트
     const item = await prisma.asIsOverviewItem.update({
@@ -136,7 +144,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // 인증 확인
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) return error;
 
     const { id } = await params;
@@ -144,6 +152,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // 존재 여부 확인
     const existing = await prisma.asIsOverviewItem.findUnique({
       where: { id },
+      include: { overview: { select: { projectId: true } } },
     });
 
     if (!existing) {
@@ -152,6 +161,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    const accessError = await assertProjectAccess(existing.overview.projectId, user!);
+    if (accessError) return accessError;
 
     // 삭제 (Cascade로 unitAnalysis도 함께 삭제됨)
     await prisma.asIsOverviewItem.delete({

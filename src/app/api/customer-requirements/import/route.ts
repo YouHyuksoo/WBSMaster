@@ -12,10 +12,12 @@
  * 엑셀 컬럼 순서 (화면의 "고객요구사항_템플릿"과 같아야 한다):
  * 순번, 요구번호, 업무구분, 기능명, 요구사항, 요청일자, 요청자, 적용방안, 적용여부, 비고
  * 사업부 컬럼은 없다. businessUnit 은 DB 기본값(POLE)으로 저장된다.
+ * 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { ApplyStatus } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { hasLegacyBusinessUnitColumn, LEGACY_TEMPLATE_MESSAGE } from "@/lib/import-guards";
@@ -85,6 +87,9 @@ function parseExcelDate(value: number | string | undefined | null): Date | null 
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+
     // FormData 파싱
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -105,6 +110,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
 
     // 파일 확장자 검증
     const fileName = file.name.toLowerCase();
