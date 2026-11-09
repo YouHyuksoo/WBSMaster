@@ -478,7 +478,7 @@ export default function FieldIssuesPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                      <p className="text-[10px] text-text-secondary">전체</p>
+                      <p className="text-sm text-text-secondary">전체</p>
                     </div>
                   </div>
                 </div>
@@ -491,7 +491,7 @@ export default function FieldIssuesPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.open}</p>
-                      <p className="text-[10px] text-text-secondary">발견</p>
+                      <p className="text-sm text-text-secondary">발견</p>
                     </div>
                   </div>
                 </div>
@@ -504,7 +504,7 @@ export default function FieldIssuesPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.inProgress}</p>
-                      <p className="text-[10px] text-text-secondary">수정 중</p>
+                      <p className="text-sm text-text-secondary">수정 중</p>
                     </div>
                   </div>
                 </div>
@@ -517,7 +517,7 @@ export default function FieldIssuesPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.resolved}</p>
-                      <p className="text-[10px] text-text-secondary">해결</p>
+                      <p className="text-sm text-text-secondary">해결</p>
                     </div>
                   </div>
                 </div>
@@ -530,7 +530,7 @@ export default function FieldIssuesPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.wontFix}</p>
-                      <p className="text-[10px] text-text-secondary">수정안함</p>
+                      <p className="text-sm text-text-secondary">수정안함</p>
                     </div>
                   </div>
                 </div>
@@ -543,7 +543,7 @@ export default function FieldIssuesPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.closed}</p>
-                      <p className="text-[10px] text-text-secondary">완료</p>
+                      <p className="text-sm text-text-secondary">완료</p>
                     </div>
                   </div>
                 </div>

@@ -363,7 +363,7 @@ export default function DiscussionItemsPage() {
                 </div>
                 <div>
                   <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-[10px] text-text-secondary">전체</p>
+                  <p className="text-sm text-text-secondary">전체</p>
                 </div>
               </div>
             </div>
@@ -376,7 +376,7 @@ export default function DiscussionItemsPage() {
                 </div>
                 <div>
                   <p className="text-xl font-bold text-text dark:text-white">{stats.discussing}</p>
-                  <p className="text-[10px] text-text-secondary">협의 중</p>
+                  <p className="text-sm text-text-secondary">협의 중</p>
                 </div>
               </div>
             </div>
@@ -389,7 +389,7 @@ export default function DiscussionItemsPage() {
                 </div>
                 <div>
                   <p className="text-xl font-bold text-text dark:text-white">{stats.converted}</p>
-                  <p className="text-[10px] text-text-secondary">변환됨</p>
+                  <p className="text-sm text-text-secondary">변환됨</p>
                 </div>
               </div>
             </div>
@@ -402,7 +402,7 @@ export default function DiscussionItemsPage() {
                 </div>
                 <div>
                   <p className="text-xl font-bold text-text dark:text-white">{stats.blocked}</p>
-                  <p className="text-[10px] text-text-secondary">보류</p>
+                  <p className="text-sm text-text-secondary">보류</p>
                 </div>
               </div>
             </div>
@@ -415,7 +415,7 @@ export default function DiscussionItemsPage() {
                 </div>
                 <div>
                   <p className="text-xl font-bold text-text dark:text-white">{stats.completed}</p>
-                  <p className="text-[10px] text-text-secondary">완료</p>
+                  <p className="text-sm text-text-secondary">완료</p>
                 </div>
               </div>
             </div>

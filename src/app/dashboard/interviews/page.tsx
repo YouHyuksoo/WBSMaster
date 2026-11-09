@@ -460,7 +460,7 @@ export default function InterviewsPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                      <p className="text-[10px] text-text-secondary">전체</p>
+                      <p className="text-sm text-text-secondary">전체</p>
                     </div>
                   </div>
                 </div>
@@ -473,7 +473,7 @@ export default function InterviewsPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.notTransferred}</p>
-                      <p className="text-[10px] text-text-secondary">미이관</p>
+                      <p className="text-sm text-text-secondary">미이관</p>
                     </div>
                   </div>
                 </div>
@@ -486,7 +486,7 @@ export default function InterviewsPage() {
                     </div>
                     <div>
                       <p className="text-xl font-bold text-text dark:text-white">{stats.transferred}</p>
-                      <p className="text-[10px] text-text-secondary">이관완료</p>
+                      <p className="text-sm text-text-secondary">이관완료</p>
                     </div>
                   </div>
                 </div>

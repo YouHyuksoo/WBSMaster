@@ -376,7 +376,7 @@ export default function ChatHistoryPage() {
               </div>
               <div>
                 <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                <p className="text-[10px] text-text-secondary">전체</p>
+                <p className="text-sm text-text-secondary">전체</p>
               </div>
             </div>
           </div>
@@ -401,7 +401,7 @@ export default function ChatHistoryPage() {
               </div>
               <div>
                 <p className="text-xl font-bold text-text dark:text-white">{stats.positive}</p>
-                <p className="text-[10px] text-text-secondary">긍정</p>
+                <p className="text-sm text-text-secondary">긍정</p>
               </div>
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function ChatHistoryPage() {
               </div>
               <div>
                 <p className="text-xl font-bold text-text dark:text-white">{stats.negative}</p>
-                <p className="text-[10px] text-text-secondary">부정</p>
+                <p className="text-sm text-text-secondary">부정</p>
               </div>
             </div>
           </div>
@@ -427,7 +427,7 @@ export default function ChatHistoryPage() {
               </div>
               <div>
                 <p className="text-xl font-bold text-text dark:text-white">{formatTime(stats.avgProcessingTimeMs)}</p>
-                <p className="text-[10px] text-text-secondary">처리시간</p>
+                <p className="text-sm text-text-secondary">처리시간</p>
               </div>
             </div>
           </div>
@@ -440,7 +440,7 @@ export default function ChatHistoryPage() {
               </div>
               <div>
                 <p className="text-xl font-bold text-text dark:text-white">{formatTime(stats.avgSqlExecTimeMs)}</p>
-                <p className="text-[10px] text-text-secondary">SQL 실행</p>
+                <p className="text-sm text-text-secondary">SQL 실행</p>
               </div>
             </div>
           </div>

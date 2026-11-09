@@ -155,7 +155,7 @@ export default function BackupsPage() {
             </div>
             <div>
               <p className="text-xl font-bold text-text dark:text-white">{backups.length}</p>
-              <p className="text-[10px] text-text-secondary">총 백업 수</p>
+              <p className="text-sm text-text-secondary">총 백업 수</p>
             </div>
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function BackupsPage() {
             </div>
             <div>
               <p className="text-xl font-bold text-text dark:text-white">{formatFileSize(totalSize)}</p>
-              <p className="text-[10px] text-text-secondary">총 용량</p>
+              <p className="text-sm text-text-secondary">총 용량</p>
             </div>
           </div>
         </div>

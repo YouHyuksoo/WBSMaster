@@ -542,10 +542,10 @@ export default function ProcessVerificationPage() {
                 {/* 적용률 카드 */}
                 <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <Icon name="speed" size="xs" className="text-primary" />
-                    <span className="text-xs font-semibold text-primary">적용률</span>
+                    <Icon name="speed" size="sm" className="text-primary" />
+                    <span className="text-sm font-semibold text-primary">적용률</span>
                   </div>
-                  <p className="text-2xl font-bold text-primary mb-1">
+                  <p className="text-3xl font-bold text-primary mb-1">
                     {stats.total > 0 ? Math.round((stats.applied / stats.total) * 100) : 0}%
                   </p>
                   <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
@@ -557,45 +557,45 @@ export default function ProcessVerificationPage() {
                 </div>
                 <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
                   <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Icon name="checklist" size="xs" className="text-primary" />
+                    <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Icon name="checklist" size="sm" className="text-primary" />
                     </div>
                     <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                      <p className="text-[10px] text-text-secondary">전체</p>
+                      <p className="text-2xl font-bold leading-tight text-text dark:text-white">{stats.total}</p>
+                      <p className="text-sm text-text-secondary">전체</p>
                     </div>
                   </div>
                 </div>
                 <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
                   <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                      <Icon name="check_circle" size="xs" className="text-success" />
+                    <div className="size-10 rounded-lg bg-success/10 flex items-center justify-center">
+                      <Icon name="check_circle" size="sm" className="text-success" />
                     </div>
                     <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{stats.applied}</p>
-                      <p className="text-[10px] text-text-secondary">적용</p>
+                      <p className="text-2xl font-bold leading-tight text-text dark:text-white">{stats.applied}</p>
+                      <p className="text-sm text-text-secondary">적용</p>
                     </div>
                   </div>
                 </div>
                 <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
                   <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                      <Icon name="pending" size="xs" className="text-warning" />
+                    <div className="size-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <Icon name="pending" size="sm" className="text-warning" />
                     </div>
                     <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{stats.notApplied}</p>
-                      <p className="text-[10px] text-text-secondary">미적용</p>
+                      <p className="text-2xl font-bold leading-tight text-text dark:text-white">{stats.notApplied}</p>
+                      <p className="text-sm text-text-secondary">미적용</p>
                     </div>
                   </div>
                 </div>
                 <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
                   <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                      <Icon name="category" size="xs" className="text-cyan-500" />
+                    <div className="size-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                      <Icon name="category" size="sm" className="text-cyan-600 dark:text-cyan-400" />
                     </div>
                     <div>
-                      <p className="text-xl font-bold text-text dark:text-white">{categories.length}</p>
-                      <p className="text-[10px] text-text-secondary">카테고리</p>
+                      <p className="text-2xl font-bold leading-tight text-text dark:text-white">{categories.length}</p>
+                      <p className="text-sm text-text-secondary">카테고리</p>
                     </div>
                   </div>
                 </div>

@@ -263,19 +263,19 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
           <div className="grid grid-cols-4 gap-2 text-center">
             <div>
               <p className="text-xl font-bold text-text dark:text-white">{wbs.total}</p>
-              <p className="text-[10px] text-text-secondary">전체</p>
+              <p className="text-sm text-text-secondary">전체</p>
             </div>
             <div>
               <p className="text-xl font-bold text-emerald-500">{wbs.completed}</p>
-              <p className="text-[10px] text-text-secondary">완료</p>
+              <p className="text-sm text-text-secondary">완료</p>
             </div>
             <div>
               <p className="text-xl font-bold text-sky-500">{wbs.inProgress}</p>
-              <p className="text-[10px] text-text-secondary">진행중</p>
+              <p className="text-sm text-text-secondary">진행중</p>
             </div>
             <div>
               <p className="text-xl font-bold text-rose-500">{wbs.delayed}</p>
-              <p className="text-[10px] text-text-secondary">지연</p>
+              <p className="text-sm text-text-secondary">지연</p>
             </div>
           </div>
           {/* 계획 vs 실적 진행률 바 */}
@@ -304,12 +304,12 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
             {/* 계획 */}
             <div className="text-center p-2 rounded-lg bg-sky-500/10">
               <p className="text-xl font-bold text-sky-500">{wbs.plannedProgress}%</p>
-              <p className="text-[10px] text-text-secondary">계획</p>
+              <p className="text-sm text-text-secondary">계획</p>
             </div>
             {/* 실적 */}
             <div className="text-center p-2 rounded-lg bg-primary/10">
               <p className="text-xl font-bold text-primary">{wbs.actualProgress}%</p>
-              <p className="text-[10px] text-text-secondary">실적</p>
+              <p className="text-sm text-text-secondary">실적</p>
             </div>
             {/* 지연율 */}
             <div className={`text-center p-2 rounded-lg ${
@@ -329,7 +329,7 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
               wbs.achievementRate >= 60 ? "bg-amber-500/10" : "bg-rose-500/10"
             }`}>
               <p className={`text-xl font-bold ${achievementColor}`}>{wbs.achievementRate}%</p>
-              <p className="text-[10px] text-text-secondary">달성률</p>
+              <p className="text-sm text-text-secondary">달성률</p>
             </div>
           </div>
           {/* 산출근거 설명 */}
