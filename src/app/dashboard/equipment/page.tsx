@@ -6,7 +6,7 @@
  * 초보자 가이드:
  * 1. **EquipmentToolbar**: 상단 툴바 (제목, 프로젝트 정보, 새 설비 추가)
  * 2. **필터 바**: 라인, 타입, 상태, 위치 필터링 (캔버스 상단)
- *    - 라인 선택 필수: 성능 최적화를 위해 라인을 선택해야 설비 표시
+ *    - 라인도 다른 필터와 같은 일반 필터: 기본값 "전체 라인"(ALL), 라인을 고르면 API 에서 그 라인만 조회
  *    - 라인 목록은 프로젝트 전체 라인을 불러온다 (filters API 에 "ALL" 전달)
  * 3. **EquipmentCanvas**: 중앙 캔버스 (노드 + 연결선)
  * 4. **EquipmentListPanel**: 좌측 설비 목록
@@ -61,7 +61,7 @@ export default function EquipmentPage() {
   });
 
   // 필터 상태 (초기값: 선택 안 됨)
-  const [lineFilter, setLineFilter] = useState<string>(""); // 빈 문자열: 선택 안 됨
+  const [lineFilter, setLineFilter] = useState<string>("ALL");
   const [typeFilter, setTypeFilter] = useState<EquipmentType | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<EquipmentStatus | "ALL">("ALL");
   const [locationFilter, setLocationFilter] = useState<string>("ALL");
@@ -129,8 +129,8 @@ export default function EquipmentPage() {
   // 설비 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
   const equipmentFilters = useMemo(
     () => ({
-      projectId: lineFilter ? (selectedProjectId || undefined) : undefined, // 라인 미선택 시 조회 비활성화
-      lineCode: lineFilter && lineFilter !== "ALL" ? lineFilter : undefined,
+      projectId: selectedProjectId || undefined,
+      lineCode: lineFilter !== "ALL" ? lineFilter : undefined,
     }),
     [selectedProjectId, lineFilter]
   );
@@ -471,19 +471,12 @@ export default function EquipmentPage() {
               <span className="text-sm font-medium text-text dark:text-white">필터</span>
             </div>
 
-            {/* 라인 필터 (선택해야 설비 표시) */}
+            {/* 라인 필터 */}
             <select
               value={lineFilter}
               onChange={(e) => setLineFilter(e.target.value)}
-              className={`px-3 py-1.5 rounded-lg bg-background-white dark:bg-background-dark border text-sm focus:outline-none focus:ring-2 focus:ring-primary ${
-                !lineFilter
-                  ? "border-warning text-warning font-medium"
-                  : "border-border dark:border-border-dark text-text dark:text-white"
-              }`}
+              className="px-3 py-1.5 rounded-lg bg-background-white dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="" disabled>
-                ⚠️ 라인을 선택하세요
-              </option>
               <option value="ALL">전체 라인</option>
               {uniqueLines.map((line) => (
                 <option key={line} value={line}>
@@ -535,10 +528,10 @@ export default function EquipmentPage() {
             </select>
 
             {/* 필터 초기화 버튼 */}
-            {((lineFilter && lineFilter !== "ALL") || typeFilter !== "ALL" || statusFilter !== "ALL" || locationFilter !== "ALL") && (
+            {(lineFilter !== "ALL" || typeFilter !== "ALL" || statusFilter !== "ALL" || locationFilter !== "ALL") && (
               <button
                 onClick={() => {
-                  setLineFilter(""); // 빈 문자열로 초기화
+                  setLineFilter("ALL");
                   setTypeFilter("ALL");
                   setStatusFilter("ALL");
                   setLocationFilter("ALL");
@@ -575,7 +568,6 @@ export default function EquipmentPage() {
                 }}
                 onFocus={() => setIsSearchDropdownOpen(true)}
                 placeholder="설비명 또는 코드 입력..."
-                disabled={!lineFilter}
                 className="w-48 px-3 py-1.5 rounded-lg bg-background-white dark:bg-background-dark border border-border dark:border-border-dark text-sm text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {/* 검색 결과 드롭다운 */}
@@ -709,31 +701,14 @@ export default function EquipmentPage() {
           ) : (
             // 캔버스 보기
             <>
-              {!lineFilter ? (
-                // 라인 미선택 시 안내 메시지
-                <div className="flex-1 flex items-center justify-center bg-surface dark:bg-background-dark">
-                  <div className="text-center">
-                    <span className="material-symbols-outlined text-warning mb-4" style={{ fontSize: 64 }}>
-                      linear_scale
-                    </span>
-                    <h2 className="text-xl font-bold text-text dark:text-white mb-2">
-                      라인을 선택해주세요
-                    </h2>
-                    <p className="text-text-secondary mb-4">
-                      상단의 라인 필터에서 보려는 라인을 선택하세요.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <EquipmentCanvas
-                  equipments={filteredEquipments}
-                  connections={connections}
-                  selectedId={selectedEquipmentId}
-                  onSelectNode={setSelectedEquipmentId}
-                  focusEquipmentId={focusEquipmentId}
-                  onFocusComplete={() => setFocusEquipmentId(null)}
-                />
-              )}
+              <EquipmentCanvas
+                equipments={filteredEquipments}
+                connections={connections}
+                selectedId={selectedEquipmentId}
+                onSelectNode={setSelectedEquipmentId}
+                focusEquipmentId={focusEquipmentId}
+                onFocusComplete={() => setFocusEquipmentId(null)}
+              />
             </>
           )}
         </div>
