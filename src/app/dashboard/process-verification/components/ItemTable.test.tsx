@@ -73,6 +73,14 @@ describe("기능추적표 jisung-ui 전환", () => {
     expect(screen.getByRole("checkbox", { name: "TEST-001 적용" })).toBeTruthy();
   });
 
+  it("AS-IS 관리번호는 가로 스크롤 없이 보이도록 관리코드 바로 다음 칸이다", () => {
+    show([item(1)]);
+    const headers = [...document.querySelectorAll("thead th")].map((th) => th.textContent ?? "");
+    const code = headers.findIndex((h) => h.includes("관리코드"));
+    expect(code).toBeGreaterThanOrEqual(0);
+    expect(headers[code + 1]).toContain("AS-IS 관리번호");
+  });
+
   it("20행씩 이동하며 컬럼 검색 시 첫 페이지로 돌아온다", () => {
     show(Array.from({ length: 21 }, (_, i) => item(i + 1)));
     expect(screen.queryByRole("checkbox", { name: "TEST-021 적용" })).toBeNull();

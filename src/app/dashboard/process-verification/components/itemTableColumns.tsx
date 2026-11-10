@@ -54,6 +54,8 @@ export function createItemTableColumns(actions: ItemTableActions): ColumnDef<Pro
     },
     { accessorKey: "productType", header: "제품유형", size: 90, meta: { filterType: "select" } },
     textColumn("managementCode", "관리코드", 120),
+    // 개발범위(요약) 연결 번호를 바로 보이게 관리코드 옆에 둔다 (2026-11-10)
+    textColumn("asIsCode", "AS-IS 관리번호", 150),
     textColumn("category", "구분", 100),
     textColumn("managementArea", "관리영역", 140),
     textColumn("detailItem", "세부항목", 160),
@@ -91,7 +93,6 @@ export function createItemTableColumns(actions: ItemTableActions): ColumnDef<Pro
     { id: "existingMes", header: "기존MES", size: 90,
       accessorFn: item => item.existingMes ? "Y" : "N", meta: { filterType: "select", align: "center",
         filterOptions: ["Y", "N"].map(value => ({ value, label: value })) } },
-    textColumn("asIsCode", "AS-IS 관리번호", 140),
     textColumn("toBeCode", "TO-BE 관리번호", 140),
   ];
 }
