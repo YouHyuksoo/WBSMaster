@@ -1068,7 +1068,7 @@ export function MilestoneTimeline({
                           <DroppableRowArea
                             key={currentRow.id}
                             rowId={currentRow.id}
-                            className={`flex relative overflow-visible timeline-container transition-colors hover:brightness-95 dark:hover:brightness-110 border-b border-slate-200 dark:border-slate-700`}
+                            className={`flex relative overflow-visible timeline-container transition-shadow hover:shadow-[inset_0_0_0_9999px_rgba(0,0,0,0.04)] dark:hover:shadow-[inset_0_0_0_9999px_rgba(255,255,255,0.05)] border-b border-slate-200 dark:border-slate-700`}
                             style={{
                               height: ROW_HEIGHT,
                               backgroundColor: `${row.color}10`, // 그룹 색상 배경 (6% opacity)
