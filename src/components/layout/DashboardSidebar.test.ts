@@ -28,6 +28,27 @@ const featureDirs = readdirSync(DASHBOARD_DIR, { withFileTypes: true })
   .map((d) => d.name);
 
 describe("사이드바 메뉴 등록", () => {
+  it("메뉴의 다크 호버는 밝은 상태 토큰을 공유한다", () => {
+    expect(sidebar).not.toContain("dark:hover:bg-surface-dark");
+    expect(sidebar).toContain("dark:hover:bg-surface-hover");
+    expect(sidebar).toContain("focus-visible:ring-2");
+    // 일반 메뉴 · 관리 펼침 버튼 · 관리 서브메뉴 · 도움말
+    expect(sidebar.match(/\$\{menuInteractionClassName\}/g)).toHaveLength(4);
+  });
+
+  it("로그아웃은 헤더 사용자 메뉴에만 있고 사이드바에는 없다", () => {
+    expect(sidebar).not.toContain("/api/auth/logout");
+    expect(sidebar).not.toContain(">로그아웃<");
+  });
+
+  it("관리 메뉴는 접고 펼치는 서브메뉴이고 관리 화면에서는 펼쳐진다", () => {
+    expect(sidebar).toContain('aria-controls="sidebar-management-menu"');
+    expect(sidebar).toContain("aria-expanded={isManagementOpen}");
+    expect(sidebar).toContain("useState(isInManagement)");
+    expect(sidebar).toMatch(/>\s*시스템관리\s*<\/p>/);
+    expect(sidebar).not.toMatch(/>\s*Management\s*<\/p>/);
+  });
+
   it("모든 기능 페이지가 메뉴에 있다 (예외 목록 제외)", () => {
     const missing = featureDirs.filter((name) => !NOT_IN_MENU[name] && !sidebar.includes(`"/dashboard/${name}"`));
     expect(missing).toEqual([]);
