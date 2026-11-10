@@ -52,7 +52,12 @@ describe("좌측 메뉴 등록 (menu-config.ts)", () => {
   it("처음 배치에 모든 메뉴가 정확히 한 번 있고, 마이그레이션 SQL 이 같은 배치 · 권한을 넣는다", () => {
     const placed = DEFAULT_MENU_LAYOUT.flatMap((c) => c.menus);
     expect([...placed].sort()).toEqual(MENU_REGISTRY.map((m) => m.code).sort());
-    const migration = read("prisma", "migrations", "20261110150000_menu_management", "migration.sql");
+    // 메뉴 배치 · 권한은 여러 마이그레이션에 나뉘어 있을 수 있다 (처음 배치 + 이후 추가 메뉴)
+    const migDir = join(ROOT, "prisma", "migrations");
+    const migration = readdirSync(migDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && existsSync(join(migDir, d.name, "migration.sql")))
+      .map((d) => readFileSync(join(migDir, d.name, "migration.sql"), "utf8"))
+      .join(String.fromCharCode(10));
     for (const c of DEFAULT_MENU_LAYOUT) {
       for (const m of c.menus) expect(migration).toContain(`VALUES ('${m}','${c.code}',`);
     }

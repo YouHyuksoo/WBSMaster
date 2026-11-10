@@ -109,6 +109,38 @@ async function del<T>(url: string): Promise<T> {
 // 타입 정의
 // ============================================
 
+/** TO-BE 설계 (GET /api/to-be) */
+export interface ToBeAsIsRef {
+  id: string;
+  asIsManagementNo: string | null;
+  taskName: string;
+  majorCategory: string;
+  middleCategory: string;
+}
+export interface ToBeItem {
+  id: string;
+  toBeManagementNo: string;
+  majorCategory: string;
+  middleCategory: string;
+  taskName: string;
+  changeType: "NEW" | "IMPROVE" | "KEEP" | "RETIRE";
+  targetMethod: "SYSTEM" | "AUTO" | "POP" | "PDA" | "MANUAL";
+  summary: string | null;
+  priority: "HIGH" | "MEDIUM" | "LOW" | null;
+  status: "DRAFT" | "REVIEW" | "CONFIRMED";
+  sfrCodes: string[];
+  order: number;
+  asIsItems: ToBeAsIsRef[];
+  updatedAt: string;
+}
+export interface ToBeData {
+  overview: { id: string; author: string | null };
+  items: ToBeItem[];
+  asIsOptions: Array<ToBeAsIsRef & { currentMethod: string }>;
+  sfrOptions: Array<{ code: string; label: string }>;
+}
+export type ToBeItemInput = Partial<Pick<ToBeItem, "majorCategory" | "middleCategory" | "taskName" | "changeType" | "targetMethod" | "summary" | "priority" | "status" | "sfrCodes">> & { asIsItemIds?: string[] };
+
 /** 대시보드 상단 프로젝트 한눈에 (GET /api/dashboard/project-pulse) — src/lib/dashboard/project-pulse.ts 와 같은 모양 */
 export interface PulseCounts {
   tasks: number;
@@ -1326,6 +1358,15 @@ export const api = {
       targetHandle?: string;
     }) => post<TaskConnection>("/api/task-connections", data),
     delete: (id: string) => del<{ message: string }>(`/api/task-connections/${id}`),
+  },
+
+  /** TO-BE 설계 API */
+  toBe: {
+    get: (projectId: string) => get<ToBeData>("/api/to-be", { projectId }),
+    create: (projectId: string, data: ToBeItemInput) => post<ToBeItem>("/api/to-be/items", { projectId, ...data }),
+    update: (id: string, data: ToBeItemInput) => patch<ToBeItem>(`/api/to-be/items/${id}`, data),
+    delete: (id: string) => del<{ success: boolean }>(`/api/to-be/items/${id}`),
+    draftFromAsIs: (projectId: string) => post<{ created: number; skipped: number }>("/api/to-be/draft", { projectId }),
   },
 
   /** 대시보드 상단 "프로젝트 한눈에" 집계 (오늘 · 누적 · 미결 · 긴급 · 14일 추이) */

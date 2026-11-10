@@ -166,6 +166,7 @@ model Project {
   categoryPlans                 ProgressCategoryPlan[] // 진도 카테고리별 오픈 기준일
   progressRiskIssues            ProgressRiskIssue[] // 진도 리스크 이슈
 
+  toBeOverview ToBeOverview? // TO-BE 설계 총괄 (프로젝트당 1개)
   @@map("projects")
 }
 
@@ -1919,6 +1920,7 @@ model AsIsOverviewItem {
   overviewId   String
   overview     AsIsOverview      @relation(fields: [overviewId], references: [id], onDelete: Cascade)
   unitAnalysis AsIsUnitAnalysis? // 단위업무 상세 분석 (1:1)
+  toBeLinks    ToBeAsIsLink[] // 이 현행 업무를 이어받는 TO-BE 업무
 
   @@index([overviewId])
   @@index([majorCategory])
@@ -2541,4 +2543,83 @@ model UserMenuFavorite {
   @@id([userId, menuCode])
   @@index([folderId])
   @@map("user_menu_favorites")
+}
+
+// ============================================
+// TO-BE 설계 (2026-11-10, docs/specs/2026-11-10-to-be-design.md 1단계)
+// AS-IS 총괄과 짝: 프로젝트당 총괄 1개 + TO-BE 단위업무. AS-IS 업무와 N:M 연결, 기능(SFR)은 코드 문자열로 연결
+// ============================================
+
+/// 변화 유형
+enum ToBeChangeType {
+  NEW // 신규
+  IMPROVE // 개선
+  KEEP // 유지
+  RETIRE // 폐지
+}
+
+/// 목표 방식
+enum ToBeTargetMethod {
+  SYSTEM // 시스템
+  AUTO // 자동 (설비 연계)
+  POP // 현장 POP
+  PDA // 모바일 PDA
+  MANUAL // 수기 유지
+}
+
+/// 작성 상태
+enum ToBeStatus {
+  DRAFT // 작성중
+  REVIEW // 협의중
+  CONFIRMED // 확정
+}
+
+model ToBeOverview {
+  id        String     @id @default(uuid())
+  author    String? // 작성자
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  projectId String     @unique
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items     ToBeItem[]
+
+  @@map("to_be_overviews")
+}
+
+model ToBeItem {
+  id               String            @id @default(uuid())
+  toBeManagementNo String // TO-BE 관리번호 (TB-001, 프로젝트 안에서 유일)
+  majorCategory    AsIsMajorCategory // 대분류 (AS-IS 와 같은 분류)
+  middleCategory   String // 중분류
+  taskName         String // 업무명
+  changeType       ToBeChangeType    @default(IMPROVE)
+  targetMethod     ToBeTargetMethod  @default(SYSTEM)
+  summary          String? // 개선 요약 (무엇이 달라지는가)
+  priority         String? // HIGH · MEDIUM · LOW
+  status           ToBeStatus        @default(DRAFT)
+  sfrCodes         String[]          @default([]) // 연결 기능 요구사항 (기능추적표 toBeCode, 예: SFR-012)
+  order            Int               @default(0)
+  flowChartData    Json? // TO-BE 흐름 (2단계)
+  swimlaneData     Json? // TO-BE Swimlane (2단계)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  overviewId       String
+  overview         ToBeOverview      @relation(fields: [overviewId], references: [id], onDelete: Cascade)
+  asIsLinks        ToBeAsIsLink[]
+
+  @@unique([overviewId, toBeManagementNo])
+  @@index([overviewId])
+  @@map("to_be_items")
+}
+
+/// TO-BE 업무 ↔ AS-IS 업무 (N:M)
+model ToBeAsIsLink {
+  toBeItemId String
+  toBeItem   ToBeItem         @relation(fields: [toBeItemId], references: [id], onDelete: Cascade)
+  asIsItemId String
+  asIsItem   AsIsOverviewItem @relation(fields: [asIsItemId], references: [id], onDelete: Cascade)
+
+  @@id([toBeItemId, asIsItemId])
+  @@index([asIsItemId])
+  @@map("to_be_as_is_links")
 }

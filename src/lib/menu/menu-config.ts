@@ -42,6 +42,7 @@ export const MENU_REGISTRY: readonly MenuLeaf[] = [
   { code: "INTERVIEW", label: "인터뷰 관리", icon: "mic", href: "/dashboard/interviews" },
   { code: "MEETING_MINUTE", label: "회의록관리", icon: "event_note", href: "/dashboard/meeting-minutes" },
   { code: "AS_IS", label: "AS-IS 분석", icon: "analytics", href: "/dashboard/as-is-analysis" },
+  { code: "TO_BE", label: "TO-BE 설계", icon: "architecture", href: "/dashboard/to-be" },
   { code: "CUSTOMER_REQ", label: "요구사항관리", icon: "contact_page", href: "/dashboard/customer-requirements" },
   { code: "FIELD_ISSUE", label: "이슈사항관리", icon: "support_agent", href: "/dashboard/field-issues" },
   { code: "DISCUSSION", label: "협의요청관리", icon: "forum", href: "/dashboard/discussion-items" },
@@ -72,7 +73,7 @@ export interface DefaultCategory {
 export const DEFAULT_MENU_LAYOUT: readonly DefaultCategory[] = [
   {
     code: ROOT_CATEGORY, label: "메뉴", icon: null,
-    menus: ["DASHBOARD", "WBS", "MILESTONE", "PROGRESS_RISK", "TASK", "SCHEDULE", "INTERVIEW", "MEETING_MINUTE", "AS_IS",
+    menus: ["DASHBOARD", "WBS", "MILESTONE", "PROGRESS_RISK", "TASK", "SCHEDULE", "INTERVIEW", "MEETING_MINUTE", "AS_IS", "TO_BE",
       "CUSTOMER_REQ", "FIELD_ISSUE", "DISCUSSION", "PROCESS_VERIFICATION", "EQUIPMENT", "WEEKLY_REPORT", "DOCUMENT", "AI_CHAT"],
   },
   {
