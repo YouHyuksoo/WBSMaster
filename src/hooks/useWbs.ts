@@ -234,3 +234,17 @@ export function useWbsScheduleStats(params: { projectId?: string }) {
     refetchOnReconnect: false,
   });
 }
+
+/**
+ * 대시보드 상단 "프로젝트 한눈에" 집계 Hook (1분 캐시, 화면이 보일 때 2분마다 갱신)
+ */
+export function useProjectPulse(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ["dashboard", "project-pulse", projectId] as const,
+    queryFn: () => api.projectPulse(projectId!),
+    enabled: !!projectId,
+    staleTime: 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}

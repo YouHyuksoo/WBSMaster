@@ -55,6 +55,10 @@ interface LocalUser {
 /**
  * 대시보드 메인 페이지 - 인터랙티브 버전
  */
+/** 대시보드 상단 빠른 실행 버튼 (아이콘 + 글자) */
+const quickActionClass =
+  "inline-flex h-9 items-center gap-1.5 rounded-lg border border-border dark:border-border-dark bg-background-white dark:bg-surface px-3 text-sm font-medium text-text dark:text-white hover:border-primary/40 hover:text-primary disabled:opacity-60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+
 export default function DashboardPage() {
   const [user, setUser] = useState<LocalUser | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -508,85 +512,34 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 컴팩트 통계 - 클릭 가능 */}
+        {/* 퀵 액션 (상단 통계 칩은 2026-11-10 제거: 프로젝트 한눈에 영역이 대신한다) */}
         <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={() => router.push("/dashboard/projects")}
-            className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors cursor-pointer group"
-          >
-            <Icon name="folder" size="sm" className="text-primary group-hover:scale-110 transition-transform" />
-            <div className="text-xs">
-              <span className="text-text-secondary">프로젝트</span>
-              <span className="font-bold text-text dark:text-white ml-1">{stats.totalProjects}</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setStatusFilter((current) => current === "ACTIVE" ? "ALL" : "ACTIVE")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer group ${
-              statusFilter === "ACTIVE" ? "bg-success/30 ring-2 ring-success" : "bg-success/10 hover:bg-success/20"
-            }`}
-          >
-            <Icon name="trending_up" size="sm" className="text-success group-hover:scale-110 transition-transform" />
-            <div className="text-xs">
-              <span className="text-text-secondary">진행중</span>
-              <span className="font-bold text-success ml-1">{stats.activeProjects}</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setStatusFilter((current) => current === "COMPLETED" ? "ALL" : "COMPLETED")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer group ${
-              statusFilter === "COMPLETED" ? "bg-slate-200 dark:bg-slate-700 ring-2 ring-slate-400" : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
-            }`}
-          >
-            <Icon name="check_circle" size="sm" className="text-slate-500 group-hover:scale-110 transition-transform" />
-            <div className="text-xs">
-              <span className="text-text-secondary">완료</span>
-              <span className="font-bold text-slate-600 dark:text-slate-300 ml-1">{stats.completedProjects}</span>
-            </div>
-          </button>
-          <button
-            onClick={() => router.push("/dashboard/kanban")}
-            className="flex items-center gap-2 px-3 py-1.5 bg-warning/10 rounded-lg hover:bg-warning/20 transition-colors cursor-pointer group"
-          >
-            <Icon name="task_alt" size="sm" className="text-warning group-hover:scale-110 transition-transform" />
-            <div className="text-xs">
-              <span className="text-text-secondary">작업</span>
-              <span className="font-bold text-text dark:text-white ml-1">{stats.totalTasks}</span>
-              <span className="text-amber-500 ml-1">(+{stats.pendingTasks})</span>
-            </div>
-          </button>
-
-          {/* 퀵 액션 버튼 그룹 */}
-          <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-border dark:border-border-dark">
-            {/* 새로고침 버튼 */}
+          <div className="flex items-center gap-1.5">
+            {/* 빠른 실행: 아이콘 + 글자 버튼 (2026-11-10) */}
             <button
+              type="button"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className={`p-2 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-all ${
-                isRefreshing ? "animate-spin" : ""
-              }`}
+              className={quickActionClass}
               title="데이터 새로고침"
             >
-              <Icon name="refresh" size="sm" />
+              <Icon name="refresh" size="sm" className={isRefreshing ? "animate-spin motion-reduce:animate-none" : ""} />
+              {isRefreshing ? "새로고침 중" : "새로고침"}
             </button>
-            {/* 빠른 일정 추가 */}
-            <button
-              onClick={() => setShowQuickScheduleModal(true)}
-              className="p-2 rounded-lg text-text-secondary hover:text-sky-500 hover:bg-sky-500/10 transition-all"
-              title="빠른 일정 추가"
-            >
+            <button type="button" onClick={() => setShowQuickScheduleModal(true)} className={quickActionClass} title="빠른 일정 추가">
               <Icon name="event" size="sm" />
+              일정 추가
             </button>
-            {/* MY 대시보드 토글 */}
-            <Button
-              variant={isMyDashboard ? "primary" : "ghost"}
-              size="sm"
-              leftIcon="person"
+            <button
+              type="button"
               onClick={() => setIsMyDashboard(!isMyDashboard)}
-              className={isMyDashboard ? "ring-2 ring-primary/50" : ""}
+              aria-pressed={isMyDashboard}
+              className={`${quickActionClass} ${isMyDashboard ? "border-primary bg-primary/10 text-primary" : ""}`}
+              title="나에게 할당된 프로젝트 · 작업만 보기"
             >
-              MY
-            </Button>
+              <Icon name="person" size="sm" />
+              MY 대시보드
+            </button>
             <Link href="/dashboard/projects" className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               전체 보기<Icon name="arrow_forward" size="xs" />
             </Link>

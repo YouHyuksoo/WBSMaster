@@ -109,6 +109,26 @@ async function del<T>(url: string): Promise<T> {
 // 타입 정의
 // ============================================
 
+/** 대시보드 상단 프로젝트 한눈에 (GET /api/dashboard/project-pulse) — src/lib/dashboard/project-pulse.ts 와 같은 모양 */
+export interface PulseCounts {
+  tasks: number;
+  customerRequirements: number;
+  fieldIssues: number;
+  discussionItems: number;
+  issues: number;
+  interviews: number;
+  meetingMinutes: number;
+}
+export interface ProjectPulse {
+  today: PulseCounts;
+  totals: PulseCounts;
+  open: { fieldIssues: number; discussionItems: number; issues: number; customerRequirements: number; tasks: number };
+  urgent: Array<{ kind: "WBS" | "ISSUE" | "DISCUSSION" | "FIELD_ISSUE" | "MILESTONE"; title: string; code: string | null; due: string | null; daysLeft: number | null; href: string }>;
+  urgentCount: number;
+  trend: Array<{ date: string; count: number }>;
+  todaySchedules: Array<{ title: string; type: string }>;
+}
+
 /** 메뉴 그룹 · 배치 트리 (GET /api/menu/tree) */
 export interface MenuTreeCategory {
   code: string;
@@ -1307,6 +1327,9 @@ export const api = {
     }) => post<TaskConnection>("/api/task-connections", data),
     delete: (id: string) => del<{ message: string }>(`/api/task-connections/${id}`),
   },
+
+  /** 대시보드 상단 "프로젝트 한눈에" 집계 (오늘 · 누적 · 미결 · 긴급 · 14일 추이) */
+  projectPulse: (projectId: string) => get<ProjectPulse>("/api/dashboard/project-pulse", { projectId }),
 
   /** 오늘 통계 API (헤더 스크롤러용) */
   todayStats: {

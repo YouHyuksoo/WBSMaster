@@ -83,6 +83,7 @@ export {
   useChangeWbsLevel,
   useWbsStats,
   useWbsScheduleStats,
+  useProjectPulse,
   wbsKeys,
 } from "./useWbs";
 
