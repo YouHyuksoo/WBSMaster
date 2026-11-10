@@ -66,6 +66,12 @@ supabase/.temp/
 
 # Superpowers brainstorming mockups
 .superpowers/
+.gstack/
 
 # 업로드 파일 (아바타 등, src/lib/uploads.ts)
 /uploads
+
+# 운영 반영 작업용 임시 스크립트·영수증 (커밋하지 않음)
+.knowledge-deploy/
+__pycache__/
+test-output.log
