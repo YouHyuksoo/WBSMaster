@@ -4,7 +4,7 @@
  * TO-BE 3단계: Gap 분석(빈 곳 네 가지)과 추적표(AS-IS → TO-BE → SFR → WBS), 엑셀 행.
  *
  * 초보자 가이드:
- * 1. loadSnapshot 이 DB 를 한 번 읽고, buildGap · buildTrace · traceSheetRows 는 DB 없이 계산만 한다 (테스트 쉬움)
+ * 1. loadSnapshot(projectId, db) 이 DB 를 한 번 읽고 (채팅 도구는 ctx.prisma 를 넘긴다), buildGap · buildTrace · traceSheetRows 는 DB 없이 계산만 한다 (테스트 쉬움)
  * 2. Gap
  *    ① TO-BE 가 없는 AS-IS 업무
  *    ② 해결 안 된 AS-IS 문제점: 어떤 TO-BE 해결 매핑도 없는 AS-IS 상세 이슈 + 결과가 미해결 · 부분 해결인 매핑
@@ -23,7 +23,7 @@ type FixResult = keyof typeof FIX_RESULT_LABEL;
 export interface Snapshot {
   asIs: Array<{ id: string; asIsManagementNo: string | null; taskName: string; middleCategory: string; issues: Array<{ id: string; title: string; priority: string | null; fixCount: number }> }>;
   items: Array<{
-    id: string; toBeManagementNo: string; taskName: string; middleCategory: string;
+    id: string; toBeManagementNo: string; taskName: string; middleCategory: string; summary: string | null;
     changeType: keyof typeof CHANGE_TYPE_LABEL; targetMethod: keyof typeof TARGET_METHOD_LABEL; status: keyof typeof STATUS_LABEL;
     sfrCodes: string[]; asIsIds: string[];
     wbs: Array<{ id: string; code: string; name: string; status: string; progress: number }>;
@@ -32,9 +32,9 @@ export interface Snapshot {
   sfrRows: Parameters<typeof summarizeSfr>[1];
 }
 
-export async function loadSnapshot(projectId: string): Promise<Snapshot> {
+export async function loadSnapshot(projectId: string, db: typeof prisma = prisma): Promise<Snapshot> {
   const [asIs, items, sfrRows] = await Promise.all([
-    prisma.asIsOverviewItem.findMany({
+    db.asIsOverviewItem.findMany({
       where: { overview: { projectId } },
       orderBy: [{ order: "asc" }, { asIsManagementNo: "asc" }],
       select: {
@@ -42,17 +42,17 @@ export async function loadSnapshot(projectId: string): Promise<Snapshot> {
         unitAnalysis: { select: { issues: { orderBy: { order: "asc" }, select: { id: true, title: true, priority: true, _count: { select: { toBeFixes: true } } } } } },
       },
     }),
-    prisma.toBeItem.findMany({
+    db.toBeItem.findMany({
       where: { overview: { projectId } },
       orderBy: [{ order: "asc" }, { toBeManagementNo: "asc" }],
       select: {
-        id: true, toBeManagementNo: true, taskName: true, middleCategory: true, changeType: true, targetMethod: true, status: true, sfrCodes: true,
+        id: true, toBeManagementNo: true, taskName: true, middleCategory: true, summary: true, changeType: true, targetMethod: true, status: true, sfrCodes: true,
         asIsLinks: { select: { asIsItemId: true } },
         wbsLinks: { select: { wbsItem: { select: WBS_REF_SELECT } } },
         fixes: { orderBy: { order: "asc" }, select: { id: true, issueTitle: true, solution: true, result: true } },
       },
     }),
-    prisma.processVerificationMaster.findMany({
+    db.processVerificationMaster.findMany({
       where: { categoryRef: { projectId }, toBeCode: { not: null } },
       select: { toBeCode: true, managementCode: true, managementArea: true, businessUnitApplies: { select: { isApplied: true, status: true } } },
     }),

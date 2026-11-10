@@ -18,13 +18,14 @@ import { ENTITY_TOOLS } from "./entities";
 import { WEEKLY_REPORT_TOOLS } from "./weekly-report";
 import { MEETING_TOOLS } from "./meeting-items";
 import { searchKnowledgeTool, listKnowledgeDocumentsTool } from "./knowledge";
+import { TO_BE_TOOLS } from "./to-be";
 
 import type { ChatTool } from "./types";
 
 // 도구마다 인자 타입이 달라 공통 ChatTool 로 모은다 (parse 가 인자를 검증하므로 안전)
 const ALL = [
   findPeopleTool, wbsScheduleStatsTool, listWbsTool, ...Object.values(LIST_TOOLS), getRecordTool,
-  ...Object.values(PROPOSAL_TOOLS), ...ENTITY_TOOLS, ...WEEKLY_REPORT_TOOLS, ...MEETING_TOOLS, runReadonlySqlTool, searchKnowledgeTool, listKnowledgeDocumentsTool,
+  ...Object.values(PROPOSAL_TOOLS), ...ENTITY_TOOLS, ...WEEKLY_REPORT_TOOLS, ...MEETING_TOOLS, ...TO_BE_TOOLS, runReadonlySqlTool, searchKnowledgeTool, listKnowledgeDocumentsTool,
 ] as unknown as ChatTool[];
 
 for (const tool of ALL) {

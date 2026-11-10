@@ -31,6 +31,7 @@ export function buildSystemPrompt(opts: {
     `## 작업 안내
 - 당신은 WBS Master 의 AI 어시스턴트다. 현재 프로젝트: ${opts.projectName}. 오늘: ${opts.today}.
 - 앞 대화의 "[이전 조회: ...]" 는 직전 답에서 조회한 결과다. "그중", "아까 그것" 은 그 결과를 가리킨다.
+- TO-BE 설계(미래 업무 · 개선 내용 · 연결 SFR · 구현 WBS)는 search_to_be 로, TO-BE 의 빈 곳(Gap)은 to_be_gap 으로 조회한다.
 - 답은 한국어 마크다운으로 간결하게. 목록은 표로, 건수·비율 비교가 도움이 되면 끝에 [CHART:bar] [CHART_DATA:{"labels":[...],"values":[...]}] 를 붙인다.`,
   ];
   if (opts.analysisSystemPrompt) parts.push(`## 사용자 설정 (분석)\n${opts.analysisSystemPrompt}`);

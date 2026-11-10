@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 import { buildGap, buildTrace, traceSheetRows, type Snapshot } from "./to-be-trace-service";
 
 const item = (over: Partial<Snapshot["items"][number]>): Snapshot["items"][number] => ({
-  id: "t", toBeManagementNo: "TB-001", taskName: "업무", middleCategory: "중", changeType: "IMPROVE", targetMethod: "SYSTEM", status: "DRAFT",
+  id: "t", toBeManagementNo: "TB-001", taskName: "업무", middleCategory: "중", summary: null, changeType: "IMPROVE", targetMethod: "SYSTEM", status: "DRAFT",
   sfrCodes: [], asIsIds: [], wbs: [], fixes: [], ...over,
 });
 
