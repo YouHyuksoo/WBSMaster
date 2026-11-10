@@ -29,7 +29,7 @@ export function WbsStatsBar({ stats,scheduleStats }: WbsStatsBarProps) {
   };
 
   return (
-    <div className="px-4 py-1.5 border-b bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700">
+    <div className="px-4 py-1.5 border-b bg-slate-500/15 dark:bg-slate-800 border-slate-300 dark:border-slate-700">
       <div className="flex flex-wrap items-center gap-1.5">
         {/* 건수 통계 배지 */}
         <CountTooltipBadge type="total" align="left" {...cp}>
