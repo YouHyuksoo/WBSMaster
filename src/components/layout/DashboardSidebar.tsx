@@ -142,7 +142,7 @@ export function DashboardSidebar({
         className={`
           fixed lg:static inset-y-0 left-0 z-50
           ${isCollapsed ? "lg:w-16" : "w-64"}
-          bg-background-white dark:bg-background-dark
+          bg-background-white dark:bg-surface
           border-r border-border dark:border-border-dark
           flex flex-col transition-all duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
