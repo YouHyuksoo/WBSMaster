@@ -88,8 +88,11 @@ export function WbsTreePanel({
         </div>
       )}
 
+      {/* 표 영역: 칸 너비를 고정하고, 패널이 좁으면 가로 스크롤 (크기조절 바를 움직여도 칸 정렬이 바뀌지 않게) */}
+      <div className="flex-1 min-h-0 overflow-x-auto">
+      <div className="h-full min-w-[920px] flex flex-col">
       {/* 헤더 */}
-      <div className="h-9 border-b border-border dark:border-border-dark bg-surface dark:bg-surface-dark flex items-center px-3 shrink-0">
+      <div className="h-9 border-b border-border dark:border-border-dark bg-surface dark:bg-surface-dark flex items-center px-3 shrink-0 overflow-hidden [scrollbar-gutter:stable]">
         <input
           type="checkbox"
           checked={checkedIds.size > 0 && checkedIds.size === getAllItemIds(wbsTree).length}
@@ -97,10 +100,10 @@ export function WbsTreePanel({
           className="size-4 rounded border-border dark:border-border-dark text-primary focus:ring-primary focus:ring-offset-0 mr-2 cursor-pointer flex-shrink-0"
           title="전체 선택/해제"
         />
-        <div className="flex-1 text-[11px] font-semibold text-text-secondary uppercase">
+        <div className="flex-1 min-w-0 text-[11px] font-semibold text-text-secondary uppercase">
           WBS 항목
         </div>
-        <div className="w-32 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
+        <div className="w-40 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
           계획기간
         </div>
         <div className="w-32 text-[11px] font-semibold text-text-secondary uppercase text-center flex-shrink-0">
@@ -124,7 +127,7 @@ export function WbsTreePanel({
       </div>
 
       {/* WBS 트리 목록 */}
-      <div ref={treeListRef} className="flex-1 overflow-y-auto">
+      <div ref={treeListRef} className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
         {wbsTree.map((item) => (
           <WbsTreeItem
             key={item.id}
@@ -145,6 +148,8 @@ export function WbsTreePanel({
             onPreviewDeliverable={onPreviewDeliverable}
           />
         ))}
+      </div>
+      </div>
       </div>
 
       {/* 하단 요약 */}

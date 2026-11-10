@@ -126,7 +126,7 @@ export function WbsTreeItem({
         data-wbs-id={item.id}
         onClick={() => onSelect(item.id)}
         className={`
-          h-10 border-b border-border dark:border-border-dark flex items-center
+          h-10 border-b border-border dark:border-border-dark flex items-center pr-3
           cursor-pointer transition-colors group
           ${isSelected ? "bg-primary/10 border-l-3 border-l-primary" : `${levelRowColors[item.level]} ${levelRowHoverColors[item.level]}`}
         `}
@@ -281,13 +281,13 @@ export function WbsTreeItem({
         </span>
 
         {/* WBS 코드 */}
-        <span className="text-xs text-text-secondary mr-2 font-mono font-medium whitespace-nowrap">
+        <span className="shrink-0 text-xs text-text-secondary mr-2 font-mono font-medium whitespace-nowrap">
           {item.code}
         </span>
 
         {/* 항목명 (호버 시 툴팁 표시) */}
         <div
-          className={`flex-1 text-sm font-medium`}
+          className={`flex-1 min-w-0 text-sm font-medium`}
           onMouseEnter={handleTooltipMouseEnter}
           onMouseLeave={() => setIsTooltipHovered(false)}
         >
@@ -379,7 +379,7 @@ export function WbsTreeItem({
         {/* 가중치 뱃지 (대분류만) */}
         {item.level === "LEVEL1" && item.weight && (
           <span
-            className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/15 text-primary mr-2"
+            className="shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/15 text-primary mr-2"
             title={`가중치: ${item.weight}%`}
           >
             {item.weight}%
@@ -387,7 +387,7 @@ export function WbsTreeItem({
         )}
 
         {/* 계획 기간 */}
-        <div className="w-32 flex-shrink-0 text-center">
+        <div className="w-40 flex-shrink-0 text-center">
           {item.startDate && item.endDate ? (
             <div className="flex items-center justify-center gap-1">
               <span className="text-[11px] text-text-secondary font-medium">
