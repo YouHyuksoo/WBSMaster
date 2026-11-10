@@ -55,6 +55,19 @@ interface DashboardHeaderProps {
 /**
  * 대시보드 헤더 컴포넌트
  */
+/** 브랜드 컬러 테마 (jisung-ui themeStore 와 같은 값 · 순서) */
+type ColorTheme = "default" | "custom" | "orchid";
+const COLOR_THEME_ORDER: ColorTheme[] = ["default", "custom", "orchid"];
+const COLOR_THEME_LABELS: Record<ColorTheme, string> = { default: "기본", custom: "Custom", orchid: "Orchid" };
+
+/** <html data-color-theme> 적용 (default 는 속성 제거) */
+function applyColorTheme(theme: ColorTheme): ColorTheme {
+  const root = document.documentElement;
+  if (theme === "default") root.removeAttribute("data-color-theme");
+  else root.setAttribute("data-color-theme", theme);
+  return theme;
+}
+
 export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const router = useRouter();
   const toast = useToast();
@@ -99,6 +112,18 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
       }
     }
   }, []);
+
+  /** 브랜드 컬러 테마 (jisung-ui 와 같은 순서: 기본 → Custom → Orchid). <html data-color-theme> 로 적용 */
+  const [colorTheme, setColorTheme] = useState<ColorTheme>("default");
+  useEffect(() => {
+    const saved = localStorage.getItem("colorTheme");
+    setColorTheme(applyColorTheme(saved === "custom" || saved === "orchid" ? saved : "default"));
+  }, []);
+  const cycleColorTheme = () => {
+    const next = COLOR_THEME_ORDER[(COLOR_THEME_ORDER.indexOf(colorTheme) + 1) % COLOR_THEME_ORDER.length];
+    localStorage.setItem("colorTheme", next);
+    setColorTheme(applyColorTheme(next));
+  };
 
   // 다크모드 초기화 (localStorage에서 저장된 테마 불러오기)
   useEffect(() => {
@@ -630,6 +655,20 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
           <button className="hidden sm:flex h-9 items-center justify-center gap-1 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark hover:bg-surface-hover dark:hover:bg-[#2a3441] transition-colors px-3">
             <Icon name="language" size="sm" className="text-text dark:text-white" />
             <span className="text-xs font-bold text-text dark:text-white">KO</span>
+          </button>
+
+          {/* 브랜드 컬러 테마 토글 (기본 → Custom → Orchid) */}
+          <button
+            type="button"
+            onClick={cycleColorTheme}
+            className="relative flex size-9 cursor-pointer items-center justify-center rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark hover:bg-surface-hover dark:hover:bg-surface-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label={`컬러 테마: ${COLOR_THEME_LABELS[colorTheme]} (누르면 다음 테마)`}
+            title={`컬러 테마: ${COLOR_THEME_LABELS[colorTheme]}`}
+          >
+            <Icon name="palette" size="sm" className={colorTheme !== "default" ? "text-primary" : "text-text dark:text-white"} />
+            {colorTheme !== "default" && (
+              <span aria-hidden="true" className={`absolute right-1.5 top-1.5 size-2 rounded-full border border-surface ${colorTheme === "orchid" ? "bg-violet-400" : "bg-primary"}`} />
+            )}
           </button>
 
           {/* 다크모드 토글 */}

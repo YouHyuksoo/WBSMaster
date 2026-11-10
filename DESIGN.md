@@ -45,6 +45,8 @@ spacing:
 
 다크모드는 높이 단계로 구분한다(2026-11-10): 본문 `background-dark`(oklch 0.14) < 카드 · 모달 안 영역 `surface-dark`(0.23) < 화면 틀 `surface`(0.26) < 모달 `surface-elevated`(0.28), 테두리 `border-dark`(0.36). 공용 모달은 `surface-elevated` 면 + `border-dark` 테두리 + 다크 가림막 검정 70%로 띄운다. 모달 안의 목록 · 빈 상태 칸은 한 단계 낮은 면으로 둘 수 있지만 본문색(`background-dark`)을 모달 바탕으로 쓰지 않는다.
 
+브랜드 컬러 테마(jisung-ui 와 같음, 2026-11-10): 헤더 팔레트 버튼이 기본 → Custom(#E6096E) → Orchid(보라) 순으로 `<html data-color-theme>` 을 바꾸고 `localStorage.colorTheme` 에 저장한다. 팔레트는 `globals.css` 의 `[data-color-theme=…]` 블록(@jisung/ui tokens.css 에서 옮김, 폰트 지정 제외). Orchid 다크는 카드 · 화면 틀 · 모달을 한 단계씩 올려 위 다크 높이 단계 규칙을 지킨다.
+
 Primary는 선택 상태와 주요 동작에 사용한다. 상태 색상은 진행·주의·오류·정보 의미를 유지한다. 라이트·다크 모두 기존 CSS 변수와 의미 토큰을 따른다. 전역 스타일 상단의 오래된 파란색 설명보다 실제 변수 선언을 우선한다.
 
 ## Typography
