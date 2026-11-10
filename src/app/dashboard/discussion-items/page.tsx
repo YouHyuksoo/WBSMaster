@@ -57,8 +57,6 @@ export default function DiscussionItemsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingItem, setDeletingItem] = useState<DiscussionItem | null>(null);
 
-  // 통계 카드 접기/펼치기 상태
-  const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
 
   const toast = useToast();
 
@@ -331,123 +329,85 @@ export default function DiscussionItemsPage() {
         </div>
       )}
 
-      {/* 통계 카드 - 슬라이딩 컨테이너 */}
-      <div className="relative">
-        {/* 통계 카드 영역 */}
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
-          }`}
-        >
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 pb-2">
-            {/* 완료율 */}
-            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name="speed" size="xs" className="text-primary" />
-                <span className="text-xs font-semibold text-primary">완료율</span>
-              </div>
-              <p className="text-2xl font-bold text-primary mb-1">{stats.completionRate}%</p>
-              <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-success rounded-full"
-                  style={{ width: `${stats.completionRate}%` }}
-                />
-              </div>
-            </div>
+      {/* 통계 카드 */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+        {/* 완료율 */}
+        <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Icon name="speed" size="xs" className="text-primary" />
+            <span className="text-xs font-semibold text-primary">완료율</span>
+          </div>
+          <p className="text-2xl font-bold text-primary mb-1">{stats.completionRate}%</p>
+          <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-primary to-success rounded-full"
+              style={{ width: `${stats.completionRate}%` }}
+            />
+          </div>
+        </div>
 
-            {/* 전체 */}
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-slate-500/10 flex items-center justify-center">
-                  <Icon name="list_alt" size="xs" className="text-slate-500" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-sm text-text-secondary">전체</p>
-                </div>
-              </div>
+        {/* 전체 */}
+        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <div className="size-8 rounded-lg bg-slate-500/10 flex items-center justify-center">
+              <Icon name="list_alt" size="xs" className="text-slate-500" />
             </div>
-
-            {/* 협의 중 */}
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                  <Icon name="forum" size="xs" className="text-yellow-500" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.discussing}</p>
-                  <p className="text-sm text-text-secondary">협의 중</p>
-                </div>
-              </div>
-            </div>
-
-            {/* 변환됨 */}
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Icon name="transition_slide" size="xs" className="text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.converted}</p>
-                  <p className="text-sm text-text-secondary">변환됨</p>
-                </div>
-              </div>
-            </div>
-
-            {/* 보류 */}
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-gray-500/10 flex items-center justify-center">
-                  <Icon name="block" size="xs" className="text-gray-500" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.blocked}</p>
-                  <p className="text-sm text-text-secondary">보류</p>
-                </div>
-              </div>
-            </div>
-
-            {/* 완료 */}
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                  <Icon name="check_circle" size="xs" className="text-success" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.completed}</p>
-                  <p className="text-sm text-text-secondary">완료</p>
-                </div>
-              </div>
+            <div>
+              <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
+              <p className="text-sm text-text-secondary">전체</p>
             </div>
           </div>
         </div>
 
-        {/* 슬라이드 핸들 */}
-        <div
-          className="group flex items-center justify-center cursor-pointer"
-          onClick={() => setIsStatsCollapsed(!isStatsCollapsed)}
-          onMouseEnter={() => isStatsCollapsed && setIsStatsCollapsed(false)}
-        >
-          <div className={`
-            flex items-center gap-2 px-4 py-1 rounded-full transition-all duration-200
-            ${isStatsCollapsed
-              ? "bg-primary/10 border border-primary/30 hover:bg-primary/20"
-              : "bg-surface dark:bg-background-dark border border-border dark:border-border-dark hover:border-primary/30"
-            }
-          `}>
-            <Icon
-              name={isStatsCollapsed ? "expand_more" : "expand_less"}
-              size="xs"
-              className={`transition-transform duration-200 ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}
-            />
-            <span className={`text-xs font-medium ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}>
-              {isStatsCollapsed ? "통계 보기" : "통계 접기"}
-            </span>
-            <Icon
-              name={isStatsCollapsed ? "expand_more" : "expand_less"}
-              size="xs"
-              className={`transition-transform duration-200 ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}
-            />
+        {/* 협의 중 */}
+        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <div className="size-8 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+              <Icon name="forum" size="xs" className="text-yellow-500" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-text dark:text-white">{stats.discussing}</p>
+              <p className="text-sm text-text-secondary">협의 중</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 변환됨 */}
+        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <div className="size-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Icon name="transition_slide" size="xs" className="text-blue-500" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-text dark:text-white">{stats.converted}</p>
+              <p className="text-sm text-text-secondary">변환됨</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 보류 */}
+        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <div className="size-8 rounded-lg bg-gray-500/10 flex items-center justify-center">
+              <Icon name="block" size="xs" className="text-gray-500" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-text dark:text-white">{stats.blocked}</p>
+              <p className="text-sm text-text-secondary">보류</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 완료 */}
+        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
+              <Icon name="check_circle" size="xs" className="text-success" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-text dark:text-white">{stats.completed}</p>
+              <p className="text-sm text-text-secondary">완료</p>
+            </div>
           </div>
         </div>
       </div>

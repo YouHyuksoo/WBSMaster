@@ -78,8 +78,6 @@ export default function CustomerRequirementsPage() {
   // 엑셀 가져오기 모달 상태
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  // 통계 카드 접기/펼치기 상태
-  const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
 
   // 삭제 확인 모달 상태
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -509,46 +507,8 @@ export default function CustomerRequirementsPage() {
 
       {selectedProjectId && (
         <>
-          {/* 통계 카드 - 슬라이딩 컨테이너 */}
-          <div className="relative">
-            {/* 통계 카드 영역 */}
-            <div
-              className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
-              }`}
-            >
-              <StatsSummary stats={stats} />
-            </div>
-
-            {/* 슬라이드 핸들 */}
-            <div
-              className="group flex items-center justify-center cursor-pointer"
-              onClick={() => setIsStatsCollapsed(!isStatsCollapsed)}
-              onMouseEnter={() => isStatsCollapsed && setIsStatsCollapsed(false)}
-            >
-              <div className={`
-                flex items-center gap-2 px-4 py-1 rounded-full transition-all duration-200
-                ${isStatsCollapsed
-                  ? "bg-primary/10 border border-primary/30 hover:bg-primary/20"
-                  : "bg-surface dark:bg-background-dark border border-border dark:border-border-dark hover:border-primary/30"
-                }
-              `}>
-                <Icon
-                  name={isStatsCollapsed ? "expand_more" : "expand_less"}
-                  size="xs"
-                  className={`transition-transform duration-200 ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}
-                />
-                <span className={`text-xs font-medium ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}>
-                  {isStatsCollapsed ? "통계 보기" : "통계 접기"}
-                </span>
-                <Icon
-                  name={isStatsCollapsed ? "expand_more" : "expand_less"}
-                  size="xs"
-                  className={`transition-transform duration-200 ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}
-                />
-              </div>
-            </div>
-          </div>
+          {/* 통계 카드 */}
+          <StatsSummary stats={stats} />
 
           {/* 필터 및 보기 모드 전환 */}
           <div className="flex flex-wrap items-center justify-between gap-4">
