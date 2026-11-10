@@ -4,6 +4,7 @@
  * 초보자 가이드:
  * - --install: .env.local DB에 대기열/트리거만 설치합니다. 기존 업무 데이터는 수정하지 않습니다.
  * - --backfill <projectId>: 프로젝트 자료를 대기열에 넣습니다. --drain은 지식 서버로 전송합니다.
+ * - --tables a,b: --backfill 대상을 whitelist(targets.json)의 해당 테이블로 좁힙니다 (새 대상만 초기 색인할 때). 잠금도 그 테이블만 겁니다.
  * - 임의 삭제·스케줄 등록은 하지 않습니다. source ID와 키는 환경 변수로만 읽습니다.
  */
 import { config } from "dotenv";
@@ -16,9 +17,15 @@ import { drainKnowledgeQueue } from "../src/lib/knowledge/worker";
 
 async function main() {
   const args = process.argv.slice(2);
-  if (!args.length || args.some((a) => !["--install", "--backfill", "--drain"].includes(a) && !/^[a-zA-Z0-9_-]{1,80}$/.test(a))) {
-    throw new Error("사용법: --install | --backfill <projectId> | --drain");
+  if (!args.length || args.some((a) => !["--install", "--backfill", "--drain", "--tables"].includes(a) && !/^[a-zA-Z0-9_,-]{1,400}$/.test(a))) {
+    throw new Error("사용법: --install | --backfill <projectId> [--tables a,b] | --drain");
   }
+  const tablesArg = args.includes("--tables") ? args[args.indexOf("--tables") + 1] ?? "" : null;
+  const onlyTables = tablesArg === null ? null : tablesArg.split(",").filter(Boolean);
+  if (onlyTables && (!onlyTables.length || onlyTables.some((t) => !targets.some((x) => x.table === t)))) {
+    throw new Error("--tables 에는 targets.json 의 테이블 이름만 쉼표로 적어 주세요.");
+  }
+  const backfillTargets = targets.filter((t) => t.table !== "users" && (!onlyTables || onlyTables.includes(t.table)));
   const url = new URL(process.env.DATABASE_URL ?? "");
   console.log(`대상 DB: ${url.hostname}:${url.port}${url.pathname}`);
   const pool = new Pool({ connectionString: url.toString() });
@@ -34,15 +41,15 @@ async function main() {
     const index = args.indexOf("--backfill");
     if (index >= 0) {
       const projectId = args[index + 1];
-      if (!projectId || projectId.startsWith("--")) throw new Error("초기 색인할 projectId를 지정해 주세요.");
+      if (!projectId || projectId.startsWith("--") || projectId.includes(",")) throw new Error("초기 색인할 projectId를 지정해 주세요.");
       const db = await pool.connect();
       try {
         await db.query("BEGIN");
         // 스냅샷과 이후 변경 이벤트의 revision 순서가 뒤집히지 않도록 원본 쓰기를 잠시 막는다.
-        await db.query(`LOCK TABLE ${targets.map((t) => `public."${t.table}"`).sort().join(",")} IN SHARE MODE`);
+        await db.query(`LOCK TABLE ${(onlyTables ? backfillTargets : targets).map((t) => `public."${t.table}"`).sort().join(",")} IN SHARE MODE`);
         const project = await db.query('SELECT id FROM projects WHERE id=$1', [projectId]);
         if (!project.rowCount) throw new Error("프로젝트가 없습니다.");
-        for (const target of targets.filter((t) => t.table !== "users")) {
+        for (const target of backfillTargets) {
           const parent = "parent" in target ? target.parent : null;
           const predicate = target.table === "projects" ? "r.id=$1"
             : parent ? `EXISTS (SELECT 1 FROM public."${parent.table}" p WHERE p.id=r."${parent.field}" AND p."projectId"=$1)`
