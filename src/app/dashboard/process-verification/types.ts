@@ -26,9 +26,9 @@ import { DEFAULT_BUSINESS_UNIT } from "@/constants/business-units";
 export type VerificationStatus = "PENDING" | "IN_PROGRESS" | "VERIFIED" | "NOT_APPLICABLE";
 
 /**
- * 제품유형 상수
+ * 제품유형 상수 (LEADTAB: 폴 오창 리드탭 절곡공정 제안요청서 항목, 2026-11-10)
  */
-export const PRODUCT_TYPES = ["SMD", "HANES"] as const;
+export const PRODUCT_TYPES = ["SMD", "HANES", "LEADTAB"] as const;
 export type ProductType = (typeof PRODUCT_TYPES)[number];
 
 /**
