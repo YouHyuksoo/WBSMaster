@@ -24,7 +24,7 @@ interface WbsScheduleOverviewSectionProps {
 }
 
 /** 지표 카드의 배경은 수치의 상태와 관계없이 무채색으로 고정합니다. */
-const metricCardClass = "text-center p-2 rounded-lg bg-surface dark:bg-background-dark";
+const metricCardClass = "text-center px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark";
 
 /**
  * 게이지 차트 컴포넌트
@@ -98,15 +98,17 @@ const StatItem = memo(function StatItem({
   suffix?: string;
 }) {
   return (
-    <div className="flex flex-col items-center p-2 rounded-lg bg-surface dark:bg-background-dark">
-      <div className={`size-7 rounded-full ${color} flex items-center justify-center mb-1`}>
+    <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-surface dark:bg-background-dark">
+      <div className={`size-6 shrink-0 rounded-full ${color} flex items-center justify-center`}>
         <Icon name={icon} size="xs" className="text-white" />
       </div>
-      <span className="text-lg font-bold text-text dark:text-white">
-        {value}
-        <span className="text-xs font-normal text-text-secondary ml-0.5">{suffix}</span>
-      </span>
-      <span className="text-[10px] text-text-secondary">{label}</span>
+      <div className="flex flex-col leading-tight min-w-0">
+        <span className="text-base font-bold text-text dark:text-white tabular-nums">
+          {value}
+          <span className="text-xs font-normal text-text-secondary ml-0.5">{suffix}</span>
+        </span>
+        <span className="text-[10px] text-text-secondary">{label}</span>
+      </div>
     </div>
   );
 });
@@ -130,9 +132,18 @@ const ProgressBar = memo(function ProgressBar({
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-text-secondary">{label}</span>
-        <span className={`text-xs font-bold ${color}`}>{progressValue}%</span>
+        <span className="flex items-center gap-2">
+          {/* 기대 진행률 범례: 따로 줄을 두지 않고 라벨 줄에 둔다 (섹션 높이 절약) */}
+          {expectedProgressValue !== null && (
+            <span className="flex items-center gap-1 text-[10px] text-text-secondary">
+              <span className="w-2 h-0.5 bg-slate-400 dark:bg-slate-500" />
+              기대 {expectedProgressValue}%
+            </span>
+          )}
+          <span className={`text-xs font-bold ${color}`}>{progressValue}%</span>
+        </span>
       </div>
       <div className="relative h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
         {/* 기대 진행률 마커 */}
@@ -148,12 +159,6 @@ const ProgressBar = memo(function ProgressBar({
           style={{ width: `${progressValue}%` }}
         />
       </div>
-      {expectedProgressValue !== null && (
-        <div className="flex items-center justify-end gap-1">
-          <div className="w-2 h-0.5 bg-slate-400 dark:bg-slate-500" />
-          <span className="text-[10px] text-text-secondary">기대 {expectedProgressValue}%</span>
-        </div>
-      )}
     </div>
   );
 });
@@ -209,7 +214,7 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
       className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 cursor-pointer group hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300"
     >
       {/* 헤더 */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold text-text dark:text-white group-hover:text-primary transition-colors flex items-center gap-2">
           <Icon name="analytics" size="sm" className="text-primary" />
           WBS 프로젝트 현황
@@ -222,7 +227,7 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
 
       <div className="grid grid-cols-3 gap-4">
         {/* 왼쪽: 일정 통계 */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1">
             <Icon name="event" size="xs" />
             일정 현황
@@ -248,7 +253,7 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
             />
           </div>
           {/* 기간 진행 바 */}
-          <div className="pt-2">
+          <div className="pt-1">
             <ProgressBar
               value={schedule.expectedProgress}
               label="일정 진행"
@@ -258,7 +263,7 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
         </div>
 
         {/* 가운데: WBS 통계 */}
-        <div className="space-y-3 border-l border-r border-border dark:border-border-dark px-4">
+        <div className="space-y-2 border-l border-r border-border dark:border-border-dark px-4">
           <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1">
             <Icon name="task_alt" size="xs" />
             WBS 현황
@@ -282,7 +287,7 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
             </div>
           </div>
           {/* 계획 vs 실적 진행률 바 */}
-          <div className="pt-2 space-y-2">
+          <div className="pt-1 space-y-1.5">
             <ProgressBar
               value={wbs.plannedProgress}
               label="계획"
@@ -298,7 +303,7 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
         </div>
 
         {/* 오른쪽: 주요 지표 (엑셀 WBS 산식 기준) */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1">
             <Icon name="speed" size="xs" />
             주요 지표
