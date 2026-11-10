@@ -5,6 +5,7 @@
  * 초보자 가이드:
  * - useToBe(projectId): 총괄 + 업무 + 연결 후보(AS-IS 업무, SFR)를 한 번에 받는다
  * - 변경 훅은 성공하면 toBeKeys.all 을 무효화해 목록을 다시 받는다
+ * - useToBeAnalysis(projectId): Gap 분석 · 추적표 (3단계)
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ToBeDesignInput, type ToBeItemInput } from "@/lib/api";
@@ -13,6 +14,7 @@ export const toBeKeys = {
   all: ["to-be"] as const,
   detail: (projectId: string) => [...toBeKeys.all, projectId] as const,
   design: (id: string) => [...toBeKeys.all, "design", id] as const,
+  analysis: (projectId: string) => [...toBeKeys.all, "analysis", projectId] as const,
 };
 
 export function useToBe(projectId: string | null | undefined) {
@@ -42,6 +44,11 @@ export function useDeleteToBeItem() {
 export function useDraftToBeFromAsIs() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: (projectId: string) => api.toBe.draftFromAsIs(projectId), onSuccess: invalidate });
+}
+
+/** Gap 분석 · 추적표 (3단계). TO-BE 를 바꾸면 toBeKeys.all 무효화로 함께 다시 받는다 */
+export function useToBeAnalysis(projectId: string | null | undefined, enabled = true) {
+  return useQuery({ queryKey: toBeKeys.analysis(projectId ?? ""), queryFn: () => api.toBe.analysis(projectId!), enabled: !!projectId && enabled });
 }
 
 /** 단위업무 설계 (2단계) */

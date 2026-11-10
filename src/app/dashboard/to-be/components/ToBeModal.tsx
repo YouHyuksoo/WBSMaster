@@ -6,6 +6,7 @@
  * 1. 필수: 대분류 · 중분류 · 업무명. 나머지는 나중에 채워도 된다
  * 2. 연결 AS-IS: 이 프로젝트 AS-IS 업무 중 여러 개를 고른다 (검색 가능)
  * 3. 연결 SFR: 기능추적표의 SFR 코드 중 고르거나 직접 입력 (SFR-012 형식)
+ * 3-1. 연결 WBS: 이 TO-BE 를 구현하는 WBS 작업 (3단계 추적표 AS-IS → TO-BE → SFR → WBS)
  * 4. 저장은 부모가 한다 (onSubmit). 서버 오류 메시지는 부모가 보여 준다
  */
 "use client";
@@ -14,11 +15,13 @@ import { useMemo, useState } from "react";
 import { Button, Icon, Modal } from "@/components/ui";
 import type { ToBeData, ToBeItemInput } from "@/lib/api";
 import { CHANGE_TYPE_CONFIG, MAJOR_CATEGORY_OPTIONS, PRIORITY_LABEL, STATUS_CONFIG, TARGET_METHOD_CONFIG, type ToBeItem } from "../types";
+import { LinkChecklist } from "./LinkChecklist";
 
 interface Props {
   item: ToBeItem | null; // null = 새 업무
   asIsOptions: ToBeData["asIsOptions"];
   sfrOptions: ToBeData["sfrOptions"];
+  wbsOptions: ToBeData["wbsOptions"];
   busy: boolean;
   onClose: () => void;
   onSubmit: (data: ToBeItemInput) => void;
@@ -27,7 +30,9 @@ interface Props {
 const field = "w-full px-3 py-2 rounded-lg border border-border dark:border-border-dark bg-background-white dark:bg-background-dark text-sm text-text dark:text-white";
 const label = "block text-xs font-medium text-text-secondary mb-1";
 
-export function ToBeModal({ item, asIsOptions, sfrOptions, busy, onClose, onSubmit }: Props) {
+const WBS_INDENT: Record<string, number> = { LEVEL1: 0, LEVEL2: 1, LEVEL3: 2, LEVEL4: 3 };
+
+export function ToBeModal({ item, asIsOptions, sfrOptions, wbsOptions, busy, onClose, onSubmit }: Props) {
   const [form, setForm] = useState({
     majorCategory: item?.majorCategory ?? "PRODUCTION",
     middleCategory: item?.middleCategory ?? "",
@@ -39,14 +44,12 @@ export function ToBeModal({ item, asIsOptions, sfrOptions, busy, onClose, onSubm
     status: item?.status ?? "DRAFT",
   });
   const [asIsIds, setAsIsIds] = useState<string[]>(item?.asIsItems.map((a) => a.id) ?? []);
+  const [wbsIds, setWbsIds] = useState<string[]>(item?.wbsItems.map((w) => w.id) ?? []);
   const [sfrCodes, setSfrCodes] = useState<string[]>(item?.sfrCodes ?? []);
-  const [asIsQuery, setAsIsQuery] = useState("");
   const [sfrInput, setSfrInput] = useState("");
 
-  const filteredAsIs = useMemo(() => {
-    const q = asIsQuery.trim().toLowerCase();
-    return asIsOptions.filter((a) => !q || `${a.asIsManagementNo ?? ""} ${a.middleCategory} ${a.taskName}`.toLowerCase().includes(q));
-  }, [asIsOptions, asIsQuery]);
+  const asIsList = useMemo(() => asIsOptions.map((a) => ({ id: a.id, code: a.asIsManagementNo ?? "-", text: `${a.middleCategory} · ${a.taskName}` })), [asIsOptions]);
+  const wbsList = useMemo(() => wbsOptions.map((w) => ({ id: w.id, code: w.code, text: w.name, indent: WBS_INDENT[w.level] ?? 0 })), [wbsOptions]);
   const sfrLabel = useMemo(() => new Map(sfrOptions.map((s) => [s.code, s.label])), [sfrOptions]);
 
   const addSfr = (raw: string) => {
@@ -67,6 +70,7 @@ export function ToBeModal({ item, asIsOptions, sfrOptions, busy, onClose, onSubm
       status: form.status as ToBeItem["status"],
       sfrCodes,
       asIsItemIds: asIsIds,
+      wbsItemIds: wbsIds,
     });
 
   return (
@@ -118,26 +122,7 @@ export function ToBeModal({ item, asIsOptions, sfrOptions, busy, onClose, onSubm
             onChange={(e) => setForm({ ...form, summary: e.target.value })} />
         </label>
 
-        <section>
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <span className={label}>연결 AS-IS 업무 ({asIsIds.length}건 선택)</span>
-            <input className="w-48 px-2 py-1 rounded-md border border-border dark:border-border-dark bg-background-white dark:bg-background-dark text-xs text-text dark:text-white"
-              placeholder="AS-IS 검색" aria-label="AS-IS 검색" value={asIsQuery} onChange={(e) => setAsIsQuery(e.target.value)} />
-          </div>
-          <ul className="max-h-40 overflow-y-auto rounded-lg border border-border dark:border-border-dark p-1">
-            {filteredAsIs.length === 0 && <li className="px-2 py-2 text-xs text-text-secondary">AS-IS 업무가 없습니다.</li>}
-            {filteredAsIs.map((a) => (
-              <li key={a.id}>
-                <label className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-surface dark:hover:bg-surface-hover">
-                  <input type="checkbox" checked={asIsIds.includes(a.id)}
-                    onChange={(e) => setAsIsIds(e.target.checked ? [...asIsIds, a.id] : asIsIds.filter((x) => x !== a.id))} />
-                  <span className="tabular-nums text-xs text-text-secondary w-16 shrink-0">{a.asIsManagementNo ?? "-"}</span>
-                  <span className="truncate text-text dark:text-white">{a.middleCategory} · {a.taskName}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <LinkChecklist title="연결 AS-IS 업무" searchLabel="AS-IS 검색" emptyText="AS-IS 업무가 없습니다." options={asIsList} selected={asIsIds} onChange={setAsIsIds} />
 
         <section>
           <span className={label}>연결 SFR (기능추적표 기능 요구사항)</span>
@@ -160,6 +145,8 @@ export function ToBeModal({ item, asIsOptions, sfrOptions, busy, onClose, onSubm
             <Button type="button" variant="outline" className="shrink-0 whitespace-nowrap" onClick={() => addSfr(sfrInput)} disabled={!sfrInput.trim()}>추가</Button>
           </div>
         </section>
+
+        <LinkChecklist title="연결 WBS 작업 (이 업무를 구현하는 작업)" searchLabel="WBS 검색" emptyText="WBS 작업이 없습니다." options={wbsList} selected={wbsIds} onChange={setWbsIds} />
 
         <div className="flex justify-end gap-2 border-t border-border dark:border-border-dark pt-4">
           <Button type="button" variant="outline" onClick={onClose}>취소</Button>

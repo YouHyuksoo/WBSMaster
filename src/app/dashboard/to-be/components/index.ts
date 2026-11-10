@@ -8,3 +8,5 @@ export { ToBeModal } from "./ToBeModal";
 export { FixEditor } from "./FixEditor";
 export { ProcessEditor } from "./ProcessEditor";
 export { FlowCompare } from "./FlowCompare";
+export { GapPanel } from "./GapPanel";
+export { TraceTable } from "./TraceTable";

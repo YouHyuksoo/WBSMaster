@@ -1,28 +1,38 @@
 /**
  * @file src/app/dashboard/to-be/page.tsx
  * @description
- * TO-BE 설계 (1단계): 총괄표 + AS-IS 에서 초안 만들기 + 업무 추가 · 수정 · 삭제.
+ * TO-BE 설계: [총괄표] [Gap 분석] [추적표] 탭 + AS-IS 에서 초안 만들기 + 업무 추가 · 수정 · 삭제.
  * 설계: docs/specs/2026-11-10-to-be-design.md
  *
  * 초보자 가이드:
  * 1. "AS-IS에서 초안 만들기": 아직 TO-BE 에 연결되지 않은 AS-IS 업무를 1:1 로 복사한다 (다시 눌러도 중복 없음)
- * 2. 요약 줄: 전체 · 확정 · AS-IS 연결률 · SFR 미연결 건수
- * 3. 2단계(단위업무 설계 · 흐름도) · 3단계(Gap · 추적표)는 이후 추가한다
+ * 2. 요약 줄: 전체 · 확정 · AS-IS 연결률 · SFR · WBS 미연결 건수 (미연결은 유지 · 폐지 제외, needsImplementation)
+ * 3. 단위업무 설계(2단계)는 총괄표의 "단위업무 설계" 아이콘으로 들어간다
+ * 4. Gap 분석 · 추적표(3단계)는 /api/to-be/analysis 를 한 번 받아 두 탭이 같이 쓴다. 엑셀은 추적표 탭에서 내려받는다
  */
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
 import { Button, ConfirmModal, Icon, useToast } from "@/components/ui";
 import { useProject } from "@/contexts";
-import { useCreateToBeItem, useDeleteToBeItem, useDraftToBeFromAsIs, useToBe, useUpdateToBeItem } from "@/hooks";
+import { useCreateToBeItem, useDeleteToBeItem, useDraftToBeFromAsIs, useToBe, useToBeAnalysis, useUpdateToBeItem } from "@/hooks";
 import type { ToBeItemInput } from "@/lib/api";
-import { ToBeModal, ToBeTable } from "./components";
-import type { ToBeItem } from "./types";
+import { GapPanel, ToBeModal, ToBeTable, TraceTable } from "./components";
+import { needsImplementation, type ToBeItem } from "./types";
+
+type Tab = "list" | "gap" | "trace";
+const TABS: Array<{ key: Tab; label: string; icon: string }> = [
+  { key: "list", label: "총괄표", icon: "table_rows" },
+  { key: "gap", label: "Gap 분석", icon: "difference" },
+  { key: "trace", label: "추적표", icon: "account_tree" },
+];
 
 export default function ToBePage() {
   const { selectedProjectId } = useProject();
   const toast = useToast();
   const { data, isLoading, error } = useToBe(selectedProjectId);
+  const analysis = useToBeAnalysis(selectedProjectId);
+  const [tab, setTab] = useState<Tab>("list");
   const createItem = useCreateToBeItem();
   const updateItem = useUpdateToBeItem();
   const deleteItem = useDeleteToBeItem();
@@ -38,9 +48,16 @@ export default function ToBePage() {
       total: items.length,
       confirmed: items.filter((i) => i.status === "CONFIRMED").length,
       asIsTotal, linked,
-      noSfr: items.filter((i) => i.sfrCodes.length === 0 && i.changeType !== "RETIRE").length,
+      noSfr: items.filter((i) => i.sfrCodes.length === 0 && needsImplementation(i.changeType)).length,
+      noWbs: items.filter((i) => i.wbsItems.length === 0 && needsImplementation(i.changeType)).length,
     };
   }, [items, data]);
+  const gap = analysis.data?.gap;
+  const tabCount: Record<Tab, number | undefined> = {
+    list: items.length,
+    gap: gap && gap.asIsWithoutToBe.length + gap.unresolvedIssues.length + gap.toBeWithoutSfr.length + gap.toBeWithoutWbs.length,
+    trace: analysis.data?.trace.length,
+  };
 
   const fail = (err: unknown) => toast.error(err instanceof Error ? err.message : "저장하지 못했습니다.");
   const save = async (input: ToBeItemInput) => {
@@ -91,14 +108,39 @@ export default function ToBePage() {
         <div className="flex gap-1.5"><dt className="text-text-secondary">확정</dt><dd className="font-bold tabular-nums text-success">{stats.confirmed}</dd></div>
         <div className="flex gap-1.5"><dt className="text-text-secondary">AS-IS 연결</dt><dd className="font-bold tabular-nums text-text dark:text-white">{stats.linked} / {stats.asIsTotal}</dd></div>
         <div className="flex gap-1.5"><dt className="text-text-secondary">SFR 미연결</dt><dd className={`font-bold tabular-nums ${stats.noSfr > 0 ? "text-warning" : "text-text dark:text-white"}`}>{stats.noSfr}</dd></div>
+        <div className="flex gap-1.5"><dt className="text-text-secondary">WBS 미연결</dt><dd className={`font-bold tabular-nums ${stats.noWbs > 0 ? "text-warning" : "text-text dark:text-white"}`}>{stats.noWbs}</dd></div>
+        <p className="text-xs text-text-secondary self-center">미연결은 유지 · 폐지 업무 제외</p>
       </dl>
 
-      {error ? (
-        <p className="rounded-lg bg-error/10 p-4 text-sm text-error">{error instanceof Error ? error.message : "TO-BE 설계를 불러오지 못했습니다."}</p>
-      ) : isLoading ? (
+      <div role="tablist" aria-label="TO-BE 보기" className="flex items-center gap-1 p-1 bg-surface dark:bg-background-dark rounded-lg w-fit">
+        {TABS.map((t) => (
+          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === t.key ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm" : "text-text-secondary hover:text-text dark:hover:text-white"}`}>
+            <Icon name={t.icon} size="xs" />
+            <span>{t.label}</span>
+            {tabCount[t.key] !== undefined && (
+              <span className={`px-1.5 py-0.5 rounded text-xs tabular-nums ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface dark:bg-background-dark"}`}>{tabCount[t.key]}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === "list" ? (
+        error ? (
+          <p className="rounded-lg bg-error/10 p-4 text-sm text-error">{error instanceof Error ? error.message : "TO-BE 설계를 불러오지 못했습니다."}</p>
+        ) : isLoading ? (
+          <p className="text-sm text-text-secondary">불러오는 중...</p>
+        ) : (
+          <ToBeTable items={items} onEdit={onEdit} onDelete={onDelete} />
+        )
+      ) : analysis.error ? (
+        <p className="rounded-lg bg-error/10 p-4 text-sm text-error">{analysis.error instanceof Error ? analysis.error.message : "Gap 분석 · 추적표를 불러오지 못했습니다."}</p>
+      ) : !analysis.data ? (
         <p className="text-sm text-text-secondary">불러오는 중...</p>
+      ) : tab === "gap" ? (
+        <GapPanel gap={analysis.data.gap} />
       ) : (
-        <ToBeTable items={items} onEdit={onEdit} onDelete={onDelete} />
+        <TraceTable projectId={selectedProjectId} rows={analysis.data.trace} />
       )}
 
       {editing && data && (
@@ -106,6 +148,7 @@ export default function ToBePage() {
           item={editing === "new" ? null : editing}
           asIsOptions={data.asIsOptions}
           sfrOptions={data.sfrOptions}
+          wbsOptions={data.wbsOptions}
           busy={createItem.isPending || updateItem.isPending}
           onClose={() => setEditing(null)}
           onSubmit={save}

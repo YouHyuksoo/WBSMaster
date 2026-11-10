@@ -1,6 +1,6 @@
 /**
  * @file src/lib/to-be/to-be-service.test.ts
- * @description TO-BE 설계 서버 규칙(관리번호 · 입력 검사 · 초안 만들기 중복 방지 · AS-IS 연결 범위)을 가짜 prisma 로 검증합니다.
+ * @description TO-BE 설계 서버 규칙(관리번호 · 입력 검사 · 초안 만들기 중복 방지 · AS-IS · WBS 연결 범위)을 가짜 prisma 로 검증합니다.
  * 초보자 가이드:
  * - 실제 DB 에 쓰지 않는다.
  */
@@ -8,14 +8,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   toBeOverview: { upsert: vi.fn() },
-  toBeItem: { findMany: vi.fn(), create: vi.fn() },
-  toBeAsIsLink: { findMany: vi.fn() },
+  toBeItem: { findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+  toBeAsIsLink: { findMany: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() },
+  toBeWbsLink: { deleteMany: vi.fn(), createMany: vi.fn() },
   asIsOverviewItem: { findMany: vi.fn(), count: vi.fn() },
-  $transaction: vi.fn(async (ops: unknown[]) => ops),
+  wbsItem: { count: vi.fn() },
+  $transaction: vi.fn(async (arg: unknown) => (typeof arg === "function" ? arg(db) : arg)),
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 
-import { createToBeItem, draftFromAsIs, nextManagementNo, parseToBeInput } from "./to-be-service";
+import { createToBeItem, draftFromAsIs, nextManagementNo, parseToBeInput, updateToBeItem } from "./to-be-service";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -44,6 +46,32 @@ describe("입력 검사", () => {
     await expect(createToBeItem("p1", { majorCategory: "PRODUCTION", middleCategory: "a", taskName: "b", asIsItemIds: ["x", "y"] }))
       .rejects.toMatchObject({ status: 400 });
     expect(db.toBeItem.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("WBS 연결 (3단계)", () => {
+  const saved = { asIsLinks: [], wbsLinks: [{ wbsItem: { id: "w2", code: "3.10" } }, { wbsItem: { id: "w1", code: "3.2" } }] };
+
+  it("다른 프로젝트 WBS 작업은 연결할 수 없다", async () => {
+    db.wbsItem.count.mockResolvedValueOnce(1);
+    await expect(updateToBeItem("t1", "p1", { wbsItemIds: ["w1", "w9"] })).rejects.toMatchObject({ status: 400 });
+    expect(db.toBeWbsLink.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("wbsItemIds 를 보내지 않은 수정은 WBS 연결을 그대로 둔다 (개요만 저장해도 연결이 지워지지 않음)", async () => {
+    db.toBeItem.update.mockResolvedValueOnce(saved);
+    await updateToBeItem("t1", "p1", { summary: "요약만" });
+    expect(db.toBeWbsLink.deleteMany).not.toHaveBeenCalled();
+    expect(db.wbsItem.count).not.toHaveBeenCalled();
+  });
+
+  it("보낸 목록으로 통째로 바꾸고, 응답의 WBS 는 코드 자연 순서(3.2 < 3.10)", async () => {
+    db.wbsItem.count.mockResolvedValueOnce(2);
+    db.toBeItem.update.mockResolvedValueOnce(saved);
+    const item = await updateToBeItem("t1", "p1", { wbsItemIds: ["w1", "w2", "w1"] });
+    expect(db.toBeWbsLink.deleteMany).toHaveBeenCalledWith({ where: { toBeItemId: "t1" } });
+    expect(db.toBeWbsLink.createMany).toHaveBeenCalledWith({ data: [{ toBeItemId: "t1", wbsItemId: "w1" }, { toBeItemId: "t1", wbsItemId: "w2" }] });
+    expect(item.wbsItems.map((w) => w.code)).toEqual(["3.2", "3.10"]);
   });
 });
 

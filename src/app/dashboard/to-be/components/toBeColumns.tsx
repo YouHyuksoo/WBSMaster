@@ -3,13 +3,14 @@
  * @description TO-BE 총괄표(공용 그리드) 컬럼과 수정 · 삭제 동작입니다.
  * 초보자 가이드:
  * - 정렬 · 필터는 표시값(라벨)으로 동작하도록 accessorFn 으로 라벨을 넘긴다
- * - 연결 AS-IS · 연결 SFR 은 코드 목록을 쉼표로 보여 주고 마우스를 올리면 전체를 보여 준다
+ * - 연결 AS-IS · 연결 SFR · 연결 WBS 는 코드 목록을 쉼표로 보여 주고 마우스를 올리면 전체를 보여 준다
+ * - SFR · WBS 가 비었을 때 "미연결" 경고는 구현 대상(유지 · 폐지 제외)에만 보인다
  */
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { Icon } from "@/components/ui";
 import { HoverTooltip } from "@/components/common";
-import { CHANGE_TYPE_CONFIG, MAJOR_CATEGORIES, PRIORITY_LABEL, STATUS_CONFIG, TARGET_METHOD_CONFIG, type ToBeItem } from "../types";
+import { CHANGE_TYPE_CONFIG, MAJOR_CATEGORIES, PRIORITY_LABEL, STATUS_CONFIG, TARGET_METHOD_CONFIG, needsImplementation, type ToBeItem } from "../types";
 
 export interface ToBeActions {
   onEdit: (item: ToBeItem) => void;
@@ -25,6 +26,8 @@ function longText(header: string, text: string, width: number) {
     <span className="block truncate" style={{ maxWidth: width - 24 }}>{text || "-"}</span>
   </HoverTooltip>;
 }
+
+const missing = (item: ToBeItem) => needsImplementation(item.changeType) ? <span className="text-warning text-xs">미연결</span> : <span className="text-text-secondary text-xs">-</span>;
 
 const select = (options: Record<string, { label: string }>) => ({ filterType: "select" as const, filterOptions: Object.values(options).map((o) => ({ value: o.label, label: o.label })) });
 
@@ -47,7 +50,11 @@ export function createToBeColumns(actions: ToBeActions): ColumnDef<ToBeItem, unk
       meta: { filterPlaceholder: "AS-IS 검색" },
       cell: ({ row }) => longText("연결 AS-IS", row.original.asIsItems.map((a) => `${a.asIsManagementNo ?? ""} ${a.taskName}`.trim()).join("\n"), 160) },
     { id: "sfr", header: "연결 SFR", size: 150, accessorFn: (r) => r.sfrCodes.join(", "), meta: { filterPlaceholder: "SFR 검색" },
-      cell: ({ row }) => row.original.sfrCodes.length ? longText("연결 SFR", row.original.sfrCodes.join(", "), 150) : <span className="text-warning text-xs">미연결</span> },
+      cell: ({ row }) => row.original.sfrCodes.length ? longText("연결 SFR", row.original.sfrCodes.join(", "), 150) : missing(row.original) },
+    { id: "wbs", header: "연결 WBS", size: 130, accessorFn: (r) => r.wbsItems.map((w) => w.code).join(", "), meta: { filterPlaceholder: "WBS 검색", align: "left" },
+      cell: ({ row }) => row.original.wbsItems.length
+        ? <HoverTooltip label="연결 WBS" content={row.original.wbsItems.map((w) => `${w.code} ${w.name}`).join("\n")}><span className="block truncate tabular-nums" style={{ maxWidth: 106 }}>{row.original.wbsItems.map((w) => w.code).join(", ")}</span></HoverTooltip>
+        : missing(row.original) },
     { accessorKey: "summary", header: "개선 요약", size: 260, meta: { filterPlaceholder: "개선 요약 검색" }, cell: ({ getValue }) => longText("개선 요약", String(getValue() ?? ""), 260) },
     { id: "priority", header: "우선순위", size: 90, accessorFn: (r) => (r.priority ? PRIORITY_LABEL[r.priority] : "-"),
       meta: { filterType: "select", filterOptions: Object.values(PRIORITY_LABEL).map((l) => ({ value: l, label: l })) } },

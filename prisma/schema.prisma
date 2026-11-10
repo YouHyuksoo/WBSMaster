@@ -452,6 +452,7 @@ model WbsItem {
   assignees   WbsAssignee[]
   weeklyItems WeeklyReportItem[] @relation("WbsWeeklyItems") // 주간보고 항목 연결
   tasks       Task[] // 연결된 태스크들
+  toBeLinks   ToBeWbsLink[] // 이 작업으로 구현되는 TO-BE 업무 (TO-BE 3단계)
 
   @@unique([projectId, code]) // 프로젝트 내 WBS 코드 유일성
   @@map("wbs_items")
@@ -2609,6 +2610,7 @@ model ToBeItem {
   asIsLinks        ToBeAsIsLink[]
   fixes            ToBeIssueFix[] // AS-IS 문제점 → 해결 (2단계)
   processes        ToBeProcess[] // 프로세스 정의 (2단계)
+  wbsLinks         ToBeWbsLink[] // 구현 WBS 작업 (3단계)
 
   @@unique([overviewId, toBeManagementNo])
   @@index([overviewId])
@@ -2672,4 +2674,16 @@ model ToBeProcess {
 
   @@index([toBeItemId])
   @@map("to_be_processes")
+}
+
+/// TO-BE 업무 ↔ WBS 작업 (N:M, 3단계 추적표: AS-IS → TO-BE → SFR → WBS)
+model ToBeWbsLink {
+  toBeItemId String
+  toBeItem   ToBeItem @relation(fields: [toBeItemId], references: [id], onDelete: Cascade)
+  wbsItemId  String
+  wbsItem    WbsItem  @relation(fields: [wbsItemId], references: [id], onDelete: Cascade)
+
+  @@id([toBeItemId, wbsItemId])
+  @@index([wbsItemId])
+  @@map("to_be_wbs_links")
 }

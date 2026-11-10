@@ -12,7 +12,7 @@
 
 import { Prisma, type ToBeFixResult } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { ToBeError } from "./to-be-service";
+import { ToBeError, WBS_REF_SELECT, sortWbs } from "./to-be-service";
 
 export const FIX_RESULTS: ToBeFixResult[] = ["RESOLVED", "PARTIAL", "OPEN"];
 
@@ -24,6 +24,7 @@ export async function getToBeDesign(id: string) {
       asIsLinks: { select: { asIsItem: { select: { id: true, asIsManagementNo: true, taskName: true, majorCategory: true, middleCategory: true, currentMethod: true } } } },
       fixes: { orderBy: { order: "asc" } },
       processes: { orderBy: { step: "asc" } },
+      wbsLinks: { select: { wbsItem: { select: WBS_REF_SELECT } } },
     },
   });
   if (!item) throw new ToBeError(404, "TO-BE 업무를 찾을 수 없습니다.");
@@ -56,9 +57,9 @@ export async function getToBeDesign(id: string) {
     .filter((u) => u.flowChartData || u.swimlaneData)
     .map((u) => ({ asIsItemId: u.overviewItemId, asIsLabel: labelOf(asIsById.get(u.overviewItemId)), flowChartData: u.flowChartData, swimlaneData: u.swimlaneData }));
 
-  const { overview: _overview, asIsLinks, ...rest } = item;
+  const { overview: _overview, asIsLinks, wbsLinks, ...rest } = item;
   return {
-    item: { ...rest, projectId, asIsItems: asIsLinks.map((l) => l.asIsItem) },
+    item: { ...rest, projectId, asIsItems: asIsLinks.map((l) => l.asIsItem), wbsItems: sortWbs(wbsLinks.map((l) => l.wbsItem)) },
     issueCandidates,
     asIsFlows,
     sfrProgress: summarizeSfr(item.sfrCodes, sfrRows),

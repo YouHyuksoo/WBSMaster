@@ -131,15 +131,48 @@ export interface ToBeItem {
   sfrCodes: string[];
   order: number;
   asIsItems: ToBeAsIsRef[];
+  wbsItems: ToBeWbsRef[];
   updatedAt: string;
+}
+/** TO-BE 에 연결된 WBS 작업 (3단계) */
+export interface ToBeWbsRef {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  progress: number;
 }
 export interface ToBeData {
   overview: { id: string; author: string | null };
   items: ToBeItem[];
   asIsOptions: Array<ToBeAsIsRef & { currentMethod: string }>;
   sfrOptions: Array<{ code: string; label: string }>;
+  wbsOptions: Array<{ id: string; code: string; name: string; level: string }>;
 }
-export type ToBeItemInput = Partial<Pick<ToBeItem, "majorCategory" | "middleCategory" | "taskName" | "changeType" | "targetMethod" | "summary" | "priority" | "status" | "sfrCodes">> & { asIsItemIds?: string[] };
+export type ToBeItemInput = Partial<Pick<ToBeItem, "majorCategory" | "middleCategory" | "taskName" | "changeType" | "targetMethod" | "summary" | "priority" | "status" | "sfrCodes">> & { asIsItemIds?: string[]; wbsItemIds?: string[] };
+
+/** TO-BE Gap 분석 · 추적표 (GET /api/to-be/analysis, 3단계) */
+export interface ToBeRowRef {
+  id: string;
+  no: string | null;
+  taskName: string;
+}
+export interface ToBeAnalysis {
+  gap: {
+    asIsWithoutToBe: Array<ToBeRowRef & { middleCategory: string }>;
+    unresolvedIssues: Array<{ key: string; title: string; state: "NO_FIX" | "OPEN" | "PARTIAL"; solution: string | null; asIs: ToBeRowRef[]; toBe: (ToBeRowRef & { changeType: ToBeItem["changeType"] }) | null }>;
+    toBeWithoutSfr: Array<ToBeRowRef & { changeType: ToBeItem["changeType"] }>;
+    toBeWithoutWbs: Array<ToBeRowRef & { changeType: ToBeItem["changeType"] }>;
+    totals: { asIs: number; toBe: number; target: number };
+  };
+  trace: Array<{
+    key: string;
+    asIs: ToBeRowRef[];
+    toBe: (ToBeRowRef & Pick<ToBeItem, "changeType" | "targetMethod" | "status"> & { needsImplementation: boolean }) | null;
+    sfr: Array<{ code: string; label: string; total: number; applied: number; verified: number }>;
+    wbs: ToBeWbsRef[];
+  }>;
+}
 
 /** TO-BE 단위업무 설계 (GET /api/to-be/items/[id]) */
 export interface ToBeIssueFix {
@@ -1399,6 +1432,7 @@ export const api = {
     delete: (id: string) => del<{ success: boolean }>(`/api/to-be/items/${id}`),
     draftFromAsIs: (projectId: string) => post<{ created: number; skipped: number }>("/api/to-be/draft", { projectId }),
     design: (id: string) => get<ToBeDesign>(`/api/to-be/items/${id}`),
+    analysis: (projectId: string) => get<ToBeAnalysis>("/api/to-be/analysis", { projectId }),
     saveDesign: (id: string, data: ToBeDesignInput) => put<ToBeDesign>(`/api/to-be/items/${id}/design`, data),
   },
 

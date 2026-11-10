@@ -6,7 +6,7 @@
  *
  * 초보자 가이드:
  * 1. 총괄표의 "단위업무 설계" 아이콘으로 들어온다. 위쪽 ← 로 총괄표로 돌아간다
- * 2. 개요는 총괄표와 같은 수정 창(ToBeModal)으로 고친다
+ * 2. 개요는 총괄표와 같은 수정 창(ToBeModal)으로 고친다. 연결 WBS(3단계)도 개요에 보이고 같은 창에서 고친다
  * 3. 개선 매핑 · 프로세스 · 흐름도는 각자 저장한다 (한 섹션 저장이 다른 섹션 편집을 지우지 않는다)
  * 4. SFR 진행은 기능추적표의 세부 기능(L4) 적용 · 검증 수를 보여 준다
  */
@@ -20,7 +20,7 @@ import { useProject } from "@/contexts";
 import { useSaveToBeDesign, useToBe, useToBeDesign, useUpdateToBeItem } from "@/hooks";
 import type { ToBeDesignInput, ToBeItemInput } from "@/lib/api";
 import { FixEditor, FlowCompare, ProcessEditor, ToBeModal } from "../components";
-import { CHANGE_TYPE_CONFIG, MAJOR_CATEGORIES, PRIORITY_LABEL, STATUS_CONFIG, TARGET_METHOD_CONFIG } from "../types";
+import { CHANGE_TYPE_CONFIG, MAJOR_CATEGORIES, PRIORITY_LABEL, STATUS_CONFIG, TARGET_METHOD_CONFIG, WBS_STATUS_LABEL, needsImplementation } from "../types";
 
 function Section({ no, title, icon, children, action }: { no: string; title: string; icon: string; children: ReactNode; action?: ReactNode }) {
   return (
@@ -113,6 +113,12 @@ export default function ToBeDesignPage({ params }: { params: Promise<{ id: strin
             {item.asIsItems.length === 0 ? <span className="text-warning">연결된 AS-IS 업무가 없습니다</span> :
               item.asIsItems.map((a) => <span key={a.id} className="mr-3 inline-block"><span className="tabular-nums text-text-secondary">{a.asIsManagementNo}</span> {a.taskName}</span>)}
           </dd>
+          <dt className="text-text-secondary">연결 WBS</dt>
+          <dd className="text-text dark:text-white">
+            {item.wbsItems.length === 0
+              ? <span className={needsImplementation(item.changeType) ? "text-warning" : "text-text-secondary"}>{needsImplementation(item.changeType) ? "구현 WBS 작업이 없습니다. 개요 수정에서 연결하세요." : "-"}</span>
+              : item.wbsItems.map((w) => <span key={w.id} className="mr-3 inline-block"><span className="tabular-nums text-text-secondary">{w.code}</span> {w.name} <span className="text-xs text-text-secondary">({WBS_STATUS_LABEL[w.status] ?? w.status} {w.progress}%)</span></span>)}
+          </dd>
           <dt className="text-text-secondary">개선 요약</dt>
           <dd className="whitespace-pre-wrap text-text dark:text-white">{item.summary || <span className="text-text-secondary">아직 없습니다. 개요 수정에서 무엇이 달라지는지 적으세요.</span>}</dd>
         </dl>
@@ -135,7 +141,9 @@ export default function ToBeDesignPage({ params }: { params: Promise<{ id: strin
       <Section no="⑤" title="구현 기능 (기능추적표 SFR)" icon="fact_check"
         action={<Link href="/dashboard/process-verification" className="text-xs text-primary hover:underline">업무기능추적표</Link>}>
         {sfrProgress.length === 0 ? (
-          <p className="text-sm text-warning">연결된 SFR 이 없습니다. 개요 수정에서 기능 요구사항(SFR)을 연결하세요.</p>
+          needsImplementation(item.changeType)
+            ? <p className="text-sm text-warning">연결된 SFR 이 없습니다. 개요 수정에서 기능 요구사항(SFR)을 연결하세요.</p>
+            : <p className="text-sm text-text-secondary">유지 · 폐지 업무라 새로 구현할 기능(SFR)이 없습니다.</p>
         ) : (
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {sfrProgress.map((s) => {
@@ -157,7 +165,7 @@ export default function ToBeDesignPage({ params }: { params: Promise<{ id: strin
       </Section>
 
       {editing && list && (
-        <ToBeModal item={item} asIsOptions={list.asIsOptions} sfrOptions={list.sfrOptions} busy={updateItem.isPending}
+        <ToBeModal item={item} asIsOptions={list.asIsOptions} sfrOptions={list.sfrOptions} wbsOptions={list.wbsOptions} busy={updateItem.isPending}
           onClose={() => setEditing(false)} onSubmit={saveOverview} />
       )}
     </div>

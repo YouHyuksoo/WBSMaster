@@ -9,10 +9,12 @@
  * 3. 초안 만들기: 아직 어떤 TO-BE 에도 연결되지 않은 AS-IS 업무만 1:1 로 복사 → 다시 눌러도 중복이 생기지 않는다
  * 4. SFR 연결은 기능추적표 toBeCode 와 같은 문자열(SFR-012 형식)로 저장한다
  * 5. 실패는 ToBeError(status, message) 로 던지고 라우트가 그대로 돌려준다
+ * 6. WBS 연결(3단계)은 이 프로젝트 WBS 작업만 받는다. 수정 때 wbsItemIds 를 보내지 않으면 연결을 그대로 둔다
  */
 
 import { Prisma, type AsIsMajorCategory, type ToBeChangeType, type ToBeStatus, type ToBeTargetMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { compareWbsCode } from "./labels";
 
 export class ToBeError extends Error {
   constructor(public status: number, message: string) {
@@ -27,10 +29,13 @@ export const STATUSES: ToBeStatus[] = ["DRAFT", "REVIEW", "CONFIRMED"];
 export const PRIORITIES = ["HIGH", "MEDIUM", "LOW"] as const;
 const SFR_CODE = /^[A-Z]{3}-\d{3}$/;
 
+export const WBS_REF_SELECT = { id: true, code: true, name: true, status: true, progress: true } satisfies Prisma.WbsItemSelect;
+
 const ITEM_INCLUDE = {
   asIsLinks: {
     select: { asIsItem: { select: { id: true, asIsManagementNo: true, taskName: true, majorCategory: true, middleCategory: true } } },
   },
+  wbsLinks: { select: { wbsItem: { select: WBS_REF_SELECT } } },
 } satisfies Prisma.ToBeItemInclude;
 
 /** TB-001 형식 다음 번호 */
@@ -49,17 +54,28 @@ async function ensureOverview(projectId: string) {
 /** 총괄 + TO-BE 업무 + 연결 후보 */
 export async function getToBe(projectId: string) {
   const overview = await ensureOverview(projectId);
-  const [items, asIsOptions, sfrOptions] = await Promise.all([
+  const [items, asIsOptions, sfrOptions, wbsOptions] = await Promise.all([
     prisma.toBeItem.findMany({ where: { overviewId: overview.id }, orderBy: [{ order: "asc" }, { toBeManagementNo: "asc" }], include: ITEM_INCLUDE }),
     getAsIsOptions(projectId),
     getSfrOptions(projectId),
+    getWbsOptions(projectId),
   ]);
-  return { overview, items: items.map(flattenItem), asIsOptions, sfrOptions };
+  return { overview, items: items.map(flattenItem), asIsOptions, sfrOptions, wbsOptions };
 }
 
-function flattenItem<T extends { asIsLinks: Array<{ asIsItem: unknown }> }>(item: T) {
-  const { asIsLinks, ...rest } = item;
-  return { ...rest, asIsItems: asIsLinks.map((l) => l.asIsItem) };
+function flattenItem<T extends { asIsLinks: Array<{ asIsItem: unknown }>; wbsLinks: Array<{ wbsItem: { code: string } }> }>(item: T) {
+  const { asIsLinks, wbsLinks, ...rest } = item;
+  return { ...rest, asIsItems: asIsLinks.map((l) => l.asIsItem), wbsItems: sortWbs(wbsLinks.map((l) => l.wbsItem)) };
+}
+
+export function sortWbs<T extends { code: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => compareWbsCode(a.code, b.code));
+}
+
+/** 연결할 수 있는 WBS 작업 (이 프로젝트, 코드 순) */
+export async function getWbsOptions(projectId: string) {
+  const rows = await prisma.wbsItem.findMany({ where: { projectId }, select: { id: true, code: true, name: true, level: true } });
+  return sortWbs(rows);
 }
 
 /** 연결할 수 있는 AS-IS 업무 (이 프로젝트 AS-IS 총괄) */
@@ -97,6 +113,7 @@ export interface ToBeInput {
   status?: unknown;
   sfrCodes?: unknown;
   asIsItemIds?: unknown;
+  wbsItemIds?: unknown;
   order?: unknown;
 }
 
@@ -148,9 +165,20 @@ async function checkAsIsIds(projectId: string, ids: unknown): Promise<string[] |
   return unique;
 }
 
+async function checkWbsIds(projectId: string, ids: unknown): Promise<string[] | undefined> {
+  if (ids === undefined) return undefined;
+  if (!Array.isArray(ids)) throw new ToBeError(400, "연결 WBS 는 배열이어야 합니다.");
+  const unique = [...new Set(ids.map(String))];
+  if (unique.length === 0) return [];
+  const found = await prisma.wbsItem.count({ where: { id: { in: unique }, projectId } });
+  if (found !== unique.length) throw new ToBeError(400, "이 프로젝트의 WBS 작업만 연결할 수 있습니다.");
+  return unique;
+}
+
 export async function createToBeItem(projectId: string, input: ToBeInput) {
   const data = parseToBeInput(input, false);
   const asIsIds = await checkAsIsIds(projectId, input.asIsItemIds);
+  const wbsIds = await checkWbsIds(projectId, input.wbsItemIds);
   const overview = await ensureOverview(projectId);
   const existing = await prisma.toBeItem.findMany({ where: { overviewId: overview.id }, select: { toBeManagementNo: true, order: true } });
   const item = await prisma.toBeItem.create({
@@ -160,6 +188,7 @@ export async function createToBeItem(projectId: string, input: ToBeInput) {
       toBeManagementNo: nextManagementNo(existing.map((e) => e.toBeManagementNo)),
       order: typeof data.order === "number" ? data.order : existing.reduce((m, e) => Math.max(m, e.order), 0) + 10,
       asIsLinks: asIsIds?.length ? { create: asIsIds.map((asIsItemId) => ({ asIsItemId })) } : undefined,
+      wbsLinks: wbsIds?.length ? { create: wbsIds.map((wbsItemId) => ({ wbsItemId })) } : undefined,
     },
     include: ITEM_INCLUDE,
   });
@@ -176,10 +205,15 @@ export async function projectOfItem(id: string): Promise<string> {
 export async function updateToBeItem(id: string, projectId: string, input: ToBeInput) {
   const data = parseToBeInput(input, true);
   const asIsIds = await checkAsIsIds(projectId, input.asIsItemIds);
+  const wbsIds = await checkWbsIds(projectId, input.wbsItemIds);
   const item = await prisma.$transaction(async (tx) => {
     if (asIsIds) {
       await tx.toBeAsIsLink.deleteMany({ where: { toBeItemId: id } });
       if (asIsIds.length) await tx.toBeAsIsLink.createMany({ data: asIsIds.map((asIsItemId) => ({ toBeItemId: id, asIsItemId })) });
+    }
+    if (wbsIds) {
+      await tx.toBeWbsLink.deleteMany({ where: { toBeItemId: id } });
+      if (wbsIds.length) await tx.toBeWbsLink.createMany({ data: wbsIds.map((wbsItemId) => ({ toBeItemId: id, wbsItemId })) });
     }
     return tx.toBeItem.update({ where: { id }, data, include: ITEM_INCLUDE });
   });
