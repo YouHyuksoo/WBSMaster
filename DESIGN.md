@@ -43,6 +43,8 @@ spacing:
 
 ## Colors
 
+다크모드는 높이 단계로 구분한다(2026-11-10): 본문 `background-dark`(oklch 0.14) < 카드 · 모달 안 영역 `surface-dark`(0.23) < 화면 틀 `surface`(0.26) < 모달 `surface-elevated`(0.28), 테두리 `border-dark`(0.36). 공용 모달은 `surface-elevated` 면 + `border-dark` 테두리 + 다크 가림막 검정 70%로 띄운다. 모달 안의 목록 · 빈 상태 칸은 한 단계 낮은 면으로 둘 수 있지만 본문색(`background-dark`)을 모달 바탕으로 쓰지 않는다.
+
 Primary는 선택 상태와 주요 동작에 사용한다. 상태 색상은 진행·주의·오류·정보 의미를 유지한다. 라이트·다크 모두 기존 CSS 변수와 의미 토큰을 따른다. 전역 스타일 상단의 오래된 파란색 설명보다 실제 변수 선언을 우선한다.
 
 ## Typography

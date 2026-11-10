@@ -74,7 +74,7 @@ export function DashboardSidebar({
       {/* 사이드바 */}
       <aside
         className={`
-          fixed lg:static inset-y-0 left-0 z-50
+          fixed lg:static inset-y-0 left-0 z-50 lg:z-30
           ${isCollapsed ? "lg:w-16" : "w-64"}
           bg-background-white dark:bg-surface
           border-r border-border dark:border-border-dark

@@ -491,7 +491,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const userName = user?.name || user?.email?.split("@")[0] || "User";
 
   return (
-    <header className="h-16 flex items-center justify-between whitespace-nowrap border-b border-border dark:border-border-dark bg-background-white dark:bg-surface px-6 z-[55] shrink-0">
+    <header className="h-16 flex items-center justify-between whitespace-nowrap border-b border-border dark:border-border-dark bg-background-white dark:bg-surface px-6 z-[45] shrink-0">
       {/* 좌측: 로고 및 프로젝트 선택 */}
       <div className="flex items-center gap-4">
         {/* 모바일 메뉴 버튼 */}

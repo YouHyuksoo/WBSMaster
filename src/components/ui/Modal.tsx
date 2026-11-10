@@ -100,7 +100,7 @@ export function Modal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* 오버레이 */}
       <div
-        className="absolute inset-0 bg-black/50 transition-opacity"
+        className="absolute inset-0 bg-black/50 dark:bg-black/70 transition-opacity"
         onClick={closeOnOverlayClick ? onClose : undefined}
       />
 
@@ -108,8 +108,9 @@ export function Modal({
       <div
         className={`
           relative w-full ${sizeClasses[size]}
-          bg-background-white dark:bg-surface-dark
-          rounded-xl shadow-xl
+          bg-background-white dark:bg-surface-elevated
+          border border-border dark:border-border-dark
+          rounded-xl shadow-xl dark:shadow-black/60
           transform transition-all
           animate-in fade-in zoom-in-95 duration-200
         `}

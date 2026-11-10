@@ -140,14 +140,14 @@ export function InterviewModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* 백드롭 */}
       <div
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-black/50 dark:bg-black/70"
         onClick={onClose}
       />
 
       {/* 모달 */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-xl shadow-xl">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-surface-elevated border border-border dark:border-border-dark rounded-xl shadow-xl dark:shadow-black/60">
         {/* 헤더 */}
-        <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 z-10">
+        <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-border-dark bg-white dark:bg-surface-elevated z-10">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
             {mode === "create" ? "인터뷰 등록" : "인터뷰 수정"}
           </h2>
