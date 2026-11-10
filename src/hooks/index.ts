@@ -241,3 +241,17 @@ export {
   useUpdateProgressTaskStageDetail,
   progressTaskStageDetailKeys,
 } from "./useProgressTaskStageDetails";
+
+// 메뉴 관리 (그룹 · 배치 · 권한 · 즐겨찾기)
+export {
+  useMenuTree,
+  useUnassignedMenus,
+  useMyMenuAccess,
+  useRoleMenuPermissions,
+  useSaveRolePermissions,
+  useInvalidateMenus,
+  useMenuFavorites,
+  useMenuFavoriteFolders,
+  menuKeys,
+  type FolderAction,
+} from "./useMenu";

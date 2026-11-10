@@ -49,6 +49,14 @@
 - 리스트형 페이지(헤더·통계 카드·탭·필터·그리드 테이블·상태 드롭다운) 규칙: `docs/design/list-page-style.md`. 참고 구현: `src/app/dashboard/issues/page.tsx`, `customer-requirements/page.tsx`.
 - 다크모드: `dark:` 클래스와 함께 기본 라이트 모드 색상도 명시한다.
 
+## 메뉴 (HANES 방식, 2026-11-10)
+
+- 화면 목록(메뉴 코드 · 이름 · 주소 · 아이콘)은 `src/lib/menu/menu-config.ts` 의 `MENU_REGISTRY`, 그룹 · 배치 · 순서는 DB(`menu_categories`, `menu_category_items`, 시스템관리 > 메뉴 관리), 역할별 접근은 `role_menu_permissions`(권한 관리), 즐겨찾기는 `user_menu_favorites` · `user_menu_favorite_folders`.
+- 새 화면을 만들면 `MENU_REGISTRY` 에 등록한다(코드는 바꾸지 않는다). 등록만 하면 "미배치 메뉴"라 좌측 메뉴에 안 보이므로, 운영에는 배치 · 권한 행을 넣는 SQL(`INSERT ... ON CONFLICT DO NOTHING`)을 새 마이그레이션으로 함께 둔다. `DEFAULT_MENU_LAYOUT` 에도 추가한다(`DashboardSidebar.test.ts` 가 검사).
+- ADMIN 은 권한 행과 관계없이 모든 메뉴를 쓴다. `systemOnly` 메뉴는 다른 역할에 줄 수 없다. 메뉴 · 권한 관리 API 는 ADMIN 전용이다.
+- 권한 없는 메뉴는 좌측 메뉴에서 흐리게 보이고, 주소로 들어오면 `MenuAccessGuard` 가 본문 대신 권한 없음 안내를 보여 준다. 데이터 API 의 로그인 · 프로젝트 권한 검사는 별개다.
+- 배포 스크립트는 DB 구조를 바꾸지 않는다. 새 테이블 · 칼럼이 있는 마이그레이션은 배포 전에 운영 DB 에 먼저 적용한다.
+
 ## 파일 업로드
 
 - 업로드는 서버 로컬 디스크에 저장한다: `src/lib/uploads.ts` 의 `saveUpload()` → `UPLOAD_DIR` 또는 `<프로젝트>/uploads` (git 제외).

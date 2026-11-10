@@ -19,6 +19,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { DashboardHeader } from "./DashboardHeader";
+import { MenuAccessGuard } from "./MenuAccessGuard";
 import { FloatingMenu } from "@/components/common/FloatingMenu";
 import { checkSession } from "@/lib/session";
 
@@ -85,7 +86,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* 메인 콘텐츠 */}
         <main id="main-content" className="flex-1 overflow-auto bg-background dark:bg-background-dark">
-          {children}
+          {/* 내 역할에 허용되지 않은 화면은 본문 대신 권한 없음 안내 */}
+          <MenuAccessGuard>{children}</MenuAccessGuard>
         </main>
       </div>
 

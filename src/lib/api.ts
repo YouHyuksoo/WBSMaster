@@ -86,6 +86,16 @@ async function patch<T>(url: string, data?: unknown): Promise<T> {
   return handleResponse<T>(response);
 }
 
+/** PUT 요청 */
+async function put<T>(url: string, data?: unknown): Promise<T> {
+  const response = await fetch(url, {
+    ...defaultOptions,
+    method: "PUT",
+    body: data !== undefined ? JSON.stringify(data) : undefined,
+  });
+  return handleResponse<T>(response);
+}
+
 /** DELETE 요청 */
 async function del<T>(url: string): Promise<T> {
   const response = await fetch(url, {
@@ -99,6 +109,27 @@ async function del<T>(url: string): Promise<T> {
 // 타입 정의
 // ============================================
 
+/** 메뉴 그룹 · 배치 트리 (GET /api/menu/tree) */
+export interface MenuTreeCategory {
+  code: string;
+  label: string;
+  icon: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  menus: Array<{ menuCode: string; sortOrder: number }>;
+}
+
+/** 내 메뉴 권한 (GET /api/menu/me) — allowedMenus=null 이면 전부 허용(ADMIN) */
+export interface MyMenuAccess {
+  role: string;
+  allowedMenus: string[] | null;
+}
+
+/** 즐겨찾기 폴더 (GET /api/menu/favorites/folders) */
+export interface MenuFavoriteFolders {
+  folders: Array<{ id: string; name: string; sortOrder: number }>;
+  assignments: Array<{ menuCode: string; folderId: string }>;
+}
 
 /** 프로젝트 타입 */
 export interface Project {
@@ -1199,6 +1230,35 @@ export interface ProgressTaskStageDetail {
 // ============================================
 
 export const api = {
+  // ============================================
+  // 메뉴 관리 API (그룹 · 배치 · 권한 · 즐겨찾기)
+  // ============================================
+  menu: {
+    tree: () => get<MenuTreeCategory[]>("/api/menu/tree"),
+    unassigned: () => get<string[]>("/api/menu/unassigned"),
+    me: () => get<MyMenuAccess>("/api/menu/me"),
+    createCategory: (data: { code: string; label: string; icon?: string | null; isActive?: boolean }) =>
+      post<MenuTreeCategory>("/api/menu/categories", data),
+    updateCategory: (code: string, data: { label?: string; icon?: string | null; isActive?: boolean }) =>
+      patch<MenuTreeCategory>(`/api/menu/categories/${encodeURIComponent(code)}`, data),
+    deleteCategory: (code: string) => del<{ success: boolean }>(`/api/menu/categories/${encodeURIComponent(code)}`),
+    reorderCategories: (items: Array<{ code: string; sortOrder: number }>) =>
+      patch<{ success: boolean }>("/api/menu/categories/reorder", { items }),
+    reorderItems: (code: string, items: Array<{ menuCode: string; sortOrder: number }>) =>
+      patch<{ success: boolean }>(`/api/menu/categories/${encodeURIComponent(code)}/items`, { items }),
+    moveItem: (menuCode: string, toCategoryCode: string | null) =>
+      patch<{ success: boolean }>("/api/menu/items/move", { menuCode, toCategoryCode }),
+    permissions: (role: string) => get<string[] | null>("/api/menu/permissions", { role }),
+    savePermissions: (role: string, menuCodes: string[]) => put<string[]>("/api/menu/permissions", { role, menuCodes }),
+    favorites: () => get<string[]>("/api/menu/favorites"),
+    saveFavorites: (menuCodes: string[]) => put<string[]>("/api/menu/favorites", { menuCodes }),
+    folders: () => get<MenuFavoriteFolders>("/api/menu/favorites/folders"),
+    createFolder: (name: string) => post<{ id: string; name: string; sortOrder: number }>("/api/menu/favorites/folders", { name }),
+    renameFolder: (id: string, name: string) => patch<{ id: string; name: string }>(`/api/menu/favorites/folders/${id}`, { name }),
+    deleteFolder: (id: string) => del<{ success: boolean }>(`/api/menu/favorites/folders/${id}`),
+    moveFavorite: (menuCode: string, folderId: string | null) =>
+      put<{ success: boolean }>(`/api/menu/favorites/${encodeURIComponent(menuCode)}/folder`, { folderId }),
+  },
 
   /** 프로젝트 API */
   projects: {

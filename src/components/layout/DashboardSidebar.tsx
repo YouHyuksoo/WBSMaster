@@ -2,31 +2,29 @@
  * @file src/components/layout/DashboardSidebar.tsx
  * @description
  * 대시보드 좌측 사이드바 네비게이션 컴포넌트입니다.
- * 메뉴 항목과 관리 메뉴를 포함하며, 접기/펴기 기능을 지원합니다.
+ * 메뉴는 HANES 방식으로 그린다: 화면 목록은 src/lib/menu/menu-config.ts, 그룹 · 배치 · 순서는 DB(메뉴 관리 화면).
  *
  * 초보자 가이드:
- * 1. **menuItems**: 주요 메뉴 항목 배열
- * 2. **managementItems**: 관리 메뉴 항목 배열 (시스템관리를 누르면 접고 펼치는 서브메뉴, 관리 화면에 있으면 자동으로 펼침)
- * 3. **activeItem**: 현재 활성화된 메뉴 (URL 경로와 매칭)
- * 4. **isCollapsed**: 사이드바 축소 상태 (데스크탑 전용)
- * 5. **onToggleCollapse**: 사이드바 접기/펴기 토글 핸들러
+ * 1. **메뉴 그룹**: '__ROOT__' 그룹의 메뉴는 맨 위에 바로, 나머지 그룹은 접고 펼치는 상위 메뉴(현재 화면이 들어 있으면 펼침)
+ * 2. **권한**: 내 역할에 허용되지 않은 메뉴는 흐리게 보이고 누를 수 없다 (권한 관리 화면)
+ * 3. **즐겨찾기**: 메뉴에 마우스를 올리면 별이 보이고, 누르면 헤더의 즐겨찾기 목록에 담긴다
+ * 4. **isCollapsed**: 사이드바 축소 상태 (데스크탑 전용, 아이콘만)
  *
  * 수정 방법:
- * - 메뉴 추가: menuItems 또는 managementItems 배열에 항목 추가
- * - 아이콘 변경: icon 속성에 Material Symbols 이름 지정
- * - 축소 너비 변경: lg:w-16 클래스 수정
+ * - 메뉴 추가: menu-config.ts 의 MENU_REGISTRY 에 등록 → 메뉴 관리 화면에서 그룹에 배치
+ * - 메뉴 순서 · 그룹 변경: 시스템관리 > 메뉴 관리 (코드 수정 불필요)
  */
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui";
-import { useCurrentUser } from "@/hooks";
-
-/** 일반 메뉴·관리 메뉴·하단 메뉴가 공유하는 호버 및 키보드 포커스 표시 */
-const menuInteractionClassName = "hover:bg-surface dark:hover:bg-surface-hover focus-visible:bg-surface dark:focus-visible:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset";
+import { useCurrentUser, useMenuFavorites, useMenuTree, useMyMenuAccess } from "@/hooks";
+import { menuForPath } from "@/lib/menu/menu-config";
+import { buildSidebarGroups } from "@/lib/menu/menu-tree";
+import { SidebarMenuRow, menuInteractionClassName } from "./SidebarMenuRow";
 
 interface DashboardSidebarProps {
   /** 사이드바 열림 상태 (모바일용) */
@@ -38,52 +36,6 @@ interface DashboardSidebarProps {
   /** 사이드바 축소/확장 토글 핸들러 */
   onToggleCollapse?: () => void;
 }
-
-/** 메뉴 항목 타입 */
-interface MenuItem {
-  /** 메뉴 라벨 */
-  label: string;
-  /** Material Symbols 아이콘 이름 */
-  icon: string;
-  /** 링크 경로 */
-  href: string;
-  /** 아이콘 채움 여부 (활성화 시) */
-  filled?: boolean;
-  /** ADMIN 전용 메뉴 여부 */
-  adminOnly?: boolean;
-}
-
-/** 주요 메뉴 항목 */
-const menuItems: MenuItem[] = [
-  { label: "대시보드", icon: "dashboard", href: "/dashboard" },
-  { label: "WBS 보기", icon: "account_tree", href: "/dashboard/wbs", filled: true },
-  { label: "마일스톤", icon: "flag_circle", href: "/dashboard/milestones" },
-  { label: "진도/리스크", icon: "trending_up", href: "/dashboard/progress-risk" },
-  { label: "TASK 관리", icon: "view_kanban", href: "/dashboard/kanban" },
-  { label: "일정 관리", icon: "event", href: "/dashboard/holidays" },
-  { label: "인터뷰 관리", icon: "mic", href: "/dashboard/interviews" },
-  { label: "회의록관리", icon: "event_note", href: "/dashboard/meeting-minutes" },
-  { label: "AS-IS 분석", icon: "analytics", href: "/dashboard/as-is-analysis" },
-  { label: "요구사항관리", icon: "contact_page", href: "/dashboard/customer-requirements" },
-  { label: "이슈사항관리", icon: "support_agent", href: "/dashboard/field-issues" },
-  { label: "협의요청관리", icon: "forum", href: "/dashboard/discussion-items" },
-  { label: "업무기능추적표", icon: "fact_check", href: "/dashboard/process-verification" },
-  { label: "공정설비구성", icon: "precision_manufacturing", href: "/dashboard/equipment", filled: true },
-  { label: "주간 업무보고", icon: "assignment", href: "/dashboard/weekly-report" },
-  { label: "문서함 관리", icon: "folder_copy", href: "/dashboard/documents", filled: true },
-  { label: "AI 어시스턴트", icon: "smart_toy", href: "/dashboard/chat", filled: true },
-];
-
-/** 관리 메뉴 항목 */
-const managementItems: MenuItem[] = [
-  { label: "기준 설정", icon: "tune", href: "/dashboard/settings" },
-  { label: "사용자/프로젝트 관리", icon: "manage_accounts", href: "/dashboard/users", adminOnly: true },
-  { label: "채팅 분석", icon: "analytics", href: "/dashboard/chat/history" },
-  { label: "업무협조 점검표", icon: "checklist", href: "/dashboard/requirements" },
-  { label: "이슈사항 점검표", icon: "bug_report", href: "/dashboard/issues" },
-  { label: "Slack 설정", icon: "forum", href: "/dashboard/slack" },
-  { label: "데이터 백업", icon: "backup", href: "/dashboard/backups" },
-];
 
 /**
  * 대시보드 사이드바 컴포넌트
@@ -97,45 +49,27 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const { data: currentUser } = useCurrentUser();
   const isAdmin = currentUser?.role === "ADMIN";
+  const { data: tree } = useMenuTree();
+  const { data: access } = useMyMenuAccess();
+  const { favorites, toggle } = useMenuFavorites();
 
-  const visibleManagementItems = managementItems.filter(
-    (item) => !item.adminOnly || isAdmin
-  );
+  const groups = useMemo(() => buildSidebarGroups(tree, access?.allowedMenus, isAdmin), [tree, access, isAdmin]);
+  const activeCode = menuForPath(pathname)?.code;
+  /** 현재 화면이 들어 있는 그룹 */
+  const activeGroup = groups.find((g) => !g.isRoot && g.menus.some((m) => m.code === activeCode))?.code;
 
-  /** 지금 화면이 관리 메뉴 중 하나인지 */
-  const isInManagement = managementItems.some((item) => pathname.startsWith(item.href));
-  /** 관리 메뉴 펼침 상태: 기본은 접힘, 관리 화면에 있으면 펼침 */
-  const [isManagementOpen, setIsManagementOpen] = useState(isInManagement);
+  /** 그룹 펼침 상태: 기본은 접힘, 현재 화면이 들어 있는 그룹은 펼침 */
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => (activeGroup ? { [activeGroup]: true } : {}));
 
-  // 다른 경로(헤더 링크 등)로 관리 화면에 들어와도 현재 메뉴가 보이도록 펼친다
+  // 다른 경로(헤더 링크 · 즐겨찾기 등)로 들어와도 현재 메뉴가 보이도록 펼친다
   useEffect(() => {
-    if (isInManagement) setIsManagementOpen(true);
-  }, [isInManagement]);
-
-  /**
-   * 메뉴 항목이 활성화 상태인지 확인
-   */
-  const isActive = (href: string) => {
-    // 대시보드는 정확히 매칭
-    if (href === "/dashboard") {
-      return pathname === "/dashboard";
-    }
-    // 채팅은 정확히 매칭 (history와 구분)
-    if (href === "/dashboard/chat") {
-      return pathname === "/dashboard/chat";
-    }
-    return pathname.startsWith(href);
-  };
+    if (activeGroup) setOpenGroups((prev) => (prev[activeGroup] ? prev : { ...prev, [activeGroup]: true }));
+  }, [activeGroup]);
 
   return (
     <>
       {/* 모바일 오버레이 */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
+      {isOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />}
 
       {/* 사이드바 */}
       <aside
@@ -155,109 +89,69 @@ export function DashboardSidebar({
           className="hidden lg:flex absolute -right-3 top-6 z-10 size-6 items-center justify-center rounded-full bg-primary text-white shadow-md hover:bg-primary-hover transition-colors"
           title={isCollapsed ? "사이드바 펴기" : "사이드바 접기"}
         >
-          <Icon
-            name={isCollapsed ? "chevron_right" : "chevron_left"}
-            size="xs"
-          />
+          <Icon name={isCollapsed ? "chevron_right" : "chevron_left"} size="xs" />
         </button>
 
         {/* 메뉴 영역 */}
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-0.5">
-          {/* 메뉴 섹션 */}
+        <nav aria-label="주 메뉴" className="flex-1 overflow-y-auto p-4 flex flex-col gap-0.5">
           <p className={`px-3 text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 ${isCollapsed ? "lg:hidden" : ""}`}>
             Menu
           </p>
 
-          {menuItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={isCollapsed ? item.label : undefined}
-              className={`
-                flex items-center gap-3 px-3 py-1.5 rounded-lg transition-colors
-                ${isCollapsed ? "lg:justify-center lg:px-0" : ""}
-                ${
-                  isActive(item.href)
-                    ? "bg-primary/10 text-primary border border-primary/20"
-                    : `text-text dark:text-white ${menuInteractionClassName}`
-                }
-              `}
-            >
-              <Icon
-                name={item.icon}
-                size="sm"
-                className={isActive(item.href) ? "text-primary" : "text-text-secondary"}
-                style={isActive(item.href) && item.filled ? { fontVariationSettings: "'FILL' 1" } : undefined}
+          {groups.map((group, index) => {
+            const rows = group.menus.map((menu) => (
+              <SidebarMenuRow
+                key={menu.code}
+                menu={menu}
+                active={menu.code === activeCode}
+                collapsed={isCollapsed}
+                favorite={favorites.includes(menu.code)}
+                onToggleFavorite={toggle}
               />
-              <p className={`text-sm ${isActive(item.href) ? "font-bold" : "font-medium"} ${isCollapsed ? "lg:hidden" : ""}`}>
-                {item.label}
-              </p>
-            </Link>
-          ))}
+            ));
+            if (group.isRoot) return <div key={group.code} className="flex flex-col gap-0.5">{rows}</div>;
 
-          {/* 구분선 */}
-          <div className={`h-px bg-border dark:bg-border-dark my-2 ${isCollapsed ? "lg:mx-0" : "mx-2"}`} />
-
-          {/* 관리 섹션: 접고 펼치는 상위 메뉴 + 서브메뉴 */}
-          <button
-            type="button"
-            onClick={() => setIsManagementOpen((open) => !open)}
-            aria-expanded={isManagementOpen}
-            aria-controls="sidebar-management-menu"
-            title={isCollapsed ? "시스템관리" : undefined}
-            className={`
-              flex items-center gap-3 px-3 py-1.5 rounded-lg transition-colors w-full text-left
-              ${isCollapsed ? "lg:justify-center lg:px-0" : ""}
-              ${isInManagement && !isManagementOpen ? "text-primary" : "text-text dark:text-white"}
-              ${menuInteractionClassName}
-            `}
-          >
-            <Icon
-              name="admin_panel_settings"
-              size="sm"
-              className={isInManagement ? "text-primary" : "text-text-secondary"}
-            />
-            <p className={`flex-1 text-sm font-bold ${isCollapsed ? "lg:hidden" : ""}`}>
-              시스템관리
-            </p>
-            <Icon
-              name="expand_more"
-              size="sm"
-              className={`text-text-secondary transition-transform duration-200 ${isManagementOpen ? "rotate-180" : ""} ${isCollapsed ? "lg:hidden" : ""}`}
-            />
-          </button>
-
-          <div
-            id="sidebar-management-menu"
-            className={`${isManagementOpen ? "flex" : "hidden"} flex-col gap-0.5 ${isCollapsed ? "" : "ml-4 pl-2 border-l border-border dark:border-border-dark"}`}
-          >
-          {visibleManagementItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={isCollapsed ? item.label : undefined}
-              className={`
-                flex items-center gap-3 px-3 py-1.5 rounded-lg transition-colors
-                ${isCollapsed ? "lg:justify-center lg:px-0" : ""}
-                ${
-                  isActive(item.href)
-                    ? "bg-primary/10 text-primary border border-primary/20"
-                    : `text-text dark:text-white ${menuInteractionClassName}`
-                }
-              `}
-            >
-              <Icon
-                name={item.icon}
-                size="sm"
-                className={isActive(item.href) ? "text-primary" : "text-text-secondary"}
-              />
-              <p className={`text-sm ${isActive(item.href) ? "font-bold" : "font-medium"} ${isCollapsed ? "lg:hidden" : ""}`}>
-                {item.label}
-              </p>
-            </Link>
-          ))}
-          </div>
-        </div>
+            const open = !!openGroups[group.code];
+            const containsActive = group.code === activeGroup;
+            const panelId = `sidebar-group-${group.code}`;
+            return (
+              <div key={group.code} className="flex flex-col gap-0.5">
+                {/* 첫 그룹 앞(단독 메뉴 다음)에 구분선 */}
+                {index > 0 && groups[index - 1].isRoot && (
+                  <div className={`h-px bg-border dark:bg-border-dark my-2 ${isCollapsed ? "lg:mx-0" : "mx-2"}`} />
+                )}
+                {/* 그룹: 접고 펼치는 상위 메뉴 + 서브메뉴 */}
+                <button
+                  type="button"
+                  onClick={() => setOpenGroups((prev) => ({ ...prev, [group.code]: !prev[group.code] }))}
+                  aria-expanded={open}
+                  aria-controls={panelId}
+                  title={isCollapsed ? group.label : undefined}
+                  className={`
+                    flex items-center gap-3 px-3 py-1.5 rounded-lg transition-colors w-full text-left
+                    ${isCollapsed ? "lg:justify-center lg:px-0" : ""}
+                    ${containsActive && !open ? "text-primary" : "text-text dark:text-white"}
+                    ${menuInteractionClassName}
+                  `}
+                >
+                  <Icon name={group.icon || "folder"} size="sm" className={containsActive ? "text-primary" : "text-text-secondary"} />
+                  <p className={`flex-1 text-sm font-bold ${isCollapsed ? "lg:hidden" : ""}`}>{group.label}</p>
+                  <Icon
+                    name="expand_more"
+                    size="sm"
+                    className={`text-text-secondary transition-transform duration-200 ${open ? "rotate-180" : ""} ${isCollapsed ? "lg:hidden" : ""}`}
+                  />
+                </button>
+                <div
+                  id={panelId}
+                  className={`${open ? "flex" : "hidden"} flex-col gap-0.5 ${isCollapsed ? "" : "ml-4 pl-2 border-l border-border dark:border-border-dark"}`}
+                >
+                  {rows}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
 
         {/* 하단 메뉴 */}
         <div className={`p-4 pt-0 flex flex-col gap-0.5 shrink-0 ${isCollapsed ? "lg:p-2 lg:pt-0" : ""}`}>

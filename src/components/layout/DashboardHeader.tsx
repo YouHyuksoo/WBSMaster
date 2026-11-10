@@ -19,6 +19,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { FavoriteMenuDropdown } from "./FavoriteMenuDropdown";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Icon, Button, Input, ImageCropper, useToast } from "@/components/ui";
@@ -621,6 +622,9 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
               필독가이드
             </span>
           </Link>
+
+          {/* 즐겨찾기 메뉴 (좌측 메뉴의 ★ 로 담는다) */}
+          <FavoriteMenuDropdown />
 
           {/* 언어 전환 (추후 구현) */}
           <button className="hidden sm:flex h-9 items-center justify-center gap-1 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark hover:bg-surface-hover dark:hover:bg-[#2a3441] transition-colors px-3">
