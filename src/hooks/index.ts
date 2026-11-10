@@ -175,6 +175,8 @@ export {
   useCreateInterview,
   useUpdateInterview,
   useDeleteInterview,
+  useStartInterviewAudio,
+  useInterviewAudioJob,
   interviewKeys,
 } from "./useInterviews";
 

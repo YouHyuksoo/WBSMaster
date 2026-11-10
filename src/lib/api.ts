@@ -99,6 +99,7 @@ async function del<T>(url: string): Promise<T> {
 // 타입 정의
 // ============================================
 
+
 /** 프로젝트 타입 */
 export interface Project {
   id: string;
@@ -837,6 +838,26 @@ export interface MeetingAudioJobStatus {
   error: string | null;
 }
 
+/** 음성 인터뷰 작업 상태 (GET /api/interviews/audio/[jobId]) — structuring 단계부터 transcript 가 먼저 온다 */
+export interface InterviewAudioJobStatus {
+  stage: "uploading" | "transcribing" | "structuring" | "done" | "error";
+  fileName: string;
+  transcript: string | null;
+  interview: {
+    title: string;
+    interviewDate: string;
+    interviewer: string | null;
+    interviewee: string | null;
+    category: string | null;
+    currentProcess: string | null;
+    painPoints: string | null;
+    desiredResults: string | null;
+    technicalConstraints: string | null;
+    questions: string | null;
+  } | null;
+  error: string | null;
+}
+
 /** 고객요구사항 타입 */
 export interface CustomerRequirement {
   id: string;
@@ -1178,6 +1199,7 @@ export interface ProgressTaskStageDetail {
 // ============================================
 
 export const api = {
+
   /** 프로젝트 API */
   projects: {
     list: (params?: { status?: string; ownerId?: string; accessibleOnly?: boolean }) =>
@@ -1778,6 +1800,13 @@ export const api = {
       patch<Interview>(`/api/interviews/${id}`, data),
     /** 삭제 */
     delete: (id: string) => del<{ message: string }>(`/api/interviews/${id}`),
+    /** 음성 인터뷰 작업 시작 (FormData: projectId, file, interviewDate) → jobId */
+    startAudio: async (formData: FormData): Promise<{ jobId: string }> => {
+      const response = await fetch("/api/interviews/audio", { method: "POST", body: formData });
+      return handleResponse<{ jobId: string }>(response);
+    },
+    /** 음성 인터뷰 작업 상태 */
+    audioStatus: (jobId: string) => get<InterviewAudioJobStatus>(`/api/interviews/audio/${jobId}`),
   },
 
   // ============================================

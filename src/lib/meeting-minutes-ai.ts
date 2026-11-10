@@ -54,7 +54,7 @@ export const MEETING_MINUTES_SYSTEM_PROMPT = `당신은 회의록 문서를 구�
 "items":[{"content":"","assignee":null,"dueDate":null,"status":null}]}]}`;
 
 /** 응답에서 JSON 부분만 꺼낸다 (```json 블록 또는 첫 { ~ 마지막 }) */
-function extractJson(raw: string): unknown {
+export function extractJson(raw: string): unknown {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   const body = fenced ? fenced[1] : raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
   return JSON.parse(body);

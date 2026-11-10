@@ -9,6 +9,7 @@
  * 2. **폼 필드**: 제목, 인터뷰 일자, 업무영역, 진행자, 대상자, 5가지 카테고리(현재 운영 방식, 문제점, 원하는 결과, 기술적 제약, 궁금한 점), 비고
  * 3. **유효성 검사**: 필수 필드 체크 (제목). 사업부는 묻지 않는다 (서버가 DEFAULT_BUSINESS_UNIT 으로 저장)
  * 4. **5가지 카테고리**: textarea로 각각 입력받아 구조화된 인터뷰 내용 저장
+ * 5. **초안(draft)**: 음성 인터뷰(InterviewAudioModal)가 정리한 값을 등록 창에 미리 채운다. 저장은 사용자가 한다
  */
 
 "use client";
@@ -27,6 +28,8 @@ interface InterviewModalProps {
   interview?: Interview | null;
   onClose: () => void;
   onSubmit: (data: InterviewFormData) => Promise<void>;
+  /** 등록 모드에서 미리 채울 값 (음성 인터뷰 초안) */
+  draft?: InterviewFormData | null;
 }
 
 /** 기본 폼 데이터 */
@@ -53,6 +56,7 @@ export function InterviewModal({
   interview,
   onClose,
   onSubmit,
+  draft,
 }: InterviewModalProps) {
   const [formData, setFormData] = useState<InterviewFormData>(DEFAULT_FORM_DATA);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,10 +81,10 @@ export function InterviewModal({
         remarks: interview.remarks || "",
       });
     } else {
-      setFormData(DEFAULT_FORM_DATA);
+      setFormData(draft ? { ...DEFAULT_FORM_DATA, ...draft } : DEFAULT_FORM_DATA);
     }
     setErrors({});
-  }, [mode, interview, isOpen]);
+  }, [mode, interview, isOpen, draft]);
 
   // 필드 변경 핸들러
   const handleChange = useCallback(

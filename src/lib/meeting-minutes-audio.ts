@@ -21,7 +21,7 @@ export const OPENAI_AUDIO_MAX_BYTES = 25 * 1024 * 1024;
 /** OpenAI 음성 → 전사문 (fetch 주입: 테스트는 가짜) */
 export async function transcribeWithOpenAI(
   fetchImpl: typeof fetch,
-  input: { apiKey: string; model: string; data: Buffer; fileName: string; mimeType: string }
+  input: { apiKey: string; model: string; data: Buffer; fileName: string; mimeType: string; prompt?: string }
 ): Promise<string> {
   if (input.data.length > OPENAI_AUDIO_MAX_BYTES) {
     throw new Error("OpenAI 음성 인식은 25MB 이하 파일만 받습니다. 녹음을 나누거나 낮은 음질(mp3 64kbps 등)로 다시 저장해 주세요.");
@@ -31,7 +31,7 @@ export async function transcribeWithOpenAI(
   form.append("model", input.model);
   form.append("language", "ko");
   form.append("response_format", "text");
-  form.append("prompt", "한국어 업무 회의 녹음입니다. MES, LOT, 인터락, 절곡 같은 용어가 나옵니다.");
+  form.append("prompt", input.prompt ?? "한국어 업무 회의 녹음입니다. MES, LOT, 인터락, 절곡 같은 용어가 나옵니다.");
   const res = await fetchImpl("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
     headers: { Authorization: `Bearer ${input.apiKey}` },

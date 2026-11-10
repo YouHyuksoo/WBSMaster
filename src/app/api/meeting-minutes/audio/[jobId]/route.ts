@@ -23,7 +23,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { jobId } = await params;
 
   const job = getAudioJob(jobId);
-  if (!job || job.userId !== user!.id) {
+  if (!job || job.userId !== user!.id || job.kind !== "meeting") {
     return NextResponse.json({ error: "작업을 찾을 수 없습니다 (서버가 재시작됐거나 1시간이 지났습니다)." }, { status: 404 });
   }
   return NextResponse.json({

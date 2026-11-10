@@ -118,3 +118,34 @@ export function useDeleteInterview() {
     },
   });
 }
+
+/**
+ * 음성 인터뷰 작업 시작 Hook (녹음 → 전사 → 인터뷰 초안)
+ */
+export function useStartInterviewAudio() {
+  return useMutation({
+    mutationFn: ({ projectId, file, interviewDate }: { projectId: string; file: File; interviewDate: string }) => {
+      const form = new FormData();
+      form.append("projectId", projectId);
+      form.append("file", file);
+      form.append("interviewDate", interviewDate);
+      return api.interviews.startAudio(form);
+    },
+  });
+}
+
+/**
+ * 음성 인터뷰 작업 상태 Hook (끝날 때까지 3초마다 다시 묻는다)
+ */
+export function useInterviewAudioJob(jobId: string | null) {
+  return useQuery({
+    queryKey: [...interviewKeys.all, "audio", jobId],
+    queryFn: () => api.interviews.audioStatus(jobId!),
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const stage = query.state.data?.stage;
+      return stage === "done" || stage === "error" ? false : 3000;
+    },
+    retry: false,
+  });
+}

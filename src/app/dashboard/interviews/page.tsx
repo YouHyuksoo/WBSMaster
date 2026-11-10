@@ -27,7 +27,7 @@ import {
   useUpdateInterview,
   useDeleteInterview,
 } from "@/hooks";
-import { InterviewTable, InterviewModal } from "./components";
+import { InterviewTable, InterviewModal, InterviewAudioModal } from "./components";
 import {
   type Interview,
   type InterviewFormData,
@@ -53,11 +53,16 @@ export default function InterviewsPage() {
     isOpen: boolean;
     mode: "create" | "edit";
     interview: Interview | null;
+    /** 음성 인터뷰가 정리한 등록 초안 */
+    draft?: InterviewFormData | null;
   }>({
     isOpen: false,
     mode: "create",
     interview: null,
   });
+
+  /** 음성으로 인터뷰 등록 모달 */
+  const [showAudioModal, setShowAudioModal] = useState(false);
 
 
   // 삭제 확인 모달 상태
@@ -385,6 +390,14 @@ export default function InterviewsPage() {
             엑셀 다운로드
           </Button>
           <Button
+            variant="outline"
+            leftIcon="mic"
+            onClick={() => setShowAudioModal(true)}
+            disabled={!selectedProjectId}
+          >
+            음성으로 등록
+          </Button>
+          <Button
             variant="primary"
             leftIcon="add"
             onClick={handleOpenCreate}
@@ -539,6 +552,18 @@ export default function InterviewsPage() {
         interview={modalState.interview}
         onClose={handleCloseModal}
         onSubmit={handleSubmit}
+        draft={modalState.draft}
+      />
+
+      {/* 음성으로 인터뷰 등록: 전사 → AI 정리 → 등록 창 */}
+      <InterviewAudioModal
+        isOpen={showAudioModal}
+        projectId={selectedProjectId}
+        onClose={() => setShowAudioModal(false)}
+        onDraft={(draft) => {
+          setShowAudioModal(false);
+          setModalState({ isOpen: true, mode: "create", interview: null, draft });
+        }}
       />
 
       {/* 삭제 확인 모달 */}
