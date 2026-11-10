@@ -32,6 +32,7 @@ import MindmapRenderer, { MindmapNode } from "./components/MindmapRenderer";
 import { EXAMPLE_GROUPS, ExampleGroup } from "./components/constants";
 import { ExcelMappingModal } from "./components/ExcelMappingModal";
 import { SuggestionsCarousel } from "./components/SuggestionsCarousel";
+import { useAutoSpeak, useSpeaker } from "./hooks/useOpenAIVoice";
 
 /**
  * 피드백 타입
@@ -43,6 +44,9 @@ type FeedbackRating = "POSITIVE" | "NEGATIVE" | "NEUTRAL" | null;
  */
 export default function ChatPage() {
   const toast = useToast();
+  /** 답변 자동 읽기 (OpenAI 음성, 이 브라우저에만 저장) */
+  const [autoSpeak, setAutoSpeak] = useAutoSpeak();
+  const { speak: speakAnswer } = useSpeaker(); // 모듈 함수라 렌더마다 같다
   const { selectedProject } = useProject();
 
   // 상태
@@ -63,8 +67,6 @@ export default function ChatPage() {
   const [aiSettings, setAiSettings] = useState<{
     provider: string;
     chatgptModel?: string;
-    geminiModel: string;
-    mistralModel: string;
     openaiModel?: string;
     openrouterModel?: string;
   } | null>(null);
@@ -218,8 +220,6 @@ export default function ChatPage() {
         setAiSettings({
           provider: data.provider,
           chatgptModel: data.chatgptModel,
-          geminiModel: data.geminiModel,
-          mistralModel: data.mistralModel,
           openaiModel: data.openaiModel,
           openrouterModel: data.openrouterModel,
         });
@@ -330,6 +330,9 @@ export default function ChatPage() {
             usedFallback: data.usedFallback,
           };
           setMessages((prev) => [...prev, assistantMessage]);
+          if (autoSpeak) {
+            void speakAnswer(assistantMessage.id, assistantMessage.content).then((err) => err && toast.error(err));
+          }
         } else {
           const error = await res.json();
           toast.error(error.error || "메시지 전송에 실패했습니다.");
@@ -341,7 +344,7 @@ export default function ChatPage() {
         setIsLoading(false);
       }
     },
-    [isLoading, selectedProjectId, selectedPersonaId, toast]
+    [isLoading, selectedProjectId, selectedPersonaId, toast, autoSpeak, speakAnswer]
   );
 
   /**
@@ -678,9 +681,7 @@ export default function ChatPage() {
               {/* 현재 사용 중인 모델 표시 */}
               {aiSettings && (
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  aiSettings.provider === "gemini"
-                    ? "bg-blue-500/20 text-blue-500"
-                    : aiSettings.provider === "openai"
+                  aiSettings.provider === "openai"
                     ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
                     : aiSettings.provider === "openrouter"
                     ? "bg-violet-500/20 text-violet-600 dark:text-violet-400"
@@ -720,6 +721,18 @@ export default function ChatPage() {
               className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
             />
           </div>
+
+          {/* 답변 자동 읽기 (OpenAI) */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setAutoSpeak(!autoSpeak)}
+            leftIcon={autoSpeak ? "volume_up" : "volume_off"}
+            className={autoSpeak ? "text-primary bg-primary/10" : ""}
+            title="답변이 오면 OpenAI 음성으로 읽어 줍니다 (기준 설정 > 음성 회의록 의 OpenAI 키)"
+          >
+            {autoSpeak ? "자동 읽기 켜짐" : "자동 읽기"}
+          </Button>
 
           {/* 기록 삭제 */}
           <Button variant="ghost" size="sm" onClick={handleClearHistory} leftIcon="delete">

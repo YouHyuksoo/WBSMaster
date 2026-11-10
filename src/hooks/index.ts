@@ -185,6 +185,8 @@ export {
   useUpdateMeetingMinute,
   useDeleteMeetingMinute,
   useImportMeetingMinutes,
+  useStartMeetingAudio,
+  useMeetingAudioJob,
   meetingMinuteKeys,
 } from "./useMeetingMinutes";
 

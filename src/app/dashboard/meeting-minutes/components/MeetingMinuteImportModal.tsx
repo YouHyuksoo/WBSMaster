@@ -11,7 +11,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Icon, Button } from "@/components/ui";
 import { useImportMeetingMinutes } from "@/hooks";
 import type { MeetingMinuteImportResult } from "@/lib/api";
@@ -30,23 +30,18 @@ const HINTS = [
   "양식이 다른 시트는 AI(설정 페이지의 AI 제공자)가 읽습니다. AI 로 읽은 회의록은 내용을 꼭 확인하세요.",
 ];
 
-export function MeetingMinuteImportModal({ isOpen, projectId, onClose }: MeetingMinuteImportModalProps) {
+/** 열려 있을 때만 본문을 그린다. 열 때마다 본문을 새로 만들어 입력이 초기화된다 */
+export function MeetingMinuteImportModal(props: MeetingMinuteImportModalProps) {
+  return props.isOpen ? <ImportBody {...props} /> : null;
+}
+
+function ImportBody({ projectId, onClose }: MeetingMinuteImportModalProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] = useState<MeetingMinuteImportResult | null>(null);
   const [error, setError] = useState("");
   const [alwaysAi, setAlwaysAi] = useState(false); // 모든 시트를 AI 로 읽기
   const importMinutes = useImportMeetingMinutes();
-
-  useEffect(() => {
-    if (isOpen) {
-      setFiles([]);
-      setResult(null);
-      setError("");
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
 
   const upload = async () => {
     if (!projectId || files.length === 0) return;

@@ -12,7 +12,7 @@
  *
  * 수정 방법:
  * - 설정 항목 추가: settings 객체에 필드 추가
- * - LLM 모델 추가: GEMINI_MODELS, MISTRAL_MODELS 배열에 추가
+ * - LLM 제공자: 회사 ChatGPT · OpenAI · OpenRouter (Gemini · Mistral 은 2026-11-09 제거)
  */
 
 "use client";
@@ -22,7 +22,7 @@ import { Icon, Button, Input, Card, ConfirmModal } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { api, AiPersona } from "@/lib/api";
 import type { LLMProvider } from "@/lib/llm/config";
-import { ProviderButton, ApiKeyModelPanel, ChatGptConnection, ChatGptProviderButton, type ApiKeyProviderId } from "./components";
+import { ProviderButton, ApiKeyModelPanel, ChatGptConnection, ChatGptProviderButton, AudioMeetingSettings, type ApiKeyProviderId } from "./components";
 import { useCurrentUser } from "@/hooks";
 
 /**
@@ -31,39 +31,15 @@ import { useCurrentUser } from "@/hooks";
 interface AiSettings {
   provider: LLMProvider;
   chatgptModel: string;
-  geminiApiKey: string | null;
-  geminiModel: string;
-  mistralApiKey: string | null;
-  mistralModel: string;
   openaiApiKey: string | null;
   openaiModel: string;
   openrouterApiKey: string | null;
   openrouterModel: string;
-  hasGeminiKey: boolean;
-  hasMistralKey: boolean;
   hasOpenaiKey: boolean;
   hasOpenrouterKey: boolean;
   sqlSystemPrompt: string;
   analysisSystemPrompt: string;
 }
-
-/**
- * Gemini 모델 목록
- */
-const GEMINI_MODELS = [
-  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (빠름)" },
-  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (고품질)" },
-  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (실험)" },
-];
-
-/**
- * Mistral 모델 목록
- */
-const MISTRAL_MODELS = [
-  { value: "mistral-small-latest", label: "Mistral Small (빠름)" },
-  { value: "mistral-medium-latest", label: "Mistral Medium (균형)" },
-  { value: "mistral-large-latest", label: "Mistral Large (고품질)" },
-];
 
 /** API 키 + 자유 입력 모델 제공자 (OpenAI · OpenRouter) 의 상태 칼럼 이름 */
 const API_KEY_PROVIDER_FIELDS: Record<
@@ -103,16 +79,10 @@ export default function SettingsPage() {
   const [aiSettings, setAiSettings] = useState<AiSettings>({
     provider: "chatgpt",
     chatgptModel: "gpt-6.1-sol",
-    geminiApiKey: null,
-    geminiModel: "gemini-1.5-flash",
-    mistralApiKey: null,
-    mistralModel: "mistral-small-latest",
     openaiApiKey: null,
     openaiModel: "gpt-4.1-mini",
     openrouterApiKey: null,
     openrouterModel: "openai/gpt-4.1-mini",
-    hasGeminiKey: false,
-    hasMistralKey: false,
     hasOpenaiKey: false,
     hasOpenrouterKey: false,
     sqlSystemPrompt: "",
@@ -123,8 +93,6 @@ export default function SettingsPage() {
   const [showSystemPromptEditor, setShowSystemPromptEditor] = useState(false);
 
   // API 키 입력 상태 (새로 입력하는 경우)
-  const [newGeminiKey, setNewGeminiKey] = useState("");
-  const [newMistralKey, setNewMistralKey] = useState("");
   /** OpenAI · OpenRouter 새 키 입력값 */
   const [newProviderKeys, setNewProviderKeys] = useState<Record<ApiKeyProviderId, string>>({
     openai: "",
@@ -135,10 +103,6 @@ export default function SettingsPage() {
   const [isLoadingAi, setIsLoadingAi] = useState(true);
   const [isSavingAi, setIsSavingAi] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
-
-  // API 키 표시 상태
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
-  const [showMistralKey, setShowMistralKey] = useState(false);
 
   // 페르소나 상태
   const [personas, setPersonas] = useState<AiPersona[]>([]);
@@ -300,8 +264,6 @@ export default function SettingsPage() {
       const payload: Record<string, unknown> = {
         provider: aiSettings.provider,
         chatgptModel: aiSettings.chatgptModel,
-        geminiModel: aiSettings.geminiModel,
-        mistralModel: aiSettings.mistralModel,
         openaiModel: aiSettings.openaiModel,
         openrouterModel: aiSettings.openrouterModel,
         sqlSystemPrompt: aiSettings.sqlSystemPrompt,
@@ -309,12 +271,6 @@ export default function SettingsPage() {
       };
 
       // 새로 입력된 API 키가 있으면 포함
-      if (newGeminiKey) {
-        payload.geminiApiKey = newGeminiKey;
-      }
-      if (newMistralKey) {
-        payload.mistralApiKey = newMistralKey;
-      }
       if (newProviderKeys.openai) {
         payload.openaiApiKey = newProviderKeys.openai;
       }
@@ -331,8 +287,6 @@ export default function SettingsPage() {
       if (res.ok) {
         const data = await res.json();
         setAiSettings(data);
-        setNewGeminiKey("");
-        setNewMistralKey("");
         setNewProviderKeys({ openai: "", openrouter: "" });
         toast.success("AI 설정이 저장되었습니다.");
       } else {
@@ -375,7 +329,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
+    <div className="p-6 space-y-6 max-w-7xl">
       {/* 헤더 */}
       <div>
         <h1 className="text-2xl font-bold text-text dark:text-white">기준 설정</h1>
@@ -408,64 +362,12 @@ export default function SettingsPage() {
                 <label className="block text-sm font-medium text-text dark:text-white mb-3">
                   LLM 제공자
                 </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {/* 회사 ChatGPT 버튼 (서버 공용 구독 계정) */}
                   <ChatGptProviderButton
                     selected={aiSettings.provider === "chatgpt"}
                     onSelect={() => setAiSettings((prev) => ({ ...prev, provider: "chatgpt" }))}
                   />
-
-                  {/* Gemini 버튼 */}
-                  <button
-                    onClick={() => setAiSettings((prev) => ({ ...prev, provider: "gemini" }))}
-                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                      aiSettings.provider === "gemini"
-                        ? "border-blue-500 bg-blue-500/10"
-                        : "border-border dark:border-border-dark hover:border-blue-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="size-10 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                        <span className="text-white font-bold text-lg">G</span>
-                      </div>
-                      <div className="text-left">
-                        <p className="font-medium text-text dark:text-white">Google Gemini</p>
-                        <p className="text-xs text-text-secondary">Google AI Studio</p>
-                      </div>
-                    </div>
-                    {aiSettings.hasGeminiKey && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-success">
-                        <Icon name="check_circle" size="xs" />
-                        <span>API 키 등록됨</span>
-                      </div>
-                    )}
-                  </button>
-
-                  {/* Mistral 버튼 */}
-                  <button
-                    onClick={() => setAiSettings((prev) => ({ ...prev, provider: "mistral" }))}
-                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                      aiSettings.provider === "mistral"
-                        ? "border-orange-500 bg-orange-500/10"
-                        : "border-border dark:border-border-dark hover:border-orange-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="size-10 rounded-lg bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
-                        <span className="text-white font-bold text-lg">M</span>
-                      </div>
-                      <div className="text-left">
-                        <p className="font-medium text-text dark:text-white">Mistral AI</p>
-                        <p className="text-xs text-text-secondary">Mistral Platform</p>
-                      </div>
-                    </div>
-                    {aiSettings.hasMistralKey && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-success">
-                        <Icon name="check_circle" size="xs" />
-                        <span>API 키 등록됨</span>
-                      </div>
-                    )}
-                  </button>
 
                   {/* OpenAI · OpenRouter 버튼 */}
                   {API_KEY_PROVIDER_IDS.map((id) => (
@@ -512,114 +414,6 @@ export default function SettingsPage() {
                   }
                 />
               ))}
-
-              {/* Gemini 설정 */}
-              {aiSettings.provider === "gemini" && (
-                <div className="space-y-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30">
-                  <div>
-                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
-                      Gemini API 키
-                    </label>
-                    <div className="relative">
-                      <Input
-                        type={showGeminiKey ? "text" : "password"}
-                        placeholder={aiSettings.hasGeminiKey ? "••••••••••••" : "API 키를 입력하세요"}
-                        value={newGeminiKey}
-                        onChange={(e) => setNewGeminiKey(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowGeminiKey(!showGeminiKey)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text"
-                      >
-                        <Icon name={showGeminiKey ? "visibility_off" : "visibility"} size="sm" />
-                      </button>
-                    </div>
-                    <p className="text-xs text-text-secondary mt-1">
-                      <a
-                        href="https://aistudio.google.com/app/apikey"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline"
-                      >
-                        Google AI Studio
-                      </a>
-                      에서 API 키를 발급받으세요
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
-                      모델 선택
-                    </label>
-                    <select
-                      value={aiSettings.geminiModel}
-                      onChange={(e) => setAiSettings((prev) => ({ ...prev, geminiModel: e.target.value }))}
-                      className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white"
-                    >
-                      {GEMINI_MODELS.map((model) => (
-                        <option key={model.value} value={model.value}>
-                          {model.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {/* Mistral 설정 */}
-              {aiSettings.provider === "mistral" && (
-                <div className="space-y-4 p-4 rounded-lg bg-orange-50 dark:bg-orange-950/30">
-                  <div>
-                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
-                      Mistral API 키
-                    </label>
-                    <div className="relative">
-                      <Input
-                        type={showMistralKey ? "text" : "password"}
-                        placeholder={aiSettings.hasMistralKey ? "••••••••••••" : "API 키를 입력하세요"}
-                        value={newMistralKey}
-                        onChange={(e) => setNewMistralKey(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowMistralKey(!showMistralKey)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text"
-                      >
-                        <Icon name={showMistralKey ? "visibility_off" : "visibility"} size="sm" />
-                      </button>
-                    </div>
-                    <p className="text-xs text-text-secondary mt-1">
-                      <a
-                        href="https://console.mistral.ai/api-keys/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-orange-500 hover:underline"
-                      >
-                        Mistral Console
-                      </a>
-                      에서 API 키를 발급받으세요
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-text dark:text-white mb-2">
-                      모델 선택
-                    </label>
-                    <select
-                      value={aiSettings.mistralModel}
-                      onChange={(e) => setAiSettings((prev) => ({ ...prev, mistralModel: e.target.value }))}
-                      className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white"
-                    >
-                      {MISTRAL_MODELS.map((model) => (
-                        <option key={model.value} value={model.value}>
-                          {model.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
 
               {/* 시스템 프롬프트 설정 */}
               <div className="border-t border-border dark:border-border-dark pt-6">
@@ -688,7 +482,7 @@ export default function SettingsPage() {
                 <Button
                   variant="ghost"
                   onClick={handleTestConnection}
-                  disabled={isTestingConnection || (aiSettings.provider !== "chatgpt" && !aiSettings.hasGeminiKey && !newGeminiKey && !aiSettings.hasMistralKey && !newMistralKey && !aiSettings.hasOpenaiKey && !newProviderKeys.openai && !aiSettings.hasOpenrouterKey && !newProviderKeys.openrouter)}
+                  disabled={isTestingConnection || (aiSettings.provider !== "chatgpt" && !aiSettings.hasOpenaiKey && !newProviderKeys.openai && !aiSettings.hasOpenrouterKey && !newProviderKeys.openrouter)}
                   leftIcon={isTestingConnection ? "progress_activity" : "network_check"}
                 >
                   연결 테스트
@@ -706,6 +500,9 @@ export default function SettingsPage() {
           )}
         </div>
       </Card>
+
+      {/* 음성 회의록 (음성 인식 · 전사 정리 모델, OpenAI 키) */}
+      <AudioMeetingSettings />
 
       {/* AI 페르소나 관리 */}
       <Card>

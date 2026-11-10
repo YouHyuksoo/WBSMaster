@@ -26,9 +26,13 @@ export function useMeetingMinutesPage() {
   const { selectedProjectId, selectedProject } = useProject();
   const toast = useToast();
   const [search, setSearch] = useState("");
-  const [modal, setModal] = useState<{ isOpen: boolean; minute: MeetingMinute | null }>({ isOpen: false, minute: null });
+  const [modal, setModal] = useState<{ isOpen: boolean; minute: MeetingMinute | null; draft?: MeetingMinuteFormData | null }>({
+    isOpen: false,
+    minute: null,
+  });
   const [deleting, setDeleting] = useState<MeetingMinute | null>(null);
   const [importOpen, setImportOpen] = useState(false); // 엑셀 가져오기 모달
+  const [audioOpen, setAudioOpen] = useState(false); // 음성으로 작성 모달
 
   const { data: minutes = [], isLoading, error: loadError } = useMeetingMinutes({ projectId: selectedProjectId ?? undefined });
   const createMinute = useCreateMeetingMinute();
@@ -88,5 +92,12 @@ export function useMeetingMinutesPage() {
     confirmDelete,
     importOpen,
     setImportOpen,
+    audioOpen,
+    setAudioOpen,
+    // 음성 초안으로 등록 창 열기 (음성 모달은 닫는다)
+    openDraft: (draft: MeetingMinuteFormData) => {
+      setAudioOpen(false);
+      setModal({ isOpen: true, minute: null, draft });
+    },
   };
 }

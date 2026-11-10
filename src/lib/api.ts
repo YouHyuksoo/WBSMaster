@@ -819,6 +819,24 @@ export interface MeetingMinuteImportResult {
   errors: string[];
 }
 
+/** 음성 회의록 작업 상태 (GET /api/meeting-minutes/audio/[jobId]) */
+export interface MeetingAudioJobStatus {
+  stage: "uploading" | "transcribing" | "structuring" | "done" | "error";
+  fileName: string;
+  transcript: string | null;
+  minute: {
+    title: string;
+    meetingDate: string;
+    startTime: string | null;
+    endTime: string | null;
+    location: string | null;
+    author: string | null;
+    attendees: string | null;
+    items: Array<{ content: string; assignee?: string; dueDate?: string; status: MeetingItemStatus }>;
+  } | null;
+  error: string | null;
+}
+
 /** 고객요구사항 타입 */
 export interface CustomerRequirement {
   id: string;
@@ -1784,6 +1802,13 @@ export const api = {
       const response = await fetch("/api/meeting-minutes/import", { method: "POST", body: formData });
       return handleResponse<MeetingMinuteImportResult>(response);
     },
+    /** 음성 회의록 작업 시작 (FormData: projectId, file, meetingDate) → jobId */
+    startAudio: async (formData: FormData): Promise<{ jobId: string }> => {
+      const response = await fetch("/api/meeting-minutes/audio", { method: "POST", body: formData });
+      return handleResponse<{ jobId: string }>(response);
+    },
+    /** 음성 회의록 작업 상태 */
+    audioStatus: (jobId: string) => get<MeetingAudioJobStatus>(`/api/meeting-minutes/audio/${jobId}`),
   },
 
   // ============================================

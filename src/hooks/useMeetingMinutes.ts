@@ -63,6 +63,33 @@ export function useImportMeetingMinutes() {
   });
 }
 
+/** 음성 회의록 작업 시작 (녹음 → OpenAI 전사 → 회의록 초안) */
+export function useStartMeetingAudio() {
+  return useMutation({
+    mutationFn: ({ projectId, file, meetingDate }: { projectId: string; file: File; meetingDate: string }) => {
+      const form = new FormData();
+      form.append("projectId", projectId);
+      form.append("file", file);
+      form.append("meetingDate", meetingDate);
+      return api.meetingMinutes.startAudio(form);
+    },
+  });
+}
+
+/** 음성 회의록 작업 상태 (끝날 때까지 3초마다 다시 묻는다) */
+export function useMeetingAudioJob(jobId: string | null) {
+  return useQuery({
+    queryKey: [...meetingMinuteKeys.all, "audio", jobId],
+    queryFn: () => api.meetingMinutes.audioStatus(jobId!),
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const stage = query.state.data?.stage;
+      return stage === "done" || stage === "error" ? false : 3000;
+    },
+    retry: false,
+  });
+}
+
 /** 회의록 삭제 */
 export function useDeleteMeetingMinute() {
   const queryClient = useQueryClient();

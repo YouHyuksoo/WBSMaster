@@ -12,3 +12,4 @@ export { MeetingMinuteTable } from "./MeetingMinuteTable";
 export { MeetingMinuteModal } from "./MeetingMinuteModal";
 export { MeetingItemsEditor } from "./MeetingItemsEditor";
 export { MeetingMinuteImportModal } from "./MeetingMinuteImportModal";
+export { MeetingAudioModal } from "./MeetingAudioModal";

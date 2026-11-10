@@ -11,7 +11,7 @@
 
 "use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Icon, Button } from "@/components/ui";
 import { MeetingItemsEditor } from "./MeetingItemsEditor";
 import { toFormData, type MeetingMinute, type MeetingMinuteFormData } from "../types";
@@ -19,6 +19,7 @@ import { toFormData, type MeetingMinute, type MeetingMinuteFormData } from "../t
 interface MeetingMinuteModalProps {
   isOpen: boolean;
   minute: MeetingMinute | null; // null 이면 신규
+  draft?: MeetingMinuteFormData | null; // 신규일 때 미리 채울 값 (음성 회의록 초안)
   onClose: () => void;
   onSubmit: (data: MeetingMinuteFormData) => Promise<void>;
 }
@@ -39,19 +40,16 @@ function Field({ label, required, children, className }: { label: string; requir
   );
 }
 
-export function MeetingMinuteModal({ isOpen, minute, onClose, onSubmit }: MeetingMinuteModalProps) {
-  const [form, setForm] = useState<MeetingMinuteFormData>(() => toFormData(minute));
+/** 열려 있을 때만 본문을 그린다. 열 때마다(대상이 바뀌면) 본문을 새로 만들어 폼이 초기화된다 */
+export function MeetingMinuteModal(props: MeetingMinuteModalProps) {
+  if (!props.isOpen) return null;
+  return <ModalBody key={props.minute?.id ?? (props.draft ? "draft" : "new")} {...props} />;
+}
+
+function ModalBody({ minute, draft, onClose, onSubmit }: MeetingMinuteModalProps) {
+  const [form, setForm] = useState<MeetingMinuteFormData>(() => (!minute && draft ? draft : toFormData(minute)));
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setForm(toFormData(minute));
-      setError("");
-    }
-  }, [isOpen, minute]);
-
-  if (!isOpen) return null;
 
   const set = <K extends keyof MeetingMinuteFormData>(field: K, value: MeetingMinuteFormData[K]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -77,7 +75,7 @@ export function MeetingMinuteModal({ isOpen, minute, onClose, onSubmit }: Meetin
       <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-xl shadow-xl">
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-            {minute ? `회의록 수정 · ${minute.code}` : "회의록 등록"}
+            {minute ? `회의록 수정 · ${minute.code}` : draft ? "회의록 등록 (음성 초안 — 내용을 확인하세요)" : "회의록 등록"}
           </h2>
           <button type="button" onClick={onClose} aria-label="닫기" className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-surface dark:hover:bg-slate-700">
             <Icon name="close" size="sm" />

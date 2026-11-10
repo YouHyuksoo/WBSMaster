@@ -16,7 +16,7 @@
 "use client";
 
 import { Icon, Button, Input, ConfirmModal } from "@/components/ui";
-import { MeetingMinuteStats, MeetingMinuteTable, MeetingMinuteModal, MeetingMinuteImportModal } from "./components";
+import { MeetingMinuteStats, MeetingMinuteTable, MeetingMinuteModal, MeetingMinuteImportModal, MeetingAudioModal } from "./components";
 import { useMeetingMinutesPage } from "./hooks/useMeetingMinutesPage";
 
 export default function MeetingMinutesPage() {
@@ -39,6 +39,9 @@ export default function MeetingMinutesPage() {
         <div className="flex items-center gap-3">
           <Button variant="outline" leftIcon="upload" onClick={() => page.setImportOpen(true)} disabled={!page.selectedProjectId}>
             Excel 가져오기
+          </Button>
+          <Button variant="outline" leftIcon="mic" onClick={() => page.setAudioOpen(true)} disabled={!page.selectedProjectId}>
+            음성으로 작성
           </Button>
           <Button variant="primary" leftIcon="add" onClick={page.openCreate} disabled={!page.selectedProjectId}>
             새 회의록 작성
@@ -82,6 +85,7 @@ export default function MeetingMinutesPage() {
       <MeetingMinuteModal
         isOpen={page.modal.isOpen}
         minute={page.modal.minute}
+        draft={page.modal.draft}
         onClose={page.closeModal}
         onSubmit={page.submit}
       />
@@ -90,6 +94,13 @@ export default function MeetingMinutesPage() {
         isOpen={page.importOpen}
         projectId={page.selectedProjectId ?? null}
         onClose={() => page.setImportOpen(false)}
+      />
+
+      <MeetingAudioModal
+        isOpen={page.audioOpen}
+        projectId={page.selectedProjectId ?? null}
+        onClose={() => page.setAudioOpen(false)}
+        onDraft={page.openDraft}
       />
 
       <ConfirmModal

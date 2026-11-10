@@ -10,12 +10,14 @@
  * - SQL 쿼리 접기/펼치기
  * - 차트/마인드맵 표시
  * - 피드백 (좋아요/싫어요) UI
+ * - 답변 읽어 주기 (OpenAI 음성 합성, ../hooks/useOpenAIVoice.ts)
  */
 
 import React, { memo, useState, useRef, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Icon, Card } from "@/components/ui";
+import { Icon, Card, useToast } from "@/components/ui";
+import { useSpeaker } from "../hooks/useOpenAIVoice";
 import ChartRenderer from "./ChartRenderer";
 import MindmapRenderer, { MindmapNode } from "./MindmapRenderer";
 import { ConfirmActionCard, type PendingActionView } from "./ConfirmActionCard";
@@ -78,6 +80,15 @@ const ChatMessageItem = memo(function ChatMessageItem({
   onPickCandidate,
 }: ChatMessageItemProps) {
   const [feedbackInput, setFeedbackInput] = useState("");
+  const speaker = useSpeaker();
+  const toast = useToast();
+  const isSpeaking = speaker.playingId === message.id;
+  const isSpeakLoading = speaker.loadingId === message.id;
+  const toggleSpeak = async () => {
+    if (isSpeaking || isSpeakLoading) return speaker.stop();
+    const error = await speaker.speak(message.id, message.content);
+    if (error) toast.error(error);
+  };
   const messageRef = useRef<HTMLDivElement>(null);
 
   const handleFeedbackKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -270,6 +281,17 @@ const ChatMessageItem = memo(function ChatMessageItem({
                     응답이 도움이 되었나요?
                   </span>
                   <div className="flex items-center gap-1">
+                    {/* 답변 읽어 주기 (OpenAI) */}
+                    <button
+                      onClick={toggleSpeak}
+                      className={`p-1.5 rounded-lg transition-all ${
+                        isSpeaking || isSpeakLoading ? "bg-primary/15 text-primary" : "text-text-secondary hover:text-primary hover:bg-primary/10"
+                      }`}
+                      title={isSpeaking ? "읽기 멈춤" : "답변 읽어 주기 (OpenAI)"}
+                      aria-label={isSpeaking ? "읽기 멈춤" : "답변 읽어 주기"}
+                    >
+                      <Icon name={isSpeakLoading ? "progress_activity" : isSpeaking ? "stop_circle" : "volume_up"} size="sm" className={isSpeakLoading ? "animate-spin" : ""} />
+                    </button>
                     <button
                       onClick={() => onFeedback(message.id, "POSITIVE")}
                       className={`p-1.5 rounded-lg transition-all ${
