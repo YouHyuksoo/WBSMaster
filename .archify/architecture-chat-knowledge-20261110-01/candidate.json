@@ -1,0 +1,28 @@
+{
+ "schema_version":1,"diagram_type":"architecture",
+ "meta":{"title":"지성지식관리 · 채팅 근거 검색 구성","locale":"ko","translations":{"app.title":"지식관리 구성도"},"output":".archify/architecture-chat-knowledge-20261110-01/chat-knowledge.html","quality_profile":"showcase","repository":{"url":"https://github.com/YouHyuksoo/ai-knowledge-platform.git","revision":"9c94eef9236e432ee26d21fd83891f61cc763032","link_mode":"local-only"}},
+ "components":[
+  {"id":"consumer","type":"frontend","label":"채팅 에이전트","sublabel":"Hermes 연동 스크립트","pos":[40,40],"size":[190,72],"sources":[{"path":"integrations/hermes-skill/ai-knowledge-context/scripts/query_context.py","line":51,"end_line":76}]},
+  {"id":"api","type":"backend","label":"지식 조회 API","sublabel":"프로젝트별 검색 · 근거 조립","pos":[390,40],"size":[220,72],"sources":[{"path":"app/main.py","line":1359,"end_line":1421}]},
+  {"id":"evidence","type":"backend","label":"답변용 근거 자료","sublabel":"출처 [E#] · 의미 후보 [S#]","pos":[770,40],"size":[240,72],"sources":[{"path":"app/ai_context.py","line":126,"end_line":186}]},
+  {"id":"neo","type":"database","label":"Neo4j","sublabel":"관계 그래프 + 벡터 색인","pos":[390,300],"size":[220,72],"sources":[{"path":"app/main.py","line":61,"end_line":68},{"path":"app/vector_search.py","line":417,"end_line":447}]},
+  {"id":"embed","type":"backend","label":"Ollama","sublabel":"bge-m3 · 1024차원 (기본값)","pos":[40,300],"size":[230,72],"sources":[{"path":"app/vector_search.py","line":143,"end_line":178}]},
+  {"id":"indexer","type":"backend","label":"문서 색인 처리","sublabel":"근거 블록 · 버전 활성화","pos":[390,560],"size":[240,72],"sources":[{"path":"app/documents/indexer.py","line":18,"end_line":95}]},
+  {"id":"docs","type":"external","label":"문서의 근거 블록","sublabel":"본문 · 파일명 · 페이지 등 위치","pos":[800,560],"size":[230,72],"sources":[{"path":"app/documents/indexer.py","line":28,"end_line":46}]}
+ ],
+ "connections":[
+  {"id":"ask","from":"consumer","to":"api","label":"질문 + 프로젝트","variant":"emphasis"},
+  {"id":"package","from":"api","to":"evidence","label":"근거 반환","variant":"emphasis"},
+  {"id":"retrieve","from":"api","to":"neo","label":"관계 · 벡터 조회"},
+  {"id":"embed-query","from":"api","to":"embed","label":"질문 임베딩"},
+  {"id":"blocks","from":"docs","to":"indexer","label":"추출 결과"},
+  {"id":"store","from":"indexer","to":"neo","label":"그래프 · 벡터 저장"},
+  {"id":"embed-doc","from":"indexer","to":"embed","label":"본문 임베딩"}
+ ],
+ "cards":[
+  {"dot":"cyan","title":"채팅 연결 상태","items":["Hermes: /api/ai/context 호출 코드 확인","WBS Master: search_knowledge 연동은 2단계 설계이며 현재 등록되지 않음"]},
+  {"dot":"emerald","title":"검색과 답변의 역할","items":["/api/search/hybrid: 관계 검색과 의미 검색 결합","/api/ai/context: 원문·관계·의미 후보를 출처와 함께 조립","최종 답변은 이 근거를 받은 채팅 에이전트가 작성"]},
+  {"dot":"amber","title":"확인 범위","items":["로컬 소스 기준 · 운영 서버 연결과 배포 상태는 이번에 확인하지 않음","소스·Oracle 수집 색인도 보유하며 본 그림의 하단은 문서 색인 경로","문서 라이브러리는 프로젝트 지침상 로컬 추가 기능 · 서버 미배포","의미 검색 장애는 degraded / unresolved로 표시","뷰어 기본 UI 일부는 영어"]}
+ ]
+}
+

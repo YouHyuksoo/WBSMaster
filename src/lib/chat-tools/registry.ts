@@ -5,7 +5,7 @@
  *
  * 초보자 가이드:
  * - 새 도구는 src/lib/chat-tools/index.ts 에서 defaultRegistry.register(...) 로 등록한다.
- * - 2단계(지성지식관리 연동)의 search_knowledge 도 등록만 하면 채팅에서 쓸 수 있다.
+ * - 지성지식관리 search_knowledge 도구도 index.ts에서 기본 등록한다.
  */
 
 import type { ToolDefinition } from "@/lib/llm/tool-calling";

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "55c6a774-15b0-44e1-aff1-02fd35d38db6",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\Project\\WBSMaster\\.archify\\architecture-chat-knowledge-20261110-01\\candidate.json",
+  "output": "C:\\Project\\WBSMaster\\.archify\\architecture-chat-knowledge-20261110-01\\chat-knowledge.html",
+  "specification": {
+    "sha256": "81020a162f01db2e76feffa8689d87fa58b1fa5cf528940158a3f8617642d787",
+    "bytes": 3571
+  },
+  "artifact": {
+    "sha256": "59a5943cbce2d947500092b441eb882ce6947dbac098faa82303e221e68231fb",
+    "bytes": 758621
+  }
+}

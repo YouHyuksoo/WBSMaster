@@ -20,6 +20,23 @@ datasource db {
   provider = "postgresql"
 }
 
+// 지식 전송 대기열. 업무 트리거가 원본 변경과 같은 트랜잭션에 기록한다.
+model KnowledgeOutbox {
+  id          BigInt    @id @default(autoincrement())
+  projectId   String
+  model       String
+  recordId    String
+  operation   String
+  payload     Json
+  attempts    Int       @default(0)
+  lastError   String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  deliveredAt DateTime? @db.Timestamptz(6)
+
+  @@index([projectId, deliveredAt], map: "knowledge_outbox_project")
+  @@map("knowledge_outbox")
+}
+
 // ============================================
 // 사용자 모델
 // 이메일/비밀번호 기반 자체 인증 시스템
@@ -549,6 +566,11 @@ model AiSetting {
   openrouterApiKey String? // OpenRouter API 키
   openrouterModel  String  @default("openai/gpt-4.1-mini") // "회사/모델" 형식
 
+  // 음성 회의록 · 채팅 음성 (src/lib/meeting-minutes-audio.ts, src/lib/openai-voice.ts). 키는 위 openaiApiKey 를 쓴다 (OpenAI 만)
+  audioProvider        String @default("openai") // 음성 인식 제공자: "openai" 만 (2026-11-09 Gemini 제거, 칼럼은 확장용으로 둔다)
+  audioTranscribeModel String @default("gpt-4o-transcribe") // 음성 → 전사문 모델 (OpenAI: gpt-4o-transcribe · gpt-4o-mini-transcribe · whisper-1)
+  audioSummaryModel    String @default("gpt-4.1-mini") // 전사문 → 회의록 정리 모델
+
   // 현재 선택된 페르소나
   activePersonaId String?
 
@@ -657,17 +679,17 @@ model ChatHistory {
 // LLM 이 propose_* 도구로 만든 등록·수정 제안. 사용자가 [등록]을 눌러야 서비스 계층으로 실행된다.
 // ============================================
 model ChatPendingAction {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
   userId    String // 제안을 받은 사용자 (본인만 확인 가능)
   projectId String
   kind      String // create_task | update_task | create_issue | update_issue | create_field_issue | update_field_issue | create_discussion_item | update_discussion_item
   args      Json // 검증·정규화된 서비스 입력
   summary   String // 확인 카드 문장
-  status    String    @default("PENDING") // PENDING | CONFIRMED | CANCELLED | EXPIRED | FAILED
+  status    String   @default("PENDING") // PENDING | CONFIRMED | CANCELLED | EXPIRED | FAILED
   resultRef String? // 생성·수정된 레코드 id
   error     String?
   expiresAt DateTime
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, status])
   @@map("chat_pending_actions")
