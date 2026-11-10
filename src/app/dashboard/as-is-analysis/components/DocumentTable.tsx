@@ -21,6 +21,7 @@
 "use client";
 
 import { useState } from "react";
+import { AsIsDetailGrid } from "./AsIsDetailGrid";
 import { Icon, Button, Input } from "@/components/ui";
 import { SECTION_STYLES } from "../constants";
 import { SectionHeader } from "./SectionHeader";
@@ -205,82 +206,15 @@ export function DocumentTable({ unitAnalysis }: DocumentTableProps) {
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-teal-100/50 dark:bg-teal-900/20 text-xs font-semibold text-text-secondary uppercase">
-                  <th className="px-4 py-3 text-left">문서명</th>
-                  <th className="px-4 py-3 text-left w-24">유형</th>
-                  <th className="px-4 py-3 text-left">작성 목적</th>
-                  <th className="px-4 py-3 text-left w-24">작성자</th>
-                  <th className="px-4 py-3 text-left w-24">주기</th>
-                  <th className="px-4 py-3 text-left">보관 위치</th>
-                  <th className="px-4 py-3 text-center w-20">작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {documents.map((doc) => (
-                  <tr
-                    key={doc.id}
-                    className="border-t border-teal-100 dark:border-teal-900/50 hover:bg-teal-50/50 dark:hover:bg-teal-900/10 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-text dark:text-white">
-                      {doc.documentName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {doc.documentType || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {doc.purpose || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {doc.creator || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {doc.frequency || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {doc.storageLocation || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {deleteConfirmId === doc.id ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleDelete(doc.id)}
-                            disabled={isDeleting}
-                            className="p-1 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="check" size="xs" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="p-1 rounded bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors"
-                          >
-                            <Icon name="close" size="xs" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleEdit(doc)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-teal-100 dark:hover:bg-teal-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="edit" size="xs" className="text-text-secondary hover:text-primary" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(doc.id)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="delete" size="xs" className="text-text-secondary hover:text-error" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <AsIsDetailGrid rows={documents} fields={[
+              { key: "documentName", label: "문서명", width: 160 },
+              { key: "documentType", label: "유형", width: 160 },
+              { key: "purpose", label: "작성 목적", width: 160 },
+              { key: "creator", label: "작성자", width: 160 },
+              { key: "frequency", label: "주기", width: 160 },
+              { key: "storageLocation", label: "보관 위치", width: 160 }
+            ]} onEdit={handleEdit} onDelete={row => setDeleteConfirmId(row.id)} pending={isPending} deleting={isDeleting}
+              confirmingId={deleteConfirmId} onConfirmDelete={row => handleDelete(row.id)} onCancelDelete={() => setDeleteConfirmId(null)} />
           )}
         </div>
       )}

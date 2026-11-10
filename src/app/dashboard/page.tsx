@@ -18,7 +18,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon, Button, useToast, ConfirmModal } from "@/components/ui";
@@ -29,10 +29,10 @@ import type { Project } from "@/lib/api";
 import { DailyTaskChart } from "@/components/dashboard/DailyTaskChart";
 import { AssigneeTaskChart } from "@/components/dashboard/AssigneeTaskChart";
 import { ProjectOverviewModal } from "@/components/dashboard/ProjectOverviewModal";
+import ProjectCarousel from "@/app/dashboard/components/ProjectCarousel";
 
 // 분리된 대시보드 컴포넌트들 (React.memo 적용)
 import {
-  ProjectCard,
   TodayScheduleSection,
   WbsStatsSection,
   TaskStatsSection,
@@ -65,8 +65,6 @@ export default function DashboardPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   /** 프로젝트 상태 필터 */
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  /** 검색어 */
-  const [searchQuery, setSearchQuery] = useState("");
   /** MY 대시보드 필터 (내 데이터만 보기) */
   const [isMyDashboard, setIsMyDashboard] = useState(false);
   /** 새로고침 중 상태 */
@@ -89,12 +87,6 @@ export default function DashboardPage() {
   const toast = useToast();
   const router = useRouter();
   const queryClient = useQueryClient();
-
-  /** 프로젝트 캐러셀 관련 상태 */
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
 
   /** 프로젝트 목록 조회 */
   const { data: projects = [], isLoading: projectsLoading } = useProjects() as { data: ProjectWithWbs[]; isLoading: boolean; };
@@ -243,14 +235,6 @@ export default function DashboardPage() {
   const filteredProjects = myProjects.filter((p) => {
     // 상태 필터
     if (statusFilter !== "ALL" && p.status !== statusFilter) return false;
-    // 검색어 필터
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        p.name.toLowerCase().includes(query) ||
-        (p.description && p.description.toLowerCase().includes(query))
-      );
-    }
     return true;
   });
 
@@ -270,75 +254,6 @@ export default function DashboardPage() {
     };
     return (statusOrder[a.status] ?? 5) - (statusOrder[b.status] ?? 5);
   });
-
-  /**
-   * 캐러셀 스크롤 상태 업데이트
-   */
-  const updateScrollButtons = useCallback(() => {
-    if (carouselRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
-      setCanScrollLeft(scrollLeft > 0);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
-    }
-  }, []);
-
-  /**
-   * 캐러셀 자동 스크롤 시작 (호버 시)
-   */
-  const startAutoScroll = useCallback((direction: "left" | "right") => {
-    // 기존 인터벌 정리
-    if (scrollIntervalRef.current) {
-      clearInterval(scrollIntervalRef.current);
-    }
-
-    // 즉시 한번 스크롤
-    if (carouselRef.current) {
-      const scrollAmount = direction === "left" ? -8 : 8;
-      carouselRef.current.scrollBy({ left: scrollAmount });
-    }
-
-    // 연속 스크롤 시작
-    scrollIntervalRef.current = setInterval(() => {
-      if (carouselRef.current) {
-        const scrollAmount = direction === "left" ? -8 : 8;
-        carouselRef.current.scrollBy({ left: scrollAmount });
-      }
-    }, 16); // 60fps
-  }, []);
-
-  /**
-   * 캐러셀 자동 스크롤 정지 (호버 해제 시)
-   */
-  const stopAutoScroll = useCallback(() => {
-    if (scrollIntervalRef.current) {
-      clearInterval(scrollIntervalRef.current);
-      scrollIntervalRef.current = null;
-    }
-  }, []);
-
-  // 컴포넌트 언마운트 시 인터벌 정리
-  useEffect(() => {
-    return () => {
-      if (scrollIntervalRef.current) {
-        clearInterval(scrollIntervalRef.current);
-      }
-    };
-  }, []);
-
-  // 캐러셀 스크롤 상태 감지
-  useEffect(() => {
-    const carousel = carouselRef.current;
-    if (carousel) {
-      updateScrollButtons();
-      carousel.addEventListener("scroll", updateScrollButtons);
-      window.addEventListener("resize", updateScrollButtons);
-
-      return () => {
-        carousel.removeEventListener("scroll", updateScrollButtons);
-        window.removeEventListener("resize", updateScrollButtons);
-      };
-    }
-  }, [updateScrollButtons, sortedProjects]);
 
   /**
    * 전체 데이터 새로고침
@@ -606,7 +521,7 @@ export default function DashboardPage() {
             </div>
           </button>
           <button
-            onClick={() => setStatusFilter("ACTIVE")}
+            onClick={() => setStatusFilter((current) => current === "ACTIVE" ? "ALL" : "ACTIVE")}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer group ${
               statusFilter === "ACTIVE" ? "bg-success/30 ring-2 ring-success" : "bg-success/10 hover:bg-success/20"
             }`}
@@ -618,7 +533,7 @@ export default function DashboardPage() {
             </div>
           </button>
           <button
-            onClick={() => setStatusFilter("COMPLETED")}
+            onClick={() => setStatusFilter((current) => current === "COMPLETED" ? "ALL" : "COMPLETED")}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer group ${
               statusFilter === "COMPLETED" ? "bg-slate-200 dark:bg-slate-700 ring-2 ring-slate-400" : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
             }`}
@@ -672,76 +587,15 @@ export default function DashboardPage() {
             >
               MY
             </Button>
+            <Link href="/dashboard/projects" className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              전체 보기<Icon name="arrow_forward" size="xs" />
+            </Link>
           </div>
         </div>
       </div>
 
       {/* 프로젝트 목록 */}
       <div>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-text dark:text-white">내 프로젝트</h2>
-            {/* 필터 상태 표시 및 리셋 */}
-            {(statusFilter !== "ALL" || searchQuery) && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-text-secondary">
-                  {filteredProjects.length}개 표시 중
-                </span>
-                <button
-                  onClick={() => {
-                    setStatusFilter("ALL");
-                    setSearchQuery("");
-                  }}
-                  className="text-primary hover:text-primary-hover flex items-center gap-1"
-                >
-                  <Icon name="close" size="xs" />
-                  필터 초기화
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* 검색 바 */}
-            <div className="relative">
-              <Icon
-                name="search"
-                size="sm"
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
-              />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="프로젝트 검색..."
-                className="pl-9 pr-4 py-2 w-48 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text"
-                >
-                  <Icon name="close" size="xs" />
-                </button>
-              )}
-            </div>
-
-            {/* 상태 필터 드롭다운 */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer"
-            >
-              <option value="ALL">모든 상태</option>
-              <option value="PLANNING">계획</option>
-              <option value="ACTIVE">진행중</option>
-              <option value="ON_HOLD">보류</option>
-              <option value="COMPLETED">완료</option>
-              <option value="CANCELLED">취소</option>
-            </select>
-          </div>
-        </div>
-
         {projects.length === 0 ? (
           <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-8 text-center animate-fadeIn">
             <Icon name="folder_open" size="xl" className="text-text-secondary mb-4" />
@@ -766,7 +620,6 @@ export default function DashboardPage() {
               leftIcon="refresh"
               onClick={() => {
                 setStatusFilter("ALL");
-                setSearchQuery("");
               }}
             >
               필터 초기화
@@ -774,76 +627,9 @@ export default function DashboardPage() {
           </div>
         ) : (
           /* 캐러셀 형식 프로젝트 목록 */
-          <div className="relative flex items-center gap-2">
-            {/* 왼쪽 스크롤 버튼 - 항상 표시, 호버 시 자동 스크롤 */}
-            <button
-              onMouseEnter={() => canScrollLeft && startAutoScroll("left")}
-              onMouseLeave={stopAutoScroll}
-              className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
-                canScrollLeft
-                  ? "bg-primary/10 text-primary hover:bg-primary hover:text-white hover:scale-110 hover:shadow-lg cursor-pointer"
-                  : "bg-surface dark:bg-surface-dark text-text-secondary/30 cursor-not-allowed"
-              }`}
-            >
-              <Icon name="chevron_left" size="lg" />
-            </button>
-
-            {/* 캐러셀 컨테이너 */}
-            <div
-              ref={carouselRef}
-              className="flex-1 flex gap-4 overflow-x-hidden pb-2"
-            >
-              {sortedProjects.map((project, index) => (
-                <div
-                  key={project.id}
-                  className="flex-shrink-0"
-                  style={{ width: "calc((100% - 32px) / 3)" }}
-                >
-                  <ProjectCard
-                    project={project}
-                    onEdit={handleOpenEditModal}
-                    onOverview={handleOpenOverviewModal}
-                    animationDelay={index * 100}
-                  />
-                </div>
-              ))}
-            </div>
-
-            {/* 오른쪽 스크롤 버튼 - 항상 표시, 호버 시 자동 스크롤 */}
-            <button
-              onMouseEnter={() => canScrollRight && startAutoScroll("right")}
-              onMouseLeave={stopAutoScroll}
-              className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
-                canScrollRight
-                  ? "bg-primary/10 text-primary hover:bg-primary hover:text-white hover:scale-110 hover:shadow-lg cursor-pointer"
-                  : "bg-surface dark:bg-surface-dark text-text-secondary/30 cursor-not-allowed"
-              }`}
-            >
-              <Icon name="chevron_right" size="lg" />
-            </button>
-          </div>
+          <ProjectCarousel projects={sortedProjects} onEdit={handleOpenEditModal} onOverview={handleOpenOverviewModal} />
         )}
 
-        {/* 프로젝트 수 표시 및 전체 보기 링크 */}
-        {sortedProjects.length > 0 && (
-          <div className="mt-2 flex items-center justify-between text-sm">
-            <span className="text-text-secondary">
-              총 {sortedProjects.length}개 프로젝트
-              {sortedProjects.filter((p) => p.status === "ACTIVE").length > 0 && (
-                <span className="ml-2 text-success">
-                  • 진행중 {sortedProjects.filter((p) => p.status === "ACTIVE").length}개
-                </span>
-              )}
-            </span>
-            <Link
-              href="/dashboard/projects"
-              className="text-primary hover:text-primary-hover font-medium flex items-center gap-1"
-            >
-              전체 보기
-              <Icon name="arrow_forward" size="xs" />
-            </Link>
-          </div>
-        )}
       </div>
 
       {/* WBS 프로젝트 일정 현황 - 프로젝트 선택 시에만 표시 */}

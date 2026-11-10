@@ -18,6 +18,7 @@
 "use client";
 
 import { useState } from "react";
+import { AsIsDetailGrid } from "./AsIsDetailGrid";
 import { Icon, Button, Input } from "@/components/ui";
 import { SECTION_STYLES, ISSUE_TYPES, PRIORITIES, ISSUE_TYPE_OPTIONS, PRIORITY_OPTIONS } from "../constants";
 import { SectionHeader } from "./SectionHeader";
@@ -233,27 +234,8 @@ export function IssueTable({ unitAnalysis }: IssueTableProps) {
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-red-100/50 dark:bg-red-900/20 text-xs font-semibold text-text-secondary uppercase">
-                  <th className="px-4 py-3 text-left w-24">우선순위</th>
-                  <th className="px-4 py-3 text-left w-24">유형</th>
-                  <th className="px-4 py-3 text-left">이슈 내용</th>
-                  <th className="px-4 py-3 text-left w-40">영향도</th>
-                  <th className="px-4 py-3 text-left w-48">개선 제안</th>
-                  <th className="px-4 py-3 text-center w-20">작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {issues.map((issue) => {
-                  const priorityConfig = getPriorityConfig(issue.priority || "MEDIUM");
-                  return (
-                    <tr
-                      key={issue.id}
-                      className="border-t border-red-100 dark:border-red-900/50 hover:bg-red-50/50 dark:hover:bg-red-900/10 transition-colors"
-                    >
-                      <td className="px-4 py-3">
-                        <span
+            <AsIsDetailGrid rows={issues} fields={[
+              { key: "priority", label: "우선순위", width: 160, value: issue => getPriorityConfig(issue.priority || "MEDIUM").label, render: (issue) => { const priorityConfig = getPriorityConfig(issue.priority || "MEDIUM"); return <><span
                           className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${priorityConfig.bgColor} ${priorityConfig.color}`}
                         >
                           {issue.priority === "HIGH" && (
@@ -266,15 +248,11 @@ export function IssueTable({ unitAnalysis }: IssueTableProps) {
                             <Icon name="keyboard_double_arrow_down" size="xs" />
                           )}
                           {priorityConfig.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-text-secondary">
+                        </span></>; } },
+              { key: "issueType", label: "유형", width: 160, value: issue => getIssueTypeLabel(issue.issueType), render: (issue) => { return <><span className="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-text-secondary">
                           {getIssueTypeLabel(issue.issueType)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>
+                        </span></>; } },
+              { key: "title", label: "이슈 내용", width: 260, value: (issue) => [issue.title, issue.description].filter(Boolean).join(" "), render: (issue) => { return <><div>
                           <p className="text-sm font-medium text-text dark:text-white">
                             {issue.title}
                           </p>
@@ -283,55 +261,11 @@ export function IssueTable({ unitAnalysis }: IssueTableProps) {
                               {issue.description}
                             </p>
                           )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-text-secondary">
-                        {issue.impact || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-text-secondary">
-                        {issue.suggestedFix || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {deleteConfirmId === issue.id ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleDelete(issue.id)}
-                              disabled={isDeleting}
-                              className="p-1 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-                            >
-                              <Icon name="check" size="xs" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(null)}
-                              className="p-1 rounded bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors"
-                            >
-                              <Icon name="close" size="xs" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleEdit(issue)}
-                              disabled={isPending}
-                              className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                            >
-                              <Icon name="edit" size="xs" className="text-text-secondary hover:text-primary" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(issue.id)}
-                              disabled={isPending}
-                              className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                            >
-                              <Icon name="delete" size="xs" className="text-text-secondary hover:text-error" />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </div></>; } },
+              { key: "impact", label: "영향도", width: 160 },
+              { key: "suggestedFix", label: "개선 제안", width: 260 }
+            ]} onEdit={handleEdit} onDelete={row => setDeleteConfirmId(row.id)} pending={isPending} deleting={isDeleting}
+              confirmingId={deleteConfirmId} onConfirmDelete={row => handleDelete(row.id)} onCancelDelete={() => setDeleteConfirmId(null)} />
           )}
         </div>
       )}

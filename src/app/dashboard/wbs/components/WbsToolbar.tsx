@@ -12,7 +12,7 @@
 
 "use client";
 
-import { Icon, Button } from "@/components/ui";
+import { Icon,Button } from "@/components/ui";
 import type { WbsToolbarProps } from "../types";
 
 export function WbsToolbar({
@@ -44,23 +44,23 @@ export function WbsToolbar({
 
 
         {/* 확장/축소 버튼 */}
-        {selectedProjectId && wbsTree.length > 0 && (
+        {selectedProjectId&&wbsTree.length>0&&(
           <div className="flex items-center gap-1">
             <button
               onClick={onExpandAll}
-              className="px-2 py-1 text-xs rounded bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text-secondary hover:text-text dark:hover:text-white"
+              className="px-2.5 py-1.5 text-sm font-semibold cursor-pointer transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-lg border border-slate-700 dark:border-slate-500 bg-slate-700 dark:bg-slate-600 text-white hover:bg-slate-800 dark:hover:bg-slate-500 active:bg-slate-900 dark:active:bg-slate-400"
             >
               전체 펼치기
             </button>
             <button
               onClick={onExpandLevel2}
-              className="px-2 py-1 text-xs rounded bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text-secondary hover:text-text dark:hover:text-white"
+              className="px-2.5 py-1.5 text-sm font-semibold cursor-pointer transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-lg border border-slate-700 dark:border-slate-500 bg-slate-700 dark:bg-slate-600 text-white hover:bg-slate-800 dark:hover:bg-slate-500 active:bg-slate-900 dark:active:bg-slate-400"
             >
               2레벨 펼치기
             </button>
             <button
               onClick={onCollapseAll}
-              className="px-2 py-1 text-xs rounded bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text-secondary hover:text-text dark:hover:text-white"
+              className="px-2.5 py-1.5 text-sm font-semibold cursor-pointer transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-lg border border-slate-700 dark:border-slate-500 bg-slate-700 dark:bg-slate-600 text-white hover:bg-slate-800 dark:hover:bg-slate-500 active:bg-slate-900 dark:active:bg-slate-400"
             >
               전체 접기
             </button>
@@ -68,35 +68,35 @@ export function WbsToolbar({
         )}
 
         {/* 담당자 필터 */}
-        {selectedProjectId && (
+        {selectedProjectId&&(
           <>
             <div className="h-6 w-px bg-border dark:bg-border-dark" />
             <div className="flex items-center gap-2">
               <Icon name="person" size="sm" className="text-text-secondary" />
               <select
-                value={filterAssigneeId || ""}
-                onChange={(e) => onFilterChange(e.target.value || null)}
-                className="px-2 py-1 text-xs rounded bg-surface dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                value={filterAssigneeId||""}
+                onChange={(e) => onFilterChange(e.target.value||null)}
+                className="px-2 py-1.5 text-sm rounded-lg bg-white dark:bg-slate-800 border border-slate-400 dark:border-slate-500 text-text dark:text-white focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
               >
                 <option value="">전체 담당자</option>
                 <option value="unassigned">미할당</option>
                 {teamMembers.map((member) => (
                   <option key={member.userId} value={member.userId}>
-                    {member.user?.name || member.user?.email || "알 수 없음"}
+                    {member.user?.name||member.user?.email||"알 수 없음"}
                   </option>
                 ))}
               </select>
               {/* 필터 활성화 표시 */}
-              {filterAssigneeId && (
+              {filterAssigneeId&&(
                 <button
                   onClick={() => onFilterChange(null)}
                   className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs hover:bg-primary/20 transition-colors"
                   title="필터 해제"
                 >
                   <span>
-                    {filterAssigneeId === "unassigned"
+                    {filterAssigneeId==="unassigned"
                       ? "미할당"
-                      : teamMembers.find((m) => m.userId === filterAssigneeId)?.user?.name || "필터 적용중"}
+                      :teamMembers.find((m) => m.userId===filterAssigneeId)?.user?.name||"필터 적용중"}
                   </span>
                   <Icon name="close" size="xs" />
                 </button>
@@ -108,26 +108,24 @@ export function WbsToolbar({
 
       <div className="flex items-center gap-2">
         {/* 뷰 전환 토글 */}
-        {selectedProjectId && (
+        {selectedProjectId&&(
           <div className="flex items-center gap-0.5 p-0.5 bg-surface dark:bg-background-dark rounded-lg border border-border dark:border-border-dark">
             <button
               onClick={() => onViewChange("gantt")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                rightPanelView === "gantt"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${rightPanelView==="gantt"
                   ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
-                  : "text-text-secondary hover:text-text dark:hover:text-white"
-              }`}
+                  :"text-text-secondary hover:text-text dark:hover:text-white"
+                }`}
             >
               <Icon name="bar_chart" size="xs" />
               간트보기
             </button>
             <button
               onClick={() => onViewChange("detail")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                rightPanelView === "detail"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${rightPanelView==="detail"
                   ? "bg-background-white dark:bg-surface-dark text-primary shadow-sm"
-                  : "text-text-secondary hover:text-text dark:hover:text-white"
-              }`}
+                  :"text-text-secondary hover:text-text dark:hover:text-white"
+                }`}
             >
               <Icon name="edit_note" size="xs" />
               상세보기
@@ -142,7 +140,7 @@ export function WbsToolbar({
           size="sm"
           leftIcon="download"
           onClick={onExportExcel}
-          disabled={!selectedProjectId || wbsTree.length === 0}
+          disabled={!selectedProjectId||wbsTree.length===0}
         >
           엑셀 다운로드
         </Button>

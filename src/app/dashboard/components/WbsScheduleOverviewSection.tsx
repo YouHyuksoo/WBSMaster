@@ -23,6 +23,9 @@ interface WbsScheduleOverviewSectionProps {
   isLoading?: boolean;
 }
 
+/** 지표 카드의 배경은 수치의 상태와 관계없이 무채색으로 고정합니다. */
+const metricCardClass = "text-center p-2 rounded-lg bg-surface dark:bg-background-dark";
+
 /**
  * 게이지 차트 컴포넌트
  */
@@ -302,19 +305,17 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
           </h4>
           <div className="grid grid-cols-4 gap-2">
             {/* 계획 */}
-            <div className="text-center p-2 rounded-lg bg-sky-500/10">
+            <div className={metricCardClass}>
               <p className="text-xl font-bold text-sky-500">{wbs.plannedProgress}%</p>
               <p className="text-sm text-text-secondary">계획</p>
             </div>
             {/* 실적 */}
-            <div className="text-center p-2 rounded-lg bg-primary/10">
+            <div className={metricCardClass}>
               <p className="text-xl font-bold text-primary">{wbs.actualProgress}%</p>
               <p className="text-sm text-text-secondary">실적</p>
             </div>
             {/* 지연율 */}
-            <div className={`text-center p-2 rounded-lg ${
-              wbs.delayRate <= 0 ? "bg-emerald-500/10" : "bg-rose-500/10"
-            }`}>
+            <div className={metricCardClass}>
               <p className={`text-xl font-bold ${
                 wbs.delayRate <= 0 ? "text-emerald-500" : "text-rose-500"
               }`}>
@@ -323,11 +324,7 @@ const WbsScheduleOverviewSection = memo(function WbsScheduleOverviewSection({
               <p className="text-[10px] text-text-secondary">지연율</p>
             </div>
             {/* 달성률 */}
-            <div className={`text-center p-2 rounded-lg ${
-              wbs.achievementRate >= 100 ? "bg-emerald-500/10" :
-              wbs.achievementRate >= 80 ? "bg-sky-500/10" :
-              wbs.achievementRate >= 60 ? "bg-amber-500/10" : "bg-rose-500/10"
-            }`}>
+            <div className={metricCardClass}>
               <p className={`text-xl font-bold ${achievementColor}`}>{wbs.achievementRate}%</p>
               <p className="text-sm text-text-secondary">달성률</p>
             </div>

@@ -19,6 +19,7 @@
 "use client";
 
 import { useState } from "react";
+import { AsIsDetailGrid } from "./AsIsDetailGrid";
 import { Icon, Button, Input } from "@/components/ui";
 import { SECTION_STYLES, PRIORITIES } from "../constants";
 import { SectionHeader } from "./SectionHeader";
@@ -211,91 +212,21 @@ export function FunctionTable({ unitAnalysis }: FunctionTableProps) {
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-blue-100/50 dark:bg-blue-900/20 text-xs font-semibold text-text-secondary uppercase">
-                  <th className="px-4 py-3 text-left w-28">기능 ID</th>
-                  <th className="px-4 py-3 text-left">기능명</th>
-                  <th className="px-4 py-3 text-left">설명</th>
-                  <th className="px-4 py-3 text-left w-24">모듈</th>
-                  <th className="px-4 py-3 text-left w-24">사용빈도</th>
-                  <th className="px-4 py-3 text-left w-24">중요도</th>
-                  <th className="px-4 py-3 text-center w-20">작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {functions.map((func) => {
-                  const priorityConfig = getPriorityConfig(func.importance);
-                  return (
-                    <tr
-                      key={func.id}
-                      className="border-t border-blue-100 dark:border-blue-900/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-                    >
-                      <td className="px-4 py-3 text-sm font-mono text-text-secondary">
-                        {func.functionId || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-text dark:text-white">
-                        {func.functionName}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-text-secondary">
-                        {func.description || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-text-secondary">
-                        {func.module || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-text-secondary">
-                        {func.usageFrequency || "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {priorityConfig ? (
+            <AsIsDetailGrid rows={functions} fields={[
+              { key: "functionId", label: "기능 ID", width: 160 },
+              { key: "functionName", label: "기능명", width: 160 },
+              { key: "description", label: "설명", width: 260 },
+              { key: "module", label: "모듈", width: 160 },
+              { key: "usageFrequency", label: "사용빈도", width: 160 },
+              { key: "importance", label: "중요도", width: 160, value: func => getPriorityConfig(func.importance)?.label ?? "-", render: (func) => { const priorityConfig = getPriorityConfig(func.importance); return <>{priorityConfig ? (
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${priorityConfig.bgColor} ${priorityConfig.color}`}>
                             {priorityConfig.label}
                           </span>
                         ) : (
                           <span className="text-sm text-text-secondary">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {deleteConfirmId === func.id ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleDelete(func.id)}
-                              disabled={isDeleting}
-                              className="p-1 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-                            >
-                              <Icon name="check" size="xs" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(null)}
-                              className="p-1 rounded bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors"
-                            >
-                              <Icon name="close" size="xs" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleEdit(func)}
-                              disabled={isPending}
-                              className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50"
-                            >
-                              <Icon name="edit" size="xs" className="text-text-secondary hover:text-primary" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(func.id)}
-                              disabled={isPending}
-                              className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                            >
-                              <Icon name="delete" size="xs" className="text-text-secondary hover:text-error" />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        )}</>; } }
+            ]} onEdit={handleEdit} onDelete={row => setDeleteConfirmId(row.id)} pending={isPending} deleting={isDeleting}
+              confirmingId={deleteConfirmId} onConfirmDelete={row => handleDelete(row.id)} onCancelDelete={() => setDeleteConfirmId(null)} />
           )}
         </div>
       )}

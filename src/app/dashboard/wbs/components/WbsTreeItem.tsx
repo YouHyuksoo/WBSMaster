@@ -275,7 +275,7 @@ export function WbsTreeItem({
 
         {/* 레벨 배지 */}
         <span
-          className={`size-5 rounded flex items-center justify-center text-[10px] font-bold text-white mr-1.5 ${levelColors[item.level]}`}
+          className={`size-5 shrink-0 rounded flex items-center justify-center text-[10px] font-bold text-white mr-1.5 ${levelColors[item.level]}`}
         >
           {levelNames[item.level]}
         </span>

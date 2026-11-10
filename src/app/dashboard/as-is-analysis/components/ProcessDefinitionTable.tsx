@@ -16,6 +16,7 @@
 "use client";
 
 import { useState } from "react";
+import { AsIsDetailGrid } from "./AsIsDetailGrid";
 import { Icon, Button, Input } from "@/components/ui";
 import { SECTION_STYLES } from "../constants";
 import { SectionHeader } from "./SectionHeader";
@@ -178,66 +179,15 @@ export function ProcessDefinitionTable({ unitAnalysis }: ProcessDefinitionTableP
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-green-100/50 dark:bg-green-900/20 text-xs font-semibold text-text-secondary uppercase">
-                  <th className="px-4 py-3 text-left w-16">순번</th>
-                  <th className="px-4 py-3 text-left">프로세스명</th>
-                  <th className="px-4 py-3 text-left">설명</th>
-                  <th className="px-4 py-3 text-left w-32">입력</th>
-                  <th className="px-4 py-3 text-left w-32">출력</th>
-                  <th className="px-4 py-3 text-left w-32">관련시스템</th>
-                  <th className="px-4 py-3 text-left w-32">비고</th>
-                  <th className="px-4 py-3 text-center w-20">작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {definitions.map((def) => (
-                  <tr
-                    key={def.id}
-                    className="border-t border-green-100 dark:border-green-900/50 hover:bg-green-50/50 dark:hover:bg-green-900/10 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-text dark:text-white">
-                      {def.stepNumber}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text dark:text-white font-medium">
-                      {def.processName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {def.description || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {def.input || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {def.output || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {def.relatedSystem || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {def.remarks || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => handleOpenEditModal(def)}
-                          className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                        >
-                          <Icon name="edit" size="xs" className="text-text-secondary hover:text-primary" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(def)}
-                          className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-                        >
-                          <Icon name="delete" size="xs" className="text-text-secondary hover:text-error" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <AsIsDetailGrid rows={definitions} fields={[
+              { key: "stepNumber", label: "순번", width: 160 },
+              { key: "processName", label: "프로세스명", width: 160 },
+              { key: "description", label: "설명", width: 260 },
+              { key: "input", label: "입력", width: 160 },
+              { key: "output", label: "출력", width: 160 },
+              { key: "relatedSystem", label: "관련시스템", width: 160 },
+              { key: "remarks", label: "비고", width: 160 }
+            ]} onEdit={handleOpenEditModal} onDelete={setDeleteTarget} pending={isCreating || isUpdating || isDeleting} />
           )}
         </div>
       )}

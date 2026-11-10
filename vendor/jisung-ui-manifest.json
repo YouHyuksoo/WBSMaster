@@ -1,0 +1,10 @@
+{
+  "sourcePackage": "@jisung/ui",
+  "sourceVersion": "2.9.0",
+  "archive": "jisung-ui-2.9.0-wbs.1.tgz",
+  "sha256": "f0911cae36da5e1bfb23c73f672b0b95355d7e76f694ed90b63893d39c0d36eb",
+  "adaptations": [
+    "DataGrid 직접 가져오기 경로 공개",
+    "WBSMaster Next.js 16 호환 범위 선언"
+  ]
+}

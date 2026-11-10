@@ -18,6 +18,7 @@
 "use client";
 
 import { useState } from "react";
+import { AsIsDetailGrid } from "./AsIsDetailGrid";
 import { Icon, Button, Input } from "@/components/ui";
 import { SECTION_STYLES } from "../constants";
 import { SectionHeader } from "./SectionHeader";
@@ -222,99 +223,27 @@ export function DataModelTable({ unitAnalysis }: DataModelTableProps) {
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-blue-100/50 dark:bg-blue-900/20 text-xs font-semibold text-text-secondary uppercase">
-                  <th className="px-4 py-3 text-left">테이블명</th>
-                  <th className="px-4 py-3 text-left">테이블명(한글)</th>
-                  <th className="px-4 py-3 text-left">컬럼명</th>
-                  <th className="px-4 py-3 text-left">컬럼명(한글)</th>
-                  <th className="px-4 py-3 text-left w-24">타입</th>
-                  <th className="px-4 py-3 text-center w-12">PK</th>
-                  <th className="px-4 py-3 text-center w-12">FK</th>
-                  <th className="px-4 py-3 text-center w-12">NULL</th>
-                  <th className="px-4 py-3 text-center w-20">작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dataModels.map((model) => (
-                  <tr
-                    key={model.id}
-                    className="border-t border-blue-100 dark:border-blue-900/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm font-mono text-text dark:text-white">
-                      {model.tableName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {model.tableNameKr || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-mono text-text dark:text-white">
-                      {model.columnName || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {model.columnNameKr || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-mono text-text-secondary">
-                      {model.dataType || "-"}
-                      {model.length && `(${model.length})`}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {model.isPrimaryKey && (
+            <AsIsDetailGrid rows={dataModels} fields={[
+              { key: "tableName", label: "테이블명", width: 160 },
+              { key: "tableNameKr", label: "테이블명(한글)", width: 160 },
+              { key: "columnName", label: "컬럼명", width: 160 },
+              { key: "columnNameKr", label: "컬럼명(한글)", width: 160 },
+              { key: "dataType", label: "타입", width: 160, render: (model) => {  return <>{model.dataType || "-"}
+
+{model.length && `(${model.length})`}</>; } },
+              { key: "isPrimaryKey", label: "PK", width: 160, render: (model) => {  return <>{model.isPrimaryKey && (
                         <Icon name="key" size="xs" className="text-amber-500" />
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {model.isForeignKey && (
+                      )}</>; } },
+              { key: "isForeignKey", label: "FK", width: 160, render: (model) => {  return <>{model.isForeignKey && (
                         <Icon name="link" size="xs" className="text-blue-500" />
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {model.isNullable ? (
+                      )}</>; } },
+              { key: "isNullable", label: "NULL", width: 160, render: (model) => {  return <>{model.isNullable ? (
                         <Icon name="check" size="xs" className="text-success" />
                       ) : (
                         <Icon name="close" size="xs" className="text-error" />
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {deleteConfirmId === model.id ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleDelete(model.id)}
-                            disabled={isDeleting}
-                            className="p-1 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="check" size="xs" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="p-1 rounded bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors"
-                          >
-                            <Icon name="close" size="xs" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleEdit(model)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="edit" size="xs" className="text-text-secondary hover:text-primary" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(model.id)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="delete" size="xs" className="text-text-secondary hover:text-error" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      )}</>; } }
+            ]} onEdit={handleEdit} onDelete={row => setDeleteConfirmId(row.id)} pending={isPending} deleting={isDeleting}
+              confirmingId={deleteConfirmId} onConfirmDelete={row => handleDelete(row.id)} onCancelDelete={() => setDeleteConfirmId(null)} />
           )}
         </div>
       )}

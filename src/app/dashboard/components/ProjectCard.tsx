@@ -8,6 +8,9 @@
  * - 프로젝트 정보 표시 (이름, 설명, 상태, 기간)
  * - 진행률 바 애니메이션
  * - 개요 버튼 지원
+ *
+ * 초보자 가이드:
+ * - compact를 켜면 대시보드용으로 내부 여백과 항목 간격을 줄입니다.
  */
 
 "use client";
@@ -52,6 +55,8 @@ export interface ProjectCardProps {
   onOverview: (project: ProjectWithWbs, e: React.MouseEvent) => void;
   /** 애니메이션 딜레이 */
   animationDelay?: number;
+  /** 대시보드용 작은 여백 */
+  compact?: boolean;
 }
 
 /**
@@ -73,6 +78,7 @@ const ProjectCard = memo(function ProjectCard({
   onEdit,
   onOverview,
   animationDelay = 0,
+  compact = false,
 }: ProjectCardProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [progressAnimated, setProgressAnimated] = useState(0);
@@ -108,19 +114,23 @@ const ProjectCard = memo(function ProjectCard({
   return (
     <div
       className={`
-        relative bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-5
+        relative bg-background-white dark:bg-surface-dark border ${compact ? "border-transparent" : "border-border dark:border-border-dark"} rounded-xl ${compact ? "p-3" : "p-5"}
         group block
         transform transition-all duration-500 ease-out
+        motion-reduce:transition-none motion-reduce:transform-none motion-reduce:opacity-100
         ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}
-        hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5
+        ${compact
+          ? "shadow-[0_2px_4px_rgba(15,23,42,0.08),0_6px_12px_rgba(15,23,42,0.10)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.25),0_6px_12px_rgba(0,0,0,0.30)] hover:shadow-[0_3px_6px_rgba(15,23,42,0.12),0_8px_16px_rgba(15,23,42,0.16)] dark:hover:shadow-[0_3px_6px_rgba(0,0,0,0.30),0_8px_16px_rgba(0,0,0,0.40)]"
+          : "hover:shadow-xl hover:shadow-primary/5"}
+        ${compact ? "" : "hover:border-primary/50"}
       `}
     >
-      <div className="flex items-start justify-between mb-3">
+      <div className={`flex items-start justify-between gap-2 ${compact ? "mb-2" : "mb-3"}`}>
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-bold text-text dark:text-white transition-colors truncate">
+          <h3 title={project.name} className={`${compact ? "text-base leading-6" : "text-lg"} font-bold text-text dark:text-white transition-colors truncate`}>
             {project.name}
           </h3>
-          <p className="text-sm text-text-secondary mt-1 line-clamp-1">
+          <p title={project.description || undefined} className={`text-sm text-text-secondary ${compact ? "mt-0.5" : "mt-1"} line-clamp-1`}>
             {project.description || "설명 없음"}
           </p>
         </div>
@@ -128,7 +138,7 @@ const ProjectCard = memo(function ProjectCard({
           {/* 개요 아이콘 버튼 */}
           <button
             onClick={(e) => onOverview(project, e)}
-            className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-all opacity-0 group-hover:opacity-100"
+            className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
             title="프로젝트 개요"
           >
             <Icon name="article" size="sm" />
@@ -142,7 +152,7 @@ const ProjectCard = memo(function ProjectCard({
 
       {/* 기간 표시 */}
       {(project.startDate || project.endDate) && (
-        <div className="flex items-center gap-1 text-xs text-text-secondary mb-3">
+        <div className={`flex items-center gap-1 text-xs text-text-secondary ${compact ? "mb-2" : "mb-3"}`}>
           <Icon name="calendar_month" size="xs" />
           <span>
             {formatDate(project.startDate) || "시작일 미정"} ~ {formatDate(project.endDate) || "종료일 미정"}
@@ -151,10 +161,10 @@ const ProjectCard = memo(function ProjectCard({
       )}
 
       {/* 진행률 바 - 애니메이션 적용 */}
-      <div className="mb-4">
+      <div className={compact ? "mb-2" : "mb-4"}>
         <div className="flex justify-between text-sm mb-1">
           <span className="text-text-secondary">진행률</span>
-          <span className={`font-bold transition-colors ${
+          <span className={`font-bold tabular-nums transition-colors ${
             progressAnimated >= 80 ? "text-emerald-500" :
             progressAnimated >= 50 ? "text-sky-500" :
             progressAnimated >= 20 ? "text-amber-500" : "text-text dark:text-white"
@@ -162,9 +172,9 @@ const ProjectCard = memo(function ProjectCard({
             {Number.isInteger(progressAnimated) ? progressAnimated : progressAnimated.toFixed(1)}%
           </span>
         </div>
-        <div className="h-2.5 bg-surface dark:bg-background-dark rounded-full overflow-hidden">
+        <div className={`${compact ? "h-1.5" : "h-2.5"} bg-surface dark:bg-background-dark rounded-full overflow-hidden`}>
           <div
-            className={`h-full rounded-full transition-all duration-1000 ease-out ${
+            className={`h-full rounded-full transition-all duration-1000 ease-out motion-reduce:transition-none ${
               progressAnimated >= 80 ? "bg-gradient-to-r from-emerald-400 to-emerald-500" :
               progressAnimated >= 50 ? "bg-gradient-to-r from-sky-400 to-sky-500" :
               progressAnimated >= 20 ? "bg-gradient-to-r from-amber-400 to-amber-500" :
@@ -176,7 +186,7 @@ const ProjectCard = memo(function ProjectCard({
       </div>
 
       {/* 메타 정보 */}
-      <div className="flex items-center gap-4 text-sm text-text-secondary">
+      <div className={`flex items-center ${compact ? "flex-wrap gap-x-3 gap-y-1 text-xs" : "gap-4 text-sm"} text-text-secondary`}>
         {/* 멤버 아이콘 + 툴팁 */}
         <div className="relative group/members">
           <div className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer">

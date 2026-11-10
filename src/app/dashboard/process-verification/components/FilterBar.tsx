@@ -27,8 +27,6 @@ import {
 interface FilterBarProps {
   filter: FilterState;
   onFilterChange: (filter: Partial<FilterState>) => void;
-  totalCount: number;
-  appliedCount: number;
 }
 
 /**

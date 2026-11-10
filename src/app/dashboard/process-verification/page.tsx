@@ -61,8 +61,6 @@ export default function ProcessVerificationPage() {
   // 삭제 확인 모달 상태
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingMaster, setDeletingMaster] = useState<ProcessVerificationMaster | null>(null);
-  // 통계 카드 접기/펼치기 상태
-  const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
 
   const toast = useToast();
 
@@ -159,30 +157,6 @@ export default function ProcessVerificationPage() {
       itemCount: filteredMasters.filter((master) => master.categoryId === cat.id).length,
     }));
   }, [categories, filteredMasters]);
-
-  // 통계 계산 (마스터 기준, 적용 행이 없으면 미적용)
-  const stats = useMemo(() => {
-    const isApplied = (master: ProcessVerificationMaster) => getMasterApply(master)?.isApplied ?? false;
-    const total = masters.length;
-    const applied = masters.filter(isApplied).length;
-    const notApplied = total - applied;
-    // 검증 완료: 적용 + VERIFIED
-    const verified = masters.filter(
-      (master) => isApplied(master) && getMasterApply(master)?.status === "VERIFIED"
-    ).length;
-    const inProgress = masters.filter(
-      (master) => isApplied(master) && getMasterApply(master)?.status === "IN_PROGRESS"
-    ).length;
-    return {
-      total,
-      applied,
-      notApplied,
-      verified,
-      inProgress,
-      filteredTotal: filteredMasters.length,
-      filteredApplied: filteredMasters.filter(isApplied).length,
-    };
-  }, [masters, filteredMasters]);
 
   // 카테고리 선택 핸들러
   const handleSelectCategory = (categoryId: string | null) => {
@@ -456,7 +430,7 @@ export default function ProcessVerificationPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 h-full overflow-auto bg-slate-50 dark:bg-slate-950">
+    <div className="p-6 flex h-full min-h-0 flex-col gap-6 overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* 헤더 - 대시보드 차트 스타일 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -530,118 +504,14 @@ export default function ProcessVerificationPage() {
 
       {selectedProjectId && (
         <>
-          {/* 통계 카드 - 슬라이딩 컨테이너 */}
-          <div className="relative">
-            {/* 통계 카드 영역 */}
-            <div
-              className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                isStatsCollapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
-              }`}
-            >
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 pb-2">
-                {/* 적용률 카드 */}
-                <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon name="speed" size="sm" className="text-primary" />
-                    <span className="text-sm font-semibold text-primary">적용률</span>
-                  </div>
-                  <p className="text-3xl font-bold text-primary mb-1">
-                    {stats.total > 0 ? Math.round((stats.applied / stats.total) * 100) : 0}%
-                  </p>
-                  <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                      style={{ width: stats.total > 0 ? `${(stats.applied / stats.total) * 100}%` : "0%" }}
-                    />
-                  </div>
-                </div>
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Icon name="checklist" size="sm" className="text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold leading-tight text-text dark:text-white">{stats.total}</p>
-                      <p className="text-sm text-text-secondary">전체</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="size-10 rounded-lg bg-success/10 flex items-center justify-center">
-                      <Icon name="check_circle" size="sm" className="text-success" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold leading-tight text-text dark:text-white">{stats.applied}</p>
-                      <p className="text-sm text-text-secondary">적용</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="size-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                      <Icon name="pending" size="sm" className="text-warning" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold leading-tight text-text dark:text-white">{stats.notApplied}</p>
-                      <p className="text-sm text-text-secondary">미적용</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="size-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                      <Icon name="category" size="sm" className="text-cyan-600 dark:text-cyan-400" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold leading-tight text-text dark:text-white">{categories.length}</p>
-                      <p className="text-sm text-text-secondary">카테고리</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 슬라이드 핸들 */}
-            <div
-              className="group flex items-center justify-center cursor-pointer"
-              onClick={() => setIsStatsCollapsed(!isStatsCollapsed)}
-              onMouseEnter={() => isStatsCollapsed && setIsStatsCollapsed(false)}
-            >
-              <div className={`
-                flex items-center gap-2 px-4 py-1 rounded-full transition-all duration-200
-                ${isStatsCollapsed
-                  ? "bg-primary/10 border border-primary/30 hover:bg-primary/20"
-                  : "bg-surface dark:bg-background-dark border border-border dark:border-border-dark hover:border-primary/30"
-                }
-              `}>
-                <Icon
-                  name={isStatsCollapsed ? "expand_more" : "expand_less"}
-                  size="xs"
-                  className={`transition-transform duration-200 ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}
-                />
-                <span className={`text-xs font-medium ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}>
-                  {isStatsCollapsed ? "통계 보기" : "통계 접기"}
-                </span>
-                <Icon
-                  name={isStatsCollapsed ? "expand_more" : "expand_less"}
-                  size="xs"
-                  className={`transition-transform duration-200 ${isStatsCollapsed ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}
-                />
-              </div>
-            </div>
-          </div>
-
           {/* 필터 바 */}
           <FilterBar
             filter={filter}
             onFilterChange={handleFilterChange}
-            totalCount={stats.filteredTotal}
-            appliedCount={stats.filteredApplied}
           />
 
           {/* 메인 컨텐츠 */}
-          <div className="flex flex-1 overflow-hidden rounded-xl border border-border dark:border-border-dark bg-background-white dark:bg-surface-dark">
+          <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-xl border border-border dark:border-border-dark bg-background-white dark:bg-surface-dark">
             {/* 카테고리 사이드바 - 전체 카테고리 표시 */}
             <CategoryList
               categories={categories}
@@ -654,7 +524,7 @@ export default function ProcessVerificationPage() {
             />
 
             {/* 마스터 테이블 - 선택된 카테고리로 필터링 */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <ItemTable
                 items={displayMasters}
                 isLoading={isLoadingMasters}

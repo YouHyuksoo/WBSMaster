@@ -17,6 +17,7 @@
 "use client";
 
 import { useState } from "react";
+import { AsIsDetailGrid } from "./AsIsDetailGrid";
 import { Icon, Button, Input } from "@/components/ui";
 import { SECTION_STYLES } from "../constants";
 import { SectionHeader } from "./SectionHeader";
@@ -185,78 +186,14 @@ export function ResponsibilityTable({ unitAnalysis }: ResponsibilityTableProps) 
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-purple-100/50 dark:bg-purple-900/20 text-xs font-semibold text-text-secondary uppercase">
-                  <th className="px-4 py-3 text-left w-32">역할/담당자</th>
-                  <th className="px-4 py-3 text-left w-28">부서</th>
-                  <th className="px-4 py-3 text-left">책임/업무</th>
-                  <th className="px-4 py-3 text-left w-40">권한</th>
-                  <th className="px-4 py-3 text-left w-32">비고</th>
-                  <th className="px-4 py-3 text-center w-20">작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {responsibilities.map((resp) => (
-                  <tr
-                    key={resp.id}
-                    className="border-t border-purple-100 dark:border-purple-900/50 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-text dark:text-white">
-                      {resp.role}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {resp.department || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text dark:text-white">
-                      {resp.responsibility}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {resp.authority || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {resp.remarks || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {deleteConfirmId === resp.id ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleDelete(resp.id)}
-                            disabled={isDeleting}
-                            className="p-1 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="check" size="xs" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="p-1 rounded bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors"
-                          >
-                            <Icon name="close" size="xs" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleEdit(resp)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="edit" size="xs" className="text-text-secondary hover:text-primary" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(resp.id)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="delete" size="xs" className="text-text-secondary hover:text-error" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <AsIsDetailGrid rows={responsibilities} fields={[
+              { key: "role", label: "역할/담당자", width: 160 },
+              { key: "department", label: "부서", width: 160 },
+              { key: "responsibility", label: "책임/업무", width: 260 },
+              { key: "authority", label: "권한", width: 160 },
+              { key: "remarks", label: "비고", width: 160 }
+            ]} onEdit={handleEdit} onDelete={row => setDeleteConfirmId(row.id)} pending={isPending} deleting={isDeleting}
+              confirmingId={deleteConfirmId} onConfirmDelete={row => handleDelete(row.id)} onCancelDelete={() => setDeleteConfirmId(null)} />
           )}
         </div>
       )}

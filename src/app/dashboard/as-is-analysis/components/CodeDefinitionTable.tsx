@@ -18,6 +18,7 @@
 "use client";
 
 import { useState } from "react";
+import { AsIsDetailGrid } from "./AsIsDetailGrid";
 import { Icon, Button, Input } from "@/components/ui";
 import { SECTION_STYLES } from "../constants";
 import { SectionHeader } from "./SectionHeader";
@@ -66,15 +67,7 @@ export function CodeDefinitionTable({ unitAnalysis }: CodeDefinitionTableProps) 
   // CRUD 훅 사용
   const { create, update, delete: remove, isCreating, isUpdating, isDeleting } = useAsIsCodeDefinition();
 
-  // 코드 그룹별로 그룹화
-  const groupedCodes = codeDefinitions.reduce((acc, code) => {
-    const group = code.codeGroup;
-    if (!acc[group]) {
-      acc[group] = [];
-    }
-    acc[group].push(code);
-    return acc;
-  }, {} as Record<string, typeof codeDefinitions>);
+
 
   /**
    * 모달 열기 (추가)
@@ -207,52 +200,13 @@ export function CodeDefinitionTable({ unitAnalysis }: CodeDefinitionTableProps) 
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-blue-100/50 dark:bg-blue-900/20 text-xs font-semibold text-text-secondary uppercase">
-                  <th className="px-4 py-3 text-left w-32">코드 그룹</th>
-                  <th className="px-4 py-3 text-left">그룹명</th>
-                  <th className="px-4 py-3 text-left w-28">코드 값</th>
-                  <th className="px-4 py-3 text-left">코드명</th>
-                  <th className="px-4 py-3 text-left">설명</th>
-                  <th className="px-4 py-3 text-center w-20">사용</th>
-                  <th className="px-4 py-3 text-center w-20">작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(groupedCodes).map(([group, codes]) => (
-                  codes.map((code, index) => (
-                    <tr
-                      key={code.id}
-                      className="border-t border-blue-100 dark:border-blue-900/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-                    >
-                      {index === 0 && (
-                        <>
-                          <td
-                            rowSpan={codes.length}
-                            className="px-4 py-3 text-sm font-mono font-medium text-text dark:text-white bg-blue-50/50 dark:bg-blue-900/20 border-r border-blue-100 dark:border-blue-900/50"
-                          >
-                            {code.codeGroup}
-                          </td>
-                          <td
-                            rowSpan={codes.length}
-                            className="px-4 py-3 text-sm text-text-secondary bg-blue-50/50 dark:bg-blue-900/20 border-r border-blue-100 dark:border-blue-900/50"
-                          >
-                            {code.codeGroupName || "-"}
-                          </td>
-                        </>
-                      )}
-                      <td className="px-4 py-3 text-sm font-mono text-text dark:text-white">
-                        {code.codeValue}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-text dark:text-white">
-                        {code.codeName}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-text-secondary">
-                        {code.description || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {code.isActive ? (
+            <AsIsDetailGrid rows={codeDefinitions} fields={[
+              { key: "codeGroup", label: "코드 그룹", width: 160 },
+              { key: "codeGroupName", label: "그룹명", width: 160 },
+              { key: "codeValue", label: "코드 값", width: 160 },
+              { key: "codeName", label: "코드명", width: 160 },
+              { key: "description", label: "설명", width: 260 },
+              { key: "isActive", label: "사용", width: 160, value: code => code.isActive ? "사용" : "미사용", options: ["사용", "미사용"].map(value => ({ value, label: value })), render: (code) => {  return <>{code.isActive ? (
                           <span className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
                             사용
                           </span>
@@ -260,49 +214,9 @@ export function CodeDefinitionTable({ unitAnalysis }: CodeDefinitionTableProps) 
                           <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                             미사용
                           </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {deleteConfirmId === code.id ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleDelete(code.id)}
-                              disabled={isDeleting}
-                              className="p-1 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-                            >
-                              <Icon name="check" size="xs" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(null)}
-                              className="p-1 rounded bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors"
-                            >
-                              <Icon name="close" size="xs" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleEdit(code)}
-                              disabled={isPending}
-                              className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50"
-                            >
-                              <Icon name="edit" size="xs" className="text-text-secondary hover:text-primary" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(code.id)}
-                              disabled={isPending}
-                              className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                            >
-                              <Icon name="delete" size="xs" className="text-text-secondary hover:text-error" />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ))}
-              </tbody>
-            </table>
+                        )}</>; } }
+            ]} onEdit={handleEdit} onDelete={row => setDeleteConfirmId(row.id)} pending={isPending} deleting={isDeleting}
+              confirmingId={deleteConfirmId} onConfirmDelete={row => handleDelete(row.id)} onCancelDelete={() => setDeleteConfirmId(null)} />
           )}
         </div>
       )}

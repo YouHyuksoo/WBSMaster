@@ -12,6 +12,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@jisung/ui"],
   // Turbopack 설정 - 프로젝트 루트 명시 (lockfile 경고 해결)
   turbopack: {
     root: __dirname,

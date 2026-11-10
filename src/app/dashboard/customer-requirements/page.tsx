@@ -22,7 +22,7 @@
 
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { utils, writeFile } from "xlsx";
 import { Icon, Button, Input, useToast, ConfirmModal } from "@/components/ui";
 import { useProject } from "@/contexts";
@@ -59,10 +59,6 @@ export default function CustomerRequirementsPage() {
   const [activeTab, setActiveTab] = useState<"active" | "inactive">("active");
   /** 보기 모드 (grid: 테이블 보기, document: 산출물 형식 보기) */
   const [viewMode, setViewMode] = useState<"grid" | "document">("grid");
-
-  // 페이지네이션 상태
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // 모달 상태
   const [modalState, setModalState] = useState<{
@@ -147,18 +143,6 @@ export default function CustomerRequirementsPage() {
       }
     });
   }, [tabRequirements, filterCategory, filterRequester, searchQuery, sortBy]);
-
-  // 페이지네이션 계산
-  const totalPages = Math.ceil(filteredRequirements.length / itemsPerPage);
-  const paginatedRequirements = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredRequirements.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredRequirements, currentPage, itemsPerPage]);
-
-  // 필터/탭/정렬 변경 시 페이지 리셋
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, filterCategory, filterRequester, searchQuery, sortBy]);
 
   // 통계 계산 (필독 가이드 기준)
   const stats = useMemo(() => {
@@ -624,19 +608,11 @@ export default function CustomerRequirementsPage() {
           {/* 요구사항 목록 (보기 모드에 따라 다르게 렌더링) */}
           {viewMode === "grid" ? (
             <CustomerRequirementTable
-              requirements={paginatedRequirements}
-              totalCount={filteredRequirements.length}
+              requirements={filteredRequirements}
               onEdit={handleOpenEdit}
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
               onTransferToDiscussion={handleTransferToDiscussion}
-              currentPage={currentPage}
-              onPageChange={setCurrentPage}
-              itemsPerPage={itemsPerPage}
-              onItemsPerPageChange={(count) => {
-                setItemsPerPage(count);
-                setCurrentPage(1);
-              }}
               emptyMessage={
                 requirements.length === 0
                   ? "등록된 고객요구사항이 없습니다."

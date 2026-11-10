@@ -20,7 +20,7 @@
 
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { utils, writeFile } from "xlsx";
 import { Icon, Button, Input, useToast, ConfirmModal } from "@/components/ui";
 import { useProject } from "@/contexts";
@@ -52,10 +52,6 @@ export default function FieldIssuesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   /** 현재 선택된 탭 (active: 발견/수정중, closed: 해결/수정안함/완료) */
   const [activeTab, setActiveTab] = useState<"active" | "closed">("active");
-
-  // 페이지네이션 상태
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // 모달 상태
   const [modalState, setModalState] = useState<{
@@ -126,18 +122,6 @@ export default function FieldIssuesPage() {
       return matchesCategory && matchesSearch;
     }).sort((a, b) => a.sequence - b.sequence);
   }, [tabIssues, filterCategory, searchQuery]);
-
-  // 페이지네이션 계산
-  const totalPages = Math.ceil(filteredIssues.length / itemsPerPage);
-  const paginatedIssues = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredIssues.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredIssues, currentPage, itemsPerPage]);
-
-  // 필터/탭 변경 시 페이지 리셋
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, filterCategory, searchQuery]);
 
   // 통계 계산 (필독 가이드 기준)
   const stats = useMemo(() => {
@@ -604,19 +588,11 @@ export default function FieldIssuesPage() {
 
           {/* 이슈 목록 테이블 */}
           <FieldIssueTable
-            issues={paginatedIssues}
-            totalCount={filteredIssues.length}
+            issues={filteredIssues}
             onEdit={handleOpenEdit}
             onDelete={handleDelete}
             onStatusChange={handleStatusChange}
             onTransferToDiscussion={handleTransferToDiscussion}
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-            itemsPerPage={itemsPerPage}
-            onItemsPerPageChange={(count) => {
-              setItemsPerPage(count);
-              setCurrentPage(1);
-            }}
             emptyMessage={
               issues.length === 0
                 ? "등록된 현업이슈가 없습니다."

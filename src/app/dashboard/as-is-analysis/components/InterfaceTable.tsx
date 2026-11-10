@@ -20,6 +20,7 @@
 "use client";
 
 import { useState } from "react";
+import { AsIsDetailGrid } from "./AsIsDetailGrid";
 import { Icon, Button, Input } from "@/components/ui";
 import { SECTION_STYLES } from "../constants";
 import { SectionHeader } from "./SectionHeader";
@@ -214,90 +215,20 @@ export function InterfaceTable({ unitAnalysis }: InterfaceTableProps) {
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-blue-100/50 dark:bg-blue-900/20 text-xs font-semibold text-text-secondary uppercase">
-                  <th className="px-4 py-3 text-left w-28">I/F ID</th>
-                  <th className="px-4 py-3 text-left">인터페이스명</th>
-                  <th className="px-4 py-3 text-left w-28">송신</th>
-                  <th className="px-4 py-3 text-left w-28">수신</th>
-                  <th className="px-4 py-3 text-left w-20">유형</th>
-                  <th className="px-4 py-3 text-left w-20">프로토콜</th>
-                  <th className="px-4 py-3 text-left w-20">주기</th>
-                  <th className="px-4 py-3 text-center w-20">작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {interfaces.map((iface) => (
-                  <tr
-                    key={iface.id}
-                    className="border-t border-blue-100 dark:border-blue-900/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm font-mono text-text-secondary">
-                      {iface.interfaceId || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium text-text dark:text-white">
-                      {iface.interfaceName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {iface.sourceSystem || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {iface.targetSystem || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {iface.interfaceType ? (
+            <AsIsDetailGrid rows={interfaces} fields={[
+              { key: "interfaceId", label: "I/F ID", width: 160 },
+              { key: "interfaceName", label: "인터페이스명", width: 160 },
+              { key: "sourceSystem", label: "송신", width: 160 },
+              { key: "targetSystem", label: "수신", width: 160 },
+              { key: "interfaceType", label: "유형", width: 160, render: (iface) => {  return <>{iface.interfaceType ? (
                         <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs">
                           {iface.interfaceType}
                         </span>
-                      ) : "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {iface.protocol || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {iface.frequency || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {deleteConfirmId === iface.id ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleDelete(iface.id)}
-                            disabled={isDeleting}
-                            className="p-1 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="check" size="xs" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="p-1 rounded bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors"
-                          >
-                            <Icon name="close" size="xs" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleEdit(iface)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="edit" size="xs" className="text-text-secondary hover:text-primary" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(iface.id)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="delete" size="xs" className="text-text-secondary hover:text-error" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      ) : "-"}</>; } },
+              { key: "protocol", label: "프로토콜", width: 160 },
+              { key: "frequency", label: "주기", width: 160 }
+            ]} onEdit={handleEdit} onDelete={row => setDeleteConfirmId(row.id)} pending={isPending} deleting={isDeleting}
+              confirmingId={deleteConfirmId} onConfirmDelete={row => handleDelete(row.id)} onCancelDelete={() => setDeleteConfirmId(null)} />
           )}
         </div>
       )}

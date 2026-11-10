@@ -19,6 +19,7 @@
 "use client";
 
 import { useState } from "react";
+import { AsIsDetailGrid } from "./AsIsDetailGrid";
 import { Icon, Button, Input } from "@/components/ui";
 import { SECTION_STYLES } from "../constants";
 import { SectionHeader } from "./SectionHeader";
@@ -198,88 +199,21 @@ export function DocumentAnalysisTable({ unitAnalysis }: DocumentAnalysisTablePro
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-teal-100/50 dark:bg-teal-900/20 text-xs font-semibold text-text-secondary uppercase">
-                  <th className="px-4 py-3 text-left">문서명</th>
-                  <th className="px-4 py-3 text-left">필드명</th>
-                  <th className="px-4 py-3 text-left w-24">데이터 타입</th>
-                  <th className="px-4 py-3 text-left">샘플 데이터</th>
-                  <th className="px-4 py-3 text-center w-20">필수</th>
-                  <th className="px-4 py-3 text-left">검증 규칙</th>
-                  <th className="px-4 py-3 text-center w-20">작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {analyses.map((analysis) => (
-                  <tr
-                    key={analysis.id}
-                    className="border-t border-teal-100 dark:border-teal-900/50 hover:bg-teal-50/50 dark:hover:bg-teal-900/10 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-text dark:text-white">
-                      {analysis.documentName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text dark:text-white">
-                      {analysis.fieldName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs">
+            <AsIsDetailGrid rows={analyses} fields={[
+              { key: "documentName", label: "문서명", width: 160 },
+              { key: "fieldName", label: "필드명", width: 160 },
+              { key: "dataType", label: "데이터 타입", width: 160, render: (analysis) => {  return <><span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs">
                         {analysis.dataType || "텍스트"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {analysis.sampleData || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {analysis.isMandatory ? (
+                      </span></>; } },
+              { key: "sampleData", label: "샘플 데이터", width: 160 },
+              { key: "isMandatory", label: "필수", width: 160, render: (analysis) => {  return <>{analysis.isMandatory ? (
                         <Icon name="check_circle" size="xs" className="text-success" />
                       ) : (
                         <Icon name="remove" size="xs" className="text-text-secondary" />
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {analysis.validationRule || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {deleteConfirmId === analysis.id ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleDelete(analysis.id)}
-                            disabled={isDeleting}
-                            className="p-1 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="check" size="xs" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="p-1 rounded bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors"
-                          >
-                            <Icon name="close" size="xs" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleEdit(analysis)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-teal-100 dark:hover:bg-teal-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="edit" size="xs" className="text-text-secondary hover:text-primary" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(analysis.id)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="delete" size="xs" className="text-text-secondary hover:text-error" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      )}</>; } },
+              { key: "validationRule", label: "검증 규칙", width: 260 }
+            ]} onEdit={handleEdit} onDelete={row => setDeleteConfirmId(row.id)} pending={isPending} deleting={isDeleting}
+              confirmingId={deleteConfirmId} onConfirmDelete={row => handleDelete(row.id)} onCancelDelete={() => setDeleteConfirmId(null)} />
           )}
         </div>
       )}

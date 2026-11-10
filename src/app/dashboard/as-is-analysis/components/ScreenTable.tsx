@@ -19,6 +19,7 @@
 "use client";
 
 import { useState } from "react";
+import { AsIsDetailGrid } from "./AsIsDetailGrid";
 import { Icon, Button, Input } from "@/components/ui";
 import { SECTION_STYLES } from "../constants";
 import { SectionHeader } from "./SectionHeader";
@@ -198,86 +199,19 @@ export function ScreenTable({ unitAnalysis }: ScreenTableProps) {
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-blue-100/50 dark:bg-blue-900/20 text-xs font-semibold text-text-secondary uppercase">
-                  <th className="px-4 py-3 text-left w-28">화면 ID</th>
-                  <th className="px-4 py-3 text-left">화면명</th>
-                  <th className="px-4 py-3 text-left">설명</th>
-                  <th className="px-4 py-3 text-left">메뉴 경로</th>
-                  <th className="px-4 py-3 text-left w-24">유형</th>
-                  <th className="px-4 py-3 text-left">관련 기능</th>
-                  <th className="px-4 py-3 text-center w-20">작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {screens.map((screen) => (
-                  <tr
-                    key={screen.id}
-                    className="border-t border-blue-100 dark:border-blue-900/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm font-mono text-text-secondary">
-                      {screen.screenId || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium text-text dark:text-white">
-                      {screen.screenName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {screen.description || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {screen.menuPath || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {screen.screenType ? (
+            <AsIsDetailGrid rows={screens} fields={[
+              { key: "screenId", label: "화면 ID", width: 160 },
+              { key: "screenName", label: "화면명", width: 160 },
+              { key: "description", label: "설명", width: 260 },
+              { key: "menuPath", label: "메뉴 경로", width: 160 },
+              { key: "screenType", label: "유형", width: 160, render: (screen) => {  return <>{screen.screenType ? (
                         <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs">
                           {screen.screenType}
                         </span>
-                      ) : "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {screen.relatedFunction || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {deleteConfirmId === screen.id ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleDelete(screen.id)}
-                            disabled={isDeleting}
-                            className="p-1 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="check" size="xs" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="p-1 rounded bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors"
-                          >
-                            <Icon name="close" size="xs" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleEdit(screen)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="edit" size="xs" className="text-text-secondary hover:text-primary" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(screen.id)}
-                            disabled={isPending}
-                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
-                          >
-                            <Icon name="delete" size="xs" className="text-text-secondary hover:text-error" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      ) : "-"}</>; } },
+              { key: "relatedFunction", label: "관련 기능", width: 160 }
+            ]} onEdit={handleEdit} onDelete={row => setDeleteConfirmId(row.id)} pending={isPending} deleting={isDeleting}
+              confirmingId={deleteConfirmId} onConfirmDelete={row => handleDelete(row.id)} onCancelDelete={() => setDeleteConfirmId(null)} />
           )}
         </div>
       )}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-09T00:00:00+09:00",
+  "title": "Design System: WBS Master",
+  "extensions": {
+    "shadows": [{"name":"project-card","value":"0 2px 4px rgba(15,23,42,.08), 0 6px 12px rgba(15,23,42,.10)","purpose":"작은 프로젝트 카드의 깊이"}],
+    "breakpoints": [{"name":"md","value":"768px"},{"name":"xl","value":"1280px"}]
+  },
+  "components": [],
+  "narrative": {"overview":"현재 업무 대시보드의 색상과 밀도를 유지한다.","keyCharacteristics":["마젠타 강조","낮은 프로젝트 카드","부드러운 그림자"],"dos":["실제 업무 정보 유지"],"donts":["장식 때문에 높이를 늘리지 않음"]}
+}

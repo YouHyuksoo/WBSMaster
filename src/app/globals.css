@@ -19,6 +19,7 @@
  */
 
 @import "tailwindcss";
+@source "../../node_modules/@jisung/ui/src";
 
 /* ============================================
    Tailwind CSS 4 플러그인 로드
@@ -206,6 +207,8 @@
    tweakcn 테마 적용 (https://tweakcn.com/)
    ============================================ */
 @theme inline {
+  --color-text-muted: var(--text-secondary);
+  --font-data: var(--font-sans);
   /* 기본 색상 */
   --color-background: var(--background);
   --color-foreground: var(--foreground);

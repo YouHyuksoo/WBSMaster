@@ -17,7 +17,7 @@
 
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { utils, writeFile } from "xlsx";
 import { Icon, Button, Input, useToast, ConfirmModal } from "@/components/ui";
 import { useProject } from "@/contexts";
@@ -47,10 +47,6 @@ export default function InterviewsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   /** 현재 선택된 탭 (not_transferred: 미이관, transferred: 이관완료) */
   const [activeTab, setActiveTab] = useState<"not_transferred" | "transferred">("not_transferred");
-
-  // 페이지네이션 상태
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // 모달 상태
   const [modalState, setModalState] = useState<{
@@ -115,18 +111,6 @@ export default function InterviewsPage() {
       return matchesSearch;
     });
   }, [tabInterviews, searchQuery]);
-
-  // 페이지네이션 계산
-  const totalPages = Math.ceil(filteredInterviews.length / itemsPerPage);
-  const paginatedInterviews = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredInterviews.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredInterviews, currentPage, itemsPerPage]);
-
-  // 필터/탭 변경 시 페이지 리셋
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, searchQuery]);
 
   // 통계 계산
   const stats = useMemo(() => {
@@ -535,18 +519,10 @@ export default function InterviewsPage() {
 
           {/* 인터뷰 목록 테이블 */}
           <InterviewTable
-            interviews={paginatedInterviews}
-            totalCount={filteredInterviews.length}
+            interviews={filteredInterviews}
             onEdit={handleOpenEdit}
             onDelete={handleDelete}
             onTransfer={handleTransfer}
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-            itemsPerPage={itemsPerPage}
-            onItemsPerPageChange={(count) => {
-              setItemsPerPage(count);
-              setCurrentPage(1);
-            }}
             emptyMessage={
               interviews.length === 0
                 ? "등록된 인터뷰가 없습니다."

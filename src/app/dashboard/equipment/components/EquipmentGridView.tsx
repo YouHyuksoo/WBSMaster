@@ -98,7 +98,7 @@ export function EquipmentGridView({
   }
 
   return (
-    <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
+    <div className="bg-background-white dark:bg-surface-dark dark:[--border-dark:#64748b] border border-border dark:border-border-dark rounded-xl overflow-hidden overflow-x-auto">
       {/* 테이블 헤더 */}
       <div
         className="grid gap-2 px-4 py-3 bg-surface dark:bg-background-dark border-b border-border dark:border-border-dark text-xs font-semibold text-text-secondary uppercase min-w-[1500px]"
