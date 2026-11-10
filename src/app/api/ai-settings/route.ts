@@ -7,7 +7,7 @@
  * 초보자 가이드:
  * 1. **GET /api/ai-settings**: 현재 사용자의 AI 설정 조회
  * 2. **POST /api/ai-settings**: AI 설정 생성/수정
- * 3. 제공자: gemini · mistral · openai · openrouter (Kimi 는 2026-11-09 제거)
+ * 3. 제공자: chatgpt(회사 계정) · openai · openrouter (Kimi · Gemini · Mistral 은 2026-11-09 제거, DB 칼럼만 남음)
  *
  * 보안 주의사항:
  * - API 키는 서버 사이드에서만 저장/사용
@@ -23,8 +23,6 @@ import { CHATGPT_DEFAULT_MODEL } from "@/lib/llm/chatgpt/constants";
 
 const DEFAULTS = {
   chatgptModel: CHATGPT_DEFAULT_MODEL,
-  geminiModel: "gemini-1.5-flash",
-  mistralModel: "mistral-small-latest",
   openaiModel: "gpt-4.1-mini",
   openrouterModel: "openai/gpt-4.1-mini",
 };
@@ -44,16 +42,10 @@ function toResponse(settings: AiSetting) {
   return {
     provider: settings.provider,
     chatgptModel: settings.chatgptModel,
-    geminiApiKey: maskApiKey(settings.geminiApiKey),
-    geminiModel: settings.geminiModel,
-    mistralApiKey: maskApiKey(settings.mistralApiKey),
-    mistralModel: settings.mistralModel,
     openaiApiKey: maskApiKey(settings.openaiApiKey),
     openaiModel: settings.openaiModel,
     openrouterApiKey: maskApiKey(settings.openrouterApiKey),
     openrouterModel: settings.openrouterModel,
-    hasGeminiKey: !!settings.geminiApiKey,
-    hasMistralKey: !!settings.mistralApiKey,
     hasOpenaiKey: !!settings.openaiApiKey,
     hasOpenrouterKey: !!settings.openrouterApiKey,
     sqlSystemPrompt: settings.sqlSystemPrompt || DEFAULT_SQL_SYSTEM_PROMPT,
@@ -87,13 +79,9 @@ export async function GET() {
       // 설정이 없으면 기본값 반환 (시스템 프롬프트도 기본값 포함)
       return NextResponse.json({
         provider: "chatgpt",
-        geminiApiKey: null,
-        mistralApiKey: null,
         openaiApiKey: null,
         openrouterApiKey: null,
         ...DEFAULTS,
-        hasGeminiKey: false,
-        hasMistralKey: false,
         hasOpenaiKey: false,
         hasOpenrouterKey: false,
         sqlSystemPrompt: DEFAULT_SQL_SYSTEM_PROMPT,
@@ -134,15 +122,11 @@ export async function POST(request: NextRequest) {
 
     // 제공자별 키(새로 입력한 값만) · 모델
     const keys = {
-      geminiApiKey: newKey(body.geminiApiKey),
-      mistralApiKey: newKey(body.mistralApiKey),
       openaiApiKey: newKey(body.openaiApiKey),
       openrouterApiKey: newKey(body.openrouterApiKey),
     };
     const models = {
       chatgptModel: modelName(body.chatgptModel),
-      geminiModel: modelName(body.geminiModel),
-      mistralModel: modelName(body.mistralModel),
       openaiModel: modelName(body.openaiModel),
       openrouterModel: modelName(body.openrouterModel),
     };
@@ -165,12 +149,8 @@ export async function POST(request: NextRequest) {
         userId: user!.id,
         provider: provider || "chatgpt",
         chatgptModel: models.chatgptModel ?? DEFAULTS.chatgptModel,
-        geminiApiKey: keys.geminiApiKey ?? null,
-        mistralApiKey: keys.mistralApiKey ?? null,
         openaiApiKey: keys.openaiApiKey ?? null,
         openrouterApiKey: keys.openrouterApiKey ?? null,
-        geminiModel: models.geminiModel ?? DEFAULTS.geminiModel,
-        mistralModel: models.mistralModel ?? DEFAULTS.mistralModel,
         openaiModel: models.openaiModel ?? DEFAULTS.openaiModel,
         openrouterModel: models.openrouterModel ?? DEFAULTS.openrouterModel,
         sqlSystemPrompt: prompts.sqlSystemPrompt ?? null,

@@ -3,17 +3,14 @@
  * @description resolveLLMConfig 가 제공자별로 맞는 키·모델을 고르는지 검증합니다.
  *
  * 초보자 가이드:
- * - 회귀: 예전 라우트 일부는 gemini 가 아니면 무조건 mistral 키를 써서 다른 제공자 사용자가 잘못된 키로 호출됐다.
+ * - 회귀: 예전 라우트 일부는 제공자와 다른 키를 써서 잘못된 키로 호출됐다.
+ * - Kimi · Gemini · Mistral 은 2026-11-09 제거: 저장된 값이 남아 있어도 지원하지 않는 제공자로 막힌다.
  */
 import { describe, expect, it } from "vitest";
 import { resolveLLMConfig, providerLabel, providerBadge, type AiSettingFields } from "./config";
 
 const base: AiSettingFields = {
-  provider: "gemini",
-  geminiApiKey: "g-key",
-  geminiModel: "gemini-m",
-  mistralApiKey: "m-key",
-  mistralModel: "mistral-m",
+  provider: "openai",
   openaiApiKey: "o-key",
   openaiModel: "gpt-m",
   openrouterApiKey: "r-key",
@@ -23,8 +20,6 @@ const base: AiSettingFields = {
 
 describe("resolveLLMConfig", () => {
   it.each([
-    ["gemini", "g-key", "gemini-m"],
-    ["mistral", "m-key", "mistral-m"],
     ["openai", "o-key", "gpt-m"],
     ["openrouter", "r-key", "vendor/model"],
   ])("%s 제공자는 자기 키·모델을 쓴다", (provider, key, model) => {
@@ -38,10 +33,10 @@ describe("resolveLLMConfig", () => {
     if (!r.ok) expect(r.error).toContain("OpenRouter");
   });
 
-  it("제거된 kimi 등 지원하지 않는 제공자는 오류", () => {
-    const r = resolveLLMConfig({ ...base, provider: "kimi" });
+  it.each(["kimi", "gemini", "mistral"])("제거된 %s 는 지원하지 않는 제공자로 오류", (provider) => {
+    const r = resolveLLMConfig({ ...base, provider });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toContain("kimi");
+    if (!r.ok) expect(r.error).toContain(provider);
   });
 
   it("chatgpt 제공자는 키 없이 회사 계정 모델을 쓴다", () => {
@@ -49,7 +44,7 @@ describe("resolveLLMConfig", () => {
     expect(r).toEqual({ ok: true, config: { provider: "chatgpt", apiKey: "", model: "gpt-x" } });
   });
 
-  it.each(["chatgpt", "gemini", "mistral", "openai", "openrouter"])("providerBadge: %s 는 이름과 모델을 보여 준다", (provider) => {
+  it.each(["chatgpt", "openai", "openrouter"])("providerBadge: %s 는 이름과 모델을 보여 준다", (provider) => {
     const badge = providerBadge({ ...base, provider });
     expect(badge).not.toContain("설정 필요");
     expect(badge).toContain(providerLabel(provider));

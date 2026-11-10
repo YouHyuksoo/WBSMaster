@@ -66,8 +66,6 @@ export const API_KEY_PROVIDERS: Record<ApiKeyProviderId, ProviderMeta> = {
       "openai/gpt-4.1-mini",
       "openai/gpt-4o-mini",
       "anthropic/claude-sonnet-4",
-      "google/gemini-2.5-flash",
-      "mistralai/mistral-small",
       "deepseek/deepseek-chat",
     ],
     modelHint:

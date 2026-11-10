@@ -122,7 +122,6 @@ export async function POST(request: NextRequest) {
     // 설정이 없으면 회사 ChatGPT(서버 공용 계정)를 기본으로 쓴다
     const effectiveSettings = aiSettings ?? {
       provider: "chatgpt", chatgptModel: CHATGPT_DEFAULT_MODEL,
-      geminiApiKey: null, geminiModel: "", mistralApiKey: null, mistralModel: "",
       openaiApiKey: null, openaiModel: "", openrouterApiKey: null, openrouterModel: "",
       sqlSystemPrompt: null, analysisSystemPrompt: null,
     };

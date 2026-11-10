@@ -29,7 +29,6 @@ import { GET, POST } from "./route";
 
 const base = {
   provider: "chatgpt", chatgptModel: "gpt-6.1-sol",
-  geminiApiKey: null, geminiModel: "g", mistralApiKey: null, mistralModel: "m",
   openaiApiKey: null, openaiModel: "o", openrouterApiKey: null, openrouterModel: "r",
   sqlSystemPrompt: null, analysisSystemPrompt: null,
 };

@@ -8,11 +8,11 @@
  * - LLM_PROVIDERS: 지원 제공자 목록 (새 제공자는 여기와 PROVIDER_FIELDS 에만 추가)
  * - resolveLLMConfig(setting): { ok: true, config } 또는 { ok: false, error } 를 돌려줍니다.
  * - providerLabel(provider): 화면·오류 메시지용 이름
- * - Kimi 는 2026-11-09 제거됐다 (DB 칼럼만 남음).
+ * - Kimi · Gemini · Mistral 은 2026-11-09 제거됐다 (DB 칼럼만 남음).
  */
 
 /** 지원 LLM 제공자 */
-export const LLM_PROVIDERS = ["chatgpt", "gemini", "mistral", "openai", "openrouter"] as const;
+export const LLM_PROVIDERS = ["chatgpt", "openai", "openrouter"] as const;
 export type LLMProvider = (typeof LLM_PROVIDERS)[number];
 
 /** LLM 호출 설정 */
@@ -25,10 +25,6 @@ export interface LLMConfig {
 /** ai_settings 에서 쓰는 칼럼만 (Prisma AiSetting 의 부분집합) */
 export interface AiSettingFields {
   provider: string;
-  geminiApiKey: string | null;
-  geminiModel: string;
-  mistralApiKey: string | null;
-  mistralModel: string;
   openaiApiKey: string | null;
   openaiModel: string;
   openrouterApiKey: string | null;
@@ -42,8 +38,6 @@ export interface AiSettingFields {
  */
 const PROVIDER_FIELDS: Record<LLMProvider, { key: keyof AiSettingFields | null; model: keyof AiSettingFields; label: string }> = {
   chatgpt: { key: null, model: "chatgptModel", label: "회사 ChatGPT" },
-  gemini: { key: "geminiApiKey", model: "geminiModel", label: "Gemini" },
-  mistral: { key: "mistralApiKey", model: "mistralModel", label: "Mistral" },
   openai: { key: "openaiApiKey", model: "openaiModel", label: "OpenAI" },
   openrouter: { key: "openrouterApiKey", model: "openrouterModel", label: "OpenRouter" },
 };

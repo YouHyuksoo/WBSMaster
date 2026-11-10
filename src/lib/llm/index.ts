@@ -2,25 +2,22 @@
  * @file src/lib/llm/index.ts
  * @description
  * LLM (Large Language Model) 클라이언트 통합 모듈입니다.
- * Google Gemini, Mistral AI, OpenAI, OpenRouter 를 지원합니다.
+ * 회사 ChatGPT, OpenAI, OpenRouter 를 지원합니다 (Gemini · Mistral 은 2026-11-09 제거).
  *
  * 초보자 가이드:
- * 1. **LLMClient**: LLM 추상화 클래스 (Gemini/Mistral/OpenAI/OpenRouter 공통 인터페이스)
+ * 1. **LLMClient**: LLM 추상화 클래스 (회사 ChatGPT/OpenAI/OpenRouter 공통 인터페이스)
  * 2. **createLLMClient()**: 설정에 따라 적절한 LLM 클라이언트 생성
  * 3. **generateSQL()**: 사용자 질문을 SQL로 변환
  * 4. **analyzeResults()**: SQL 실행 결과를 분석하여 응답 생성
  *
  * 지원 LLM:
- * - Google Gemini: @google/generative-ai SDK 사용
- * - Mistral AI: @mistralai/mistralai SDK 사용
+ * - 회사 ChatGPT: 서버 공용 OAuth 계정 (./clients/chatgpt)
  * - OpenAI: Chat Completions API 직접 호출 (https://api.openai.com/v1)
  * - OpenRouter: OpenAI 호환 API 직접 호출 (https://openrouter.ai/api/v1), 모델명은 "회사/모델" 형식
  * - 사용자 설정 → LLMConfig 변환은 ./config 의 resolveLLMConfig() 를 쓴다.
  * - 모든 호출은 429(호출 한도 초과) 시 ./retry 의 withRateLimitRetry() 로 재시도한다.
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Mistral } from "@mistralai/mistralai";
 import {
   getSchemaInfo,
   getProjectFilterInfo,
@@ -189,60 +186,6 @@ WBS 데이터가 있을 때 마인드맵 생성 방법:
 `;
 
 /**
- * Google Gemini 클라이언트
- */
-class GeminiClient extends LLMClient {
-  private client: GoogleGenerativeAI;
-
-  constructor(config: LLMConfig) {
-    super(config);
-    this.client = new GoogleGenerativeAI(config.apiKey);
-  }
-
-  async generate(prompt: string, systemPrompt?: string): Promise<string> {
-    const model = this.client.getGenerativeModel({ model: this.config.model });
-
-    const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
-
-    const result = await model.generateContent(fullPrompt);
-    const response = result.response;
-    return response.text();
-  }
-}
-
-/**
- * Mistral AI 클라이언트
- */
-class MistralClient extends LLMClient {
-  private client: Mistral;
-
-  constructor(config: LLMConfig) {
-    super(config);
-    this.client = new Mistral({ apiKey: config.apiKey });
-  }
-
-  async generate(prompt: string, systemPrompt?: string): Promise<string> {
-    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [];
-
-    if (systemPrompt) {
-      messages.push({ role: "system", content: systemPrompt });
-    }
-    messages.push({ role: "user", content: prompt });
-
-    const response = await this.client.chat.complete({
-      model: this.config.model,
-      messages,
-    });
-
-    const content = response.choices?.[0]?.message?.content;
-    if (typeof content === "string") {
-      return content;
-    }
-    return "";
-  }
-}
-
-/**
  * 429(호출 한도 초과) 시 재시도하는 래퍼
  * AI 채팅은 질문 하나에 LLM 을 2~3번 연달아 부르므로 초당 한도가 낮은 요금제에서 필요하다.
  */
@@ -279,10 +222,6 @@ function createProviderClient(config: LLMConfig): LLMClient {
     case "chatgpt":
       // 회사 ChatGPT 계정 (서버 공용 OAuth). 끊기거나 429 면 CHAT_FALLBACK_* 제공자로 넘긴다
       return new FallbackClient(new ChatGptClient(config), fallbackFromEnv());
-    case "gemini":
-      return new GeminiClient(config);
-    case "mistral":
-      return new MistralClient(config);
     case "openai":
       return new OpenAICompatibleClient(config, "https://api.openai.com/v1", "OpenAI", {
         max_completion_tokens: 8192, // 추론 모델은 추론 토큰도 이 한도에 포함
