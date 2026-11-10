@@ -9,6 +9,7 @@
  * 2. 개요는 총괄표와 같은 수정 창(ToBeModal)으로 고친다. 연결 WBS(3단계)도 개요에 보이고 같은 창에서 고친다
  * 3. 개선 매핑 · 프로세스 · 흐름도는 각자 저장한다 (한 섹션 저장이 다른 섹션 편집을 지우지 않는다)
  * 4. SFR 진행은 기능추적표의 세부 기능(L4) 적용 · 검증 수를 보여 준다
+ * 5. "AI 제안"(4단계): 연결 AS-IS · 인터뷰 · SFR 로 초안을 받아 SuggestPanel 에서 고른 항목만 적용한다 (자동 저장 없음)
  */
 "use client";
 
@@ -17,9 +18,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button, Icon, useToast } from "@/components/ui";
 import { useProject } from "@/contexts";
-import { useSaveToBeDesign, useToBe, useToBeDesign, useUpdateToBeItem } from "@/hooks";
-import type { ToBeDesignInput, ToBeItemInput } from "@/lib/api";
-import { FixEditor, FlowCompare, ProcessEditor, ToBeModal } from "../components";
+import { useSaveToBeDesign, useSuggestToBe, useToBe, useToBeDesign, useUpdateToBeItem } from "@/hooks";
+import type { ToBeDesignInput, ToBeItemInput, ToBeSuggestion } from "@/lib/api";
+import { FixEditor, FlowCompare, ProcessEditor, SuggestPanel, ToBeModal } from "../components";
+import { mergeSuggestedFixes } from "../components/SuggestPanel";
 import { CHANGE_TYPE_CONFIG, MAJOR_CATEGORIES, PRIORITY_LABEL, STATUS_CONFIG, TARGET_METHOD_CONFIG, WBS_STATUS_LABEL, needsImplementation } from "../types";
 
 function Section({ no, title, icon, children, action }: { no: string; title: string; icon: string; children: ReactNode; action?: ReactNode }) {
@@ -52,16 +54,37 @@ export default function ToBeDesignPage({ params }: { params: Promise<{ id: strin
   const updateItem = useUpdateToBeItem();
   const [editing, setEditing] = useState(false);
   const [savingPart, setSavingPart] = useState<keyof ToBeDesignInput | null>(null);
+  const suggest = useSuggestToBe(id);
+  const [suggestion, setSuggestion] = useState<ToBeSuggestion | null>(null);
 
   const saveDesign = async (input: ToBeDesignInput, label: string) => {
     setSavingPart(Object.keys(input)[0] as keyof ToBeDesignInput);
     try {
       await save.mutateAsync(input);
       toast.success(`${label}을(를) 저장했습니다.`);
+      return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "저장하지 못했습니다.");
+      return false;
     } finally {
       setSavingPart(null);
+    }
+  };
+  const askAi = async () => {
+    try {
+      setSuggestion(await suggest.mutateAsync());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "AI 제안을 받지 못했습니다.");
+    }
+  };
+  const applySuggestion = async (input: ToBeItemInput) => {
+    try {
+      await updateItem.mutateAsync({ id, data: input });
+      toast.success("AI 제안을 개요에 적용했습니다.");
+      return true;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "저장하지 못했습니다.");
+      return false;
     }
   };
   const saveOverview = async (input: ToBeItemInput) => {
@@ -101,7 +124,8 @@ export default function ToBeDesignPage({ params }: { params: Promise<{ id: strin
         <Button variant="outline" leftIcon="edit" onClick={() => setEditing(true)} disabled={!list}>개요 수정</Button>
       </div>
 
-      <Section no="①" title="개요" icon="info">
+      <Section no="①" title="개요" icon="info"
+        action={<Button variant="outline" leftIcon="auto_awesome" onClick={askAi} disabled={suggest.isPending}>{suggest.isPending ? "AI 제안 받는 중..." : "AI 제안"}</Button>}>
         <dl className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
           <dt className="text-text-secondary">변화 · 방식 · 상태</dt>
           <dd className="flex flex-wrap gap-1.5">
@@ -123,6 +147,13 @@ export default function ToBeDesignPage({ params }: { params: Promise<{ id: strin
           <dd className="whitespace-pre-wrap text-text dark:text-white">{item.summary || <span className="text-text-secondary">아직 없습니다. 개요 수정에서 무엇이 달라지는지 적으세요.</span>}</dd>
         </dl>
       </Section>
+
+      {suggestion && (
+        <SuggestPanel item={item} suggestion={suggestion} busy={updateItem.isPending || savingPart === "fixes"}
+          onApplyOverview={applySuggestion}
+          onAddFixes={(added) => saveDesign({ fixes: mergeSuggestedFixes(item.fixes, added) }, "개선 매핑")}
+          onClose={() => setSuggestion(null)} />
+      )}
 
       <Section no="②" title="개선 매핑 (AS-IS 문제점 → 해결)" icon="sync_alt">
         <FixEditor key={JSON.stringify(item.fixes)} initial={item.fixes.map(({ asIsIssueId, issueTitle, solution, result }) => ({ asIsIssueId, issueTitle, solution, result }))}

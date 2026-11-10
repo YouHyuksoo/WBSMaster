@@ -151,6 +151,19 @@ export interface ToBeData {
 }
 export type ToBeItemInput = Partial<Pick<ToBeItem, "majorCategory" | "middleCategory" | "taskName" | "changeType" | "targetMethod" | "summary" | "priority" | "status" | "sfrCodes">> & { asIsItemIds?: string[]; wbsItemIds?: string[] };
 
+/** TO-BE AI 초안 제안 (POST /api/to-be/items/[id]/suggest, 4단계). 저장하지 않은 제안 */
+export interface ToBeSuggestion {
+  changeType: ToBeItem["changeType"];
+  targetMethod: ToBeItem["targetMethod"];
+  priority: ToBeItem["priority"];
+  summary: string;
+  sfrCodes: string[];
+  fixes: Array<{ issue: string; solution: string }>;
+  reason: string;
+  droppedSfr: string[];
+  interviewCount: number;
+}
+
 /** TO-BE Gap 분석 · 추적표 (GET /api/to-be/analysis, 3단계) */
 export interface ToBeRowRef {
   id: string;
@@ -1433,6 +1446,7 @@ export const api = {
     draftFromAsIs: (projectId: string) => post<{ created: number; skipped: number }>("/api/to-be/draft", { projectId }),
     design: (id: string) => get<ToBeDesign>(`/api/to-be/items/${id}`),
     analysis: (projectId: string) => get<ToBeAnalysis>("/api/to-be/analysis", { projectId }),
+    suggest: (id: string) => post<{ suggestion: ToBeSuggestion }>(`/api/to-be/items/${id}/suggest`, {}),
     saveDesign: (id: string, data: ToBeDesignInput) => put<ToBeDesign>(`/api/to-be/items/${id}/design`, data),
   },
 

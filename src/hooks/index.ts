@@ -258,4 +258,4 @@ export {
 } from "./useMenu";
 
 // TO-BE 설계
-export { useToBe, useCreateToBeItem, useUpdateToBeItem, useDeleteToBeItem, useDraftToBeFromAsIs, useToBeDesign, useSaveToBeDesign, useToBeAnalysis, toBeKeys } from "./useToBe";
+export { useToBe, useCreateToBeItem, useUpdateToBeItem, useDeleteToBeItem, useDraftToBeFromAsIs, useToBeDesign, useSaveToBeDesign, useToBeAnalysis, useSuggestToBe, toBeKeys } from "./useToBe";

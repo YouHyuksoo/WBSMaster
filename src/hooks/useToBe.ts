@@ -6,6 +6,7 @@
  * - useToBe(projectId): 총괄 + 업무 + 연결 후보(AS-IS 업무, SFR)를 한 번에 받는다
  * - 변경 훅은 성공하면 toBeKeys.all 을 무효화해 목록을 다시 받는다
  * - useToBeAnalysis(projectId): Gap 분석 · 추적표 (3단계)
+ * - useSuggestToBe(id): AI 초안 제안 (4단계). 저장하지 않으므로 캐시를 건드리지 않는다
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ToBeDesignInput, type ToBeItemInput } from "@/lib/api";
@@ -49,6 +50,11 @@ export function useDraftToBeFromAsIs() {
 /** Gap 분석 · 추적표 (3단계). TO-BE 를 바꾸면 toBeKeys.all 무효화로 함께 다시 받는다 */
 export function useToBeAnalysis(projectId: string | null | undefined, enabled = true) {
   return useQuery({ queryKey: toBeKeys.analysis(projectId ?? ""), queryFn: () => api.toBe.analysis(projectId!), enabled: !!projectId && enabled });
+}
+
+/** AI 초안 제안 (4단계): 제안만 받는다. 적용은 useUpdateToBeItem · useSaveToBeDesign 으로 사용자가 고른 것만 */
+export function useSuggestToBe(id: string) {
+  return useMutation({ mutationFn: () => api.toBe.suggest(id).then((r) => r.suggestion) });
 }
 
 /** 단위업무 설계 (2단계) */
