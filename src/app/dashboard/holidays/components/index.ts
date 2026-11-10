@@ -9,3 +9,4 @@ export { WeeklyCalendar } from "./WeeklyCalendar";
 export { HolidayList, HolidayLegend } from "./HolidayList";
 export { HolidayModal } from "./HolidayModal";
 export { CalendarNavigation } from "./CalendarNavigation";
+export { DayDetailModal } from "./DayDetailModal";

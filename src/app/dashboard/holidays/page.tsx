@@ -9,6 +9,7 @@
  * 1. **뷰 모드**: 월간(month) / 주간(week) 전환 가능
  * 2. **일정 유형**: 회사 휴일, 팀 오프사이트, 개인 휴가, 개인 일정, 회의, 마감일, 기타
  * 3. **일정 영향**: WBS 간트 차트에 자동 반영
+ * 4. **그날 상세**: 날짜 칸 클릭 → DayDetailModal (수정·삭제·이 날 등록)
  *
  * 수정 방법:
  * - 컴포넌트 스타일: components/ 폴더 내 각 컴포넌트 파일 수정
@@ -29,6 +30,7 @@ import {
   HolidayLegend,
   HolidayModal,
   CalendarNavigation,
+  DayDetailModal,
 } from "./components";
 import { ViewMode, HolidayFormState, initialHolidayFormState } from "./types";
 
@@ -47,6 +49,8 @@ export default function HolidaysPage() {
   const [editHoliday, setEditHoliday] = useState<HolidayFormState>(initialHolidayFormState);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingHolidayId, setDeletingHolidayId] = useState<string | null>(null);
+  /** 그날 상세 모달로 보고 있는 날짜 */
+  const [detailDate, setDetailDate] = useState<Date | null>(null);
 
   const toast = useToast();
 
@@ -373,6 +377,7 @@ export default function HolidaysPage() {
                   getHolidaysForDate={getHolidaysForDate}
                   onHolidayClick={handleOpenEditModal}
                   onAddHoliday={handleAddHolidayForDate}
+                  onDayClick={setDetailDate}
                 />
               ) : (
                 <WeeklyCalendar
@@ -380,6 +385,7 @@ export default function HolidaysPage() {
                   getHolidaysForDate={getHolidaysForDateObj}
                   onHolidayClick={handleOpenEditModal}
                   onAddHoliday={handleAddHolidayForDate}
+                  onDayClick={setDetailDate}
                 />
               )}
             </div>
@@ -397,6 +403,22 @@ export default function HolidaysPage() {
           </div>
         </>
       )}
+
+      {/* 그날 상세 모달: 수정·등록은 상세를 닫고 폼을 연다, 삭제는 확인 후 목록이 바로 갱신된다 */}
+      <DayDetailModal
+        date={detailDate}
+        holidays={detailDate ? getHolidaysForDateObj(detailDate) : []}
+        onClose={() => setDetailDate(null)}
+        onEdit={(holiday) => {
+          setDetailDate(null);
+          handleOpenEditModal(holiday);
+        }}
+        onDelete={handleDeleteHoliday}
+        onAdd={(dateStr) => {
+          setDetailDate(null);
+          handleAddHolidayForDate(dateStr);
+        }}
+      />
 
       {/* 일정 추가 모달 */}
       <HolidayModal

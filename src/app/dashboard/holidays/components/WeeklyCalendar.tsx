@@ -9,6 +9,7 @@
  * 2. **일정 카드**: 각 날짜 열에 일정 카드 표시
  * 3. **오늘 표시**: 현재 날짜 강조
  * 4. **일정 등록**: 날짜 영역 hover 시 등록 버튼 표시
+ * 5. **그날 상세**: 날짜 열 빈 공간 클릭(또는 Enter) 시 onDayClick → 상세 모달, 일정 카드 클릭은 수정
  */
 
 "use client";
@@ -26,6 +27,8 @@ interface WeeklyCalendarProps {
   onHolidayClick: (holiday: Holiday) => void;
   /** 일정 추가 핸들러 (날짜 문자열: YYYY-MM-DD) */
   onAddHoliday?: (dateStr: string) => void;
+  /** 날짜 열 클릭 핸들러 (그날 상세 모달) */
+  onDayClick?: (date: Date) => void;
 }
 
 /**
@@ -46,6 +49,7 @@ export function WeeklyCalendar({
   getHolidaysForDate,
   onHolidayClick,
   onAddHoliday,
+  onDayClick,
 }: WeeklyCalendarProps) {
   return (
     <>
@@ -78,7 +82,20 @@ export function WeeklyCalendar({
           return (
             <div
               key={dayIndex}
-              className={`group relative border-r border-border dark:border-border-dark last:border-r-0 p-2 min-h-[400px] transition-colors hover:bg-primary/5 ${
+              {...(onDayClick && {
+                role: "button",
+                tabIndex: 0,
+                "aria-label": `${date.getMonth() + 1}월 ${date.getDate()}일 일정 ${dayHolidays.length}건 크게 보기`,
+                onClick: () => onDayClick(date),
+                onKeyDown: (e: React.KeyboardEvent) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onDayClick(date);
+                  }
+                },
+              })}
+              className={`group relative ${onDayClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" : ""} border-r border-border dark:border-border-dark last:border-r-0 p-2 min-h-[400px] transition-colors hover:bg-primary/5 ${
                 isToday ? "bg-primary/5" : ""
               } ${dayIndex === 0 ? "bg-error/5" : dayIndex === 6 ? "bg-primary/5" : ""}`}
             >
@@ -105,7 +122,10 @@ export function WeeklyCalendar({
                     return (
                       <div
                         key={holiday.id}
-                        onClick={() => onHolidayClick(holiday)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onHolidayClick(holiday);
+                        }}
                         className={`p-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${config.bgColor}`}
                       >
                         <p className="text-xs font-medium text-white truncate">{holiday.title}</p>

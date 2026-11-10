@@ -9,6 +9,7 @@
  * 2. **일정 표시**: 각 날짜 셀에 일정 최대 2개 표시
  * 3. **오늘 표시**: 현재 날짜 강조
  * 4. **일정 등록**: 날짜 셀 hover 시 등록 버튼 표시
+ * 5. **그날 상세**: 날짜 칸 빈 공간 클릭(또는 Enter) 시 onDayClick → 상세 모달, 일정 막대 클릭은 수정
  */
 
 "use client";
@@ -28,6 +29,8 @@ interface MonthlyCalendarProps {
   onHolidayClick: (holiday: Holiday) => void;
   /** 일정 추가 핸들러 (날짜 문자열: YYYY-MM-DD) */
   onAddHoliday?: (dateStr: string) => void;
+  /** 날짜 칸 클릭 핸들러 (그날 상세 모달) */
+  onDayClick?: (date: Date) => void;
 }
 
 /**
@@ -39,6 +42,7 @@ export function MonthlyCalendar({
   getHolidaysForDate,
   onHolidayClick,
   onAddHoliday,
+  onDayClick,
 }: MonthlyCalendarProps) {
   // 월의 첫날과 마지막날
   const firstDayOfMonth = new Date(year, month, 1);
@@ -67,7 +71,20 @@ export function MonthlyCalendar({
       days.push(
         <div
           key={day}
-          className={`group relative h-32 p-2 border-b border-r border-border dark:border-border-dark overflow-hidden transition-colors hover:bg-primary/5 ${
+          {...(onDayClick && {
+            role: "button",
+            tabIndex: 0,
+            "aria-label": `${month + 1}월 ${day}일 일정 ${dayHolidays.length}건 크게 보기`,
+            onClick: () => onDayClick(new Date(year, month, day)),
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.target !== e.currentTarget) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onDayClick(new Date(year, month, day));
+              }
+            },
+          })}
+          className={`group relative h-32 p-2 border-b border-r border-border dark:border-border-dark overflow-hidden transition-colors hover:bg-primary/5 ${onDayClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" : ""} ${
             isWeekend ? "bg-surface/50 dark:bg-background-dark/50" : "bg-background-white dark:bg-surface-dark"
           }`}
         >
@@ -104,7 +121,10 @@ export function MonthlyCalendar({
               return (
                 <div
                   key={holiday.id}
-                  onClick={() => onHolidayClick(holiday)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onHolidayClick(holiday);
+                  }}
                   className={`text-[10px] px-1.5 py-0.5 rounded truncate ${config.bgColor} text-white flex items-center gap-1 cursor-pointer hover:opacity-80`}
                 >
                   {/* 개인 일정인 경우 사용자 아바타 표시 */}
