@@ -47,14 +47,14 @@ function handlers(src: string): Array<{ method: string; body: string }> {
 /** 멤버 · 소유자 · ADMIN 확인 흔적 */
 const RECORD_GUARD = /assertProjectAccess\(|teamMembers:\s*\{\s*some|role !== "ADMIN"|userId:\s*user!?\.id|userId !== user!?\.id|createdById !== user/;
 
-/** 파일 안(export 아닌) 도우미 함수 중 RECORD_GUARD 를 품은 것의 이름 */
-function guardHelpers(src: string): string[] {
+/** 파일 안(export 아닌) 도우미 함수 중 pattern(기본 RECORD_GUARD)을 품은 것의 이름 */
+function guardHelpers(src: string, pattern: RegExp = RECORD_GUARD): string[] {
   const defs = [...src.matchAll(/^(?:async )?function (\w+)\s*\(/gm)];
   return defs
-    .filter((m, i) => {
+    .filter((m) => {
       const rest = src.slice(m.index!);
       const end = rest.slice(1).search(/^(?:export |async function |function )/m);
-      return RECORD_GUARD.test(end < 0 ? rest : rest.slice(0, end + 1));
+      return pattern.test(end < 0 ? rest : rest.slice(0, end + 1));
     })
     .map((m) => m[1]);
 }
@@ -63,7 +63,8 @@ const cases = findRoutes(API_DIR).flatMap((file) => {
   const route = relative(API_DIR, file).split(sep).slice(0, -1).join("/");
   const src = readFileSync(file, "utf8");
   const helpers = guardHelpers(src);
-  return handlers(src).map((h) => ({ key: `${route} ${h.method}`, body: h.body, dynamic: route.includes("["), helpers }));
+  const authHelpers = guardHelpers(src, /requireAuth\(/);
+  return handlers(src).map((h) => ({ key: `${route} ${h.method}`, body: h.body, dynamic: route.includes("["), helpers, authHelpers }));
 });
 
 describe("API 라우트 로그인 확인", () => {
@@ -128,7 +129,11 @@ describe("API 라우트 로그인 확인", () => {
   });
 
   it("PUBLIC 이 아닌 모든 핸들러는 requireAuth( 를 부른다", () => {
-    const missing = cases.filter((c) => !PUBLIC[c.key] && !c.body.includes("requireAuth(")).map((c) => c.key);
+    // 파일 안 도우미(authorize 등)가 requireAuth 를 먼저 부르는 핸들러도 인정한다
+    const missing = cases
+      .filter((c) => !PUBLIC[c.key] && !c.body.includes("requireAuth("))
+      .filter((c) => !c.authHelpers.some((h) => c.body.includes(`${h}(`)))
+      .map((c) => c.key);
     expect(missing, "requireAuth 없는 핸들러 — @/lib/auth 의 requireAuth + assertProjectAccess 를 넣는다").toEqual([]);
   });
 });

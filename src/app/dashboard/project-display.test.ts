@@ -23,6 +23,7 @@ const PROJECT_LIST_ALLOWED: Record<string, string> = {
   "projects/page.tsx": "프로젝트 관리 화면 자체",
   "users/page.tsx": "사용자/프로젝트 관리 화면 자체",
   "page.tsx": "대시보드 홈: 프로젝트 카드 목록",
+  "components/ProjectCarousel.tsx": "대시보드 홈의 프로젝트 카드 캐러셀 (page.tsx 에서 분리한 같은 카드 목록)",
 };
 
 function walk(dir: string, out: string[] = []): string[] {
