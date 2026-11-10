@@ -7,11 +7,12 @@
  * - 변경 훅은 성공하면 toBeKeys.all 을 무효화해 목록을 다시 받는다
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type ToBeItemInput } from "@/lib/api";
+import { api, type ToBeDesignInput, type ToBeItemInput } from "@/lib/api";
 
 export const toBeKeys = {
   all: ["to-be"] as const,
   detail: (projectId: string) => [...toBeKeys.all, projectId] as const,
+  design: (id: string) => [...toBeKeys.all, "design", id] as const,
 };
 
 export function useToBe(projectId: string | null | undefined) {
@@ -41,4 +42,21 @@ export function useDeleteToBeItem() {
 export function useDraftToBeFromAsIs() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: (projectId: string) => api.toBe.draftFromAsIs(projectId), onSuccess: invalidate });
+}
+
+/** 단위업무 설계 (2단계) */
+export function useToBeDesign(id: string | null | undefined) {
+  return useQuery({ queryKey: toBeKeys.design(id ?? ""), queryFn: () => api.toBe.design(id!), enabled: !!id });
+}
+
+/** 단위업무 설계 저장: 보낸 부분만 교체, 응답(설계 전체)으로 캐시를 바로 바꾼다 */
+export function useSaveToBeDesign(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ToBeDesignInput) => api.toBe.saveDesign(id, data),
+    onSuccess: (design) => {
+      queryClient.setQueryData(toBeKeys.design(id), design);
+      queryClient.invalidateQueries({ queryKey: [...toBeKeys.all], predicate: (q) => q.queryKey[1] !== "design" });
+    },
+  });
 }

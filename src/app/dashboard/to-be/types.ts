@@ -41,3 +41,10 @@ export const STATUS_CONFIG: Record<ToBeItem["status"], BadgeConfig> = {
 };
 
 export const PRIORITY_LABEL: Record<NonNullable<ToBeItem["priority"]>, string> = { HIGH: "높음", MEDIUM: "보통", LOW: "낮음" };
+
+/** 개선 매핑 결과 (2단계) */
+export const FIX_RESULT_CONFIG: Record<"RESOLVED" | "PARTIAL" | "OPEN", { label: string; className: string }> = {
+  RESOLVED: { label: "해결", className: "text-emerald-600 dark:text-emerald-400" },
+  PARTIAL: { label: "부분 해결", className: "text-amber-600 dark:text-amber-400" },
+  OPEN: { label: "미해결", className: "text-rose-600 dark:text-rose-400" },
+};

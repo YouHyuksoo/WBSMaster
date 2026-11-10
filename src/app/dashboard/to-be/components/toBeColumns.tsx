@@ -6,6 +6,7 @@
  * - 연결 AS-IS · 연결 SFR 은 코드 목록을 쉼표로 보여 주고 마우스를 올리면 전체를 보여 준다
  */
 import type { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import { Icon } from "@/components/ui";
 import { HoverTooltip } from "@/components/common";
 import { CHANGE_TYPE_CONFIG, MAJOR_CATEGORIES, PRIORITY_LABEL, STATUS_CONFIG, TARGET_METHOD_CONFIG, type ToBeItem } from "../types";
@@ -29,8 +30,9 @@ const select = (options: Record<string, { label: string }>) => ({ filterType: "s
 
 export function createToBeColumns(actions: ToBeActions): ColumnDef<ToBeItem, unknown>[] {
   return [
-    { id: "actions", header: "수정", size: 80, minSize: 80, enableSorting: false, meta: { filterType: "none" },
+    { id: "actions", header: "작업", size: 104, minSize: 104, enableSorting: false, meta: { filterType: "none" },
       cell: ({ row }) => <div className="flex gap-1">
+        <Link href={`/dashboard/to-be/${row.original.id}`} aria-label={`${row.original.toBeManagementNo} 단위업무 설계`} title="단위업무 설계" className="size-6 inline-flex items-center justify-center text-text-secondary hover:text-primary focus-visible:ring-2 focus-visible:ring-primary"><Icon name="design_services" size="xs" /></Link>
         <button type="button" onClick={() => actions.onEdit(row.original)} aria-label={`${row.original.toBeManagementNo} 수정`} title="수정" className="size-6 text-text-secondary hover:text-primary focus-visible:ring-2 focus-visible:ring-primary"><Icon name="edit" size="xs" /></button>
         <button type="button" onClick={() => actions.onDelete(row.original)} aria-label={`${row.original.toBeManagementNo} 삭제`} title="삭제" className="size-6 text-text-secondary hover:text-error focus-visible:ring-2 focus-visible:ring-primary"><Icon name="delete" size="xs" /></button>
       </div> },

@@ -5,3 +5,6 @@
 
 export { ToBeTable } from "./ToBeTable";
 export { ToBeModal } from "./ToBeModal";
+export { FixEditor } from "./FixEditor";
+export { ProcessEditor } from "./ProcessEditor";
+export { FlowCompare } from "./FlowCompare";

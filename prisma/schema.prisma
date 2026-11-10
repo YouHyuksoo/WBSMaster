@@ -2092,6 +2092,7 @@ model AsIsIssue {
   // 관계
   unitAnalysisId String
   unitAnalysis   AsIsUnitAnalysis @relation(fields: [unitAnalysisId], references: [id], onDelete: Cascade)
+  toBeFixes      ToBeIssueFix[] // 이 문제점을 다루는 TO-BE 해결
 
   @@index([unitAnalysisId])
   @@map("as_is_issues")
@@ -2606,6 +2607,8 @@ model ToBeItem {
   overviewId       String
   overview         ToBeOverview      @relation(fields: [overviewId], references: [id], onDelete: Cascade)
   asIsLinks        ToBeAsIsLink[]
+  fixes            ToBeIssueFix[] // AS-IS 문제점 → 해결 (2단계)
+  processes        ToBeProcess[] // 프로세스 정의 (2단계)
 
   @@unique([overviewId, toBeManagementNo])
   @@index([overviewId])
@@ -2622,4 +2625,51 @@ model ToBeAsIsLink {
   @@id([toBeItemId, asIsItemId])
   @@index([asIsItemId])
   @@map("to_be_as_is_links")
+}
+
+// ---------- TO-BE 2단계: 단위업무 설계 ----------
+
+/// 해결 결과
+enum ToBeFixResult {
+  RESOLVED // 해결
+  PARTIAL // 부분 해결
+  OPEN // 미해결
+}
+
+/// AS-IS 문제점 → TO-BE 해결 방안
+model ToBeIssueFix {
+  id          String        @id @default(uuid())
+  toBeItemId  String
+  toBeItem    ToBeItem      @relation(fields: [toBeItemId], references: [id], onDelete: Cascade)
+  asIsIssueId String? // AS-IS 상세의 이슈 · Pain Point (없으면 제목만 직접 입력)
+  asIsIssue   AsIsIssue?    @relation(fields: [asIsIssueId], references: [id], onDelete: SetNull)
+  issueTitle  String // 문제점 (AS-IS 이슈 제목을 복사해 두어 원본이 지워져도 남는다)
+  solution    String // 해결 방안
+  result      ToBeFixResult @default(OPEN)
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([toBeItemId])
+  @@index([asIsIssueId])
+  @@map("to_be_issue_fixes")
+}
+
+/// TO-BE 프로세스 정의 (단계별 담당 · 시스템 · 입출력)
+model ToBeProcess {
+  id         String   @id @default(uuid())
+  toBeItemId String
+  toBeItem   ToBeItem @relation(fields: [toBeItemId], references: [id], onDelete: Cascade)
+  step       Int // 순서 (1부터)
+  name       String // 단계명
+  owner      String? // 담당 (부서 · 역할)
+  system     String? // 시스템 · 화면 (MES · POP · PDA · 설비 등)
+  input      String? // 입력
+  output     String? // 출력
+  remarks    String? // 비고
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([toBeItemId])
+  @@map("to_be_processes")
 }

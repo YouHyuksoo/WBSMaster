@@ -141,6 +141,37 @@ export interface ToBeData {
 }
 export type ToBeItemInput = Partial<Pick<ToBeItem, "majorCategory" | "middleCategory" | "taskName" | "changeType" | "targetMethod" | "summary" | "priority" | "status" | "sfrCodes">> & { asIsItemIds?: string[] };
 
+/** TO-BE 단위업무 설계 (GET /api/to-be/items/[id]) */
+export interface ToBeIssueFix {
+  id?: string;
+  asIsIssueId: string | null;
+  issueTitle: string;
+  solution: string;
+  result: "RESOLVED" | "PARTIAL" | "OPEN";
+}
+export interface ToBeProcessStep {
+  id?: string;
+  step?: number;
+  name: string;
+  owner: string | null;
+  system: string | null;
+  input: string | null;
+  output: string | null;
+  remarks: string | null;
+}
+export interface ToBeDesign {
+  item: ToBeItem & { projectId: string; asIsItems: Array<ToBeAsIsRef & { currentMethod: string }>; fixes: ToBeIssueFix[]; processes: ToBeProcessStep[]; flowChartData: unknown; swimlaneData: unknown };
+  issueCandidates: Array<{ id: string; title: string; issueType: string; priority: string | null; suggestedFix: string | null; asIsItemId: string; asIsLabel: string }>;
+  asIsFlows: Array<{ asIsItemId: string; asIsLabel: string; flowChartData: unknown; swimlaneData: unknown }>;
+  sfrProgress: Array<{ code: string; label: string; total: number; applied: number; verified: number }>;
+}
+export interface ToBeDesignInput {
+  fixes?: ToBeIssueFix[];
+  processes?: ToBeProcessStep[];
+  flowChartData?: unknown;
+  swimlaneData?: unknown;
+}
+
 /** 대시보드 상단 프로젝트 한눈에 (GET /api/dashboard/project-pulse) — src/lib/dashboard/project-pulse.ts 와 같은 모양 */
 export interface PulseCounts {
   tasks: number;
@@ -1367,6 +1398,8 @@ export const api = {
     update: (id: string, data: ToBeItemInput) => patch<ToBeItem>(`/api/to-be/items/${id}`, data),
     delete: (id: string) => del<{ success: boolean }>(`/api/to-be/items/${id}`),
     draftFromAsIs: (projectId: string) => post<{ created: number; skipped: number }>("/api/to-be/draft", { projectId }),
+    design: (id: string) => get<ToBeDesign>(`/api/to-be/items/${id}`),
+    saveDesign: (id: string, data: ToBeDesignInput) => put<ToBeDesign>(`/api/to-be/items/${id}/design`, data),
   },
 
   /** 대시보드 상단 "프로젝트 한눈에" 집계 (오늘 · 누적 · 미결 · 긴급 · 14일 추이) */
