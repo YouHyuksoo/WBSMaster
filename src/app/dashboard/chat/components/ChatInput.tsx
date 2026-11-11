@@ -21,8 +21,8 @@ interface ChatInputProps {
   onFileSelect: (file: File) => void;
   selectedFile: File | null;
   onClearFile: () => void;
-  targetType: "task" | "issue" | "requirement";
-  onTargetTypeChange: (type: "task" | "issue" | "requirement") => void;
+  targetType: "task" | "issue" | "requirement" | "intake";
+  onTargetTypeChange: (type: "task" | "issue" | "requirement" | "intake") => void;
   onExcelUpload: () => void;
   isLoading: boolean;
   isUploadingExcel: boolean;
@@ -97,10 +97,10 @@ const ChatInput = memo(function ChatInput({
    * 메시지 전송 핸들러
    */
   const handleSendMessage = useCallback(() => {
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || isLoading || isUploadingExcel || (selectedFile && targetType !== "intake") || !selectedProjectId) return;
     onSendMessage(inputMessage);
     setInputMessage("");
-  }, [inputMessage, isLoading, onSendMessage]);
+  }, [inputMessage, isLoading, isUploadingExcel, selectedFile, targetType, selectedProjectId, onSendMessage]);
 
   /**
    * 엔터 키 핸들러
@@ -163,10 +163,11 @@ const ChatInput = memo(function ChatInput({
               <select
                 value={targetType}
                 onChange={(e) =>
-                  onTargetTypeChange(e.target.value as "task" | "issue" | "requirement")
+                  onTargetTypeChange(e.target.value as "task" | "issue" | "requirement" | "intake")
                 }
                 className="px-3 py-1.5 rounded-lg bg-background dark:bg-background-dark border border-border dark:border-border-dark text-text dark:text-white text-sm"
               >
+                <option value="intake">AI로 문서 분석</option>
                 <option value="task">태스크로 등록</option>
                 <option value="issue">이슈로 등록</option>
                 <option value="requirement">요구사항으로 등록</option>
@@ -189,7 +190,8 @@ const ChatInput = memo(function ChatInput({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xlsx,.xls,.csv"
+          accept=".txt,.md,.docx,.pdf,.xlsx,.xls,.csv"
+          disabled={isLoading || isUploadingExcel || !selectedProjectId}
           onChange={handleFileChange}
           className="hidden"
         />
@@ -197,8 +199,9 @@ const ChatInput = memo(function ChatInput({
           variant="ghost"
           size="md"
           onClick={() => fileInputRef.current?.click()}
-          disabled={isLoading || isUploadingExcel}
-          title="엑셀 파일 첨부 (.xlsx, .xls, .csv)"
+          disabled={isLoading || isUploadingExcel || !selectedProjectId}
+          title="문서 첨부 (txt, md, docx, pdf, xlsx, xls, csv)"
+          aria-label="문서 첨부"
         >
           <Icon name="attach_file" size="sm" />
         </Button>
@@ -319,7 +322,7 @@ const ChatInput = memo(function ChatInput({
         </div>
 
         {/* 파일이 있으면 업로드 버튼, 없으면 전송 버튼 */}
-        {selectedFile ? (
+        {selectedFile && targetType !== "intake" ? (
           <Button
             variant="primary"
             onClick={onExcelUpload}
@@ -332,7 +335,7 @@ const ChatInput = memo(function ChatInput({
           <Button
             variant="primary"
             onClick={handleSendMessage}
-            disabled={!inputMessage.trim() || isLoading}
+            disabled={!inputMessage.trim() || isLoading || !selectedProjectId}
             leftIcon={isLoading ? "progress_activity" : "send"}
           >
             전송

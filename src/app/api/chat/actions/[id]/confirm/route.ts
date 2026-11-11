@@ -15,6 +15,9 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { executePendingAction } from "@/lib/chat-tools/actions";
 
+import { commitIntake } from "@/lib/chat-intake/commit";
+import { IntakeError } from "@/lib/chat-intake/types";
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -30,6 +33,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
 
     const denied = await assertProjectAccess(action.projectId, user!);
     if (denied) return denied;
+    if (action.kind === "intake_commit") return NextResponse.json(await commitIntake(id, user!.id, action.projectId));
 
     if (action.status === "PENDING" && action.expiresAt.getTime() <= Date.now()) {
       await prisma.chatPendingAction.update({ where: { id }, data: { status: "EXPIRED" } });
@@ -53,6 +57,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     await prisma.chatPendingAction.update({ where: { id }, data: { resultRef: outcome.resultRef } });
     return NextResponse.json({ status: "CONFIRMED", resultRef: outcome.resultRef, link: outcome.link });
   } catch (error) {
+    if (error instanceof IntakeError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("채팅 제안 실행 실패:", error);
     return NextResponse.json({ error: "제안을 실행할 수 없습니다." }, { status: 500 });
   }

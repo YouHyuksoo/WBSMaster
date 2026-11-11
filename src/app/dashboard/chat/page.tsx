@@ -29,6 +29,9 @@ import { providerBadge } from "@/lib/llm/config";
 import ChatMessageItem, { ChatMessage } from "./components/ChatMessageItem";
 import ChatInput from "./components/ChatInput";
 import MindmapRenderer, { MindmapNode } from "./components/MindmapRenderer";
+import { useChatIntake } from "./hooks/useChatIntake";
+import { IntakePanel } from "./components/IntakePanel";
+import { detectIntakeTarget } from "@/lib/chat-intake/policies";
 import { EXAMPLE_GROUPS, ExampleGroup } from "./components/constants";
 import { ExcelMappingModal } from "./components/ExcelMappingModal";
 import { SuggestionsCarousel } from "./components/SuggestionsCarousel";
@@ -57,6 +60,15 @@ export default function ChatPage() {
   const selectedProjectId = selectedProject?.id ?? "";
   /** 채팅 기록 조회 요청 번호 (마지막 요청의 응답만 반영) */
   const historyRequestRef = useRef(0);
+  const intake = useChatIntake(selectedProjectId, toast.error);
+  const uploadedDocumentRef = useRef<{ file: File; projectId: string; id: string } | null>(null);
+  const intakeRequestRef = useRef<{ key: string; id: string } | null>(null);
+  const currentProjectRef = useRef(selectedProjectId);
+  useEffect(() => {
+    currentProjectRef.current = selectedProjectId;
+    uploadedDocumentRef.current = null;
+    intakeRequestRef.current = null;
+  }, [selectedProjectId]);
 
   // 페르소나 상태
   const [personas, setPersonas] = useState<AiPersona[]>([]);
@@ -105,8 +117,10 @@ export default function ChatPage() {
   const [fullscreenMindmap, setFullscreenMindmap] = useState<MindmapNode | null>(null);
 
   // 엑셀 파일 업로드 상태
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [targetType, setTargetType] = useState<"task" | "issue" | "requirement">("task");
+  const [selectedAttachment, setSelectedAttachment] = useState<{ projectId: string; file: File | null }>({ projectId: selectedProjectId, file: null });
+  const selectedFile = selectedAttachment.projectId === selectedProjectId ? selectedAttachment.file : null;
+  const setSelectedFile = useCallback((file: File | null) => setSelectedAttachment({ projectId: selectedProjectId, file }), [selectedProjectId]);
+  const [targetType, setTargetType] = useState<"task" | "issue" | "requirement" | "intake">("task");
   const [isUploadingExcel, setIsUploadingExcel] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
   const [excelParseResult, setExcelParseResult] = useState<{
@@ -296,6 +310,25 @@ export default function ChatPage() {
       setIsLoading(true);
 
       try {
+        const target = detectIntakeTarget(inputMessage);
+        const documentFile = selectedFile && targetType === "intake" ? selectedFile : null;
+        const active = !documentFile && (!target || target === intake.reply?.intake.target) ? intake.reply?.intake : null;
+        if (documentFile && !target) throw new Error("문서를 어디에 등록할지 함께 입력해 주세요. 예: 인터뷰관리에 등록해 줘");
+        let attachmentId: string | undefined;
+        if (documentFile) {
+          if (uploadedDocumentRef.current?.file === documentFile && uploadedDocumentRef.current.projectId === selectedProjectId) attachmentId = uploadedDocumentRef.current.id;
+          else {
+            const form = new FormData();
+            form.append("file", documentFile); form.append("purpose", "chat_intake"); form.append("projectId", selectedProjectId);
+            const upload = await fetch("/api/upload", { method: "POST", body: form });
+            const data = await upload.json();
+            if (!upload.ok) throw new Error(data.error || "문서 업로드에 실패했습니다.");
+            attachmentId = data.attachmentId;
+            uploadedDocumentRef.current = { file: documentFile, projectId: selectedProjectId, id: attachmentId! };
+          }
+        }
+        const requestKey = JSON.stringify([selectedProjectId, inputMessage, attachmentId, active?.id, active?.revision]);
+        if (intakeRequestRef.current?.key !== requestKey) intakeRequestRef.current = { key: requestKey, id: crypto.randomUUID() };
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -304,11 +337,20 @@ export default function ChatPage() {
             message: inputMessage,
             projectId: selectedProjectId || null,
             personaId: selectedPersonaId || null,
+            requestId: intakeRequestRef.current!.id,
+            ...(attachmentId ? { attachmentIds: [attachmentId], intakeTarget: target } : {}),
+            ...(active ? { intakeDraftId: active.id, revision: active.revision } : {}),
           }),
         });
 
         if (res.ok) {
           const data = await res.json();
+          if (selectedProjectId !== currentProjectRef.current) return;
+          if (data.intake) {
+            intake.accept(data);
+            setSelectedFile(null); uploadedDocumentRef.current = null;
+          }
+          intakeRequestRef.current = null;
           console.log("[Chat] API 응답:", {
             chartType: data.chartType,
             hasMindmapData: !!data.mindmapData,
@@ -325,7 +367,7 @@ export default function ChatPage() {
             processingTimeMs: data.processingTimeMs,
             totalCount: data.totalCount,
             displayedCount: data.displayedCount,
-            pendingAction: data.pendingAction,
+            pendingAction: data.intake ? undefined : data.pendingAction,
             candidates: data.candidates,
             usedFallback: data.usedFallback,
           };
@@ -336,15 +378,18 @@ export default function ChatPage() {
         } else {
           const error = await res.json();
           toast.error(error.error || "메시지 전송에 실패했습니다.");
+          if (intake.reply && res.status === 409) await intake.adopt(intake.reply.intake.id);
+          if (!inputMessage.startsWith("$")) setSuggestedInput(inputMessage);
         }
       } catch (error) {
         console.error("메시지 전송 실패:", error);
-        toast.error("메시지 전송 중 오류가 발생했습니다.");
+        toast.error(error instanceof Error ? error.message : "메시지 전송 중 오류가 발생했습니다.");
+        if (!inputMessage.startsWith("$")) setSuggestedInput(inputMessage);
       } finally {
         setIsLoading(false);
       }
     },
-    [isLoading, selectedProjectId, selectedPersonaId, toast, autoSpeak, speakAnswer]
+    [isLoading, selectedProjectId, selectedPersonaId, toast, autoSpeak, speakAnswer, selectedFile, setSelectedFile, targetType, intake]
   );
 
   /**
@@ -354,8 +399,8 @@ export default function ChatPage() {
     (file: File) => {
       // 파일 확장자 검증
       const ext = file.name.split(".").pop()?.toLowerCase();
-      if (!["xlsx", "xls", "csv"].includes(ext || "")) {
-        toast.error("지원하지 않는 파일 형식입니다. (.xlsx, .xls, .csv만 가능)");
+      if (!["txt", "md", "docx", "pdf", "xlsx", "xls", "csv"].includes(ext || "")) {
+        toast.error("지원 형식: txt, md, docx, pdf, xlsx, xls, csv");
         return;
       }
 
@@ -366,15 +411,16 @@ export default function ChatPage() {
       }
 
       setSelectedFile(file);
+      setTargetType("intake");
     },
-    [toast]
+    [toast, setSelectedFile]
   );
 
   /**
    * 엑셀 파일 업로드 및 파싱 처리
    */
   const handleExcelUpload = useCallback(async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || targetType === "intake") return;
 
     // 프로젝트 선택 확인
     if (!selectedProjectId) {
@@ -486,7 +532,7 @@ export default function ChatPage() {
         setSuggestedMappings({});
       }
     },
-    [excelParseResult, selectedProjectId, targetType, toast]
+    [excelParseResult, selectedProjectId, targetType, toast, setSelectedFile]
   );
 
   /**
@@ -815,6 +861,7 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
+      <IntakePanel reply={intake.reply} drafts={intake.drafts} busy={isLoading} onAdopt={(id) => { void intake.adopt(id).then(() => intake.refresh()).catch((e) => toast.error(e.message)); }} onLeave={intake.leave} onCommand={handleSendMessage} />
       {/* 입력 영역 - ChatInput 컴포넌트 */}
       <ChatInput
         onSendMessage={handleSendMessage}
@@ -930,7 +977,7 @@ export default function ChatPage() {
           headers={excelParseResult.headers}
           sampleData={excelParseResult.sampleData}
           totalRows={excelParseResult.totalRows}
-          targetType={targetType}
+          targetType={targetType === "intake" ? "task" : targetType}
           suggestedMappings={suggestedMappings}
           onConfirm={handleMappingConfirm}
           isLoading={isUploadingExcel}

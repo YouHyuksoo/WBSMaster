@@ -18,12 +18,16 @@ import "@/lib/chat-tools";
 import { loadConversation } from "./context";
 import { runAgent } from "./run-agent";
 import { buildSystemPrompt } from "./system-prompt";
+import { answerIntake } from "@/lib/chat-intake/handle";
+import type { IntakeView } from "@/lib/chat-intake/types";
+import type { AgentResult } from "./run-agent";
 
 export async function answerWithAgent(opts: {
   user: AuthUser;
   projectId: string;
   message: string;
   personaId?: string | null;
+  requestId?: string;
   client: LLMClient;
   promptConfig: { sqlSystemPrompt?: string; analysisSystemPrompt?: string; personaSystemPrompt?: string };
 }) {
@@ -39,6 +43,13 @@ export async function answerWithAgent(opts: {
 
   const result = await runAgent({
     client,
+    onIntake: async (target) => {
+      const reply = await answerIntake(user, projectId, message, client, { intakeTarget: target, requestId: opts.requestId }, {
+        persistHistory: false,
+        priorSources: history.filter((h) => h.role === "user").map((h, i) => ({ id: `history:${i}`, location: "이전 사용자 입력", text: h.content })),
+      });
+      return reply as { content: string; intake: IntakeView; pendingAction?: AgentResult["pendingAction"] };
+    },
     history,
     userMessage: message,
     ctx: { projectId, user, prisma, llm: client, promptConfig: { sqlSystemPrompt: promptConfig.sqlSystemPrompt } },
@@ -66,6 +77,7 @@ export async function answerWithAgent(opts: {
       personaId: opts.personaId || null,
       toolSummary: json(result.toolSummary.length ? result.toolSummary : null),
       pendingActionId: result.pendingAction?.id ?? null,
+      intakeDraftId: result.intake?.id ?? null,
     },
   });
 
@@ -80,5 +92,6 @@ export async function answerWithAgent(opts: {
     pendingAction: result.pendingAction,
     candidates: result.candidates,
     usedFallback: result.usedFallback,
+    intake: result.intake,
   };
 }

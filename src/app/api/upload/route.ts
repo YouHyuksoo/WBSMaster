@@ -16,8 +16,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { IMAGE_EXTENSIONS, saveUpload } from "@/lib/uploads";
+
+import { uploadIntakeAttachment } from "@/lib/chat-intake/attachments";
+import { IntakeError } from "@/lib/chat-intake/types";
 
 /** 업로드 설정 */
 const AVATAR_FOLDER = "avatars";
@@ -42,6 +45,14 @@ export async function POST(request: NextRequest) {
         { error: "파일이 필요합니다." },
         { status: 400 }
       );
+    }
+
+    if (formData.get("purpose") === "chat_intake") {
+      const projectId = formData.get("projectId");
+      if (typeof projectId !== "string" || !projectId) return NextResponse.json({ error: "프로젝트를 선택해 주세요." }, { status: 400 });
+      const denied = await assertProjectAccess(projectId, user!);
+      if (denied) return denied;
+      return NextResponse.json(await uploadIntakeAttachment(file, user!.id, projectId));
     }
 
     // 파일 타입 검증
@@ -69,6 +80,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url });
   } catch (error) {
+    if (error instanceof IntakeError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("업로드 처리 실패:", error);
     return NextResponse.json(
       { error: "업로드 처리 중 오류가 발생했습니다." },

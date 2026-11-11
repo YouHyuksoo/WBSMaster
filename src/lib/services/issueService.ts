@@ -11,7 +11,8 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import type { IssueCategory, IssuePriority, IssueStatus } from "@prisma/client";
+import { lockProjectWrites } from "@/lib/chat-intake/locks";
+import type { IssueCategory, IssuePriority, IssueStatus, Prisma } from "@prisma/client";
 
 export interface CreateIssueInput {
   title: string;
@@ -42,15 +43,17 @@ const ISSUE_INCLUDE = { project: { select: { id: true, name: true } }, reporter:
 
 const toDate = (v: string | Date | null | undefined) => (v ? new Date(v) : null);
 
-export async function createIssue(input: CreateIssueInput) {
+export async function createIssue(input: CreateIssueInput, tx?: Prisma.TransactionClient): Promise<{ success: false; error: string; status: number } | { success: true; data: import("@prisma/client").Issue }> {
   if (!input.title?.trim() || !input.projectId) {
     return { success: false, error: "이슈 제목과 프로젝트 ID는 필수입니다.", status: 400 } as const;
   }
-  const project = await prisma.project.findUnique({ where: { id: input.projectId } });
+  if (!tx) return prisma.$transaction((db) => createIssue(input, db));
+  await lockProjectWrites(tx, input.projectId);
+  const project = await tx.project.findUnique({ where: { id: input.projectId } });
   if (!project) return { success: false, error: "프로젝트를 찾을 수 없습니다.", status: 404 } as const;
 
   // 이슈 코드 자동 생성 (ISS-001, ISS-002, ...)
-  const lastIssue = await prisma.issue.findFirst({
+  const lastIssue = await tx.issue.findFirst({
     where: { projectId: input.projectId },
     orderBy: { createdAt: "desc" },
     select: { code: true },
@@ -58,7 +61,7 @@ export async function createIssue(input: CreateIssueInput) {
   const nextNumber = lastIssue?.code ? parseInt(lastIssue.code.replace("ISS-", "")) + 1 : 1;
   const code = `ISS-${String(nextNumber).padStart(3, "0")}`;
 
-  const issue = await prisma.issue.create({
+  const issue = await tx.issue.create({
     data: {
       code,
       title: input.title,
@@ -77,7 +80,7 @@ export async function createIssue(input: CreateIssueInput) {
   // 긴급(CRITICAL) 이슈는 프로젝트 멤버(보고자 제외)에게 알림. 알림 실패는 생성 성공으로 둔다.
   if (input.priority === "CRITICAL") {
     try {
-      const teamMembers = await prisma.teamMember.findMany({ where: { projectId: input.projectId }, select: { userId: true } });
+      const teamMembers = await tx.teamMember.findMany({ where: { projectId: input.projectId }, select: { userId: true } });
       const data = teamMembers
         .filter((tm) => tm.userId !== input.reporterId)
         .map((tm) => ({
@@ -90,7 +93,7 @@ export async function createIssue(input: CreateIssueInput) {
           projectId: input.projectId,
           projectName: project.name,
         }));
-      if (data.length > 0) await prisma.notification.createMany({ data });
+      if (data.length > 0) await tx.notification.createMany({ data });
     } catch (notifError) {
       console.error("긴급 이슈 알림 생성 실패:", notifError);
     }

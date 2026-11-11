@@ -26,7 +26,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const ext = path.extname(segments[segments.length - 1] ?? "").slice(1).toLowerCase();
   const contentType = CONTENT_TYPES[ext];
 
-  if (!absolute || !contentType) {
+  const normalized = path.relative(resolveUploadPath("private")!, absolute ?? resolveUploadPath("private")!);
+  const isPrivate = normalized === "" || (!normalized.startsWith(".." + path.sep) && normalized !== ".." && !path.isAbsolute(normalized));
+  if (!absolute || !contentType || isPrivate) {
     return NextResponse.json({ error: "파일을 찾을 수 없습니다." }, { status: 404 });
   }
 

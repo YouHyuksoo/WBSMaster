@@ -65,6 +65,8 @@ model User {
   assignedIssues        Issue[]                   @relation("IssueAssignee") // 나에게 할당된 이슈
   aiSetting             AiSetting? // AI 설정 (1:1)
   chatHistories         ChatHistory[] // 채팅 기록
+  chatIntakes           ChatIntakeDraft[]
+  chatAttachments       ChatAttachment[]
   holidays              Holiday[]                 @relation("HolidayUser") // 개인 일정
   taskNudges            TaskNudge[]               @relation("TaskNudger") // 내가 보낸 재촉
   weeklyReports         WeeklyReport[]            @relation("UserWeeklyReports") // 주간보고
@@ -145,6 +147,8 @@ model Project {
   holidays                      Holiday[]
   wbsItems                      WbsItem[] // WBS 항목
   chatHistories                 ChatHistory[] // AI 채팅 기록
+  chatIntakes                   ChatIntakeDraft[]
+  chatAttachments               ChatAttachment[]
   milestones                    Milestone[] // 마일스톤 목록
   timelineRows                  TimelineRow[] // 타임라인 행 목록
   pinpoints                     Pinpoint[] // 핀포인트 목록
@@ -666,6 +670,7 @@ model ChatHistory {
   personaId        String? // 사용된 페르소나 ID
   errorMessage     String? // 에러 발생 시 메시지
   toolSummary      Json? // 이 답에서 쓴 채팅 도구 요약 [{tool, summary}] (다음 질문 맥락용)
+  intakeDraftId    String? // 문서 기반 업무 등록 초안
   pendingActionId  String? // 이 답이 띄운 쓰기 확인 카드 (chat_pending_actions.id)
 
   createdAt DateTime @default(now())
@@ -2686,4 +2691,62 @@ model ToBeWbsLink {
   @@id([toBeItemId, wbsItemId])
   @@index([wbsItemId])
   @@map("to_be_wbs_links")
+}
+
+// 문서 기반 업무 등록: 초안·사용자 보완 답변·원본을 정식 등록과 분리한다.
+model ChatAttachment {
+  id String @id @default(uuid())
+  userId String
+  projectId String
+  name String
+  storageKey String @unique
+  mimeType String
+  size Int
+  sha256 String
+  segments Json
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([userId, projectId])
+  @@map("chat_attachments")
+}
+
+model ChatIntakeDraft {
+  id String @id @default(uuid())
+  userId String
+  projectId String
+  target String
+  status String @default("NEW")
+  revision Int @default(0)
+  items Json @default("[]")
+  attachmentIds String[]
+  startRequestId String
+  inputText String
+  duplicates Json @default("[]")
+  actionId String? @unique
+  result Json?
+  leaseUntil DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  events ChatIntakeEvent[]
+  @@unique([userId, projectId, startRequestId])
+  @@index([userId, projectId, status])
+  @@map("chat_intake_drafts")
+}
+
+model ChatIntakeEvent {
+  id String @id @default(uuid())
+  draftId String
+  requestId String
+  revision Int
+  message String
+  response Json
+  createdAt DateTime @default(now())
+  draft ChatIntakeDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  @@unique([draftId, requestId])
+  @@map("chat_intake_events")
 }

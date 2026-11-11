@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createInterview } from "@/lib/services/interviewService";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
 /**
@@ -134,42 +135,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 다음 인터뷰 코드 생성 (IV0001 형식)
-    const lastInterview = await prisma.interview.findFirst({
-      where: { projectId },
-      orderBy: { sequence: "desc" },
-    });
-
-    const nextSequence = lastInterview ? lastInterview.sequence + 1 : 1;
-    const code = `IV${String(nextSequence).padStart(4, "0")}`;
-
-    // 인터뷰 생성
-    const interview = await prisma.interview.create({
-      data: {
-        projectId,
-        sequence: nextSequence,
-        code,
-        title,
-        interviewDate: interviewDate ? new Date(interviewDate) : new Date(),
-        interviewer: interviewer || null,
-        interviewee: interviewee || null,
-        category: category || null,
-        currentProcess: currentProcess || null,
-        painPoints: painPoints || null,
-        desiredResults: desiredResults || null,
-        technicalConstraints: technicalConstraints || null,
-        questions: questions || null,
-        remarks: remarks || null,
-        transferStatus: "NOT_TRANSFERRED",
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
+    const interview = await createInterview({
+      projectId, title, interviewDate, interviewer, interviewee, category,
+      currentProcess, painPoints, desiredResults, technicalConstraints, questions, remarks,
     });
 
     return NextResponse.json(interview, { status: 201 });

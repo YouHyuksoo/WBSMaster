@@ -23,6 +23,11 @@ const modelFields = (model: string): Set<string> => {
 /** 화면 API 가 받지만 모델 칼럼이 아닌 필드 (서버가 다른 칼럼으로 바꿈) */
 const NON_COLUMN = new Set(["parentCode", "contents"]);
 
+it("인터뷰의 5개 본문 컬럼을 채팅에서도 모두 받는다", () => {
+  const spec = ENTITY_SPECS.find((s) => s.key === "interview")!;
+  expect(spec.fields.map((f) => f.key)).toEqual(expect.arrayContaining(["currentProcess", "painPoints", "desiredResults", "technicalConstraints", "questions"]));
+});
+
 describe.each(ENTITY_SPECS.map((s) => [s.key, s] as const))("%s", (_k, spec) => {
   it("model exists and ref/field names are real columns", () => {
     const cols = modelFields(spec.model);

@@ -12,6 +12,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
 
+import { cancelIntakeAction } from "@/lib/chat-intake/commit";
+import { IntakeError } from "@/lib/chat-intake/types";
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -27,11 +30,13 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
 
     const denied = await assertProjectAccess(action.projectId, user!);
     if (denied) return denied;
+    if (action.kind === "intake_commit") return NextResponse.json(await cancelIntakeAction(id, user!.id, action.projectId));
 
     const r = await prisma.chatPendingAction.updateMany({ where: { id, userId: user!.id, status: "PENDING" }, data: { status: "CANCELLED" } });
     if (r.count === 0) return NextResponse.json({ error: "이미 처리된 제안입니다.", status: action.status }, { status: 409 });
     return NextResponse.json({ status: "CANCELLED" });
   } catch (error) {
+    if (error instanceof IntakeError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("채팅 제안 취소 실패:", error);
     return NextResponse.json({ error: "제안을 취소할 수 없습니다." }, { status: 500 });
   }

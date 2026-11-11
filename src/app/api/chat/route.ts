@@ -26,6 +26,8 @@ import { processChatMessage, resolveLLMConfig, createLLMClient, LLMConfig, Syste
 import { CHATGPT_DEFAULT_MODEL } from "@/lib/llm/chatgpt/constants";
 import { answerWithAgent } from "@/lib/chat-agent/handle-agent-chat";
 import { Prisma } from "@prisma/client";
+import { answerIntake, wantsIntake } from "@/lib/chat-intake/handle";
+import { IntakeError } from "@/lib/chat-intake/types";
 import { runSafeSql } from "@/lib/llm/safe-sql";
 
 /**
@@ -143,9 +145,12 @@ export async function POST(request: NextRequest) {
     // 도구 호출을 지원하는 제공자(회사 ChatGPT · OpenAI · OpenRouter)는 에이전트 경로
     // (대화 맥락 · 조회/계산 도구 · 확인 후 쓰기). 그 밖에는 아래 기존 SQL 파이프라인.
     const client = createLLMClient(llmConfig);
+    if (wantsIntake(message, body)) {
+      return NextResponse.json(await answerIntake(user!, projectId, message, client, body));
+    }
     if (client.supportsTools && projectId) {
       return NextResponse.json(
-        await answerWithAgent({ user: user!, projectId, message, personaId, client, promptConfig })
+        await answerWithAgent({ user: user!, projectId, message, personaId, client, promptConfig, requestId: typeof body.requestId === "string" ? body.requestId : undefined })
       );
     }
 
@@ -234,6 +239,7 @@ export async function POST(request: NextRequest) {
       displayedCount: response.displayedCount,
     });
   } catch (error) {
+    if (error instanceof IntakeError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("채팅 처리 실패:", error);
 
     // 에러 메시지 상세화

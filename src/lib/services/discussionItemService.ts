@@ -10,6 +10,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { lockProjectWrites } from "@/lib/chat-intake/locks";
 import type { DiscussionPriority, DiscussionStage, Prisma } from "@prisma/client";
 
 export interface CreateDiscussionItemInput {
@@ -46,18 +47,20 @@ const USER_SELECT = { select: { id: true, name: true, email: true, avatar: true 
 const INCLUDE = { project: { select: { id: true, name: true } }, reporter: USER_SELECT, assignee: USER_SELECT };
 const toDate = (v: string | Date | null | undefined) => (v ? new Date(v) : null);
 
-export async function createDiscussionItem(input: CreateDiscussionItemInput) {
+export async function createDiscussionItem(input: CreateDiscussionItemInput, tx?: Prisma.TransactionClient): Promise<{ success: false; error: string; status: number } | { success: true; data: import("@prisma/client").DiscussionItem }> {
   if (!input.projectId) return { success: false, error: "프로젝트 ID는 필수입니다.", status: 400 } as const;
   if (!input.title?.trim()) return { success: false, error: "협의 주제는 필수입니다.", status: 400 } as const;
   if (!input.stage) return { success: false, error: "발생 단계는 필수입니다.", status: 400 } as const;
   if (!Array.isArray(input.options) || input.options.length < 2) {
     return { success: false, error: "선택지는 최소 2개 이상이어야 합니다.", status: 400 } as const;
   }
-  const project = await prisma.project.findUnique({ where: { id: input.projectId } });
+  if (!tx) return prisma.$transaction((db) => createDiscussionItem(input, db));
+  await lockProjectWrites(tx, input.projectId);
+  const project = await tx.project.findUnique({ where: { id: input.projectId } });
   if (!project) return { success: false, error: "프로젝트를 찾을 수 없습니다.", status: 404 } as const;
 
   // 다음 코드 (DIS-0001 형식)
-  const last = await prisma.discussionItem.findFirst({ where: { projectId: input.projectId }, orderBy: { createdAt: "desc" } });
+  const last = await tx.discussionItem.findFirst({ where: { projectId: input.projectId }, orderBy: { createdAt: "desc" } });
   const match = last?.code?.match(/DIS-(\d+)/);
   const code = `DIS-${String(match ? parseInt(match[1], 10) + 1 : 1).padStart(4, "0")}`;
 
@@ -65,7 +68,7 @@ export async function createDiscussionItem(input: CreateDiscussionItemInput) {
   const defaultDue = new Date();
   defaultDue.setDate(defaultDue.getDate() + 7);
 
-  const item = await prisma.discussionItem.create({
+  const item = await tx.discussionItem.create({
     data: {
       projectId: input.projectId,
       code,
@@ -77,16 +80,16 @@ export async function createDiscussionItem(input: CreateDiscussionItemInput) {
       requesterName: input.requesterName || null,
       reporterId: input.reporterId || null,
       assigneeId: input.assigneeId || null,
-      dueDate: input.dueDate ? new Date(input.dueDate) : defaultDue,
+      dueDate: input.dueDate === null ? null : input.dueDate ? new Date(input.dueDate) : defaultDue,
     },
     include: INCLUDE,
   });
 
   // 프로젝트 팀 멤버 알림 (실패해도 생성은 성공)
   try {
-    const members = await prisma.teamMember.findMany({ where: { projectId: input.projectId }, select: { userId: true } });
+    const members = await tx.teamMember.findMany({ where: { projectId: input.projectId }, select: { userId: true } });
     if (members.length > 0) {
-      await prisma.notification.createMany({
+      await tx.notification.createMany({
         data: members.map((m) => ({
           userId: m.userId,
           type: "DISCUSSION_CREATED" as const,

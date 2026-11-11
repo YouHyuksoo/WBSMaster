@@ -45,7 +45,7 @@ export const RECORD_SPECS: EntitySpec[] = [
     key: "interview", label: "인터뷰", model: "interview", refFields: ["code", "title"], link: "/dashboard/interviews", ops: ALL,
     collectionRoute: () => import("@/app/api/interviews/route"), collectionPath: "/api/interviews",
     itemRoute: () => import("@/app/api/interviews/[id]/route"), itemPath: (id) => `/api/interviews/${id}`,
-    fields: [S("title", "제목", true), D("interviewDate", "인터뷰일"), S("interviewer", "인터뷰어"), S("interviewee", "대상자"), S("category", "분류"), S("currentProcess", "현행 프로세스"), S("painPoints", "문제점"), S("desiredResults", "원하는 결과"), S("remarks", "비고")],
+    fields: [S("title", "제목", true), D("interviewDate", "인터뷰일"), S("interviewer", "인터뷰어"), S("interviewee", "대상자"), S("category", "분류"), S("currentProcess", "현행 프로세스"), S("painPoints", "문제점"), S("desiredResults", "원하는 결과"), S("technicalConstraints", "기술적 제약"), S("questions", "궁금한 점"), S("remarks", "비고")],
   },
   {
     key: "equipment", label: "공정설비", model: "equipment", refFields: ["code", "name"], link: "/dashboard/equipment", ops: ALL,

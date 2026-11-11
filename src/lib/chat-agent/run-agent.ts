@@ -16,12 +16,15 @@ import type { LLMClient } from "@/lib/llm/client-base";
 import type { ChatMessage, ToolCall } from "@/lib/llm/tool-calling";
 import { defaultRegistry, type ToolRegistry } from "@/lib/chat-tools/registry";
 import type { ProposalOp, ToolContext, ToolResult } from "@/lib/chat-tools/types";
+import { intakeTargetForTool } from "@/lib/chat-intake/tool-target";
+import type { IntakeTarget, IntakeView } from "@/lib/chat-intake/types";
 
 export interface AgentResult extends LLMResponse {
   toolSummary: { tool: string; summary: string }[];
   pendingAction?: { id: string; summary: string; fields: { label: string; value: string }[]; op: ProposalOp; danger?: boolean };
   candidates?: { prompt: string; options: { label: string; value: string }[] };
   usedFallback: boolean;
+  intake?: IntakeView;
 }
 
 const MAX_ROWS_TO_LLM = 60;
@@ -59,6 +62,7 @@ export async function runAgent(opts: {
   systemPrompt: string;
   registry?: ToolRegistry;
   maxSteps?: number;
+  onIntake?: (target: IntakeTarget) => Promise<{ content: string; intake: IntakeView; pendingAction?: AgentResult["pendingAction"] }>;
 }): Promise<AgentResult> {
   const registry = opts.registry ?? defaultRegistry;
   const maxSteps = opts.maxSteps ?? 6;
@@ -82,6 +86,8 @@ export async function runAgent(opts: {
 
     messages.push({ role: "assistant", content: turn.content ?? "", toolCalls: turn.calls });
     for (const call of turn.calls) {
+      const target = opts.onIntake && registry.get(call.name) ? intakeTargetForTool(call.name, call.arguments) : null;
+      if (target && opts.onIntake) return finish("", await opts.onIntake(target));
       const r = await runTool(registry, opts.ctx, call);
       if (r.kind === "proposal") {
         toolSummary.push({ tool: call.name, summary: r.summary });

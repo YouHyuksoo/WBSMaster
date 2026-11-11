@@ -12,12 +12,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
+  $queryRaw: vi.fn(async () => []),
+  $transaction: vi.fn<((fn: (tx: unknown) => Promise<unknown>) => Promise<unknown>)>(),
   project: { findUnique: vi.fn() },
   discussionItem: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
   teamMember: { findMany: vi.fn() },
   notification: { createMany: vi.fn() },
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
+
+db.$transaction.mockImplementation(async (fn) => fn(db));
 
 import { createDiscussionItem, updateDiscussionItem } from "./discussionItemService";
 

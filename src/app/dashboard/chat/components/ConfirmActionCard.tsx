@@ -27,7 +27,7 @@ export interface PendingActionView {
 
 type State = { kind: "idle" | "busy" } | { kind: "done"; link: string } | { kind: "cancelled" } | { kind: "error"; message: string };
 
-export function ConfirmActionCard({ action }: { action: PendingActionView }) {
+export function ConfirmActionCard({ action, onComplete }: { action: PendingActionView; onComplete?: () => void }) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const sent = useRef(false);
 
@@ -38,7 +38,11 @@ export function ConfirmActionCard({ action }: { action: PendingActionView }) {
     try {
       const res = await fetch(`/api/chat/actions/${action.id}/${op}`, { method: "POST", credentials: "include" });
       const body = await res.json().catch(() => ({}));
-      if (res.ok) return setState(op === "confirm" ? { kind: "done", link: body.link ?? "/dashboard" } : { kind: "cancelled" });
+      if (res.ok) {
+        setState(op === "confirm" ? { kind: "done", link: body.link ?? "/dashboard" } : { kind: "cancelled" });
+        onComplete?.();
+        return;
+      }
       const message =
         res.status === 409 ? "이미 처리된 제안입니다." : res.status === 410 ? "확인 시간이 지났습니다. 다시 요청해 주세요." : body.error || "처리하지 못했습니다.";
       setState({ kind: "error", message });
