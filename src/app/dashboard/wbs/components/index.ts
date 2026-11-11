@@ -12,3 +12,4 @@ export { WbsStatsBar } from "./WbsStatsBar";
 export { GanttChart } from "./GanttChart";
 export { WbsTreePanel } from "./WbsTreePanel";
 export * from "./modals";
+export { WbsActionBar, findWbsItem } from "./WbsActionBar";

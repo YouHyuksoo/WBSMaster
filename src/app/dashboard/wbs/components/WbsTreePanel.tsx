@@ -5,6 +5,7 @@
  * 선택 툴바, 테이블 헤더, WbsTreeItem 렌더링, 하단 요약을 포함합니다.
  *
  * 초보자 가이드:
+ * 0. **작업 버튼 줄**(항상 보임): 클릭해 선택한 행에 하위 추가 · 수정 · 레벨 · Task 등록 · 삭제 (WbsActionBar)
  * 1. **선택 툴바**: 항목 체크 시 일괄 배정/TASK 배정 버튼 표시
  * 2. **테이블 헤더**: WBS 항목, 계획기간, 실제기간, 진행률, 상태, 지연, 담당, 산출물
  * 3. **하단 요약**: 항목 수 및 레벨별 범례
@@ -17,6 +18,7 @@ import type { WbsLevel } from "@/lib/api";
 import type { WbsTreePanelProps } from "../types";
 import { levelNames, levelColors } from "../constants";
 import { WbsTreeItem } from "./WbsTreeItem";
+import { WbsActionBar, findWbsItem } from "./WbsActionBar";
 
 export function WbsTreePanel({
   panelWidth,
@@ -48,6 +50,10 @@ export function WbsTreePanel({
       style={{ width: panelWidth }}
       className="flex-shrink-0 border-r border-border dark:border-border-dark flex flex-col bg-background-white dark:bg-background-dark"
     >
+      {/* 작업 버튼 줄 (항상 보임, 클릭해 선택한 행에 적용) */}
+      <WbsActionBar item={findWbsItem(wbsTree, selectedItemId)} onAddChild={onAddChild} onEdit={onEdit} onDelete={onDelete}
+        onLevelUp={onLevelUp} onLevelDown={onLevelDown} onRegisterTask={onRegisterTask} />
+
       {/* 선택 툴바 (항목 선택 시 표시) */}
       {checkedIds.size > 0 && (
         <div className="h-10 border-b border-primary/30 bg-primary/5 flex items-center justify-between px-4 shrink-0">
