@@ -144,12 +144,6 @@ export function WbsTreePanel({
             onToggle={onToggle}
             onSelect={onSelect}
             onCheck={onCheck}
-            onAddChild={onAddChild}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onLevelUp={onLevelUp}
-            onLevelDown={onLevelDown}
-            onRegisterTask={onRegisterTask}
             onUpdateProgress={onUpdateProgress}
             onPreviewDeliverable={onPreviewDeliverable}
           />

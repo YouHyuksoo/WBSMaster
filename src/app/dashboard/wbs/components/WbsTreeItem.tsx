@@ -12,14 +12,13 @@
  *
  * 수정 방법:
  * - 열 추가: JSX에서 새 열 추가
- * - 메뉴 항목 추가: 드롭다운 메뉴 수정
+ * - 항목 작업(하위 추가 · 수정 · 레벨 · Task 등록 · 삭제)은 트리 위 WbsActionBar 에 있다 (행 ⋮ 메뉴는 2026-11-11 제거)
  */
 
 "use client";
 
 import { useState, useRef, useEffect } from "react";
 import { Icon } from "@/components/ui";
-import type { WbsItem, WbsLevel } from "@/lib/api";
 import { levelNames, levelColors, levelRowColors, levelRowHoverColors, statusColors, statusNames } from "../constants";
 import { calculateWorkDays, getDisplayStatus, getDelayDays, isDelayed } from "../utils/wbsHelpers";
 import type { WbsTreeItemProps } from "../types";
@@ -36,21 +35,13 @@ export function WbsTreeItem({
   onToggle,
   onSelect,
   onCheck,
-  onAddChild,
-  onEdit,
-  onDelete,
-  onLevelUp,
-  onLevelDown,
-  onRegisterTask,
   onUpdateProgress,
   onPreviewDeliverable,
 }: WbsTreeItemProps) {
-  const [showMenu, setShowMenu] = useState(false);
   const [editingProgress, setEditingProgress] = useState(false);
   const [tempProgress, setTempProgress] = useState(item.progress);
   const [isTooltipHovered, setIsTooltipHovered] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const menuRef = useRef<HTMLDivElement>(null);
   const progressInputRef = useRef<HTMLInputElement>(null);
 
   const isExpanded = expandedIds.has(item.id);
@@ -60,22 +51,6 @@ export function WbsTreeItem({
   const indent = (item.levelNumber - 1) * 28;
   const workDays = calculateWorkDays(item.startDate, item.endDate);
 
-  // 다음 레벨 계산
-  const nextLevel = `LEVEL${item.levelNumber + 1}` as WbsLevel;
-  const canAddChild = item.levelNumber < 4;
-
-  // 메뉴 외부 클릭 시 닫기
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    if (showMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showMenu]);
 
   // 진행률 편집 모드일 때 input에 포커스
   useEffect(() => {
@@ -158,120 +133,6 @@ export function WbsTreeItem({
             <span className="size-4" />
           )}
         </button>
-
-        {/* 더보기 메뉴 버튼 */}
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMenu(!showMenu);
-            }}
-            className={`size-6 rounded flex items-center justify-center mr-1 transition-all
-              ${showMenu
-                ? "bg-primary text-white"
-                : "opacity-0 group-hover:opacity-100 text-text-secondary hover:bg-surface-hover dark:hover:bg-surface-dark hover:text-text dark:hover:text-white"
-              }
-            `}
-            title="메뉴"
-          >
-            <Icon name="more_vert" size="sm" />
-          </button>
-
-          {/* 드롭다운 메뉴 */}
-          {showMenu && (
-            <div className="absolute left-0 top-7 z-50 bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-lg shadow-lg py-1 min-w-[140px] animate-slide-in-down">
-              {/* 하위 추가 */}
-              {canAddChild && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddChild(item.id, nextLevel);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-surface dark:hover:bg-background-dark text-text dark:text-white"
-                >
-                  <Icon name="add" size="sm" className="text-primary" />
-                  <span>{levelNames[nextLevel]} 추가</span>
-                </button>
-              )}
-              {/* 수정 */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(item);
-                  setShowMenu(false);
-                }}
-                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-surface dark:hover:bg-background-dark text-text dark:text-white"
-              >
-                <Icon name="edit" size="sm" className="text-text-secondary" />
-                <span>수정</span>
-              </button>
-              {/* 레벨 변경 구분선 */}
-              {(item.levelNumber > 1 || item.levelNumber < 4) && (
-                <div className="h-px bg-border dark:bg-border-dark my-1" />
-              )}
-              {/* 레벨 올리기 */}
-              {item.levelNumber > 1 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLevelUp(item.id);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-surface dark:hover:bg-background-dark text-text dark:text-white"
-                >
-                  <Icon name="arrow_upward" size="sm" className="text-blue-500" />
-                  <span>레벨 올리기</span>
-                </button>
-              )}
-              {/* 레벨 내리기 */}
-              {item.levelNumber < 4 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLevelDown(item.id);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-surface dark:hover:bg-background-dark text-text dark:text-white"
-                >
-                  <Icon name="arrow_downward" size="sm" className="text-orange-500" />
-                  <span>레벨 내리기</span>
-                </button>
-              )}
-              {/* Task로 등록 (LEVEL4만) */}
-              {item.levelNumber === 4 && (
-                <>
-                  <div className="h-px bg-border dark:bg-border-dark my-1" />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRegisterTask(item);
-                      setShowMenu(false);
-                    }}
-                    className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-primary/10 text-primary"
-                  >
-                    <Icon name="assignment" size="sm" />
-                    <span>Task로 등록</span>
-                  </button>
-                </>
-              )}
-              {/* 삭제 구분선 */}
-              <div className="h-px bg-border dark:bg-border-dark my-1" />
-              {/* 삭제 */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(item.id);
-                  setShowMenu(false);
-                }}
-                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-error/10 text-error"
-              >
-                <Icon name="delete" size="sm" />
-                <span>삭제</span>
-              </button>
-            </div>
-          )}
-        </div>
 
         {/* 레벨 배지 */}
         <span
@@ -581,12 +442,6 @@ export function WbsTreeItem({
               onToggle={onToggle}
               onSelect={onSelect}
               onCheck={onCheck}
-              onAddChild={onAddChild}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onLevelUp={onLevelUp}
-              onLevelDown={onLevelDown}
-              onRegisterTask={onRegisterTask}
               onUpdateProgress={onUpdateProgress}
               onPreviewDeliverable={onPreviewDeliverable}
             />

@@ -90,18 +90,6 @@ export interface WbsTreeItemProps {
   onSelect: (id: string) => void;
   /** 체크박스 토글 */
   onCheck: (id: string, checked: boolean) => void;
-  /** 하위 항목 추가 */
-  onAddChild: (parentId: string, level: WbsLevel) => void;
-  /** 항목 수정 */
-  onEdit: (item: WbsItem) => void;
-  /** 항목 삭제 */
-  onDelete: (id: string) => void;
-  /** 레벨 올리기 */
-  onLevelUp: (id: string) => void;
-  /** 레벨 내리기 */
-  onLevelDown: (id: string) => void;
-  /** Task 등록 */
-  onRegisterTask: (item: WbsItem) => void;
   /** 진행률 업데이트 */
   onUpdateProgress: (id: string, progress: number) => void;
   /** 산출물 미리보기 */
