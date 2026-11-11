@@ -7,6 +7,7 @@
  * 초보자 가이드:
  * 1. loadSuggestContext(id): 프롬프트 재료를 모은다. 인터뷰는 이 업무와 낱말이 많이 겹치는 순서로 최대 5건
  * 2. buildSuggestPrompt(ctx): 시스템 · 사용자 프롬프트. 인터뷰가 없으면 "인터뷰 없음"이라고 적어 지어내지 않게 한다
+ *    연결 SFR 은 세부 기능(기능추적표 L2 · MES 매핑)까지 넣는다. 이름만 주면 AI 가 "근거 없음"으로 기능을 빼는 일이 있었다 (2026-11-11 TB-047)
  * 3. parseSuggestion(raw, sfrCodes): JSON 을 꺼내 열거값을 검사하고, 기능추적표에 없는 SFR 코드는 버린다(droppedSfr 로 알려 줌)
  * 4. suggestToBe(generate, ctx): generate 는 바깥에서 받는다 (테스트는 가짜 함수, 실제는 사용자 AI 설정)
  */
@@ -27,6 +28,21 @@ export interface SuggestContext {
   asIs: Array<{ no: string | null; taskName: string; currentMethod: string; issueSummary: string | null; details: string | null; remarks: string | null }>;
   interviews: Array<{ code: string | null; title: string; category: string | null; painPoints: string | null; desiredResults: string | null }>;
   sfrOptions: Array<{ code: string; label: string }>;
+  /** 이 업무에 이미 연결된 SFR 의 세부 기능 (검증 기준 -99 행 제외) */
+  sfrDetails: Array<{ code: string; items: string[] }>;
+}
+
+const MAX_DETAIL_ITEMS = 15;
+
+/** 기능추적표 행 → SFR 코드별 세부 기능 목록 (검증 기준 행 -99 제외, 같은 이름은 한 번) */
+export function groupSfrDetails(codes: string[], rows: Array<{ toBeCode: string | null; managementCode: string; detailItem: string; mesMapping: string | null }>) {
+  return codes.map((code) => {
+    const names = rows
+      .filter((r) => r.toBeCode === code && !r.managementCode.endsWith("-99"))
+      .map((r) => (r.mesMapping && r.mesMapping !== r.detailItem ? `${r.detailItem}(${r.mesMapping})` : r.detailItem).trim())
+      .filter(Boolean);
+    return { code, items: [...new Set(names)].slice(0, MAX_DETAIL_ITEMS) };
+  }).filter((d) => d.items.length > 0);
 }
 
 export interface ToBeSuggestion {
@@ -67,18 +83,25 @@ export async function loadSuggestContext(id: string): Promise<{ projectId: strin
   });
   if (!item) throw new ToBeError(404, "TO-BE 업무를 찾을 수 없습니다.");
   const projectId = item.overview.projectId;
-  const [interviews, sfrOptions] = await Promise.all([
+  const [interviews, sfrOptions, sfrRows] = await Promise.all([
     prisma.interview.findMany({
       where: { projectId, OR: [{ desiredResults: { not: null } }, { painPoints: { not: null } }] },
       select: { code: true, title: true, category: true, painPoints: true, desiredResults: true },
       take: 300,
     }),
     getSfrOptions(projectId),
+    item.sfrCodes.length
+      ? prisma.processVerificationMaster.findMany({
+          where: { categoryRef: { projectId }, toBeCode: { in: item.sfrCodes } },
+          orderBy: [{ order: "asc" }, { managementCode: "asc" }],
+          select: { toBeCode: true, managementCode: true, detailItem: true, mesMapping: true },
+        })
+      : Promise.resolve([]),
   ]);
   const asIs = item.asIsLinks.map(({ asIsItem: a }) => ({ no: a.asIsManagementNo, taskName: a.taskName, currentMethod: a.currentMethod, issueSummary: a.issueSummary, details: a.details, remarks: a.remarks }));
   const basis = [item.taskName, item.middleCategory, item.summary, ...asIs.map((a) => `${a.taskName} ${a.issueSummary ?? ""}`)].join(" ");
   const { overview: _o, asIsLinks: _l, ...rest } = item;
-  return { projectId, ctx: { item: rest, asIs, interviews: pickInterviews(interviews, basis), sfrOptions } };
+  return { projectId, ctx: { item: rest, asIs, interviews: pickInterviews(interviews, basis), sfrOptions, sfrDetails: groupSfrDetails(item.sfrCodes, sfrRows) } };
 }
 
 const cut = (t: string | null | undefined, n: number) => (!t ? "" : t.length > n ? `${t.slice(0, n)}…` : t);
@@ -88,6 +111,8 @@ export const SUGGEST_SYSTEM_PROMPT = `당신은 MES 고도화 프로젝트의 �
 - 주어진 자료(AS-IS · 인터뷰 · SFR 목록)에 있는 내용만 근거로 쓴다. 없는 수치 · 일정 · 설비 이름을 지어내지 않는다.
 - 인터뷰가 "인터뷰 없음"이면 인터뷰를 인용하지 않는다.
 - sfrCodes 는 반드시 "SFR 목록"에 있는 코드만 고른다. 맞는 것이 없으면 빈 배열.
+- "연결 SFR 세부 기능"은 제안요청서로 확정된 요구 기능이다. 개선 요약에 반영하고, 근거가 없다며 빼거나 범위 밖이라고 쓰지 않는다.
+- 연결 SFR 세부 기능에 이 업무가 이번 사업(신규 절곡 라인 등)에서 바뀌는 내용이 있으면 changeType 을 KEEP 으로 두지 않는다.
 - 이번 사업 범위와 무관하면 changeType 은 KEEP(유지)으로 둔다.
 - 한국어로, 개선 요약은 2~3문장.
 JSON 만 출력한다:
@@ -101,11 +126,16 @@ export function buildSuggestPrompt(ctx: SuggestContext): string {
     ? ctx.interviews.map((iv) => `- ${iv.code ?? ""} ${iv.title}${iv.category ? ` (${iv.category})` : ""}\n  문제점: ${cut(iv.painPoints, 400) || "없음"}\n  원하는 결과: ${cut(iv.desiredResults, 500) || "없음"}`).join("\n")
     : "인터뷰 없음";
   const sfr = ctx.sfrOptions.length ? ctx.sfrOptions.map((s) => `${s.code} ${s.label}`).join("\n") : "SFR 없음";
+  const label = new Map(ctx.sfrOptions.map((s) => [s.code, s.label]));
+  const details = ctx.sfrDetails.length
+    ? ctx.sfrDetails.map((d) => `- ${d.code} ${label.get(d.code) ?? ""}: ${d.items.join(", ")}`).join("\n")
+    : "연결 SFR 없음";
   return [
     `## TO-BE 업무 ${ctx.item.toBeManagementNo} ${ctx.item.taskName} (중분류: ${ctx.item.middleCategory})`,
     `현재 값: 변화 유형 ${CHANGE_TYPE_LABEL[ctx.item.changeType as keyof typeof CHANGE_TYPE_LABEL] ?? ctx.item.changeType}, 목표 방식 ${TARGET_METHOD_LABEL[ctx.item.targetMethod as keyof typeof TARGET_METHOD_LABEL] ?? ctx.item.targetMethod}, 연결 SFR ${ctx.item.sfrCodes.join(", ") || "없음"}`,
     `현재 개선 요약: ${cut(ctx.item.summary, 600) || "없음"}`,
     `## 연결 AS-IS\n${asIs}`,
+    `## 연결 SFR 세부 기능 (기능추적표, 확정 요구)\n${details}`,
     `## 인터뷰 (원하는 결과)\n${interviews}`,
     `## SFR 목록 (기능추적표)\n${sfr}`,
   ].join("\n\n");

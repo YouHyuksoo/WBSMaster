@@ -8,14 +8,36 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 
-import { SUGGEST_SYSTEM_PROMPT, buildSuggestPrompt, parseSuggestion, pickInterviews, suggestToBe, type SuggestContext } from "./to-be-suggest";
+import { SUGGEST_SYSTEM_PROMPT, buildSuggestPrompt, groupSfrDetails, parseSuggestion, pickInterviews, suggestToBe, type SuggestContext } from "./to-be-suggest";
 
 const ctx = (over: Partial<SuggestContext> = {}): SuggestContext => ({
   item: { toBeManagementNo: "TB-017", taskName: "융착 자동 실적", middleCategory: "실적", changeType: "IMPROVE", targetMethod: "AUTO", summary: null, sfrCodes: [] },
   asIs: [{ no: "OC-AS-017", taskName: "융착 자동 실적(OPC 설비 TAG)", currentMethod: "SYSTEM", issueSummary: "TAG 선정 지연", details: "OPC → QUEUE → 실적", remarks: null }],
   interviews: [],
   sfrOptions: [{ code: "SFR-012", label: "절곡융착 실적처리(자동)" }, { code: "SFR-027", label: "절곡 실적처리(자동)" }],
+  sfrDetails: [],
   ...over,
+});
+
+describe("연결 SFR 세부 기능 (TB-047 재발 방지)", () => {
+  const rows = [
+    { toBeCode: "SFR-020", managementCode: "SFR-020-01", detailItem: "라인별 상태 표시", mesMapping: null },
+    { toBeCode: "SFR-020", managementCode: "SFR-020-03", detailItem: "음성 알림", mesMapping: "음성 알림" },
+    { toBeCode: "SFR-020", managementCode: "SFR-020-04", detailItem: "메일 · 메신저 알림", mesMapping: "알림 발송" },
+    { toBeCode: "SFR-020", managementCode: "SFR-020-99", detailItem: "검증 기준 · 확인 필요", mesMapping: null },
+    { toBeCode: "SFR-099", managementCode: "SFR-099-01", detailItem: "다른 기능", mesMapping: null },
+  ];
+
+  it("연결된 코드만, 검증 기준(-99) 행은 빼고 세부 기능을 모은다", () => {
+    expect(groupSfrDetails(["SFR-020"], rows)).toEqual([{ code: "SFR-020", items: ["라인별 상태 표시", "음성 알림", "메일 · 메신저 알림(알림 발송)"] }]);
+  });
+
+  it("프롬프트에 세부 기능과 '근거 없음으로 빼지 말라'는 규칙이 들어간다", () => {
+    const p = buildSuggestPrompt(ctx({ sfrOptions: [{ code: "SFR-020", label: "혼입방지 인터락 모니터링" }], sfrDetails: groupSfrDetails(["SFR-020"], rows) }));
+    expect(p).toContain("- SFR-020 혼입방지 인터락 모니터링: 라인별 상태 표시, 음성 알림, 메일 · 메신저 알림(알림 발송)");
+    expect(SUGGEST_SYSTEM_PROMPT).toContain("근거가 없다며 빼거나");
+    expect(buildSuggestPrompt(ctx())).toContain("연결 SFR 없음");
+  });
 });
 
 describe("인터뷰 고르기", () => {
