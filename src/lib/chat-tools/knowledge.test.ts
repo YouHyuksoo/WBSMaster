@@ -22,3 +22,11 @@ it("검색 실패를 확인된 결과처럼 응답하지 않는다", async () =>
   vi.mocked(searchKnowledge).mockRejectedValue(new Error("fixture offline"));
   expect(await searchKnowledgeTool.execute(ctx, { question: "질문" })).toMatchObject({ kind: "error" });
 });
+it("읽기 전용(KNOWLEDGE_SYNC=off)이면 대기열 테이블을 조회하지 않고 검색 결과만 준다", async () => {
+  vi.stubEnv("KNOWLEDGE_API_URL", "https://fixture.test/knowledge"); vi.stubEnv("KNOWLEDGE_SOURCE_ID", "eval"); vi.stubEnv("KNOWLEDGE_API_KEY", "fixture");
+  vi.stubEnv("KNOWLEDGE_SYNC", "off");
+  vi.mocked(searchKnowledge).mockResolvedValue({ project: "wbs_4_eval_p1", records: [{ project: "wbs_4_eval_p1", name: "근거" }], relations: [], degraded: [] });
+  const result = await searchKnowledgeTool.execute(ctx, { question: "관련 업무" });
+  expect(ctx.prisma.$queryRaw).not.toHaveBeenCalled();
+  expect(result).toMatchObject({ kind: "data", summary: expect.stringContaining("읽기 전용") });
+});

@@ -6,17 +6,14 @@
  * 초보자 가이드:
  * - 키: 로그인 사용자 ai_settings.openaiApiKey (기준 설정 > 음성 회의록 에서 등록, AI 어시스턴트 OpenAI 키와 같은 칸)
  * - 전사 모델: 기준 설정 > 음성 회의록 의 audioTranscribeModel (OpenAI 모델이 아니면 CHAT_TRANSCRIBE_MODEL)
- * - 읽기: OpenAI /v1/audio/speech (TTS_MODEL, TTS_VOICE) → mp3
+ * - 읽기 연결: openai-realtime.ts → WebRTC 음성 스트림
  * - toSpeakableText(): 답변 마크다운에서 코드 · 표 · 기호를 빼고 읽을 글자만 남긴다 (최대 SPEAK_MAX_CHARS)
- * - 외부 호출은 fetch 를 주입받아 테스트는 실제 OpenAI 를 부르지 않는다.
+ * - 전사 모델 설정과 읽을 텍스트 정리만 담당하며 외부 API 호출은 하지 않습니다.
  */
 
 /** 채팅 음성 입력 기본 전사 모델 (빠르고 싸다) */
 export const CHAT_TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe";
-/** 읽어 주기 모델 · 목소리 */
-export const TTS_MODEL = "gpt-4o-mini-tts";
-export const TTS_VOICE = "nova";
-/** OpenAI 읽기 입력 최대 길이 (API 한도 4096자) */
+/** 한 번에 읽을 답변 길이 제한 */
 export const SPEAK_MAX_CHARS = 4000;
 
 export const OPENAI_KEY_MISSING = "OpenAI API 키가 없습니다. 기준 설정 > 음성 회의록 에서 OpenAI API 키를 등록하세요.";
@@ -48,34 +45,4 @@ export function toSpeakableText(markdown: string): string {
     .replace(/[ \t]{2,}/g, " ")
     .trim()
     .slice(0, SPEAK_MAX_CHARS);
-}
-
-/** 글자 → mp3 (OpenAI 음성 합성) */
-export async function speakWithOpenAI(
-  fetchImpl: typeof fetch,
-  input: { apiKey: string; text: string; model?: string; voice?: string }
-): Promise<ArrayBuffer> {
-  const res = await fetchImpl("https://api.openai.com/v1/audio/speech", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${input.apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: input.model ?? TTS_MODEL,
-      voice: input.voice ?? TTS_VOICE,
-      input: input.text,
-      response_format: "mp3",
-      instructions: "한국어로 또박또박, 업무 보고하듯 차분하게 읽으세요.",
-    }),
-  });
-  if (!res.ok) {
-    if (res.status === 401) throw new Error("OpenAI API 키가 올바르지 않습니다. 기준 설정 > 음성 회의록 에서 다시 등록하세요.");
-    const body = await res.text();
-    let detail = body;
-    try {
-      detail = JSON.parse(body)?.error?.message ?? body;
-    } catch {
-      /* JSON 아님 */
-    }
-    throw new Error(`OpenAI 음성 출력 실패 (${res.status}): ${String(detail).slice(0, 300)}`);
-  }
-  return res.arrayBuffer();
 }

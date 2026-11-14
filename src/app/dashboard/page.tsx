@@ -26,8 +26,6 @@ import { useProjects, useTasks, useUpdateProject, useDeleteProject, useWbsStats,
 import { useProject } from "@/contexts/ProjectContext";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Project } from "@/lib/api";
-import { DailyTaskChart } from "@/components/dashboard/DailyTaskChart";
-import { AssigneeTaskChart } from "@/components/dashboard/AssigneeTaskChart";
 import { ProjectOverviewModal } from "@/components/dashboard/ProjectOverviewModal";
 import ProjectCarousel from "@/app/dashboard/components/ProjectCarousel";
 
@@ -612,15 +610,6 @@ export default function DashboardPage() {
           {/* 요구사항 현황 */}
           <RequirementStatsSection reqStats={reqStats} requirements={myRequirements} isMyDashboard={isMyDashboard} user={user} />
         </div>
-      </div>
-
-      {/* 작업 부하 차트 섹션 - 2개 나란히 배치 */}
-      <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {/* 일자별 작업 부하 차트 */}
-        <DailyTaskChart projectId={selectedProjectId || projects?.[0]?.id || ""} />
-
-        {/* 담당자별 작업 현황 차트 */}
-        <AssigneeTaskChart projectId={selectedProjectId || projects?.[0]?.id || ""} />
       </div>
 
       {/* 프로젝트 수정 모달 */}

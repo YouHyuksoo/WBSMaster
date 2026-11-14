@@ -8,6 +8,7 @@
  * 1. **검색**: 업무명/중분류로 필터링
  * 2. **대분류 그룹**: 접기/펴기 가능
  * 3. **항목 클릭**: 해당 업무 선택
+ * 4. **전체 접기/펼치기**: 검색 여부와 관계없이 모든 대분류의 펼침 상태를 변경합니다.
  */
 
 "use client";
@@ -87,6 +88,28 @@ export function TaskListPanel({
           onChange={(e) => setSearch(e.target.value)}
           className="text-sm"
         />
+        <div className="flex items-center gap-2 mt-2">
+          <button
+            type="button"
+            aria-label="업무 목록 전체 접기"
+            disabled={isLoading || items.length === 0}
+            onClick={() => setExpandedCategories(new Set())}
+            className="flex-1 inline-flex items-center justify-center gap-1 h-7 px-2 rounded border border-border dark:border-border-dark text-xs text-text-secondary hover:bg-surface dark:hover:bg-background-dark focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Icon name="unfold_less" size="xs" />
+            전체 접기
+          </button>
+          <button
+            type="button"
+            aria-label="업무 목록 전체 펼치기"
+            disabled={isLoading || items.length === 0}
+            onClick={() => setExpandedCategories(new Set(Object.keys(MAJOR_CATEGORIES) as AsIsMajorCategory[]))}
+            className="flex-1 inline-flex items-center justify-center gap-1 h-7 px-2 rounded border border-border dark:border-border-dark text-xs text-text-secondary hover:bg-surface dark:hover:bg-background-dark focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Icon name="unfold_more" size="xs" />
+            전체 펼치기
+          </button>
+        </div>
       </div>
 
       {/* 목록 */}
@@ -116,6 +139,7 @@ export function TaskListPanel({
                   {/* 카테고리 헤더 */}
                   <button
                     onClick={() => toggleCategory(category as AsIsMajorCategory)}
+                    aria-expanded={isExpanded}
                     className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface dark:hover:bg-background-dark transition-colors"
                   >
                     <Icon

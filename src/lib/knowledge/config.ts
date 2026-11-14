@@ -4,6 +4,8 @@
  * 초보자 가이드:
  * - 설정이 모두 있어야 활성화됩니다. 비밀값을 클라이언트에 보내지 않습니다.
  * - sourceId는 DB별 고유하고 영구적인 식별자입니다. 운영 중 변경하지 않습니다.
+ * - 주소는 서버 루트(http://127.0.0.1:8787) 또는 프록시 경로(https://www.jisheng.co.kr/knowledge) 모두 됩니다.
+ * - KNOWLEDGE_SYNC=off: 읽기 전용(작업자 · knowledge-sync 전송 끔). 로컬에서 운영 지식 서버를 쓸 때 반드시 넣습니다.
  */
 export interface KnowledgeConfig { baseUrl: string; sourceId: string; key: string }
 
@@ -14,11 +16,20 @@ export function knowledgeConfig(env: Record<string, string | undefined> = proces
   if (!baseUrl && !sourceId && !key) return null;
   if (!baseUrl || !sourceId || !key) throw new Error("지식관리 연결 설정 3개를 모두 지정해 주세요.");
   const url = new URL(baseUrl);
-  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
-    throw new Error("KNOWLEDGE_API_URL은 인증정보 없는 HTTP(S) 서버 주소여야 합니다.");
+  // 경로 접두사는 허용한다 (예: 외부 IIS 프록시 https://www.jisheng.co.kr/knowledge → 127.0.0.1:8787)
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash || !/^(\/[a-zA-Z0-9_-]+)*\/?$/.test(url.pathname)) {
+    throw new Error("KNOWLEDGE_API_URL은 인증정보 · 쿼리 없는 HTTP(S) 주소여야 합니다 (경로 접두사 허용).");
   }
   if (!/^[a-zA-Z0-9_-]{1,48}$/.test(sourceId)) throw new Error("KNOWLEDGE_SOURCE_ID 형식이 잘못됐습니다.");
   return { baseUrl, sourceId, key };
+}
+
+/**
+ * 동기화(이 DB 변경 → 지식 서버 전송)를 켤지. KNOWLEDGE_SYNC=off 면 검색 · 문서 조회만 한다.
+ * 로컬 PC 가 운영과 같은 source ID 로 운영 지식 서버를 검색할 때, 로컬 데이터가 운영 지식에 섞이지 않게 한다.
+ */
+export function knowledgeSyncEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.KNOWLEDGE_SYNC?.trim().toLowerCase() !== "off";
 }
 
 export function knowledgeProject(config: KnowledgeConfig, projectId: string): string {

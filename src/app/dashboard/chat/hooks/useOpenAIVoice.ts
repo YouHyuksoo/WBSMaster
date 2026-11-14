@@ -1,7 +1,7 @@
 /**
  * @file src/app/dashboard/chat/hooks/useOpenAIVoice.ts
  * @description
- * AI 어시스턴트 채팅의 음성 입력(녹음 → OpenAI 전사)과 음성 출력(답변 → OpenAI 읽기)을 다루는 훅입니다.
+ * AI 채팅의 음성 입력(녹음 → OpenAI 전사)과 음성 출력(답변 → Realtime WebRTC)을 다룹니다.
  *
  * 초보자 가이드:
  * - useVoiceRecorder(onText): 마이크 버튼 토글. 녹음을 멈추면 /api/voice/transcribe 로 보내 글자를 onText 로 넘긴다.
@@ -13,6 +13,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { startRealtimeSpeech, type RealtimePlayback } from "@/app/dashboard/chat/hooks/realtime-speech";
 
 /* ───────── 음성 입력 ───────── */
 
@@ -83,8 +84,7 @@ export function useVoiceRecorder(onText: (text: string) => void, onError: (messa
 
 type SpeakerState = { playingId: string | null; loadingId: string | null };
 let state: SpeakerState = { playingId: null, loadingId: null };
-let audio: HTMLAudioElement | null = null;
-let objectUrl: string | null = null;
+let playback: RealtimePlayback | null = null;
 let requestSeq = 0;
 const listeners = new Set<() => void>();
 
@@ -95,10 +95,8 @@ function setState(next: SpeakerState) {
 
 function stopPlayback() {
   requestSeq++;
-  audio?.pause();
-  if (objectUrl) URL.revokeObjectURL(objectUrl);
-  audio = null;
-  objectUrl = null;
+  playback?.stop();
+  playback = null;
   setState({ playingId: null, loadingId: null });
 }
 
@@ -107,37 +105,27 @@ async function speak(id: string, text: string): Promise<string | null> {
   stopPlayback();
   const seq = requestSeq;
   setState({ playingId: null, loadingId: id });
-  try {
-    const res = await fetch("/api/voice/speak", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "답변을 읽지 못했습니다.");
-    }
-    const blob = await res.blob();
-    if (seq !== requestSeq) return null; // 그 사이 다른 답변을 눌렀다
-    objectUrl = URL.createObjectURL(blob);
-    audio = new Audio(objectUrl);
-    audio.onended = () => stopPlayback();
-    await audio.play();
-    setState({ playingId: id, loadingId: null });
-    return null;
-  } catch (err) {
-    if (seq === requestSeq) setState({ playingId: null, loadingId: null });
-    return err instanceof Error ? err.message : "답변을 읽지 못했습니다.";
-  }
+  playback = startRealtimeSpeech(text, () => {
+    if (seq === requestSeq) setState({ playingId: id, loadingId: null });
+  });
+  const error = await playback.done;
+  if (seq !== requestSeq) return null;
+  playback = null;
+  setState({ playingId: null, loadingId: null });
+  return error;
+}
+
+function subscribeSpeaker(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) stopPlayback();
+  };
 }
 
 export function useSpeaker() {
   const snapshot = useSyncExternalStore(
-    (l) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
+    subscribeSpeaker,
     () => state,
     () => state
   );

@@ -4,7 +4,7 @@
  * 초보자 가이드: fetch 대역만 사용하며 실제 API 키나 데이터는 읽지 않습니다.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { knowledgeConfig, knowledgeProject } from "./config";
+import { knowledgeConfig, knowledgeProject, knowledgeSyncEnabled } from "./config";
 import { searchKnowledge, sendKnowledgeEvent } from "./client";
 
 const config = { baseUrl: "http://fixture.test", sourceId: "eval", key: "fixture-key" };
@@ -16,6 +16,19 @@ describe("지식 연결", () => {
     expect(() => knowledgeConfig({ KNOWLEDGE_API_URL: "http://fixture.test" })).toThrow();
     expect(() => knowledgeConfig({ KNOWLEDGE_API_URL: "http://user:fixture@fixture.test", KNOWLEDGE_SOURCE_ID: "eval", KNOWLEDGE_API_KEY: "fixture" })).toThrow();
     expect(knowledgeProject(config, "p1")).toBe("wbs_4_eval_p1");
+  });
+  it("외부 프록시 경로 접두사는 받고, 쿼리 · 해시 · 이상한 경로는 거절한다", () => {
+    const env = (url: string) => ({ KNOWLEDGE_API_URL: url, KNOWLEDGE_SOURCE_ID: "eval", KNOWLEDGE_API_KEY: "fixture" });
+    expect(knowledgeConfig(env("https://fixture.test/knowledge/"))?.baseUrl).toBe("https://fixture.test/knowledge");
+    expect(knowledgeConfig(env("http://127.0.0.1:8787"))?.baseUrl).toBe("http://127.0.0.1:8787");
+    for (const bad of ["https://fixture.test/knowledge?x=1", "https://fixture.test/knowledge#a", "https://fixture.test/kn%20owledge", "ftp://fixture.test/"]) {
+      expect(() => knowledgeConfig(env(bad))).toThrow();
+    }
+  });
+  it("KNOWLEDGE_SYNC=off 이면 동기화를 끈다 (기본은 켜짐)", () => {
+    expect(knowledgeSyncEnabled({})).toBe(true);
+    expect(knowledgeSyncEnabled({ KNOWLEDGE_SYNC: "off" })).toBe(false);
+    expect(knowledgeSyncEnabled({ KNOWLEDGE_SYNC: " OFF " })).toBe(false);
   });
   it("프로젝트는 서버 설정에서 만들고 수집 확인을 대조한다", async () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ project: "wbs_4_eval_p1", revision: "5", status: "applied" }) });

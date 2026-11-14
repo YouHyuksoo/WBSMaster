@@ -6,7 +6,7 @@
  * - 주기 스케줄 없이 알림·시작·실패 재시도로 깨어납니다. 여러 프로세스는 DB 잠금으로 직렬화합니다.
  */
 import { Pool, type PoolClient } from "pg";
-import { knowledgeConfig, type KnowledgeConfig } from "./config";
+import { knowledgeConfig, knowledgeSyncEnabled, type KnowledgeConfig } from "./config";
 import { sendKnowledgeEvent, KnowledgeHttpError, type KnowledgeEvent } from "./client";
 
 export async function drainKnowledgeQueue(pool: Pool, config: KnowledgeConfig): Promise<void> {
@@ -110,7 +110,7 @@ const globalWorker = globalThis as typeof globalThis & { knowledgeWorker?: Retur
 export async function startKnowledgeWorker() {
   if (globalWorker.knowledgeWorker) return;
   const config = knowledgeConfig();
-  if (!config) return;
+  if (!config || !knowledgeSyncEnabled()) return;
   if (!process.env.DATABASE_URL) throw new Error("지식 동기화 DB 설정이 없습니다.");
   const worker = createKnowledgeWorker(config, process.env.DATABASE_URL);
   globalWorker.knowledgeWorker = worker;

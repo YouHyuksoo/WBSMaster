@@ -27,7 +27,7 @@ web
 
 ## Evidence on Hand
 
-`AGENTS.md`, `DESIGN_GUIDELINE.md`, `src/app/globals.css`, `src/app/dashboard/page.tsx`와 카드 컴포넌트. 배포 상태나 성능 수치를 이 기록에서 주장하지 않는다.
+`AGENTS.md`, `docs/design/overview.md`, `src/app/globals.css`, `src/app/dashboard/page.tsx`와 카드 컴포넌트. 배포 상태나 성능 수치를 이 기록에서 주장하지 않는다.
 
 ## Product Principles
 

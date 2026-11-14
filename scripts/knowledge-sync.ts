@@ -12,7 +12,7 @@ config({ path: ".env.local", quiet: true });
 import { Pool } from "pg";
 import { readFile } from "node:fs/promises";
 import targets from "../src/lib/knowledge/targets.json";
-import { knowledgeConfig } from "../src/lib/knowledge/config";
+import { knowledgeConfig, knowledgeSyncEnabled } from "../src/lib/knowledge/config";
 import { drainKnowledgeQueue } from "../src/lib/knowledge/worker";
 
 async function main() {
@@ -26,6 +26,7 @@ async function main() {
     throw new Error("--tables 에는 targets.json 의 테이블 이름만 쉼표로 적어 주세요.");
   }
   const backfillTargets = targets.filter((t) => t.table !== "users" && (!onlyTables || onlyTables.includes(t.table)));
+  if (!knowledgeSyncEnabled()) throw new Error("KNOWLEDGE_SYNC=off(읽기 전용)인 환경에서는 대기열 설치 · 색인 · 전송을 하지 않습니다.");
   const url = new URL(process.env.DATABASE_URL ?? "");
   console.log(`대상 DB: ${url.hostname}:${url.port}${url.pathname}`);
   const pool = new Pool({ connectionString: url.toString() });

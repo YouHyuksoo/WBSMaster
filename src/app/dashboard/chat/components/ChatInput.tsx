@@ -9,11 +9,13 @@
  * - 엑셀 파일 첨부
  * - 예시 질문 팝오버
  * - 음성 입력 (녹음 → OpenAI 전사, 기준 설정 > 음성 회의록 의 OpenAI 키)
+ * 초보자 가이드: 제안은 입력만 하고 전송은 프로젝트 준비·한글 조합 종료 후 실행합니다.
  */
 
 import React, { memo, useState, useRef, useCallback, useEffect } from "react";
 import { Icon, Button, useToast } from "@/components/ui";
 import { EXAMPLE_GROUPS, ExampleGroup } from "./constants";
+import { SuggestionPopover } from "./SuggestionPopover";
 import { useVoiceRecorder } from "../hooks/useOpenAIVoice";
 
 interface ChatInputProps {
@@ -62,7 +64,6 @@ const ChatInput = memo(function ChatInput({
 }: ChatInputProps) {
   const toast = useToast();
 
-  // 로컬 상태 - 부모 컴포넌트와 분리
   const [inputMessage, setInputMessage] = useState("");
   const [showExamplePopover, setShowExamplePopover] = useState(false);
 
@@ -93,21 +94,17 @@ const ChatInput = memo(function ChatInput({
     }
   }, [suggestedInput, onSuggestedInputHandled]);
 
-  /**
-   * 메시지 전송 핸들러
-   */
+  /** 전송 가능한 상태에서만 입력을 소비한다. */
   const handleSendMessage = useCallback(() => {
     if (!inputMessage.trim() || isLoading || isUploadingExcel || (selectedFile && targetType !== "intake") || !selectedProjectId) return;
     onSendMessage(inputMessage);
     setInputMessage("");
   }, [inputMessage, isLoading, isUploadingExcel, selectedFile, targetType, selectedProjectId, onSendMessage]);
 
-  /**
-   * 엔터 키 핸들러
-   */
+  /** 한글 조합 종료 Enter는 전송에서 제외한다. */
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
         e.preventDefault();
         handleSendMessage();
       }
@@ -115,9 +112,7 @@ const ChatInput = memo(function ChatInput({
     [handleSendMessage]
   );
 
-  /**
-   * 파일 선택 핸들러
-   */
+  /** 파일 선택 후 같은 파일을 다시 고를 수 있도록 input을 초기화한다. */
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -130,9 +125,7 @@ const ChatInput = memo(function ChatInput({
     [onFileSelect]
   );
 
-  /**
-   * 예시 질문 선택 핸들러
-   */
+  /** 제안 선택은 전송 없이 입력·포커스만 바꾼다. */
   const handleExampleSelect = useCallback((question: string) => {
     setInputMessage(question);
     setShowExamplePopover(false);
@@ -140,7 +133,7 @@ const ChatInput = memo(function ChatInput({
   }, []);
 
   return (
-    <div className="p-4 border-t border-border dark:border-border-dark">
+    <div className="relative p-4 border-t border-border dark:border-border-dark">
       {/* 첨부된 파일 미리보기 */}
       {selectedFile && (
         <div className="mb-3 p-3 rounded-lg bg-surface dark:bg-surface-dark border border-border dark:border-border-dark">
@@ -229,73 +222,28 @@ const ChatInput = memo(function ChatInput({
         )}
 
         {/* 예시 보기 버튼 */}
-        <div className="relative">
+        <div>
           <Button
             variant="ghost"
             size="md"
             onClick={() => setShowExamplePopover(!showExamplePopover)}
             title="예시 질문 보기"
+            aria-label="제안 질문 보기"
+            aria-expanded={showExamplePopover}
+            aria-controls="chat-suggestion-popover"
             className={showExamplePopover ? "bg-primary/10 text-primary" : ""}
           >
             <Icon name="lightbulb" size="sm" />
           </Button>
 
-          {/* 예시 질문 팝오버 */}
-          {showExamplePopover && (
-            <div className="absolute bottom-full left-0 mb-2 w-[800px] max-h-[400px] overflow-y-auto p-4 rounded-xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark shadow-xl z-50">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-text dark:text-white">
-                  예시 질문
-                </h3>
-                <div className="flex items-center gap-2">
-                  {/* 새로고침 버튼 */}
-                  {onRefreshSuggestions && (
-                    <button
-                      onClick={onRefreshSuggestions}
-                      disabled={isRefreshingSuggestions}
-                      className="p-1 rounded hover:bg-primary/10 text-text-secondary hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      title="AI에게 새로운 제안 요청"
-                    >
-                      <Icon
-                        name="refresh"
-                        size="xs"
-                        className={isRefreshingSuggestions ? "animate-spin" : ""}
-                      />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setShowExamplePopover(false)}
-                    className="p-1 rounded hover:bg-background dark:hover:bg-background-dark"
-                  >
-                    <Icon name="close" size="xs" className="text-text-secondary" />
-                  </button>
-                </div>
-              </div>
-              <div className="grid grid-cols-5 gap-3">
-                {suggestions.map((group) => (
-                  <div key={group.title}>
-                    <div className="flex items-center gap-1.5 mb-2 pb-1 border-b border-border dark:border-border-dark">
-                      <Icon name={group.icon} size="xs" className={group.color} />
-                      <span className="text-xs font-semibold text-text dark:text-white">
-                        {group.title}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      {group.questions.map((question, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleExampleSelect(question)}
-                          className="w-full text-left text-[11px] leading-tight py-1.5 px-2 rounded hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
-                        >
-                          {question}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {showExamplePopover && <SuggestionPopover
+            suggestions={suggestions}
+            onSelect={handleExampleSelect}
+            onClose={() => { setShowExamplePopover(false); inputRef.current?.focus(); }}
+            onRefresh={onRefreshSuggestions}
+            refreshing={isRefreshingSuggestions}
+            disabled={isLoading || isUploadingExcel || !selectedProjectId}
+          />}
         </div>
 
         <div className="flex-1 relative">

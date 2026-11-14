@@ -32,7 +32,7 @@ import MindmapRenderer, { MindmapNode } from "./components/MindmapRenderer";
 import { useChatIntake } from "./hooks/useChatIntake";
 import { IntakePanel } from "./components/IntakePanel";
 import { detectIntakeTarget } from "@/lib/chat-intake/policies";
-import { EXAMPLE_GROUPS, ExampleGroup } from "./components/constants";
+import { useChatSuggestions } from "./hooks/useChatSuggestions";
 import { ExcelMappingModal } from "./components/ExcelMappingModal";
 import { SuggestionsCarousel } from "./components/SuggestionsCarousel";
 import { useAutoSpeak, useSpeaker } from "./hooks/useOpenAIVoice";
@@ -83,34 +83,9 @@ export default function ChatPage() {
     openrouterModel?: string;
   } | null>(null);
 
-  // 동적 제안 질문 상태
-  // localStorage 키: 마지막 제안을 저장하여 페이지 새로고침 후에도 유지
-  const SUGGESTIONS_STORAGE_KEY = "wbs-chat-suggestions";
-  const [suggestions, setSuggestions] = useState<ExampleGroup[]>(EXAMPLE_GROUPS);
-  const [isRefreshingSuggestions, setIsRefreshingSuggestions] = useState(false);
-
-  // 제안 클릭 시 입력창에 텍스트 설정 (바로 전송하지 않음)
+  const { suggestions, isRefreshingSuggestions, refreshSuggestions } = useChatSuggestions(selectedProjectId, toast);
+  // 제안은 편집할 수 있도록 입력창에 넣고, 전송은 사용자가 누른다.
   const [suggestedInput, setSuggestedInput] = useState("");
-
-  // localStorage에서 저장된 제안 불러오기 (최초 로드 시)
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(SUGGESTIONS_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as ExampleGroup[];
-        // 유효성 검증: 7개 카테고리, 각각 questions 배열 존재
-        if (
-          Array.isArray(parsed) &&
-          parsed.length === 7 &&
-          parsed.every((g) => g.title && Array.isArray(g.questions))
-        ) {
-          setSuggestions(parsed);
-        }
-      }
-    } catch (error) {
-      console.error("저장된 제안 로드 실패:", error);
-    }
-  }, []);
 
   // 삭제 확인 모달 상태
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -246,46 +221,6 @@ export default function ChatPage() {
   useEffect(() => {
     loadAiSettings();
   }, [loadAiSettings]);
-
-  /**
-   * 제안 질문 새로고침
-   * LLM에게 새로운 제안을 요청하고, 응답이 있으면 업데이트 및 localStorage에 저장
-   * 응답이 없거나 오류 시 기존 제안 유지
-   */
-  const refreshSuggestions = useCallback(async () => {
-    setIsRefreshingSuggestions(true);
-    try {
-      const res = await fetch("/api/chat/suggestions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: selectedProjectId || null,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        // AI가 생성한 제안이면 업데이트 및 저장
-        if (data.suggestions && Array.isArray(data.suggestions)) {
-          setSuggestions(data.suggestions);
-          // localStorage에 저장하여 다음 방문 시에도 유지
-          try {
-            localStorage.setItem(SUGGESTIONS_STORAGE_KEY, JSON.stringify(data.suggestions));
-          } catch (e) {
-            console.error("제안 저장 실패:", e);
-          }
-          if (data.source === "ai") {
-            toast.success("새로운 제안이 생성되었습니다!");
-          }
-        }
-      }
-    } catch (error) {
-      console.error("제안 새로고침 실패:", error);
-      // 오류 시 기존 제안 유지 (아무 동작 안함)
-    } finally {
-      setIsRefreshingSuggestions(false);
-    }
-  }, [selectedProjectId, toast]);
 
   /**
    * 메시지 전송 (ChatInput에서 호출)
@@ -803,14 +738,14 @@ export default function ChatPage() {
               무엇이든 물어보세요
             </h2>
             <p className="text-text-secondary text-sm mb-3">
-              프로젝트 데이터 분석, 등록, 수정 등 다양한 작업을 도와드려요
+              제안을 선택해 입력한 뒤 전송하세요. 등록·수정은 확인 후 반영됩니다.
             </p>
 
             {/* 제안 새로고침 버튼 */}
             <div className="flex items-center gap-2 mb-3">
               <button
                 onClick={refreshSuggestions}
-                disabled={isRefreshingSuggestions}
+                disabled={isRefreshingSuggestions || !selectedProjectId || isLoading}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="AI에게 새로운 제안 요청"
               >

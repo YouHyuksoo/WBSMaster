@@ -4,7 +4,7 @@
  * AI 제안 질문 생성 API입니다.
  * LLM을 사용하여 현재 프로젝트 컨텍스트에 맞는 제안 질문을 생성합니다.
  *
- * 기능:
+ * 초보자 가이드:
  * - POST: 새로운 제안 질문 생성 요청
  * - 프로젝트별 컨텍스트 기반 제안
  * - 응답이 없으면 기본 제안 유지
@@ -14,54 +14,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { createLLMClient, resolveLLMConfig, LLMConfig } from "@/lib/llm";
-import { EXAMPLE_GROUPS, ExampleGroup } from "@/app/dashboard/chat/components/constants";
-
-/**
- * 제안 질문 생성 시스템 프롬프트
- */
-const SUGGESTION_SYSTEM_PROMPT = `당신은 WBS Master 프로젝트 관리 도구의 AI 어시스턴트입니다.
-사용자에게 유용한 질문 제안을 생성해야 합니다.
-
-## 규칙
-1. 반드시 JSON 형식으로만 응답하세요
-2. 5개의 카테고리로 질문을 분류하세요: WBS, 태스크, 이슈, 요구사항, 도움말
-3. 각 카테고리마다 4개의 질문을 생성하세요
-4. 질문은 구체적이고 실행 가능해야 합니다
-5. 프로젝트 데이터가 있으면 해당 데이터를 기반으로 맞춤형 질문을 생성하세요
-
-## 응답 형식 (JSON만 반환, 마크다운 코드블록 없이)
-[
-  {
-    "title": "WBS",
-    "icon": "account_tree",
-    "color": "text-blue-500",
-    "questions": ["질문1", "질문2", "질문3", "질문4"]
-  },
-  {
-    "title": "태스크",
-    "icon": "task_alt",
-    "color": "text-emerald-500",
-    "questions": ["질문1", "질문2", "질문3", "질문4"]
-  },
-  {
-    "title": "이슈",
-    "icon": "bug_report",
-    "color": "text-rose-500",
-    "questions": ["질문1", "질문2", "질문3", "질문4"]
-  },
-  {
-    "title": "요구사항",
-    "icon": "description",
-    "color": "text-amber-500",
-    "questions": ["질문1", "질문2", "질문3", "질문4"]
-  },
-  {
-    "title": "도움말",
-    "icon": "help",
-    "color": "text-purple-500",
-    "questions": ["질문1", "질문2", "질문3", "질문4"]
-  }
-]`;
+import { CHATGPT_DEFAULT_MODEL } from "@/lib/llm/chatgpt/constants";
+import { EXAMPLE_GROUPS, normalizeSuggestions, SUGGESTION_SYSTEM_PROMPT } from "@/lib/chat-suggestions";
 
 /**
  * 제안 질문 생성
@@ -72,29 +26,21 @@ export async function POST(request: NextRequest) {
     const { user, error } = await requireAuth();
     if (error) return error;
 
-    const body = await request.json();
-    const { projectId } = body;
-
-    // projectId 를 주면 그 프로젝트 멤버(또는 ADMIN)인지 확인
-    if (projectId) {
-      const denied = await assertProjectAccess(projectId, user!);
-      if (denied) return denied;
+    const body = await request.json().catch(() => null);
+    const projectId = body?.projectId;
+    if (typeof projectId !== "string" || !projectId.trim()) {
+      return NextResponse.json({ error: "프로젝트를 먼저 선택해 주세요." }, { status: 400 });
     }
-
-    // AI 설정 조회
-    const aiSettings = await prisma.aiSetting.findFirst({
-      where: { userId: user!.id },
+    const denied = await assertProjectAccess(projectId, user!);
+    if (denied) return denied;
+    const aiSettings = await prisma.aiSetting.findFirst({ where: { userId: user!.id } });
+    const resolved = resolveLLMConfig(aiSettings ?? {
+      provider: "chatgpt", chatgptModel: CHATGPT_DEFAULT_MODEL,
+      openaiApiKey: null, openaiModel: "", openrouterApiKey: null, openrouterModel: "",
     });
-
-    if (!aiSettings) {
-      // 설정이 없으면 기본 제안 반환
-      return NextResponse.json({ suggestions: EXAMPLE_GROUPS, source: "default" });
-    }
-
-    // 현재 선택된 제공자의 API 키·모델 (키가 없으면 기본 제안 반환)
-    const resolved = resolveLLMConfig(aiSettings);
     if (!resolved.ok) {
-      return NextResponse.json({ suggestions: EXAMPLE_GROUPS, source: "default" });
+      return NextResponse.json({ suggestions: EXAMPLE_GROUPS, source: "default",
+        message: "AI 연결 설정을 확인해 주세요. 기존 제안을 유지합니다." });
     }
     const llmConfig: LLMConfig = resolved.config;
 
@@ -109,8 +55,8 @@ export async function POST(request: NextRequest) {
             select: {
               wbsItems: true,
               tasks: true,
-              issues: true,
-              requirements: true,
+              fieldIssues: true,
+              customerRequirements: true,
             },
           },
         },
@@ -125,7 +71,7 @@ export async function POST(request: NextRequest) {
           select: { title: true, status: true },
         });
 
-        const recentIssues = await prisma.issue.findMany({
+        const recentIssues = await prisma.fieldIssue.findMany({
           where: { projectId },
           orderBy: { updatedAt: "desc" },
           take: 5,
@@ -137,13 +83,13 @@ export async function POST(request: NextRequest) {
 - 프로젝트명: ${project.name}
 - WBS 항목 수: ${project._count.wbsItems}개
 - 태스크 수: ${project._count.tasks}개
-- 이슈 수: ${project._count.issues}개
-- 요구사항 수: ${project._count.requirements}개
+- 고객이슈 수: ${project._count.fieldIssues}개
+- 고객요구사항 수: ${project._count.customerRequirements}개
 
 ## 최근 태스크
 ${recentTasks.map((t) => `- ${t.title} (${t.status})`).join("\n")}
 
-## 최근 이슈
+## 최근 고객이슈
 ${recentIssues.map((i) => `- ${i.title} (${i.status})`).join("\n")}
 
 위 정보를 참고하여 이 프로젝트에 유용한 질문들을 생성해주세요.
@@ -173,33 +119,17 @@ ${recentIssues.map((i) => `- ${i.title} (${i.status})`).join("\n")}
       }
       jsonStr = jsonStr.trim();
 
-      const suggestions = JSON.parse(jsonStr) as ExampleGroup[];
-
-      // 유효성 검증
-      if (
-        Array.isArray(suggestions) &&
-        suggestions.length === 5 &&
-        suggestions.every(
-          (s) =>
-            s.title &&
-            s.icon &&
-            s.color &&
-            Array.isArray(s.questions) &&
-            s.questions.length >= 4
-        )
-      ) {
-        return NextResponse.json({ suggestions, source: "ai" });
-      }
+      const suggestions = normalizeSuggestions(JSON.parse(jsonStr));
+      if (suggestions) return NextResponse.json({ suggestions, source: "ai" });
     } catch {
       // JSON 파싱 실패 시 기본 제안 반환
-      console.error("[Suggestions] JSON 파싱 실패:", response.slice(0, 200));
+      // AI 원문에는 업무 데이터가 있을 수 있어 로그에 출력하지 않는다.
     }
 
     // 파싱 실패 시 기본 제안 반환
-    return NextResponse.json({ suggestions: EXAMPLE_GROUPS, source: "default" });
-  } catch (error) {
-    console.error("제안 질문 생성 실패:", error);
+    return NextResponse.json({ suggestions: EXAMPLE_GROUPS, source: "default", message: "생성된 제안 형식을 확인하지 못했습니다. 기존 제안을 유지합니다." });
+  } catch {
     // 오류 시에도 기본 제안 반환 (서비스 중단 방지)
-    return NextResponse.json({ suggestions: EXAMPLE_GROUPS, source: "error" });
+    return NextResponse.json({ suggestions: EXAMPLE_GROUPS, source: "error", message: "제안을 생성하지 못했습니다. 기존 제안을 유지합니다. 잠시 후 다시 시도해 주세요." });
   }
 }

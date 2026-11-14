@@ -11,7 +11,8 @@
 
 /**
  * AI 채팅 SQL 이 볼 수 있는 테이블 (2026-11-09 정리)
- * 베트남 잔재(업무기능추적표, AS-IS 상세 분석)와 설정·알림·채팅 테이블은 뺐다.
+ * AS-IS 상세 분석과 설정·알림·채팅 테이블은 제외한다.
+ * 기능추적표는 자유 SQL 대신 chat-tools/process-verification의 전용 읽기 도구로 조회한다.
  * 늘리려면 이 목록, DATABASE_SCHEMA, TABLE_SUMMARIES 를 함께 고친다 (schema-info.test.ts 가 검사).
  */
 export const CHAT_SCHEMA_TABLES = [

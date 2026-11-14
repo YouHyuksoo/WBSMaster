@@ -3,9 +3,9 @@
  * @description 전송 확인 전 삭제 방지·장애 보존·잠금 경쟁·개별 실패 격리를 검증합니다.
  * 초보자 가이드: DB와 HTTP를 대역으로 사용하며 실제 시스템에는 접속하지 않습니다.
  */
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Pool } from "pg";
-import { drainKnowledgeQueue } from "./worker";
+import { drainKnowledgeQueue, startKnowledgeWorker } from "./worker";
 import { sendKnowledgeEvent, KnowledgeHttpError, type KnowledgeEvent } from "./client";
 vi.mock("./client", async () => ({ ...await vi.importActual("./client"), sendKnowledgeEvent: vi.fn() }));
 const config = { baseUrl: "http://fixture.invalid", sourceId: "eval", key: "fixture" };
@@ -59,3 +59,11 @@ it("다른 작업자가 잠금을 보유하면 중복 전송하지 않는다", a
   expect(sendKnowledgeEvent).not.toHaveBeenCalled();
   expect(db.client.release).toHaveBeenCalled();
 });
+it("KNOWLEDGE_SYNC=off(읽기 전용)이면 설정이 있어도 작업자를 시작하지 않는다", async () => {
+  vi.stubEnv("KNOWLEDGE_API_URL", "https://fixture.invalid/knowledge"); vi.stubEnv("KNOWLEDGE_SOURCE_ID", "eval"); vi.stubEnv("KNOWLEDGE_API_KEY", "fixture");
+  vi.stubEnv("KNOWLEDGE_SYNC", "off");
+  vi.stubEnv("DATABASE_URL", "");
+  await expect(startKnowledgeWorker()).resolves.toBeUndefined(); // 켜졌다면 DATABASE_URL 없음 오류
+  expect((globalThis as { knowledgeWorker?: unknown }).knowledgeWorker).toBeUndefined();
+});
+afterEach(() => vi.unstubAllEnvs());
