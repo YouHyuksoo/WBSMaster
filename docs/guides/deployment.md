@@ -1,3 +1,10 @@
+---
+sources:
+  - .github/workflows/deploy.yml
+  - ecosystem.config.js
+verifiedCommit: null
+---
+
 # WBS Master 배포 가이드
 
 ## 개요

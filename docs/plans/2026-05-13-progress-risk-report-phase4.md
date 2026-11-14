@@ -9,7 +9,7 @@
 **Tech Stack:** xlsx 0.18.5 (이미 설치), 기존 `ImportExcelModal` 컴포넌트 재사용, native SVG
 
 **Reference:**
-- Design spec: `docs/superpowers/specs/2026-05-13-progress-risk-report-design.md` (섹션 7 API + 5.3 Gantt)
+- Design spec: `docs/specs/2026-05-13-progress-risk-report-design.md` (섹션 7 API + 5.3 Gantt)
 - 기존 import 패턴: `src/app/api/customer-requirements/import/route.ts`
 - 기존 export 패턴: `src/app/api/chat/export/route.ts`
 - 공통 컴포넌트: `src/components/common/ImportExcelModal.tsx`

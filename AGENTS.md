@@ -19,7 +19,7 @@
 ## Git·배포
 
 - 브랜치는 `master` 하나 (원격 `origin/master`).
-- `master` 에 push 하면 GitHub Actions(self-hosted, 지성 IDC 서버)가 자동 배포한다. 자세한 내용: `docs/DEPLOYMENT.md`.
+- `master` 에 push 하면 GitHub Actions(self-hosted, 지성 IDC 서버)가 자동 배포한다. 자세한 내용: `docs/guides/deployment.md`.
 - husky pre-push 가 `npm ci --dry-run`(lock 동기화)과 `npx tsc --noEmit` 을 돌린다. 타입 오류나 lock 불일치가 있으면 push 가 막힌다. pre-commit 은 검증 없음.
 - 커밋 메시지: Conventional Commit 접두사(`feat:`, `fix:`, `docs:`, `ci:`, `refactor:`) + 한국어 요약, 한 커밋에 한 변경.
 - PR 에는 요약, 관련 이슈/태스크, 테스트 결과, Prisma 변경 시 마이그레이션 노트, 화면 변경 시 스크린샷을 넣는다.
@@ -87,3 +87,5 @@
 
 - 가져오기 라우트는 칼럼을 위치로 읽는다. 칼럼 구성을 바꾸면 템플릿 · 파서를 같이 고치고, 예전 템플릿을 거부하는 검사(`src/lib/import-guards.ts`)를 둔다.
 - `clearExisting` 삭제는 파일 검사(400) 뒤에만 한다. `src/app/api/import-routes-order.test.ts` 가 모든 import 라우트를 검사한다.
+
+- docs/ 아래 문서 생성·이동 시 `docs/README.md` 규정을 준수한다.

@@ -9,8 +9,8 @@
 **Tech Stack:** TypeScript 5, Vitest 2.1, date-fns 4.1, React Query 5, React 19.2
 
 **Reference:**
-- Design spec: `docs/superpowers/specs/2026-05-13-progress-risk-report-design.md` (섹션 6 알고리즘)
-- Phase 1 plan: `docs/superpowers/plans/2026-05-13-progress-risk-report-phase1.md`
+- Design spec: `docs/specs/2026-05-13-progress-risk-report-design.md` (섹션 6 알고리즘)
+- Phase 1 plan: `docs/plans/2026-05-13-progress-risk-report-phase1.md`
 
 **Phase 2 미포함 (Phase 3 이월):** Gantt 탭, 인력부하 탭, 진단 탭 (권장 조치 카드), TabSwitcher, ZoomControl
 

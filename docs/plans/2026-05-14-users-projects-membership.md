@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Prisma 7, React Query 5, Tailwind 4, Vitest
 
-**관련 디자인 문서:** `docs/superpowers/specs/2026-05-14-users-projects-membership-design.md`
+**관련 디자인 문서:** `docs/specs/2026-05-14-users-projects-membership-design.md`
 
 ---
 

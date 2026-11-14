@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16.1, React 19.2, Prisma 7.2, @prisma/adapter-pg, @tanstack/react-query 5, Tailwind 4, TypeScript 5, Vitest 2.1
 
-**Reference:** `docs/superpowers/specs/2026-05-13-progress-risk-report-design.md` (디자인 문서 — 모든 결정 사항의 출처)
+**Reference:** `docs/specs/2026-05-13-progress-risk-report-design.md` (디자인 문서 — 모든 결정 사항의 출처)
 
 **Phase 1 미포함 (Phase 2/3로 이월):** Gantt 시각화, Critical Path 알고리즘, forecast 자동 전파, 인력 충돌 감지, 진단 배너, 권장 조치 카드, 인력부하 히트맵, KPI의 "공수 부족/일정 초과" 계산.
 

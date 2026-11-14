@@ -8,7 +8,7 @@
 
 **Tech Stack:** Prisma 7, Next.js 16, React 19, TanStack Query 5, Vitest
 
-**관련 디자인 문서:** `docs/superpowers/specs/2026-05-14-progress-task-category-variable-stages-design.md`
+**관련 디자인 문서:** `docs/specs/2026-05-14-progress-task-category-variable-stages-design.md`
 
 ---
 

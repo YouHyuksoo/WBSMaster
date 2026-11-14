@@ -9,8 +9,8 @@
 **Tech Stack:** React 19.2, TypeScript 5, Tailwind 4, date-fns 4.1 (이미 설치된 라이브러리만 사용)
 
 **Reference:**
-- Design spec: `docs/superpowers/specs/2026-05-13-progress-risk-report-design.md` (섹션 5.3~5.5)
-- Phase 2 plan: `docs/superpowers/plans/2026-05-13-progress-risk-report-phase2.md`
+- Design spec: `docs/specs/2026-05-13-progress-risk-report-design.md` (섹션 5.3~5.5)
+- Phase 2 plan: `docs/plans/2026-05-13-progress-risk-report-phase2.md`
 
 **Phase 3 미포함:** Excel 가져오기/내보내기 실제 구현 (Phase 4로 이월), 진단 탭의 deep link (Phase 4)
 

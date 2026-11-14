@@ -1,3 +1,9 @@
+---
+sources:
+  - src/app/dashboard/as-is-analysis/constants.ts
+verifiedCommit: null
+---
+
 # 리스트 페이지 스타일 규칙
 
 > 출처: 원래 AGENTS.md 에 있던 규칙을 2026-10-25 이 문서로 옮겼다. 참고 페이지 경로는 `src/app/dashboard/` 기준.
