@@ -66,6 +66,7 @@
 ## 엑셀 데이터 가져오기
 
 - 엑셀 → DB 입력은 API(curl, 인증 필요)가 아니라 `scripts/import-*.ts` 스크립트로 한다. 실행: `npx tsx scripts/<파일>.ts`.
+- 엑셀 파일 경로·프로젝트 ID 는 코드에 쓰지 않고 실행 인자로 받으며, `--apply` 없이는 미리보기만 한다(참고: `scripts/import-pole-equipment.ts`). 원본 엑셀은 저장소 밖에 둔다(공개 저장소). `scripts/no-hardcoded-input-files.test.ts` 가 검사한다.
 - 스크립트는 Next.js 밖에서 돌아 `.env.local` 이 자동 로드되지 않는다. 맨 위에서 `dotenv` 로 `.env.local` 을 먼저 로드하고 Prisma 7 adapter(`PrismaPg` + `pg` `Pool`)로 클라이언트를 만들어야 한다. 아니면 `PrismaClient needs valid options`. 끝에 `prisma.$disconnect()` 와 `pool.end()` 를 호출한다. 기존 `scripts/import-as-is-ochang.ts` 를 템플릿으로 쓴다.
 - 병합 셀: 대분류/중분류가 비면 이전 값을 유지한다. 전각 공백(`　`)은 `.trim()` 후 빈 문자열 체크. 엑셀 값 → Enum 매핑 테이블에 모든 값을 정의한다.
 - 재실행 안전: 기존 항목을 삭제한 뒤 다시 넣는다.
