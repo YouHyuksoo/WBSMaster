@@ -201,6 +201,20 @@ icacls "C:\Project\WBSMaster" /grant "NETWORK SERVICE:(OI)(CI)F" /T
 
 ## 트러블슈팅
 
+### 0. 마이그레이션 미적용으로 배포 중단 (`Check production DB migrations`)
+
+**증상**: Actions 가 `Following migrations have not yet been applied` 로 멈춘다. 이 검사가 없던 2026-11-15 에는 배포가 그대로 진행돼 AI 채팅이 `P2022`(칼럼 없음)·`P2021`(테이블 없음)로 실패했다.
+
+**원인**: 배포는 DB 구조를 바꾸지 않는다. 새 마이그레이션을 운영 DB 에 먼저 적용하지 않았거나, 손으로 적용하고 `_prisma_migrations` 에 기록하지 않았다.
+
+**해결** (운영 서버 `D:\Project\WBSMaster`):
+```powershell
+npx prisma migrate status                                # 미적용 목록 확인
+# 테이블이 실제로 없으면: 해당 migration.sql 을 운영 DB 에 트랜잭션으로 적용
+npx prisma migrate resolve --applied <마이그레이션 이름>   # 적용 기록
+```
+그다음 Actions 를 다시 실행한다.
+
 ### 1. Git safe.directory 오류
 
 **증상**: `fatal: detected dubious ownership in repository`
