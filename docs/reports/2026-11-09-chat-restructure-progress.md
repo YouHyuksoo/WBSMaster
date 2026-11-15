@@ -4,7 +4,7 @@
 - 계획: `docs/plans/2026-11-09-chat-restructure.md`
 - 설계: `docs/specs/2026-11-09-chat-restructure-design.md`
 - 작업 기록(ledger): `.superpowers/sdd/2026-11-09-chat-restructure/progress.md` (git 제외)
-- 커밋: master 에 커밋함, push 는 하지 않음 (사용자가 결정). 다른 세션의 커밋되지 않은 변경이 같은 작업 트리에 있다.
+- 커밋: main 에 커밋함, push 는 하지 않음 (사용자가 결정). 다른 세션의 커밋되지 않은 변경이 같은 작업 트리에 있다.
 
 ## 끝난 작업 (Task 1~16, 17 일부)
 

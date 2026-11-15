@@ -1,6 +1,6 @@
 # 2026-11-11 운영 배포 실패 (npm 12 lock 검사) · 미완료 기록
 
-- 기준: origin/master `8278168` (push 범위 `5841bb6..8278168`, 다른 세션 커밋 `2dbc297` 포함)
+- 기준: origin/main `8278168` (push 범위 `5841bb6..8278168`, 다른 세션 커밋 `2dbc297` 포함)
 - Actions run 42970953369 실패: `Validate lock file sync`(npm ci) 단계
   - 원인: 운영 서버 npm 12.0.2 는 `@emnapi/runtime@1.11.3`, `@emnapi/core@1.11.3` 가 lock 에 없다고 거부한다.
     로컬 npm 11.6.2 의 pre-push `npm ci --dry-run` 은 통과한다. `npx npm@12.0.2 ci --dry-run` 으로 로컬에서 재현했다.
@@ -13,4 +13,4 @@
      (구현 보고서 `2026-11-11-chat-intake-implementation.md`: 운영 DB 미적용)
   2. lock 을 npm 12 기준으로 다시 만들기 (`npx npm@12.0.2 install --package-lock-only`)
   3. 워크플로 재발방지: PM2 중단 전에 lock 검사(`npm ci --dry-run`)를 먼저 돌려, 실패해도 운영이 내려가지 않게 하기
-- 1~2 전에 master 를 다시 push 하면 같은 단계에서 운영이 다시 내려간다.
+- 1~2 전에 main 을 다시 push 하면 같은 단계에서 운영이 다시 내려간다.

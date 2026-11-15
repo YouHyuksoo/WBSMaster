@@ -12,7 +12,7 @@ verifiedCommit: null
 WBS Master는 GitHub Actions + Self-hosted Runner + PM2를 사용하여 Windows 서버에 자동 배포됩니다.
 
 ```
-git push origin master → GitHub Actions 트리거 → 서버 자동 배포
+git push origin main → GitHub Actions 트리거 → 서버 자동 배포
 ```
 
 ## 아키텍처
@@ -59,7 +59,7 @@ name: Deploy to Windows Server
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:  # 수동 실행
 
 jobs:
@@ -87,8 +87,8 @@ jobs:
 
       - name: Pull latest code
         run: |
-          git fetch origin master
-          git reset --hard origin/master
+          git fetch origin main
+          git reset --hard origin/main
 
       - name: Install dependencies
         run: npm ci
@@ -309,8 +309,8 @@ Get-WmiObject Win32_Service | Where-Object {$_.Name -like "*actions*"} | Select-
 
 ```powershell
 # 최신 코드 가져오기 (로컬 변경 무시)
-git fetch origin master
-git reset --hard origin/master
+git fetch origin main
+git reset --hard origin/main
 
 # 상태 확인
 git status
@@ -319,7 +319,7 @@ git log -3 --oneline
 
 ## 배포 흐름
 
-1. **개발자**: `git push origin master`
+1. **개발자**: `git push origin main`
 2. **GitHub**: Actions 워크플로우 트리거
 3. **Runner**:
    - node 프로세스 종료
@@ -338,8 +338,8 @@ git log -3 --oneline
 cd C:\Project\WBSMaster
 
 # 1. 최신 코드
-git fetch origin master
-git reset --hard origin/master
+git fetch origin main
+git reset --hard origin/main
 
 # 2. 의존성 설치
 npm ci

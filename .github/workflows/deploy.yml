@@ -2,7 +2,7 @@ name: Deploy to Windows Server (지성 IDC)
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -30,8 +30,8 @@ jobs:
       # ── 1단계: 코드 pull ──────────────────────────────────────────────────
       - name: Pull latest code
         run: |
-          git fetch origin master
-          git reset --hard origin/master
+          git fetch origin main
+          git reset --hard origin/main
 
       # ── 1-1단계: 운영 DB 마이그레이션 적용 여부 확인 ──────────────────────
       # 배포는 DB 구조를 바꾸지 않는다. 새 마이그레이션이 운영 DB 에 아직 없으면
