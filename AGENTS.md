@@ -5,7 +5,7 @@
 ## 개요
 
 - 프로젝트 관리용 WBS 도구 (Next.js 16 + Prisma 7 + 로컬 PostgreSQL).
-- Supabase(DB·Storage)는 2026-10-23 제거됐다. `supabase/migrations` 는 레거시 스냅샷일 뿐이다.
+- Supabase(DB·Auth·Storage)는 2026-10-23 제거됐다. 관련 스크립트와 `supabase/` 스냅샷도 2026-11-16 지웠다(필요하면 git 이력). Supabase SDK·환경 변수를 되살리지 않는다.
 - 대부분의 데이터는 `projectId` 로 필터링된다.
 
 ## 명령·환경

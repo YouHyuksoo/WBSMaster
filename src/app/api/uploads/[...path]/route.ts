@@ -5,7 +5,7 @@
  *
  * 초보자 가이드:
  * 1. **GET /api/uploads/avatars/<userId>/123.jpg**: 파일 반환
- * 2. **공개 접근**: 기존 Supabase public 버킷과 동일하게 인증 없이 조회 가능
+ * 2. **공개 접근**: 인증 없이 조회 가능 (이미지 URL을 그대로 쓰기 위함)
  * 3. **허용 형식**: 이미지 확장자만 서빙 (CONTENT_TYPES)
  */
 

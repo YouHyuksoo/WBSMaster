@@ -2,7 +2,6 @@
  * @file src/lib/uploads.ts
  * @description
  * 업로드 파일(아바타 이미지 등)을 서버 로컬 디스크에 저장/조회하는 헬퍼입니다.
- * Supabase Storage를 대체합니다.
  *
  * 초보자 가이드:
  * 1. **저장 위치**: UPLOAD_DIR 환경변수, 없으면 `<프로젝트>/uploads`

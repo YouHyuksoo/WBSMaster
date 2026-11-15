@@ -1,7 +1,7 @@
 /**
  * @file scripts/backup-db.ts
  * @description
- * Supabase PostgreSQL 전체 백업 스크립트
+ * PostgreSQL 전체 백업 스크립트
  * 모든 테이블의 스키마(CREATE TABLE) + 데이터(INSERT)를 SQL 파일로 덤프합니다.
  *
  * 실행: npx tsx scripts/backup-db.ts
@@ -14,7 +14,6 @@
  *
  * 복원 방법:
  *   psql DATABASE_URL < backups/backup_2026-02-14_153000.sql
- *   또는 Supabase SQL Editor에 붙여넣기
  */
 
 import { config } from "dotenv";

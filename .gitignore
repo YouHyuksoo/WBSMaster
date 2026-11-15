@@ -61,9 +61,6 @@ tmpclaude-*
 backup*.sql
 /backups/
 
-# Supabase temp files
-supabase/.temp/
-
 # Superpowers brainstorming mockups
 .superpowers/
 .gstack/

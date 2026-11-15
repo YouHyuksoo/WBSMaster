@@ -2,9 +2,9 @@
  * @file prisma/schema.prisma
  * @description
  * WBS Master 프로젝트의 데이터베이스 스키마 정의 파일입니다.
- * Prisma ORM을 사용하여 Supabase PostgreSQL과 연동합니다.
+ * Prisma ORM을 사용하여 PostgreSQL과 연동합니다.
  * 주요 모델:
- * - User: 사용자 정보 (Supabase Auth 연동)
+ * - User: 사용자 정보 (자체 로그인, src/lib/auth.ts)
  * - Project: 프로젝트 정보
  * - Task: 태스크/할일 (칸반 보드용)
  * - Requirement: 요구사항 점검표
