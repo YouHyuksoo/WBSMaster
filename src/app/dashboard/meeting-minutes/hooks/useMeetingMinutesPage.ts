@@ -1,7 +1,7 @@
 /**
  * @file src/app/dashboard/meeting-minutes/hooks/useMeetingMinutesPage.ts
  * @description
- * 회의록 관리 페이지 상태 훅입니다 (목록 · 검색 · 모달 · 저장 · 삭제).
+ * 회의록 관리 페이지 상태 훅입니다 (목록 · 검색 · 선택 · 모달 · 저장 · 삭제).
  *
  * 초보자 가이드:
  * - 데이터는 @/hooks 의 useMeetingMinutes (React Query) 로 읽는다.
@@ -33,6 +33,7 @@ export function useMeetingMinutesPage() {
   const [deleting, setDeleting] = useState<MeetingMinute | null>(null);
   const [importOpen, setImportOpen] = useState(false); // 엑셀 가져오기 모달
   const [audioOpen, setAudioOpen] = useState(false); // 음성으로 작성 모달
+  const [selectedId, setSelectedId] = useState<string | null>(null); // AI 분석 패널에 보이는 회의록
 
   const { data: minutes = [], isLoading, error: loadError } = useMeetingMinutes({ projectId: selectedProjectId ?? undefined });
   const createMinute = useCreateMeetingMinute();
@@ -72,8 +73,13 @@ export function useMeetingMinutesPage() {
     }
   };
 
+  // 목록에서 다시 찾는다: 수정하면 새 내용, 삭제되거나 프로젝트를 바꾸면 null
+  const selectedMinute = useMemo(() => minutes.find((m) => m.id === selectedId) ?? null, [minutes, selectedId]);
+
   return {
     selectedProjectId,
+    selectedMinute,
+    selectMinute: (minute: MeetingMinute) => setSelectedId(minute.id),
     selectedProject,
     minutes,
     filtered,

@@ -7,7 +7,8 @@
  * 1. 항목은 회의록 양식(261026 MES v2 고도화 회의록.xlsx)을 따른다:
  *    문서번호(자동) · 일자 · 시간 · 장소 · 작성자 · 참석자 · 회의 목적 · 회의 내용(담당자/일정/추진현황)
  * 2. 이 파일은 조합만 한다. 상태는 hooks/useMeetingMinutesPage.ts, 화면 조각은 components/.
- * 3. 행을 클릭하면 회의 내용이 양식 형태로 펼쳐진다.
+ * 3. 행을 클릭하면 회의 내용이 양식 형태로 펼쳐지고, 오른쪽 AI 분석 패널에 그 회의록이 보인다.
+ *    (요약 · 해설 · 논리적 모순 · 액션 항목 · 추가 확인 필요, API: /api/meeting-minutes/[id]/analysis)
  *
  * @example
  * 접속 URL: /dashboard/meeting-minutes
@@ -16,7 +17,14 @@
 "use client";
 
 import { Icon, Button, Input, ConfirmModal } from "@/components/ui";
-import { MeetingMinuteStats, MeetingMinuteTable, MeetingMinuteModal, MeetingMinuteImportModal, MeetingAudioModal } from "./components";
+import {
+  MeetingMinuteStats,
+  MeetingMinuteTable,
+  MeetingMinuteModal,
+  MeetingMinuteImportModal,
+  MeetingAudioModal,
+  MeetingAnalysisPanel,
+} from "./components";
 import { useMeetingMinutesPage } from "./hooks/useMeetingMinutesPage";
 
 export default function MeetingMinutesPage() {
@@ -74,13 +82,21 @@ export default function MeetingMinutesPage() {
         </span>
       </div>
 
-      <MeetingMinuteTable
-        minutes={page.filtered}
-        isLoading={page.isLoading}
-        loadError={page.loadError}
-        onEdit={page.openEdit}
-        onDelete={page.setDeleting}
-      />
+      {/* 그리드 + 오른쪽 AI 분석 패널 (1280px 미만은 아래로 쌓는다) */}
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_440px] gap-6 items-start">
+        <MeetingMinuteTable
+          minutes={page.filtered}
+          isLoading={page.isLoading}
+          loadError={page.loadError}
+          onEdit={page.openEdit}
+          onDelete={page.setDeleting}
+          selectedId={page.selectedMinute?.id ?? null}
+          onSelect={page.selectMinute}
+        />
+        <aside aria-label="회의록 AI 분석" className="xl:sticky xl:top-4">
+          <MeetingAnalysisPanel key={page.selectedMinute?.id ?? "none"} minute={page.selectedMinute} />
+        </aside>
+      </div>
 
       <MeetingMinuteModal
         isOpen={page.modal.isOpen}

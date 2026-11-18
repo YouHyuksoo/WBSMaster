@@ -16,8 +16,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
-import { requireAuth, assertProjectAccess, type AuthUser } from "@/lib/auth";
-import { createLLMClient, resolveLLMConfig } from "@/lib/llm";
+import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { getUserLLM } from "@/lib/llm/user-llm";
 import { buildMinuteCode, dateKey, normalizeItems, parseDate } from "@/lib/meeting-minutes";
 import { parseMeetingSheet, readSheets, type ParsedMeetingMinute } from "@/lib/meeting-minutes-excel";
 import { extractMeetingMinutesWithLLM } from "@/lib/meeting-minutes-ai";
@@ -26,16 +26,6 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 type Parsed = ParsedMeetingMinute & { fileName: string; via: "양식" | "AI" };
 type Sheet = ReturnType<typeof readSheets>[number] & { fileName: string };
-
-/** 사용자 AI 설정으로 generate 함수를 만든다 (없으면 오류 문구) */
-async function llmGenerate(user: AuthUser) {
-  const setting = await prisma.aiSetting.findUnique({ where: { userId: user.id } });
-  if (!setting) return { error: "AI 설정이 없습니다. 설정 페이지에서 AI 제공자를 등록하세요." } as const;
-  const resolved = resolveLLMConfig(setting);
-  if (!resolved.ok) return { error: resolved.error } as const;
-  const client = createLLMClient(resolved.config);
-  return { generate: (prompt: string, system: string) => client.generate(prompt, system) } as const;
-}
 
 export async function POST(request: NextRequest) {
   const { user, error: authError } = await requireAuth();
@@ -85,9 +75,9 @@ export async function POST(request: NextRequest) {
 
   // 2) 양식으로 못 읽은 시트(또는 ai 모드의 모든 시트)는 LLM 이 읽는다
   if (needAi.length > 0) {
-    const llm = await llmGenerate(user!);
+    const llm = await getUserLLM(user!.id);
     for (const sheet of needAi) {
-      if ("error" in llm) {
+      if (llm.error !== undefined) {
         errors.push(`${sheet.fileName} [${sheet.name}]: 양식이 달라 AI 로 읽어야 하지만 ${llm.error}`);
         continue;
       }

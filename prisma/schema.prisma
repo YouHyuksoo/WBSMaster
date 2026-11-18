@@ -1688,10 +1688,36 @@ model MeetingMinute {
   projectId String
   project   Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   items     MeetingMinuteItem[] // 회의 내용 (Contents)
+  analysis  MeetingMinuteAnalysis? // AI 분석 결과 (회의록당 하나, 다시 분석하면 덮어쓴다)
 
   @@unique([projectId, code])
   @@index([projectId])
   @@map("meeting_minutes")
+}
+
+// ============================================
+// 회의록 AI 분석 (요약 · 해설 · 논리적 모순 · 액션 항목 · 추가 확인)
+// 분석은 오래 걸려 RUNNING 으로 먼저 저장하고, 끝나면 DONE/ERROR 로 바꾼다
+// result · sourceHash · model · requestedBy* · completedAt 은 "지금 보이는 결과"의 정보라 성공했을 때만 바뀐다
+// ============================================
+model MeetingMinuteAnalysis {
+  id              String    @id @default(uuid())
+  status          String    @default("RUNNING") // RUNNING(분석 중) / DONE(완료) / ERROR(실패)
+  result          Json? // 분석 결과 (src/lib/meeting-minutes-analysis.ts MeetingAnalysisResult)
+  error           String? // 실패 사유
+  sourceHash      String // 분석한 회의록 내용의 해시 (내용이 바뀌면 "다시 분석 필요" 표시)
+  model           String? // 사용한 AI (예: "OpenAI gpt-4.1")
+  requestedById   String? // 분석을 요청한 사용자 ID
+  requestedByName String? // 분석을 요청한 사용자 이름
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  minuteId String        @unique
+  minute   MeetingMinute @relation(fields: [minuteId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_minute_analyses")
 }
 
 // ============================================

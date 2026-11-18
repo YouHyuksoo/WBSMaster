@@ -8,6 +8,7 @@
  * 2. **useCreateMeetingMinute**: 생성 (문서번호는 서버가 부여)
  * 3. **useUpdateMeetingMinute**: 수정 (items 를 보내면 내용 항목 전체 교체)
  * 4. **useDeleteMeetingMinute**: 삭제
+ * 5. **useMeetingMinuteAnalysis / useAnalyzeMeetingMinute**: AI 분석 조회 · 시작 (분석 중이면 3초마다 다시 조회)
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -87,6 +88,25 @@ export function useMeetingAudioJob(jobId: string | null) {
       return stage === "done" || stage === "error" ? false : 3000;
     },
     retry: false,
+  });
+}
+
+/** 회의록 AI 분석 조회 (분석 중이면 3초마다 다시 묻는다) */
+export function useMeetingMinuteAnalysis(minuteId: string | null) {
+  return useQuery({
+    queryKey: [...meetingMinuteKeys.all, "analysis", minuteId],
+    queryFn: () => api.meetingMinutes.getAnalysis(minuteId!),
+    enabled: !!minuteId,
+    refetchInterval: (query) => (query.state.data?.analysis?.status === "RUNNING" ? 3000 : false),
+  });
+}
+
+/** 회의록 AI 분석 시작 (응답의 RUNNING 상태를 바로 캐시에 넣어 조회가 이어지게 한다) */
+export function useAnalyzeMeetingMinute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (minuteId: string) => api.meetingMinutes.analyze(minuteId),
+    onSuccess: (data, minuteId) => queryClient.setQueryData([...meetingMinuteKeys.all, "analysis", minuteId], data),
   });
 }
 

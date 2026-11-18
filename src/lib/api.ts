@@ -971,6 +971,27 @@ export interface MeetingMinuteInput {
   items?: Array<{ content: string; assignee?: string; dueDate?: string; status?: MeetingItemStatus }>;
 }
 
+/** 회의록 AI 분석 결과 (src/lib/meeting-minutes-analysis.ts MeetingAnalysisResult 와 같은 모양) */
+export interface MeetingAnalysisResult {
+  summary: string;              // 요약
+  commentary: string;           // 해설
+  contradictions: Array<{ title: string; detail: string; items: number[] }>; // 논리적 모순 (items: 근거 항목 번호, 1부터)
+  actionItems: Array<{ task: string; assignee: string | null; dueDate: string | null; items: number[] }>; // 액션 항목
+  followUps: Array<{ question: string; reason: string; items: number[] }>; // 추가 확인 필요
+}
+
+/** 회의록 AI 분석 상태 (GET/POST /api/meeting-minutes/[id]/analysis) */
+export interface MeetingMinuteAnalysis {
+  status: "RUNNING" | "DONE" | "ERROR";
+  error: string | null;
+  result: MeetingAnalysisResult | null; // 다시 분석 중에도 이전 결과가 남아 있다
+  stale: boolean;               // 분석 뒤 회의록 내용이 바뀜
+  model: string | null;         // 사용한 AI
+  requestedByName: string | null;
+  startedAt: string;
+  completedAt: string | null;
+}
+
 /** 회의록 엑셀 가져오기 결과 */
 export interface MeetingMinuteImportResult {
   success: boolean;
@@ -2043,6 +2064,10 @@ export const api = {
     },
     /** 음성 회의록 작업 상태 */
     audioStatus: (jobId: string) => get<MeetingAudioJobStatus>(`/api/meeting-minutes/audio/${jobId}`),
+    /** AI 분석 조회 (없으면 analysis: null) */
+    getAnalysis: (id: string) => get<{ analysis: MeetingMinuteAnalysis | null }>(`/api/meeting-minutes/${id}/analysis`),
+    /** AI 분석 시작 (202, 결과는 getAnalysis 로 묻는다) */
+    analyze: (id: string) => post<{ analysis: MeetingMinuteAnalysis | null }>(`/api/meeting-minutes/${id}/analysis`, {}),
   },
 
   // ============================================
