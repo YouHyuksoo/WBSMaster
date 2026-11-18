@@ -2,12 +2,17 @@
  * @file src/app/dashboard/documents/components/DocumentModal.tsx
  * @description
  * 문서 등록/수정 모달 컴포넌트입니다.
+ *
+ * 초보자 가이드:
+ * - 문서 위치가 "서버"면 내 PC 파일을 고른다 (DocumentFileField). 실제 업로드는 page.tsx 가 문서를 저장한 뒤 한다.
+ * - uploadProgress(0~1)가 오면 올리는 중이라 취소 · 저장 버튼을 막는다. 저장 실패 문구는 모달 안에 보여 준다.
  */
 
 "use client";
 
 import { useState, useEffect } from "react";
 import { Icon, Button, Input } from "@/components/ui";
+import { DocumentFileField } from "./DocumentFileField";
 import {
   type Document,
   type DocumentFormData,
@@ -28,6 +33,8 @@ interface DocumentModalProps {
   isPersonal?: boolean;
   onClose: () => void;
   onSubmit: (data: DocumentFormData) => Promise<void>;
+  /** 파일 올리는 진행률 (0~1, 올리는 중이 아니면 null) */
+  uploadProgress?: number | null;
 }
 
 export function DocumentModal({
@@ -37,10 +44,12 @@ export function DocumentModal({
   isPersonal = false,
   onClose,
   onSubmit,
+  uploadProgress = null,
 }: DocumentModalProps) {
   const [formData, setFormData] = useState<DocumentFormData>(createDefaultFormData(isPersonal));
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // 모달 열릴 때 폼 초기화
   useEffect(() => {
@@ -60,8 +69,21 @@ export function DocumentModal({
         setFormData(createDefaultFormData(isPersonal));
       }
       setTagInput("");
+      setSubmitError(null);
     }
   }, [isOpen, mode, document, isPersonal]);
+
+  // 서버 업로드인데 파일이 없으면 저장할 수 없다 (수정 모드는 이미 올린 파일이 있으면 된다)
+  const needsFile = formData.sourceType === "SERVER_UPLOAD" && !formData.file && !(mode === "edit" && document?.filePath);
+
+  // 파일을 고르면 비어 있는 문서명을 파일 이름(확장자 제외)으로 채운다
+  const handleFileChange = (file: File | null) => {
+    setFormData((prev) => ({
+      ...prev,
+      file,
+      name: prev.name.trim() || !file ? prev.name : file.name.replace(/\.[^.]+$/, ""),
+    }));
+  };
 
   // 태그 추가
   const handleAddTag = () => {
@@ -85,12 +107,15 @@ export function DocumentModal({
   // 제출
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim() || needsFile) return;
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await onSubmit(formData);
       onClose();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "저장하지 못했습니다.");
     } finally {
       setIsSubmitting(false);
     }
@@ -215,17 +240,15 @@ export function DocumentModal({
             </div>
           )}
 
-          {/* 서버 업로드 안내 */}
+          {/* 서버 업로드: 내 PC 파일 */}
           {formData.sourceType === "SERVER_UPLOAD" && (
-            <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                <Icon name="info" size="sm" />
-                <span className="text-sm font-medium">서버 업로드 기능</span>
-              </div>
-              <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-1">
-                서버 업로드 기능은 추후 지원 예정입니다. 현재는 외부 링크를 사용해주세요.
-              </p>
-            </div>
+            <DocumentFileField
+              file={formData.file ?? null}
+              currentFileName={mode === "edit" ? document?.fileName : null}
+              currentFileSize={mode === "edit" ? document?.fileSize : null}
+              progress={uploadProgress}
+              onChange={handleFileChange}
+            />
           )}
 
           {/* 태그 */}
@@ -270,18 +293,24 @@ export function DocumentModal({
             )}
           </div>
 
+          {submitError && (
+            <p role="alert" className="px-3 py-2 rounded-lg border border-error/20 bg-error/10 text-sm text-error">
+              {submitError}
+            </p>
+          )}
+
           {/* 버튼 */}
           <div className="flex gap-2 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={isSubmitting}>
               취소
             </Button>
             <Button
               type="submit"
               variant="primary"
               className="flex-1"
-              disabled={isSubmitting || !formData.name.trim()}
+              disabled={isSubmitting || !formData.name.trim() || needsFile}
             >
-              {isSubmitting ? "저장 중..." : mode === "create" ? "등록" : "저장"}
+              {uploadProgress !== null ? "파일 올리는 중..." : isSubmitting ? "저장 중..." : mode === "create" ? "등록" : "저장"}
             </Button>
           </div>
         </form>

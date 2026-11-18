@@ -1839,10 +1839,6 @@ export const api = {
       version?: string;
       sourceType: DocumentSourceType;
       url?: string;
-      filePath?: string;
-      fileName?: string;
-      fileSize?: number;
-      mimeType?: string;
       tags?: string[];
       isPersonal?: boolean;
     }) => post<Document>("/api/documents", data),
@@ -1851,6 +1847,36 @@ export const api = {
       patch<Document>(`/api/documents/${id}`, data),
     /** 삭제 */
     delete: (id: string) => del<{ success: boolean }>(`/api/documents/${id}`),
+    /** 서버 업로드 파일 주소 (download=true 면 항상 내려받기) */
+    fileUrl: (id: string, download = false) => `/api/documents/${id}/file${download ? "?download=1" : ""}`,
+    /**
+     * 파일 올리기 (있으면 바꾸기). 본문이 파일 자체이며 진행률을 받으려고 XHR 을 쓴다 (fetch 는 업로드 진행률이 없다)
+     */
+    uploadFile: (id: string, file: File, onProgress?: (ratio: number) => void) =>
+      new Promise<Document>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", `/api/documents/${id}/file`);
+        xhr.setRequestHeader("x-file-name", encodeURIComponent(file.name));
+        xhr.setRequestHeader("Content-Type", "application/octet-stream");
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) onProgress?.(e.loaded / e.total);
+        };
+        xhr.onload = () => {
+          let body: { error?: string } | Document | null = null;
+          try {
+            body = JSON.parse(xhr.responseText);
+          } catch {
+            /* IIS 등 앞단이 HTML 오류를 돌려준 경우 */
+          }
+          if (xhr.status >= 200 && xhr.status < 300 && body) return resolve(body as Document);
+          const message =
+            (body as { error?: string } | null)?.error ??
+            (xhr.status === 413 || xhr.status === 404 ? "파일이 너무 커서 서버가 받지 않았습니다." : `파일을 올리지 못했습니다. (${xhr.status})`);
+          reject(new Error(message));
+        };
+        xhr.onerror = () => reject(new Error("네트워크 오류로 파일을 올리지 못했습니다."));
+        xhr.send(file);
+      }),
   },
 
   /** 설비 관리 API */

@@ -5,8 +5,8 @@
  *
  * 초보자 가이드:
  * - GET /api/documents/[id]: 단건 조회
- * - PATCH /api/documents/[id]: 수정
- * - DELETE /api/documents/[id]: 삭제
+ * - PATCH /api/documents/[id]: 수정 (파일 정보는 받지 않는다. 파일은 PUT /api/documents/[id]/file)
+ * - DELETE /api/documents/[id]: 삭제 (서버 업로드 파일도 지운다)
  * - 인증: requireAuth + assertProjectAccess (문서의 projectId 기준, 프로젝트 멤버 · ADMIN 만)
  *   개인문서(isPersonal)는 작성자 본인만 조회 · 수정 · 삭제할 수 있다
  */
@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { removeDocumentFile } from "@/lib/document-files";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -122,10 +123,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       "version",
       "sourceType",
       "url",
-      "filePath",
-      "fileName",
-      "fileSize",
-      "mimeType",
       "tags",
       "isFavorite",
       "order",
@@ -136,6 +133,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         updateData[field] = body[field];
       }
     }
+
+    // 서버 파일 문서를 링크 문서로 바꾸면 파일 정보를 비우고 파일도 지운다
+    const leavesUpload = existingDocument.sourceType === "SERVER_UPLOAD" && updateData.sourceType !== undefined && updateData.sourceType !== "SERVER_UPLOAD";
+    if (leavesUpload) Object.assign(updateData, { filePath: null, fileName: null, fileSize: null, mimeType: null });
 
     const document = await prisma.document.update({
       where: { id },
@@ -157,6 +158,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         },
       },
     });
+
+    if (leavesUpload) await removeDocumentFile(existingDocument.filePath);
 
     return NextResponse.json(document);
   } catch (error) {
@@ -203,12 +206,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 서버 업로드 파일인 경우 파일 삭제 로직 추가 가능
-    // (현재는 DB 레코드만 삭제)
-
     await prisma.document.delete({
       where: { id },
     });
+    // 서버 업로드 파일도 지운다 (실패해도 문서 삭제는 유지)
+    await removeDocumentFile(existingDocument.filePath).catch((e) => console.error("문서 파일 삭제 실패:", e));
 
     return NextResponse.json({ success: true });
   } catch (error) {

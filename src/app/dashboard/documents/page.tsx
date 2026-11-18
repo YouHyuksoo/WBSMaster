@@ -8,21 +8,21 @@
  * 초보자 가이드:
  * 1. **공용문서함**: 팀 전체가 공유하는 문서
  * 2. **개인문서함**: 개인용 문서 (다른 사람에게 보이지 않음)
- * 3. **미리보기**: 문서 클릭 시 모달에서 미리보기
+ * 3. **미리보기**: 문서 클릭 시 모달에서 미리보기 (DocumentPreviewModal)
+ * 4. **서버 업로드**: 문서를 먼저 저장한 뒤 파일을 PUT /api/documents/[id]/file 로 올린다.
+ *    새 문서인데 파일 올리기가 실패하면 방금 만든 문서를 지워 빈 문서가 남지 않게 한다.
  */
 
 "use client";
 
 import { useState, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Icon } from "@/components/ui";
 import { useProject } from "@/contexts";
-import { useCreateDocument, useUpdateDocument } from "@/hooks";
-import { DocumentModal, DocumentListPanel } from "./components";
-import {
-  type Document,
-  type DocumentFormData,
-  DOCUMENT_CATEGORY_CONFIG,
-} from "./types";
+import { useCreateDocument, useUpdateDocument, documentKeys } from "@/hooks";
+import { api } from "@/lib/api";
+import { DocumentModal, DocumentListPanel, DocumentPreviewModal, canPreviewDocument } from "./components";
+import { type Document, type DocumentFormData } from "./types";
 
 export default function DocumentsPage() {
   const { selectedProjectId } = useProject();
@@ -46,6 +46,22 @@ export default function DocumentsPage() {
   // Mutations
   const createMutation = useCreateDocument();
   const updateMutation = useUpdateDocument();
+  const queryClient = useQueryClient();
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  // 파일 올리기 (진행률 표시, 끝나면 목록 새로고침)
+  const uploadFile = useCallback(
+    async (id: string, file: File) => {
+      setUploadProgress(0);
+      try {
+        await api.documents.uploadFile(id, file, setUploadProgress);
+      } finally {
+        setUploadProgress(null);
+        queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
+      }
+    },
+    [queryClient]
+  );
 
   // 모달 열기 - 등록
   const handleOpenCreate = useCallback((isPersonal: boolean) => {
@@ -65,8 +81,9 @@ export default function DocumentsPage() {
   // 제출 핸들러
   const handleSubmit = useCallback(
     async (formData: DocumentFormData) => {
+      const file = formData.sourceType === "SERVER_UPLOAD" ? formData.file : null;
       if (modalState.mode === "create") {
-        await createMutation.mutateAsync({
+        const created = await createMutation.mutateAsync({
           projectId: selectedProjectId || "",
           name: formData.name,
           description: formData.description,
@@ -77,6 +94,15 @@ export default function DocumentsPage() {
           tags: formData.tags,
           isPersonal: formData.isPersonal,
         });
+        if (file) {
+          try {
+            await uploadFile(created.id, file);
+          } catch (error) {
+            await api.documents.delete(created.id).catch(() => {}); // 빈 문서를 남기지 않는다
+            queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
+            throw error;
+          }
+        }
       } else if (modalState.document) {
         await updateMutation.mutateAsync({
           id: modalState.document.id,
@@ -90,41 +116,16 @@ export default function DocumentsPage() {
             tags: formData.tags,
           },
         });
+        if (file) await uploadFile(modalState.document.id, file);
       }
     },
-    [modalState, selectedProjectId, createMutation, updateMutation]
+    [modalState, selectedProjectId, createMutation, updateMutation, uploadFile, queryClient]
   );
 
   // 문서 열기 (미리보기)
   const handleOpenDocument = useCallback((doc: Document) => {
-    if (doc.url) {
-      setPreviewDocument(doc);
-    }
+    if (canPreviewDocument(doc)) setPreviewDocument(doc);
   }, []);
-
-  // 새 창에서 열기
-  const handleOpenInNewTab = useCallback((url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
-  }, []);
-
-  // 임베드 URL 생성
-  const getEmbedUrl = (url: string): string => {
-    if (!url) return "";
-    if (url.includes("embed")) return url;
-    if (url.includes("1drv.ms") || url.includes("onedrive.live.com") || url.includes("sharepoint.com")) {
-      const separator = url.includes("?") ? "&" : "?";
-      return `${url}${separator}action=embedview`;
-    }
-    if (url.includes("docs.google.com")) {
-      if (url.includes("/edit")) {
-        return url.replace("/edit", "/preview");
-      }
-      if (!url.includes("/preview")) {
-        return url + (url.endsWith("/") ? "" : "/") + "preview";
-      }
-    }
-    return url;
-  };
 
   return (
     <div className="p-6 h-full flex flex-col">
@@ -198,56 +199,11 @@ export default function DocumentsPage() {
         isPersonal={modalState.isPersonal}
         onClose={handleCloseModal}
         onSubmit={handleSubmit}
+        uploadProgress={uploadProgress}
       />
 
       {/* 문서 미리보기 모달 */}
-      {previewDocument && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-background-white dark:bg-surface-dark rounded-xl w-full max-w-5xl h-[85vh] mx-4 flex flex-col overflow-hidden">
-            {/* 모달 헤더 */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border dark:border-border-dark">
-              <div className="flex items-center gap-2">
-                <Icon name={DOCUMENT_CATEGORY_CONFIG[previewDocument.category].icon} size="sm" className="text-primary" />
-                <h3 className="font-semibold text-text dark:text-white">{previewDocument.name}</h3>
-                <span className="text-xs text-text-secondary">v{previewDocument.version || "1.0"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {previewDocument.url && (
-                  <button
-                    onClick={() => handleOpenInNewTab(previewDocument.url!)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-surface dark:bg-background-dark text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors"
-                  >
-                    <Icon name="open_in_new" size="xs" />
-                    <span>새 창에서 열기</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => setPreviewDocument(null)}
-                  className="size-8 rounded-lg flex items-center justify-center hover:bg-surface dark:hover:bg-background-dark text-text-secondary hover:text-text transition-colors"
-                >
-                  <Icon name="close" size="sm" />
-                </button>
-              </div>
-            </div>
-            {/* iframe 컨테이너 */}
-            <div className="flex-1 bg-surface dark:bg-background-dark">
-              {previewDocument.url ? (
-                <iframe
-                  src={getEmbedUrl(previewDocument.url)}
-                  className="w-full h-full border-0"
-                  title={previewDocument.name}
-                  allow="fullscreen"
-                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-text-secondary">미리보기를 지원하지 않는 문서입니다.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {previewDocument && <DocumentPreviewModal document={previewDocument} onClose={() => setPreviewDocument(null)} />}
     </div>
   );
 }

@@ -84,6 +84,8 @@ export interface DocumentFormData {
   url?: string;
   tags?: string[];
   isPersonal?: boolean;
+  /** 서버 업로드로 올릴 파일 (화면 전용, 저장 뒤 PUT /api/documents/[id]/file 로 보낸다) */
+  file?: File | null;
 }
 
 /** 기본 폼 값 생성 함수 */

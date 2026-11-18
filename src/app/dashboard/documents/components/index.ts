@@ -6,3 +6,5 @@
 
 export { DocumentModal } from "./DocumentModal";
 export { DocumentListPanel } from "./DocumentListPanel";
+export { DocumentFileField } from "./DocumentFileField";
+export { DocumentPreviewModal, canPreviewDocument } from "./DocumentPreviewModal";

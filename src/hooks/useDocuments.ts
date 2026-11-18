@@ -75,10 +75,6 @@ export function useCreateDocument() {
       version?: string;
       sourceType: DocumentSourceType;
       url?: string;
-      filePath?: string;
-      fileName?: string;
-      fileSize?: number;
-      mimeType?: string;
       tags?: string[];
       isPersonal?: boolean;
     }) => api.documents.create(data),

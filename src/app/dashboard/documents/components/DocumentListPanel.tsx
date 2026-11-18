@@ -8,12 +8,15 @@
  * 1. **isPersonal**: true면 개인문서함, false면 공용문서함
  * 2. **onOpenDocument**: 문서 클릭 시 미리보기 콜백
  * 3. **onEdit/onDelete**: 수정/삭제 콜백
+ * 4. **서버 업로드 문서**: 크기를 보여 주고 "내려받기" 버튼을 둔다. 올린 파일 문서는 복사 버튼을 숨긴다.
  */
 
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
 import { Icon, Button, Input, ConfirmModal, useToast } from "@/components/ui";
+import { api } from "@/lib/api";
+import { formatFileSize } from "@/lib/document-file-rules";
 import {
   useDocuments,
   useToggleFavorite,
@@ -352,6 +355,12 @@ export function DocumentListPanel({
                       )}
                       <div className="flex items-center gap-2 mt-1 text-[10px] text-text-secondary">
                         <span>v{doc.version || "1.0"}</span>
+                        {doc.fileSize ? (
+                          <>
+                            <span>•</span>
+                            <span className="tabular-nums">{formatFileSize(doc.fileSize)}</span>
+                          </>
+                        ) : null}
                         <span>•</span>
                         <span>{doc.createdBy?.name || "-"}</span>
                         <span>•</span>
@@ -378,6 +387,17 @@ export function DocumentListPanel({
                           <Icon name="open_in_new" size="xs" />
                         </button>
                       )}
+                      {!doc.url && doc.filePath && (
+                        <a
+                          href={api.documents.fileUrl(doc.id, true)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="size-6 rounded flex items-center justify-center hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
+                          title="내려받기"
+                          aria-label={`${doc.name} 내려받기`}
+                        >
+                          <Icon name="download" size="xs" />
+                        </a>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -388,17 +408,19 @@ export function DocumentListPanel({
                       >
                         <Icon name="preview" size="xs" />
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopyDocument(doc);
-                        }}
-                        className="size-6 rounded flex items-center justify-center hover:bg-success/10 text-text-secondary hover:text-success transition-colors"
-                        title="문서 복사"
-                        disabled={createMutation.isPending}
-                      >
-                        <Icon name="file_copy" size="xs" />
-                      </button>
+                      {doc.sourceType !== "SERVER_UPLOAD" && ( // 올린 파일은 복사하지 않는다 (파일 없는 빈 문서가 생김)
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyDocument(doc);
+                          }}
+                          className="size-6 rounded flex items-center justify-center hover:bg-success/10 text-text-secondary hover:text-success transition-colors"
+                          title="문서 복사"
+                          disabled={createMutation.isPending}
+                        >
+                          <Icon name="file_copy" size="xs" />
+                        </button>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

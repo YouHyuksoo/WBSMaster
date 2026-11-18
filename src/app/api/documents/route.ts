@@ -8,7 +8,7 @@
  * - GET /api/documents: 목록 조회 (필터링 지원)
  *   - isPersonal=true: 개인문서함 (프로젝트 내 본인 문서만)
  *   - isPersonal=false: 공용문서함 (프로젝트 내 모든 공용 문서)
- * - POST /api/documents: 새 문서 등록
+ * - POST /api/documents: 새 문서 등록 (파일은 등록 뒤 PUT /api/documents/[id]/file 로 올린다)
  * - 인증: requireAuth + assertProjectAccess (프로젝트 멤버 · ADMIN 만)
  *   GET 에서 projectId 를 빼면 ADMIN 만 전체 조회, 그 외는 400 (useDocuments 는 projectId 가 있을 때만 호출)
  */
@@ -131,13 +131,9 @@ export async function POST(request: NextRequest) {
       version,
       sourceType,
       url,
-      filePath,
-      fileName,
-      fileSize,
-      mimeType,
       tags,
       isPersonal = false,
-    } = body;
+    } = body; // 파일 정보(filePath 등)는 받지 않는다: PUT /api/documents/[id]/file 만 쓴다
 
     // 필수 필드 검증
     if (!projectId || !name || !category || !sourceType) {
@@ -179,10 +175,6 @@ export async function POST(request: NextRequest) {
         version: version || "1.0",
         sourceType,
         url: url || null,
-        filePath: filePath || null,
-        fileName: fileName || null,
-        fileSize: fileSize || null,
-        mimeType: mimeType || null,
         tags: tags || [],
         order: newOrder,
         isPersonal,
