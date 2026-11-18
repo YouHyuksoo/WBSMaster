@@ -9,6 +9,7 @@
  * 2. **다크모드 토글**: 라이트/다크 모드 전환
  * 3. **알림**: 새 알림 표시 (빨간 점)
  * 4. **사용자 프로필**: 현재 로그인한 사용자 정보
+ * 5. **앱 버전**: 로고 옆 `v0.1.0 029d7c4` (package.json version + 빌드 커밋, next.config.ts env 에서 빌드 때 박힘)
  *
  * 수정 방법:
  * - 헤더 높이 변경: h-16 클래스 수정
@@ -57,6 +58,11 @@ interface DashboardHeaderProps {
  */
 /** 브랜드 컬러 테마 (jisung-ui themeStore 와 같은 값 · 순서) */
 type ColorTheme = "default" | "custom" | "orchid";
+/** 앱 버전 · 빌드 정보 (next.config.ts env) */
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "";
+const APP_COMMIT = process.env.NEXT_PUBLIC_APP_COMMIT ?? "";
+const BUILD_TIME = process.env.NEXT_PUBLIC_BUILD_TIME ?? "";
+
 const COLOR_THEME_ORDER: ColorTheme[] = ["default", "custom", "orchid"];
 const COLOR_THEME_LABELS: Record<ColorTheme, string> = { default: "기본", custom: "Custom", orchid: "Orchid" };
 
@@ -535,6 +541,13 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
           <h2 className="text-text dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] hidden sm:block">
             WBS Master
           </h2>
+          <span
+            className="hidden sm:inline font-mono tabular-nums text-[11px] text-text-secondary"
+            title={`버전 ${APP_VERSION}${APP_COMMIT ? ` · 커밋 ${APP_COMMIT}` : ""} · 빌드 ${BUILD_TIME}`}
+          >
+            v{APP_VERSION}
+            {APP_COMMIT && <span className="ml-1 opacity-70">{APP_COMMIT}</span>}
+          </span>
         </Link>
 
         {/* 프로젝트 선택 드롭다운 */}
