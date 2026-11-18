@@ -423,8 +423,8 @@ export default function InterviewsPage() {
 
       {selectedProjectId && (
         <>
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* 통계 카드 (list-page-style 6열 그리드: 카드 4개라도 회의록 · 이슈 화면과 같은 크기) */}
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
             {/* 완료율 카드 (이관 완료 비율) */}
             <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
               <div className="flex items-center gap-2 mb-2">
