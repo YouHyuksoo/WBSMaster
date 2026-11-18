@@ -5,7 +5,7 @@
  *
  * 초보자 가이드:
  * - 열: 문서번호 · 일자 · 시간 · 회의 목적 · 장소 · 작성자 · 조치(완료/전체) · 관리
- * - 표 폭이 56rem 보다 좁으면(오른쪽 AI 분석 패널이 옆에 있는 노트북 화면) 시간 · 장소 · 작성자 칸을 빼고
+ * - 표 폭이 72rem 보다 좁으면(오른쪽 AI 분석 패널이 옆에 있는 노트북 화면) 시간 · 장소 · 작성자 칸을 빼고
  *   회의 목적 아래 작은 줄로 보여 준다 (container query: 화면 폭이 아니라 표 폭 기준).
  * - 행 클릭: 상세 펼치기/접기 + 선택(오른쪽 AI 분석 패널에 보임). 수정·삭제 버튼은 클릭이 행으로 번지지 않게 막는다.
  * - 선택한 행은 왼쪽 primary 띠로 표시한다. Enter · Space 로도 선택할 수 있다.
@@ -27,11 +27,13 @@ interface MeetingMinuteTableProps {
   onSelect?: (minute: MeetingMinute) => void;
 }
 
-/** 칸 구성: 좁은 표(5칸) / 넓은 표(8칸) */
+/** 칸 구성: 좁은 표(5칸) / 넓은 표(8칸).
+ *  넓은 표의 고정 칸 합은 약 870px(칸 776 + 간격 56 + 좌우 여백 32)이다. 72rem(1152px)부터 넓혀야 회의 목적 칸이 280px 이상 남는다.
+ *  고정 칸을 넓히면 이 기준도 같이 올린다 (56rem 일 때 1700px 화면에서 회의 목적이 60px 로 잘렸다). */
 const COLS =
-  "grid-cols-[136px_96px_minmax(0,1fr)_56px_72px] @min-[56rem]:grid-cols-[136px_100px_110px_minmax(0,1fr)_160px_110px_80px_80px]";
+  "grid-cols-[136px_96px_minmax(0,1fr)_56px_72px] @min-[72rem]:grid-cols-[136px_100px_110px_minmax(0,1fr)_160px_110px_80px_80px]";
 /** 넓은 표에서만 보이는 칸 */
-const WIDE = "hidden @min-[56rem]:block";
+const WIDE = "hidden @min-[72rem]:block";
 
 export function MeetingMinuteTable({ minutes, isLoading, loadError, onEdit, onDelete, selectedId, onSelect }: MeetingMinuteTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -105,7 +107,7 @@ export function MeetingMinuteTable({ minutes, isLoading, loadError, onEdit, onDe
                       {minute.title}
                     </div>
                     {/* 좁은 표: 빠진 칸(시간 · 장소 · 작성자)을 작은 줄로 */}
-                    <div className="@min-[56rem]:hidden mt-0.5 text-xs text-text-secondary truncate">
+                    <div className="@min-[72rem]:hidden mt-0.5 text-xs text-text-secondary truncate">
                       {[formatTimeRange(minute.startTime, minute.endTime), minute.location, minute.author].filter((v) => v && v !== "-").join(" · ") || "-"}
                     </div>
                   </div>
