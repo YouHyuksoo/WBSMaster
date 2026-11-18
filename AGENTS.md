@@ -20,6 +20,7 @@
 
 - 브랜치는 `main` 하나 (원격 `origin/main`).
 - `main` 에 push 하면 GitHub Actions(self-hosted, 지성 IDC 서버)가 자동 배포한다. 자세한 내용: `docs/guides/deployment.md`.
+- 운영 배포는 폴더 두 개(A `D:\Project\WBSMaster`, B `D:\Project\WBSMaster-b`)를 번갈아 쓴다 (`scripts/deploy-blue-green.ps1`). 쉬는 폴더에서 빌드 · 사전 점검 후 PM2 만 옮겨 끊김이 수 초다. 운영 환경 변수는 A 의 `.env.local` 만 고친다(배포 때 B 로 복사). 업로드 · 백업은 `UPLOAD_DIR` · `BACKUP_DIR` 절대 경로로 공유한다.
 - husky pre-push 가 `npm ci --dry-run`(lock 동기화)과 `npx tsc --noEmit` 을 돌린다. 타입 오류나 lock 불일치가 있으면 push 가 막힌다. pre-commit 은 검증 없음.
 - 커밋 메시지: Conventional Commit 접두사(`feat:`, `fix:`, `docs:`, `ci:`, `refactor:`) + 한국어 요약, 한 커밋에 한 변경.
 - PR 에는 요약, 관련 이슈/태스크, 테스트 결과, Prisma 변경 시 마이그레이션 노트, 화면 변경 시 스크린샷을 넣는다.

@@ -50,63 +50,40 @@ git push origin main → GitHub Actions 트리거 → 서버 자동 배포
 
 ## 주요 파일
 
-### 1. GitHub Actions 워크플로우
+### 1. GitHub Actions 워크플로우 (무중단에 가까운 배포, 2026-11-18)
 
-**파일**: `.github/workflows/deploy.yml`
+**파일**: `.github/workflows/deploy.yml` → `scripts/deploy-blue-green.ps1`
 
-```yaml
-name: Deploy to Windows Server
+배포 폴더를 두 개 두고 번갈아 쓴다. 서비스 중인 폴더는 건드리지 않고, 쉬는 폴더에서 빌드 · 점검을 끝낸 뒤 PM2 만 옮긴다.
 
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:  # 수동 실행
+| 항목 | 값 |
+|------|----|
+| 폴더 A | `D:\Project\WBSMaster` (원래 저장소, 러너 작업 폴더) |
+| 폴더 B | `D:\Project\WBSMaster-b` (A 의 `git worktree`, 첫 배포 때 자동 생성) |
+| 서비스 중 표시 | `D:\Project\wbs-active-slot.txt` (없으면 A) |
+| 공유 데이터 | A 의 `.env.local` 에 `UPLOAD_DIR=D:/Project/WBSMaster/uploads`, `BACKUP_DIR=D:/Project/WBSMaster/backups`. `.env.local` 은 매 배포 A 것을 B 로 복사 (**환경 변수는 A 의 `.env.local` 만 고친다**) |
+| 로그 | 폴더마다 `logs/` (지금 서비스 중인 폴더의 것을 본다) |
 
-jobs:
-  deploy:
-    runs-on: self-hosted
+순서:
+1. `git fetch origin main` (서비스 중인 폴더의 파일은 그대로)
+2. 배포할 커밋에서 `scripts/deploy-blue-green.ps1` 을 꺼내 실행 (스크립트는 UTF-8 BOM 필수: PowerShell 5.1)
+3. 쉬는 폴더: `git checkout --force --detach <커밋>` → `npm ci` → `prisma migrate status`(운영 DB 에 없는 마이그레이션이 있으면 **여기서 멈춤, 서비스 영향 없음**) → `prisma generate` → `npm run build`
+4. 사전 점검: 쉬는 폴더를 3021 포트로 띄워 `/login` 200 확인 후 끈다
+5. 전환: `pm2 delete wbs-master` → 새 폴더의 `ecosystem.config.js` 로 `pm2 start` → 3020 `/login` 200 확인 → 표시 파일 갱신 → `pm2 save`
+6. 3020 이 응답하지 않으면 이전 폴더로 자동 되돌리고 실패로 끝난다
 
-    defaults:
-      run:
-        working-directory: C:\Project\WBSMaster
+끊기는 시간은 5단계뿐(수 초)이고, 그동안 IIS 가 점검 안내 페이지(`maintenance.html`)를 보여 준다.
 
-    steps:
-      - name: Check current user
-        run: |
-          whoami
-          echo %USERPROFILE%
-        shell: cmd
+**수동 되돌리기** (서버 PowerShell, 관리자):
 
-      - name: Configure Git safe directory
-        run: git config --global --add safe.directory C:/Project/WBSMaster
-
-      - name: Stop all Node processes
-        run: taskkill /F /IM node.exe /T 2>nul || echo "No node process"
-        shell: cmd
-        continue-on-error: true
-
-      - name: Pull latest code
-        run: |
-          git fetch origin main
-          git reset --hard origin/main
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
-      - name: Build
-        run: npm run build
-
-      - name: Restart with PM2
-        run: |
-          set PM2_HOME=C:\Users\Administrator\.pm2
-          pm2 start ecosystem.config.js --update-env
-          pm2 list
-          pm2 save
-        shell: cmd
+```powershell
+$env:PM2_HOME = "C:\Users\Administrator\.pm2"
+$old = "D:\Project\WBSMaster"   # 되돌릴 폴더 (A 또는 D:\Project\WBSMaster-b)
+pm2 delete wbs-master; pm2 start "$old\ecosystem.config.js" --update-env; pm2 save
+Set-Content D:\Project\wbs-active-slot.txt $old -Encoding ASCII
 ```
+
+**마이그레이션 수동 적용**은 어느 폴더에서 해도 같은 운영 DB 에 간다. 새 마이그레이션 파일이 있는 커밋을 받은 폴더에서 실행한다.
 
 ### 2. PM2 설정
 
@@ -141,6 +118,20 @@ module.exports = {
 **파일**: `scripts/server-manager.bat`
 
 PM2 및 Runner 설치/관리를 위한 배치 스크립트입니다.
+
+## 운영 IIS 설정 (지성 IDC, 2026-11-18)
+
+운영 주소 https://wbs.jisheng.co.kr 은 IIS 사이트 `wbs.jisheng.co.kr`(폴더 `C:\inetpub\wbs`)가 받아 PM2 앱(127.0.0.1:3020)으로 넘긴다(ARR 리버스 프록시).
+이 설정은 저장소에 없고 배포 워크플로도 건드리지 않는다. 바꿀 때는 `web.config` 를 먼저 백업한다.
+
+| 설정 | 값 | 위치 | 이유 |
+|------|----|------|------|
+| 업로드 한도 | `requestLimits maxAllowedContentLength="220200960"` (210MB) | `C:\inetpub\wbs\web.config` | 문서함 파일 · 음성 녹음 200MB. 기본값(약 28.6MB)이면 IIS 가 앱에 닿기 전에 막는다 |
+| 프록시 타임아웃 | `system.webServer/proxy timeout="00:10:00"` | applicationHost.config (서버 전체) | 큰 파일 업로드가 기본 2분을 넘을 수 있다 |
+| 점검 안내 페이지 | `httpErrors existingResponse="Auto"` + 502 · 503 → `maintenance.html` (`responseMode="File"`) | `C:\inetpub\wbs\web.config`, `C:\inetpub\wbs\maintenance.html` | 배포 중 앱이 멈추면 IIS 기본 502 페이지(CP949 글자가 깨져 보임) 대신 "업데이트 중" 안내. 30초마다 자동 재접속 |
+
+- `existingResponse="Auto"` 라서 앱이 직접 돌려준 오류(API 의 401 · 404 · 500 · 502 JSON)는 그대로 통과하고, IIS 가 만든 502 · 503(앱이 꺼져 있을 때)만 안내 페이지로 바뀐다.
+- 백업: `web.config.bak-20261118`(업로드 한도 전), `web.config.bak-20261118-2`(안내 페이지 전).
 
 ## 초기 설정
 

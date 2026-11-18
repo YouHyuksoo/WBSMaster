@@ -15,6 +15,7 @@ import { requireAuth } from "@/lib/auth";
 import * as fs from "fs";
 import * as path from "path";
 import { Pool } from "pg";
+import { BACKUP_DIR } from "@/lib/backup-dir";
 
 /** 백업 파일 정보 타입 */
 interface BackupFileInfo {
@@ -24,7 +25,7 @@ interface BackupFileInfo {
 }
 
 /** 백업 디렉토리 경로 */
-const BACKUP_DIR = path.join(process.cwd(), "backups");
+// 백업 폴더: BACKUP_DIR 환경 변수 또는 <프로젝트>/backups (src/lib/backup-dir.ts)
 
 /**
  * GET /api/backups
