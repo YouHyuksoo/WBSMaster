@@ -6,7 +6,7 @@
  * 초보자 가이드:
  * - POST { text, sdp }: 읽을 답변과 브라우저의 수신 전용 SDP offer.
  * - 응답: application/sdp. 실제 음성은 WebRTC로 브라우저에 직접 스트리밍됩니다.
- * - 키: 기준 설정 > 음성 회의록 의 OpenAI 키
+ * - 키: 기준 설정 > 음성 인식 의 OpenAI 키
  */
 
 import { NextRequest, NextResponse } from "next/server";

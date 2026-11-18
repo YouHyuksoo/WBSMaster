@@ -11,6 +11,7 @@
  */
 
 import { extractJson } from "./meeting-minutes-ai";
+import { VOICE_DEFAULT_HINTS } from "./voice-intake-rules";
 
 /** 인터뷰 업무영역 (화면 BUSINESS_CATEGORIES 와 같은 목록) */
 export const INTERVIEW_CATEGORIES = [
@@ -32,7 +33,7 @@ export interface InterviewDraft {
 }
 
 /** 전사 힌트 (OpenAI transcriptions prompt) */
-export const INTERVIEW_TRANSCRIBE_PROMPT = "한국어 현업 인터뷰 녹음입니다. MES, LOT, 인터락, 절곡, 작업지시, 실적 같은 업무 용어가 나옵니다.";
+export const INTERVIEW_TRANSCRIBE_PROMPT = VOICE_DEFAULT_HINTS.interview;
 
 export const INTERVIEW_SYSTEM_PROMPT = `당신은 제조 현업 인터뷰 녹취록을 인터뷰 기록으로 정리하는 도우미입니다.
 

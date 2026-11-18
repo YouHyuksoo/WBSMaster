@@ -6,7 +6,7 @@
  * 초보자 가이드:
  * - POST FormData: audio (MediaRecorder 녹음, webm/ogg/mp4/wav, 25MB 이하)
  * - 응답: { text }
- * - 키 · 모델: src/lib/openai-voice.ts chatVoiceConfig (기준 설정 > 음성 회의록 의 OpenAI 키)
+ * - 키 · 모델: src/lib/openai-voice.ts chatVoiceConfig (기준 설정 > 음성 인식 의 OpenAI 키)
  */
 
 import { NextRequest, NextResponse } from "next/server";

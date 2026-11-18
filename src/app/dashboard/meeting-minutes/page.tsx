@@ -22,10 +22,10 @@ import {
   MeetingMinuteTable,
   MeetingMinuteModal,
   MeetingMinuteImportModal,
-  MeetingAudioModal,
   MeetingAnalysisPanel,
 } from "./components";
 import { useMeetingMinutesPage } from "./hooks/useMeetingMinutesPage";
+import { VoiceIntakeModal } from "@/components/voice";
 
 export default function MeetingMinutesPage() {
   const page = useMeetingMinutesPage();
@@ -49,7 +49,7 @@ export default function MeetingMinutesPage() {
             Excel 가져오기
           </Button>
           <Button variant="outline" leftIcon="mic" onClick={() => page.setAudioOpen(true)} disabled={!page.selectedProjectId}>
-            음성으로 작성
+            음성으로 등록
           </Button>
           <Button variant="primary" leftIcon="add" onClick={page.openCreate} disabled={!page.selectedProjectId}>
             새 회의록 작성
@@ -112,11 +112,13 @@ export default function MeetingMinutesPage() {
         onClose={() => page.setImportOpen(false)}
       />
 
-      <MeetingAudioModal
+      {/* 음성으로 등록 (공통 파이프라인): 회의록으로 정리하면 이 화면 작성 창 */}
+      <VoiceIntakeModal
         isOpen={page.audioOpen}
         projectId={page.selectedProjectId ?? null}
+        defaultKind="meeting"
         onClose={() => page.setAudioOpen(false)}
-        onDraft={page.openDraft}
+        onOpenDraft={{ meeting: page.openVoiceDraft }}
       />
 
       <ConfirmModal

@@ -1001,42 +1001,67 @@ export interface MeetingMinuteImportResult {
   errors: string[];
 }
 
-/** 음성 회의록 작업 상태 (GET /api/meeting-minutes/audio/[jobId]) */
-export interface MeetingAudioJobStatus {
-  stage: "uploading" | "transcribing" | "structuring" | "done" | "error";
-  fileName: string;
-  transcript: string | null;
-  minute: {
-    title: string;
-    meetingDate: string;
-    startTime: string | null;
-    endTime: string | null;
-    location: string | null;
-    author: string | null;
-    attendees: string | null;
-    items: Array<{ content: string; assignee?: string; dueDate?: string; status: MeetingItemStatus }>;
-  } | null;
-  error: string | null;
+/** 음성 공통 파이프라인 녹음 종류 */
+export type VoiceKind = "meeting" | "interview" | "requirement" | "reference";
+
+/** 음성 파이프라인 요구사항 초안 */
+export interface VoiceRequirementDraft {
+  functionName: string;
+  content: string;
+  category: string | null;
+  requester: string | null;
+  solution: string | null;
 }
 
-/** 음성 인터뷰 작업 상태 (GET /api/interviews/audio/[jobId]) — structuring 단계부터 transcript 가 먼저 온다 */
-export interface InterviewAudioJobStatus {
+/** 음성 파이프라인 종류별 정리 결과 */
+export type VoiceDraft =
+  | { kind: "meeting"; minute: VoiceMeetingDraft }
+  | { kind: "interview"; interview: VoiceInterviewDraft }
+  | { kind: "requirement"; requirements: VoiceRequirementDraft[] }
+  | { kind: "reference"; reference: { title: string; summary: string; keyPoints: string[] } };
+
+/** 음성 파이프라인 작업 상태 (GET /api/voice-intake/[jobId]) */
+export interface VoiceIntakeStatus {
+  id: string;
+  kind: VoiceKind;
   stage: "uploading" | "transcribing" | "structuring" | "done" | "error";
   fileName: string;
+  size: number;
+  /** 전사 방식: quality(고품질 + 용어 힌트) · diarize(화자 구분) */
+  mode: "quality" | "diarize";
+  /** 쓴 용어 힌트 (없으면 빈 문자열) */
+  hint: string;
+  progress: { done: number; total: number } | null;
   transcript: string | null;
-  interview: {
-    title: string;
-    interviewDate: string;
-    interviewer: string | null;
-    interviewee: string | null;
-    category: string | null;
-    currentProcess: string | null;
-    painPoints: string | null;
-    desiredResults: string | null;
-    technicalConstraints: string | null;
-    questions: string | null;
-  } | null;
+  draft: VoiceDraft | null;
   error: string | null;
+  documentId: string | null;
+}
+
+/** 음성 파이프라인 회의록 초안 (전사문 → 회의록) */
+export interface VoiceMeetingDraft {
+  title: string;
+  meetingDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  location: string | null;
+  author: string | null;
+  attendees: string | null;
+  items: Array<{ content: string; assignee?: string; dueDate?: string; status: MeetingItemStatus }>;
+}
+
+/** 음성 파이프라인 인터뷰 초안 (전사문 → 인터뷰 5가지 항목) */
+export interface VoiceInterviewDraft {
+  title: string;
+  interviewDate: string;
+  interviewer: string | null;
+  interviewee: string | null;
+  category: string | null;
+  currentProcess: string | null;
+  painPoints: string | null;
+  desiredResults: string | null;
+  technicalConstraints: string | null;
+  questions: string | null;
 }
 
 /** 고객요구사항 타입 */
@@ -1378,6 +1403,44 @@ export interface ProgressTaskStageDetail {
 // ============================================
 // API 클라이언트
 // ============================================
+
+/**
+ * 파일을 요청 본문 그대로 올린다 (FormData 아님). 원본 이름은 x-file-name 헤더(encodeURIComponent).
+ * 진행률(0~1)을 받으려고 XHR 을 쓴다 (fetch 는 업로드 진행률이 없다). 문서함 파일 · 음성 파이프라인이 같이 쓴다.
+ */
+export function uploadRawFile<T>(
+  method: "PUT" | "POST",
+  url: string,
+  file: File,
+  onProgress?: (ratio: number) => void,
+  headers: Record<string, string> = {}
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+    xhr.setRequestHeader("x-file-name", encodeURIComponent(file.name));
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress?.(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      let body: unknown = null;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        /* IIS 등 앞단이 HTML 오류를 돌려준 경우 */
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && body) return resolve(body as T);
+      const message =
+        (body as { error?: string } | null)?.error ??
+        (xhr.status === 413 || xhr.status === 404 ? "파일이 너무 커서 서버가 받지 않았습니다." : `파일을 올리지 못했습니다. (${xhr.status})`);
+      reject(new Error(message));
+    };
+    xhr.onerror = () => reject(new Error("네트워크 오류로 파일을 올리지 못했습니다."));
+    xhr.send(file);
+  });
+}
 
 export const api = {
   // ============================================
@@ -1853,30 +1916,27 @@ export const api = {
      * 파일 올리기 (있으면 바꾸기). 본문이 파일 자체이며 진행률을 받으려고 XHR 을 쓴다 (fetch 는 업로드 진행률이 없다)
      */
     uploadFile: (id: string, file: File, onProgress?: (ratio: number) => void) =>
-      new Promise<Document>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", `/api/documents/${id}/file`);
-        xhr.setRequestHeader("x-file-name", encodeURIComponent(file.name));
-        xhr.setRequestHeader("Content-Type", "application/octet-stream");
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) onProgress?.(e.loaded / e.total);
-        };
-        xhr.onload = () => {
-          let body: { error?: string } | Document | null = null;
-          try {
-            body = JSON.parse(xhr.responseText);
-          } catch {
-            /* IIS 등 앞단이 HTML 오류를 돌려준 경우 */
-          }
-          if (xhr.status >= 200 && xhr.status < 300 && body) return resolve(body as Document);
-          const message =
-            (body as { error?: string } | null)?.error ??
-            (xhr.status === 413 || xhr.status === 404 ? "파일이 너무 커서 서버가 받지 않았습니다." : `파일을 올리지 못했습니다. (${xhr.status})`);
-          reject(new Error(message));
-        };
-        xhr.onerror = () => reject(new Error("네트워크 오류로 파일을 올리지 못했습니다."));
-        xhr.send(file);
-      }),
+      uploadRawFile<Document>("PUT", `/api/documents/${id}/file`, file, onProgress),
+  },
+
+  /** 음성 공통 파이프라인 (녹음 → 전사 → 종류별 정리) */
+  voiceIntake: {
+    /** 작업 시작: 본문이 녹음 파일, 진행률은 업로드 비율 → jobId. hint 는 용어 힌트(빈 문자열이면 힌트 없음) */
+    start: (
+      params: { projectId: string; kind: VoiceKind; date: string; mode: "quality" | "diarize"; hint: string },
+      file: File,
+      onProgress?: (ratio: number) => void
+    ) => {
+      const q = new URLSearchParams({ projectId: params.projectId, kind: params.kind, date: params.date, mode: params.mode });
+      return uploadRawFile<{ jobId: string }>("POST", `/api/voice-intake?${q}`, file, onProgress, {
+        "x-voice-hint": encodeURIComponent(params.mode === "diarize" ? "" : params.hint),
+      });
+    },
+    /** 작업 상태 */
+    status: (jobId: string) => get<VoiceIntakeStatus>(`/api/voice-intake/${jobId}`),
+    /** 참고자료를 문서함에 등록 (서버에 있는 원본 녹음을 문서 파일로) */
+    registerDocument: (jobId: string, data: { name: string; description: string; isPersonal: boolean }) =>
+      post<Document>(`/api/voice-intake/${jobId}/document`, data),
   },
 
   /** 설비 관리 API */
@@ -2052,13 +2112,6 @@ export const api = {
       patch<Interview>(`/api/interviews/${id}`, data),
     /** 삭제 */
     delete: (id: string) => del<{ message: string }>(`/api/interviews/${id}`),
-    /** 음성 인터뷰 작업 시작 (FormData: projectId, file, interviewDate) → jobId */
-    startAudio: async (formData: FormData): Promise<{ jobId: string }> => {
-      const response = await fetch("/api/interviews/audio", { method: "POST", body: formData });
-      return handleResponse<{ jobId: string }>(response);
-    },
-    /** 음성 인터뷰 작업 상태 */
-    audioStatus: (jobId: string) => get<InterviewAudioJobStatus>(`/api/interviews/audio/${jobId}`),
   },
 
   // ============================================
@@ -2083,13 +2136,6 @@ export const api = {
       const response = await fetch("/api/meeting-minutes/import", { method: "POST", body: formData });
       return handleResponse<MeetingMinuteImportResult>(response);
     },
-    /** 음성 회의록 작업 시작 (FormData: projectId, file, meetingDate) → jobId */
-    startAudio: async (formData: FormData): Promise<{ jobId: string }> => {
-      const response = await fetch("/api/meeting-minutes/audio", { method: "POST", body: formData });
-      return handleResponse<{ jobId: string }>(response);
-    },
-    /** 음성 회의록 작업 상태 */
-    audioStatus: (jobId: string) => get<MeetingAudioJobStatus>(`/api/meeting-minutes/audio/${jobId}`),
     /** AI 분석 조회 (없으면 analysis: null) */
     getAnalysis: (id: string) => get<{ analysis: MeetingMinuteAnalysis | null }>(`/api/meeting-minutes/${id}/analysis`),
     /** AI 분석 시작 (202, 결과는 getAnalysis 로 묻는다) */

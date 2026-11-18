@@ -8,6 +8,8 @@
  *   · transcribeWithOpenAI() → /v1/audio/transcriptions (파일 25MB 제한), 정리는 ai_settings.audioSummaryModel
  * - structureTranscript(): 전사문 → 회의록 JSON (규칙 · 검사는 meeting-minutes-ai.ts 의 parseAiMeetingResponse 재사용)
  * - 외부 호출 부분은 주입받을 수 있어 테스트는 실제 OpenAI 를 부르지 않는다.
+ * - diarize: true 면 화자 구분 모델(gpt-4o-transcribe-diarize, diarized_json)로 전사해 "[화자 A] ..." 줄로 돌려준다.
+ *   이 모델은 용어 힌트(prompt)를 받지 않고, OpenAI 가 2027-02-26 종료 예정으로 공지했다.
  */
 
 import { parseAiMeetingResponse } from "./meeting-minutes-ai";
@@ -18,20 +20,53 @@ export { AUDIO_PROVIDERS, AUDIO_MODEL_SUGGESTIONS, type AudioProvider } from "./
 /** OpenAI 전사 API 파일 크기 제한 */
 export const OPENAI_AUDIO_MAX_BYTES = 25 * 1024 * 1024;
 
+/** 화자 구분 전사 모델 */
+export const DIARIZE_MODEL = "gpt-4o-transcribe-diarize";
+
+/** diarized_json → "[화자 A] ..." 줄 (같은 화자가 이어 말하면 한 줄로 합친다) */
+export function formatDiarized(body: string): string {
+  let segments: Array<{ speaker?: string; text?: string }> = [];
+  try {
+    segments = JSON.parse(body)?.segments ?? [];
+  } catch {
+    return body.trim();
+  }
+  const lines: Array<{ speaker: string; text: string }> = [];
+  for (const seg of segments) {
+    const text = (seg.text ?? "").trim();
+    if (!text) continue;
+    const speaker = (seg.speaker ?? "?").trim() || "?";
+    const last = lines[lines.length - 1];
+    if (last && last.speaker === speaker) last.text += ` ${text}`;
+    else lines.push({ speaker, text });
+  }
+  return lines.map((l) => `[화자 ${l.speaker}] ${l.text}`).join("\n");
+}
+
 /** OpenAI 음성 → 전사문 (fetch 주입: 테스트는 가짜) */
 export async function transcribeWithOpenAI(
   fetchImpl: typeof fetch,
-  input: { apiKey: string; model: string; data: Buffer; fileName: string; mimeType: string; prompt?: string }
+  input: { apiKey: string; model: string; data: Buffer; fileName: string; mimeType: string; prompt?: string; diarize?: boolean }
 ): Promise<string> {
   if (input.data.length > OPENAI_AUDIO_MAX_BYTES) {
     throw new Error("OpenAI 음성 인식은 25MB 이하 파일만 받습니다. 녹음을 나누거나 낮은 음질(mp3 64kbps 등)로 다시 저장해 주세요.");
   }
   const form = new FormData();
   form.append("file", new Blob([new Uint8Array(input.data)], { type: input.mimeType }), input.fileName);
-  form.append("model", input.model);
-  form.append("language", "ko");
-  form.append("response_format", "text");
-  form.append("prompt", input.prompt ?? "한국어 업무 회의 녹음입니다. MES, LOT, 인터락, 절곡 같은 용어가 나옵니다.");
+  if (input.diarize) {
+    // 화자 구분 모델: prompt 미지원, 30초 넘는 녹음은 chunking_strategy 필수
+    form.append("model", DIARIZE_MODEL);
+    form.append("language", "ko");
+    form.append("response_format", "diarized_json");
+    form.append("chunking_strategy", "auto");
+  } else {
+    form.append("model", input.model);
+    form.append("language", "ko");
+    form.append("response_format", "text");
+    // prompt 를 안 주면 기본 힌트, 빈 문자열이면 힌트 없이 보낸다
+    const prompt = input.prompt ?? "한국어 업무 회의 녹음입니다. MES, LOT, 인터락, 절곡 같은 용어가 나옵니다.";
+    if (prompt.trim()) form.append("prompt", prompt.trim());
+  }
   const res = await fetchImpl("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
     headers: { Authorization: `Bearer ${input.apiKey}` },
@@ -39,7 +74,7 @@ export async function transcribeWithOpenAI(
   });
   const body = await res.text();
   if (!res.ok) {
-    if (res.status === 401) throw new Error("OpenAI API 키가 올바르지 않습니다. 기준 설정 > 음성 회의록 설정에서 다시 등록하세요.");
+    if (res.status === 401) throw new Error("OpenAI API 키가 올바르지 않습니다. 기준 설정 > 음성 인식 설정에서 다시 등록하세요.");
     let detail = body;
     try {
       detail = JSON.parse(body)?.error?.message ?? body;
@@ -48,7 +83,7 @@ export async function transcribeWithOpenAI(
     }
     throw new Error(`OpenAI 음성 인식 실패 (${res.status}): ${String(detail).slice(0, 300)}`);
   }
-  const text = body.trim();
+  const text = input.diarize ? formatDiarized(body) : body.trim();
   if (!text) throw new Error("전사 결과가 비어 있습니다");
   return text;
 }

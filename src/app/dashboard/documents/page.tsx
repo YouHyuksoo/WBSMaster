@@ -11,13 +11,15 @@
  * 3. **미리보기**: 문서 클릭 시 모달에서 미리보기 (DocumentPreviewModal)
  * 4. **서버 업로드**: 문서를 먼저 저장한 뒤 파일을 PUT /api/documents/[id]/file 로 올린다.
  *    새 문서인데 파일 올리기가 실패하면 방금 만든 문서를 지워 빈 문서가 남지 않게 한다.
+ * 5. **음성으로 등록**: 공통 음성 모달(기본 종류 참고자료). 요약 · 핵심 내용과 녹음 파일을 문서함 참고자료로 등록한다.
  */
 
 "use client";
 
 import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Icon } from "@/components/ui";
+import { Icon, Button } from "@/components/ui";
+import { VoiceIntakeModal } from "@/components/voice";
 import { useProject } from "@/contexts";
 import { useCreateDocument, useUpdateDocument, documentKeys } from "@/hooks";
 import { api } from "@/lib/api";
@@ -48,6 +50,7 @@ export default function DocumentsPage() {
   const updateMutation = useUpdateDocument();
   const queryClient = useQueryClient();
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false); // 음성으로 등록 모달
 
   // 파일 올리기 (진행률 표시, 끝나면 목록 새로고침)
   const uploadFile = useCallback(
@@ -145,6 +148,9 @@ export default function DocumentsPage() {
             프로젝트 문서를 등록하고 빠르게 접근하세요
           </p>
         </div>
+        <Button variant="outline" leftIcon="mic" onClick={() => setVoiceOpen(true)} disabled={!selectedProjectId}>
+          음성으로 등록
+        </Button>
       </div>
 
       {/* 프로젝트 미선택 안내 */}
@@ -201,6 +207,9 @@ export default function DocumentsPage() {
         onSubmit={handleSubmit}
         uploadProgress={uploadProgress}
       />
+
+      {/* 음성으로 등록 (공통 파이프라인): 참고자료로 정리하면 녹음 파일과 함께 문서함에 등록 */}
+      <VoiceIntakeModal isOpen={voiceOpen} projectId={selectedProjectId} defaultKind="reference" onClose={() => setVoiceOpen(false)} />
 
       {/* 문서 미리보기 모달 */}
       {previewDocument && <DocumentPreviewModal document={previewDocument} onClose={() => setPreviewDocument(null)} />}

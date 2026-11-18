@@ -27,7 +27,10 @@ import {
   useUpdateInterview,
   useDeleteInterview,
 } from "@/hooks";
-import { InterviewTable, InterviewModal, InterviewAudioModal } from "./components";
+import { InterviewTable, InterviewModal } from "./components";
+import { VoiceIntakeModal, usePendingVoiceDraft } from "@/components/voice";
+import type { VoiceIntakeStatus } from "@/lib/api";
+import { interviewDraftToForm } from "./voiceDraft";
 import {
   type Interview,
   type InterviewFormData,
@@ -63,6 +66,15 @@ export default function InterviewsPage() {
 
   /** 음성으로 인터뷰 등록 모달 */
   const [showAudioModal, setShowAudioModal] = useState(false);
+
+  // 음성 정리 결과(인터뷰)로 등록 창 열기: 이 화면 모달 · 다른 화면에서 넘어온 결과 공통
+  const openVoiceDraft = useCallback((status: VoiceIntakeStatus) => {
+    const draft = interviewDraftToForm(status);
+    if (!draft) return;
+    setShowAudioModal(false);
+    setModalState({ isOpen: true, mode: "create", interview: null, draft });
+  }, []);
+  usePendingVoiceDraft("interview", openVoiceDraft);
 
 
   // 삭제 확인 모달 상태
@@ -555,15 +567,13 @@ export default function InterviewsPage() {
         draft={modalState.draft}
       />
 
-      {/* 음성으로 인터뷰 등록: 전사 → AI 정리 → 등록 창 */}
-      <InterviewAudioModal
+      {/* 음성으로 등록 (공통 파이프라인): 전사 → 고른 종류로 AI 정리 → 인터뷰면 이 화면 등록 창 */}
+      <VoiceIntakeModal
         isOpen={showAudioModal}
         projectId={selectedProjectId}
+        defaultKind="interview"
         onClose={() => setShowAudioModal(false)}
-        onDraft={(draft) => {
-          setShowAudioModal(false);
-          setModalState({ isOpen: true, mode: "create", interview: null, draft });
-        }}
+        onOpenDraft={{ interview: openVoiceDraft }}
       />
 
       {/* 삭제 확인 모달 */}

@@ -6,4 +6,3 @@
 
 export { InterviewModal } from "./InterviewModal";
 export { InterviewTable } from "./InterviewTable";
-export { InterviewAudioModal } from "./InterviewAudioModal";

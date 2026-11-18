@@ -11,6 +11,7 @@
  * 3. **필터**: 업무구분, 요청자, 검색어로 필터링
  * 4. **테이블**: 고객요구사항 목록 (상태 클릭으로 변경)
  * 5. **사업부**: 화면에서 구분하지 않는다. 저장은 서버가 DEFAULT_BUSINESS_UNIT 으로 고정한다.
+ * 6. **음성으로 등록**: 공통 음성 모달(VoiceIntakeModal, 기본 종류 요구사항). 녹음에서 찾은 요구사항을 골라 바로 등록한다.
  *
  * 상태 흐름 (필독 가이드 기준):
  * REVIEWING (검토) → APPROVED (승인) / REJECTED (거절)
@@ -23,6 +24,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { VoiceIntakeModal } from "@/components/voice";
 import { utils, writeFile } from "xlsx";
 import { Icon, Button, Input, useToast, ConfirmModal } from "@/components/ui";
 import { useProject } from "@/contexts";
@@ -51,6 +53,7 @@ export default function CustomerRequirementsPage() {
 
   // 필터 상태
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [voiceOpen, setVoiceOpen] = useState(false); // 음성으로 등록 모달
   const [filterRequester, setFilterRequester] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   /** 정렬 기준 (createdAt: 등록일, requestedDate: 요청일) */
@@ -465,6 +468,9 @@ export default function CustomerRequirementsPage() {
           >
             Excel 가져오기
           </Button>
+          <Button variant="outline" leftIcon="mic" onClick={() => setVoiceOpen(true)} disabled={!selectedProjectId}>
+            음성으로 등록
+          </Button>
           <Button
             variant="primary"
             leftIcon="add"
@@ -637,6 +643,9 @@ export default function CustomerRequirementsPage() {
         onClose={handleCloseModal}
         onSubmit={handleSubmit}
       />
+
+      {/* 음성으로 등록 (공통 파이프라인): 요구사항으로 정리하면 골라서 바로 등록 */}
+      <VoiceIntakeModal isOpen={voiceOpen} projectId={selectedProjectId} defaultKind="requirement" onClose={() => setVoiceOpen(false)} />
 
       {/* 엑셀 가져오기 모달 */}
       <ImportExcelModal

@@ -710,7 +710,7 @@ export default function ChatPage() {
             onClick={() => setAutoSpeak(!autoSpeak)}
             leftIcon={autoSpeak ? "volume_up" : "volume_off"}
             className={autoSpeak ? "text-primary bg-primary/10" : ""}
-            title="답변이 오면 OpenAI 음성으로 읽어 줍니다 (기준 설정 > 음성 회의록 의 OpenAI 키)"
+            title="답변이 오면 OpenAI 음성으로 읽어 줍니다 (기준 설정 > 음성 인식 의 OpenAI 키)"
           >
             {autoSpeak ? "자동 읽기 켜짐" : "자동 읽기"}
           </Button>

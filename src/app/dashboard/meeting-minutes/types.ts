@@ -10,7 +10,7 @@
  * 3. **toFormData / toInput**: 서버 데이터 ↔ 폼 데이터 변환
  */
 
-import type { MeetingMinute, MeetingMinuteInput, MeetingItemStatus, MeetingAudioJobStatus } from "@/lib/api";
+import type { MeetingMinute, MeetingMinuteInput, MeetingItemStatus, VoiceMeetingDraft } from "@/lib/api";
 
 export type { MeetingMinute, MeetingItemStatus };
 
@@ -84,7 +84,7 @@ export function toFormData(minute?: MeetingMinute | null): MeetingMinuteFormData
 
 /** 음성 회의록 초안 → 폼 (저장 전 사용자가 확인). 전사문은 비고에 붙여 원문을 남긴다 */
 export function draftToFormData(
-  draft: NonNullable<MeetingAudioJobStatus["minute"]>,
+  draft: VoiceMeetingDraft,
   transcript?: string | null
 ): MeetingMinuteFormData {
   return {

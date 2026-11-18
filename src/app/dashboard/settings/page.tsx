@@ -501,7 +501,7 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      {/* 음성 회의록 (음성 인식 · 전사 정리 모델, OpenAI 키) */}
+      {/* 음성 인식 (음성 인식 · 전사 정리 모델, OpenAI 키) */}
       <AudioMeetingSettings />
 
       {/* AI 페르소나 관리 */}

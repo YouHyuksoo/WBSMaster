@@ -1,10 +1,10 @@
 /**
  * @file src/app/dashboard/settings/components/AudioMeetingSettings.tsx
  * @description
- * 기준 설정 > 음성 회의록 설정 카드입니다 (전사 모델 · 회의록 정리 모델 · OpenAI API 키).
+ * 기준 설정 > 음성 인식 설정 카드입니다 (전사 모델 · 회의록 정리 모델 · OpenAI API 키).
  *
  * 초보자 가이드:
- * - 회의록관리 > "음성으로 작성" 이 이 설정을 쓴다 (src/app/api/meeting-minutes/audio/route.ts).
+ * - 회의록 · 인터뷰 · 요구사항 · 문서함의 "음성으로 등록"(공통 음성 모달)이 이 설정을 쓴다 (src/app/api/voice-intake/route.ts).
  * - 음성은 OpenAI 만 쓴다 (2026-11-09 Gemini 제거): 전사 /v1/audio/transcriptions(25MB 이하) + 정리 OpenAI 채팅 모델.
  * - AI 어시스턴트 채팅의 음성 입력 · 답변 읽기도 여기 OpenAI 키를 쓴다 (src/lib/openai-voice.ts).
  * - 저장된 키는 다시 보여 주지 않고 끝 4자리만 보여 준다. 새 키를 넣었을 때만 바꾼다.
@@ -40,8 +40,8 @@ export function AudioMeetingSettings() {
 
   useEffect(() => {
     fetch("/api/ai-settings/audio")
-      .then(async (r) => (r.ok ? setSettings(await r.json()) : setLoadError("음성 회의록 설정을 불러오지 못했습니다.")))
-      .catch(() => setLoadError("음성 회의록 설정을 불러오지 못했습니다."));
+      .then(async (r) => (r.ok ? setSettings(await r.json()) : setLoadError("음성 인식 설정을 불러오지 못했습니다.")))
+      .catch(() => setLoadError("음성 인식 설정을 불러오지 못했습니다."));
   }, []);
 
   if (loadError) return <Card><p className="p-6 text-sm text-error">{loadError}</p></Card>;
@@ -73,7 +73,7 @@ export function AudioMeetingSettings() {
       if (!res.ok) throw new Error(data.error || "저장하지 못했습니다.");
       setSettings(data);
       setNewKey("");
-      toast.success("음성 회의록 설정을 저장했습니다.");
+      toast.success("음성 인식 설정을 저장했습니다.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "저장하지 못했습니다.");
     } finally {
@@ -124,7 +124,7 @@ export function AudioMeetingSettings() {
             <Icon name="graphic_eq" size="sm" className="text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-text dark:text-white">음성 회의록</h2>
+            <h2 className="text-lg font-bold text-text dark:text-white">음성 인식</h2>
             <p className="text-sm text-text-secondary">회의록 음성 작성 · AI 어시스턴트 음성 입력/읽기에 쓸 OpenAI 모델과 키를 설정합니다</p>
           </div>
         </div>
@@ -172,7 +172,7 @@ export function AudioMeetingSettings() {
 
         <div className="flex justify-end">
           <Button variant="primary" onClick={save} disabled={saving} leftIcon={saving ? "progress_activity" : "save"}>
-            음성 회의록 설정 저장
+            음성 인식 설정 저장
           </Button>
         </div>
       </div>

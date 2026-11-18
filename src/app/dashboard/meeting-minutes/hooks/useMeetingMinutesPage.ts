@@ -11,7 +11,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useToast } from "@/components/ui";
 import { useProject } from "@/contexts";
 import {
@@ -20,7 +20,9 @@ import {
   useUpdateMeetingMinute,
   useDeleteMeetingMinute,
 } from "@/hooks";
-import { toInput, type MeetingMinute, type MeetingMinuteFormData } from "../types";
+import { usePendingVoiceDraft } from "@/components/voice";
+import type { VoiceIntakeStatus } from "@/lib/api";
+import { draftToFormData, toInput, type MeetingMinute, type MeetingMinuteFormData } from "../types";
 
 export function useMeetingMinutesPage() {
   const { selectedProjectId, selectedProject } = useProject();
@@ -32,7 +34,15 @@ export function useMeetingMinutesPage() {
   });
   const [deleting, setDeleting] = useState<MeetingMinute | null>(null);
   const [importOpen, setImportOpen] = useState(false); // 엑셀 가져오기 모달
-  const [audioOpen, setAudioOpen] = useState(false); // 음성으로 작성 모달
+  const [audioOpen, setAudioOpen] = useState(false); // 음성으로 등록 모달 (공통 파이프라인)
+
+  // 음성 정리 결과(회의록)로 작성 창 열기: 이 화면 모달 · 다른 화면에서 넘어온 결과 공통
+  const openVoiceDraft = useCallback((status: VoiceIntakeStatus) => {
+    if (status.draft?.kind !== "meeting") return;
+    setAudioOpen(false);
+    setModal({ isOpen: true, minute: null, draft: draftToFormData(status.draft.minute, status.transcript) });
+  }, []);
+  usePendingVoiceDraft("meeting", openVoiceDraft);
   const [selectedId, setSelectedId] = useState<string | null>(null); // AI 분석 패널에 보이는 회의록
 
   const { data: minutes = [], isLoading, error: loadError } = useMeetingMinutes({ projectId: selectedProjectId ?? undefined });
@@ -100,10 +110,6 @@ export function useMeetingMinutesPage() {
     setImportOpen,
     audioOpen,
     setAudioOpen,
-    // 음성 초안으로 등록 창 열기 (음성 모달은 닫는다)
-    openDraft: (draft: MeetingMinuteFormData) => {
-      setAudioOpen(false);
-      setModal({ isOpen: true, minute: null, draft });
-    },
+    openVoiceDraft,
   };
 }

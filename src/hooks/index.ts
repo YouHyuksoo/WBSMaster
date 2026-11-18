@@ -176,8 +176,6 @@ export {
   useCreateInterview,
   useUpdateInterview,
   useDeleteInterview,
-  useStartInterviewAudio,
-  useInterviewAudioJob,
   interviewKeys,
 } from "./useInterviews";
 
@@ -188,8 +186,6 @@ export {
   useUpdateMeetingMinute,
   useDeleteMeetingMinute,
   useImportMeetingMinutes,
-  useStartMeetingAudio,
-  useMeetingAudioJob,
   useMeetingMinuteAnalysis,
   useAnalyzeMeetingMinute,
   meetingMinuteKeys,
@@ -261,3 +257,6 @@ export {
 
 // TO-BE 설계
 export { useToBe, useCreateToBeItem, useUpdateToBeItem, useDeleteToBeItem, useDraftToBeFromAsIs, useToBeDesign, useSaveToBeDesign, useToBeAnalysis, useSuggestToBe, toBeKeys } from "./useToBe";
+
+// 음성 공통 파이프라인
+export { useVoiceIntakeJob, voiceIntakeKeys } from "./useVoiceIntake";

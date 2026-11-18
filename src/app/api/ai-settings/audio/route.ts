@@ -1,7 +1,7 @@
 /**
  * @file src/app/api/ai-settings/audio/route.ts
  * @description
- * 기준 설정 > 음성 회의록 설정 API (전사 모델 · 정리 모델 · OpenAI API 키). 음성은 OpenAI 만 쓴다.
+ * 기준 설정 > 음성 인식 설정 API (전사 모델 · 정리 모델 · OpenAI API 키). 음성은 OpenAI 만 쓴다.
  *
  * 초보자 가이드:
  * - GET: 현재 설정 + 키 등록 여부 (키 값은 돌려주지 않고 끝 4자리만)
