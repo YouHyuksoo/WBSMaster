@@ -6,6 +6,7 @@
  * 초보자 가이드:
  * - 메시지: [system, ...이전 대화, user] → LLM → (도구 호출 → 실행 → tool 메시지) × N → 텍스트 답
  * - proposal(쓰기 확인 카드)·candidates(사람 후보 선택) 결과가 나오면 LLM 을 다시 부르지 않고 바로 응답한다
+ * - 카드는 답 하나에 한 장: 같은 메뉴 등록 호출은 하나로 합치고(mergeCreateCalls), 그래도 남은 다른 제안은 버린 건수를 답에 밝힌다
  * - 없는 도구·잘못된 인자·도구 오류는 오류 문장을 tool 결과로 돌려주고 계속한다 (루프가 죽지 않음)
  * - maxSteps(기본 6)를 넘으면 "질문을 나눠서" 안내로 끝낸다
  * - 마지막 조회 결과(rows)로 차트·마인드맵 태그를 처리한다 (extractChartAndMindmap)
@@ -17,6 +18,7 @@ import type { ChatMessage, ToolCall } from "@/lib/llm/tool-calling";
 import { defaultRegistry, type ToolRegistry } from "@/lib/chat-tools/registry";
 import type { ProposalOp, ToolContext, ToolResult } from "@/lib/chat-tools/types";
 import { intakeTargetForTool } from "@/lib/chat-intake/tool-target";
+import { mergeCreateCalls } from "./merge-calls";
 import type { IntakeTarget, IntakeView } from "@/lib/chat-intake/types";
 
 export interface AgentResult extends LLMResponse {
@@ -84,15 +86,20 @@ export async function runAgent(opts: {
     usedFallback ||= opts.client.usedFallback;
     if (turn.type === "text") return finish(turn.content);
 
-    messages.push({ role: "assistant", content: turn.content ?? "", toolCalls: turn.calls });
-    for (const call of turn.calls) {
+    const calls = mergeCreateCalls(turn.calls);
+    messages.push({ role: "assistant", content: turn.content ?? "", toolCalls: calls });
+    for (const [index, call] of calls.entries()) {
       const target = opts.onIntake && registry.get(call.name) ? intakeTargetForTool(call.name, call.arguments) : null;
       if (target && opts.onIntake) return finish("", await opts.onIntake(target));
       const r = await runTool(registry, opts.ctx, call);
       if (r.kind === "proposal") {
         toolSummary.push({ tool: call.name, summary: r.summary });
         // 요약은 확인 카드가 보여 주므로 본문은 질문만 (같은 문장 두 번 방지). 기록에는 toolSummary 로 남는다
-        return finish(r.danger ? "아래 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다." : "아래 내용으로 진행할까요?", {
+        // 같은 답에서 낸 다른 제안은 카드로 못 올린다: 조용히 버리지 않고 알린다
+        const skipped = calls.slice(index + 1).filter((c) => registry.get(c.name)?.kind === "write").length;
+        const question = r.danger ? "아래 항목을 삭제할까요? 삭제하면 되돌릴 수 없습니다." : "아래 내용으로 진행할까요?";
+        const note = skipped ? `\n\n한 번에 한 가지 제안만 올릴 수 있어 나머지 제안 ${skipped}건은 올리지 않았습니다. 이 카드를 처리한 뒤 이어서 요청해 주세요.` : "";
+        return finish(question + note, {
           pendingAction: { id: r.actionId, summary: r.summary, fields: r.fields, op: r.op, ...(r.danger ? { danger: true } : {}) },
         });
       }

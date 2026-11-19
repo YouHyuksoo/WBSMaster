@@ -6,7 +6,7 @@
  * 초보자 가이드:
  * - 확인 API(/api/chat/actions/[id]/confirm) 요청 안에서 화면 API 핸들러를 직접 부른다.
  *   같은 요청이라 로그인 쿠키가 그대로 쓰이고, 인증·권한·채번·알림이 화면에서 할 때와 똑같다.
- * - 등록: POST(본문 + projectId), 수정: PATCH(대상마다), 삭제: DELETE(대상마다). 실패하면 거기서 멈춘다.
+ * - 등록: POST(본문 + projectId, 여러 건 items 면 한 건씩), 수정: PATCH(대상마다), 삭제: DELETE(대상마다). 실패하면 거기서 멈추고 처리한 건수를 알린다.
  */
 
 import { NextRequest } from "next/server";
@@ -38,7 +38,7 @@ export async function executeEntityAction(
   action: { kind: string; projectId: string; args: unknown },
   specs: EntitySpec[]
 ): Promise<EntityOutcome> {
-  const a = (action.args ?? {}) as { entity?: string; data?: Record<string, unknown>; targetIds?: string[]; patch?: Record<string, unknown> };
+  const a = (action.args ?? {}) as { entity?: string; data?: Record<string, unknown>; items?: Record<string, unknown>[]; targetIds?: string[]; patch?: Record<string, unknown> };
   const spec = specs.find((s) => s.key === a.entity);
   if (!spec) return { ok: false, error: `알 수 없는 메뉴입니다: ${a.entity}`, status: 400 };
 
@@ -46,10 +46,18 @@ export async function executeEntityAction(
     const mod = spec.collectionRoute ? await spec.collectionRoute() : null;
     const POST = mod && handler(mod, "POST");
     if (!POST || !spec.collectionPath) return { ok: false, error: `${spec.label} 등록은 지원하지 않습니다.`, status: 400 };
-    const res = await POST(routeRequest(spec.collectionPath, "POST", { ...a.data, projectId: action.projectId }));
-    if (!res.ok) return { ok: false, error: await routeError(res), status: res.status };
-    const body = (await res.json().catch(() => ({}))) as { id?: string; data?: { id?: string } };
-    return { ok: true, resultRef: body.id ?? body.data?.id ?? "", link: spec.link };
+    const items = a.items ?? [a.data ?? {}];
+    let first = "";
+    for (let i = 0; i < items.length; i++) {
+      const res = await POST(routeRequest(spec.collectionPath, "POST", { ...items[i], projectId: action.projectId }));
+      if (!res.ok) {
+        const msg = await routeError(res);
+        return { ok: false, error: i > 0 ? `${msg} (${i}건 등록 후 중단)` : msg, status: res.status };
+      }
+      const body = (await res.json().catch(() => ({}))) as { id?: string; data?: { id?: string } };
+      if (i === 0) first = body.id ?? body.data?.id ?? "";
+    }
+    return { ok: true, resultRef: first, link: spec.link };
   }
 
   const method = action.kind === "entity_update" ? spec.updateMethod ?? "PATCH" : action.kind === "entity_delete" ? "DELETE" : null;

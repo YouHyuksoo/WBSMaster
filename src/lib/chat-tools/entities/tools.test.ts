@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { makeEntityTools } from "./tools";
+import { makeEntityTools, MAX_CREATE } from "./tools";
 import type { EntitySpec } from "./types";
 
 const spec: EntitySpec = {
@@ -56,6 +56,50 @@ describe("propose_create_record", () => {
     expect(() => tool.parse({ entity: "milestone", fields: { name: "a", startDate: "2026-11-20", status: "DONE" } })).toThrow(/PENDING/);
     expect(() => tool.parse({ entity: "issue", fields: { name: "a" } })).toThrow(/등록/);
     expect(() => tool.parse({ entity: "nope", fields: {} })).toThrow(/milestone/);
+  });
+});
+
+describe("propose_create_record 여러 건 (회귀: 12월 한 달 요청에 첫 주 한 건만 제안됐다)", () => {
+  it("records 를 카드 한 장으로 저장하고 한 줄에 한 건씩 보여 준다", async () => {
+    const { db, ctx, tools } = setup();
+    const tool = t(tools, "propose_create_record");
+    const r = await tool.execute(
+      ctx,
+      tool.parse({
+        entity: "milestone",
+        records: [
+          { name: "오창 상주 1주", startDate: "2026-12-01" },
+          { name: "오창 상주 2주", startDate: "2026-12-07" },
+          { name: "오창 상주 3주", startDate: "2026-12-14", assigneeName: "강승훈" },
+        ],
+      })
+    );
+    expect(r).toMatchObject({ kind: "proposal", op: "create" });
+    const saved = db.chatPendingAction.create.mock.calls[0][0].data as { args: { items: Record<string, unknown>[] }; summary: string };
+    expect(saved.args.items).toHaveLength(3);
+    expect(saved.args.items[2]).toMatchObject({ name: "오창 상주 3주", assigneeId: "k" });
+    expect(saved.summary.startsWith("마일스톤 3건 등록: 오창 상주 1주 2026-12-01 / 오창 상주 2주")).toBe(true);
+    if (r.kind !== "proposal") throw new Error("proposal 이어야 한다");
+    expect(r.fields.map((f) => f.label)).toEqual(["1", "2", "3"]);
+    expect(r.fields[2].value).toContain("담당 강승훈");
+  });
+
+  it("한 건짜리 records 는 예전과 같은 { entity, data } 로 저장한다", async () => {
+    const { db, ctx, tools } = setup();
+    const tool = t(tools, "propose_create_record");
+    await tool.execute(ctx, tool.parse({ entity: "milestone", records: [{ name: "킥오프", startDate: "2026-11-20" }] }));
+    expect(db.chatPendingAction.create.mock.calls[0][0].data).toMatchObject({ args: { entity: "milestone", data: { name: "킥오프" } } });
+  });
+
+  it("어느 건이 틀렸는지 알려 주고, 최대 건수 · fields 와 records 동시 입력을 막는다", () => {
+    const { tools } = setup();
+    const tool = t(tools, "propose_create_record");
+    expect(() => tool.parse({ entity: "milestone", records: [{ name: "a", startDate: "2026-12-01" }, { name: "b" }] })).toThrow(/records\[1\].*startDate/);
+    const many = Array.from({ length: MAX_CREATE + 1 }, (_, i) => ({ name: `n${i}`, startDate: "2026-12-01" }));
+    expect(() => tool.parse({ entity: "milestone", records: many })).toThrow(/최대/);
+    expect(() => tool.parse({ entity: "milestone", fields: { name: "a", startDate: "2026-12-01" }, records: [] })).toThrow(/하나만/);
+    expect(() => tool.parse({ entity: "milestone" })).toThrow(/fields 또는 records/);
+    expect(tool.description).toContain("records");
   });
 });
 

@@ -38,6 +38,21 @@ describe("executeEntityAction", () => {
     expect(sent.body).toEqual({ name: "킥오프", projectId: "p1" });
   });
 
+  it("여러 건 등록(items)은 한 건씩 POST 하고, 중간에 실패하면 등록한 건수를 알린다", async () => {
+    const { spec, POST } = fakeSpec();
+    const items = [{ name: "1주" }, { name: "2주" }, { name: "3주" }];
+    const ok = await executeEntityAction({ kind: "entity_create", projectId: "p1", args: { entity: "milestone", items } }, [spec]);
+    expect(ok).toEqual({ ok: true, resultRef: "new-1", link: "/dashboard/milestones" });
+    expect(POST).toHaveBeenCalledTimes(3);
+
+    POST.mockClear();
+    POST.mockResolvedValueOnce(new Response(JSON.stringify({ id: "a" }), { status: 201 }));
+    POST.mockResolvedValueOnce(new Response(JSON.stringify({ error: "날짜가 필요합니다" }), { status: 400 }));
+    const bad = await executeEntityAction({ kind: "entity_create", projectId: "p1", args: { entity: "milestone", items } }, [spec]);
+    expect(bad).toEqual({ ok: false, error: "날짜가 필요합니다 (1건 등록 후 중단)", status: 400 });
+    expect(POST).toHaveBeenCalledTimes(2);
+  });
+
   it("update calls PATCH per target", async () => {
     const { spec, PATCH } = fakeSpec();
     const r = await executeEntityAction({ kind: "entity_update", projectId: "p1", args: { entity: "milestone", targetIds: ["m1", "m2"], patch: { status: "COMPLETED" } } }, [spec]);

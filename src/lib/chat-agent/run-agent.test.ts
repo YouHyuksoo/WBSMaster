@@ -89,6 +89,40 @@ describe("runAgent", () => {
     expect(res.content).toBe("아래 내용으로 진행할까요?");
   });
 
+  it("같은 답에서 낸 다른 제안은 버린 건수를 답에 밝힌다 (조용히 버리지 않음)", async () => {
+    const llm = new FakeLLM([{ type: "tool_calls", calls: [
+      { id: "c1", name: "propose_create_task", arguments: "{}" },
+      { id: "c2", name: "propose_create_task", arguments: "{}" },
+      { id: "c3", name: "list_issues", arguments: "{}" },
+    ] }]);
+    const res = await run(llm);
+    expect(res.pendingAction?.id).toBe("act-1");
+    expect(res.content).toContain("나머지 제안 1건은 올리지 않았습니다");
+  });
+
+  it("같은 메뉴 등록 호출 여러 번은 records 하나로 합쳐 카드 한 장으로 만든다", async () => {
+    const r = new ToolRegistry();
+    const parse = vi.fn((a: unknown) => a as Record<string, unknown>);
+    r.register({
+      name: "propose_create_record", description: "등록", parameters: { type: "object", properties: {} }, kind: "write",
+      parse,
+      execute: async () => ({ kind: "proposal", actionId: "act-5", summary: "일정 2건 등록", fields: [], op: "create" }),
+    });
+    const llm = new FakeLLM([{ type: "tool_calls", calls: [
+      { id: "c1", name: "propose_create_record", arguments: JSON.stringify({ entity: "holiday", fields: { title: "1주", date: "2026-12-01" } }) },
+      { id: "c2", name: "propose_create_record", arguments: JSON.stringify({ entity: "holiday", fields: { title: "2주", date: "2026-12-07" } }) },
+    ] }]);
+    const res = await run(llm, r);
+    expect(parse).toHaveBeenCalledTimes(1);
+    expect(parse.mock.calls[0][0]).toEqual({ entity: "holiday", records: [{ title: "1주", date: "2026-12-01" }, { title: "2주", date: "2026-12-07" }] });
+    expect(res.content).toBe("아래 내용으로 진행할까요?");
+  });
+
+  it("고정 규칙: 여러 건 요청은 빠짐없이 한 번의 제안에 넣는다", () => {
+    expect(SAFETY_RULES).toMatch(/빠짐없이/);
+    expect(SAFETY_RULES).toContain("records");
+  });
+
   it("delete proposal carries danger and asks to delete", async () => {
     const r = new ToolRegistry();
     r.register({

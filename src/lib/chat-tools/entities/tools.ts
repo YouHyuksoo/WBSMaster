@@ -8,6 +8,8 @@
  * - 수정·삭제 대상(refs)은 코드·이름·제목으로 현재 프로젝트 안에서 찾는다. 같은 이름이 여러 개면 코드로 다시 말해 달라고 한다.
  * - 담당자 이름은 프로젝트 구성원으로 찾아 id 로 바꾼다 (애매하면 후보 선택).
  * - 삭제는 한 번에 최대 20건, 확인 카드가 빨간 [삭제] 로 뜨고 함께 지워지는 데이터를 알려 준다.
+ * - 여러 건 등록은 records(필드 묶음 배열, 최대 MAX_CREATE 건)로 카드 하나에 올린다. 저장 형식: 한 건 { entity, data }, 여러 건 { entity, items }.
+ *   (2026-11-19 "12월 한 달 주말 빼고 상주 등록" 이 첫 주 한 건만 제안됐다: 한 번에 한 건만 받을 수 있었다)
  * - 저장만 하고 실행은 확인 API 가 화면 API 핸들러로 한다 (execute.ts).
  */
 
@@ -18,6 +20,8 @@ import type { ChatTool, ProposalOp, ToolContext, ToolResult } from "../types";
 import type { EntityField, EntitySpec } from "./types";
 
 export const MAX_DELETE = 20;
+/** 등록 제안 한 장에 넣을 수 있는 최대 건수 (한 달 날짜별 등록까지) */
+export const MAX_CREATE = 31;
 type Db = Record<string, { findMany(a: unknown): Promise<Record<string, unknown>[]> }> & {
   chatPendingAction: { create(a: unknown): Promise<{ id: string }> };
 };
@@ -145,7 +149,23 @@ async function savePending(ctx: ToolContext, kind: string, args: object, summary
   return { kind: "proposal", actionId: action.id, summary, fields, op, ...(danger ? { danger: true } : {}) };
 }
 
-export function makeEntityTools(specs: EntitySpec[]): ChatTool<{ spec: EntitySpec; refs?: string[]; data?: Record<string, unknown> }>[] {
+/** 등록 필드: fields(한 건) 또는 records(여러 건) */
+function parseCreateRecords(spec: EntitySpec, a: Record<string, unknown>): Record<string, unknown>[] {
+  if (a.records !== undefined) {
+    if (!Array.isArray(a.records) || !a.records.length) throw new Error("records 는 등록할 필드 묶음의 배열이어야 합니다.");
+    if (a.records.length > MAX_CREATE) throw new Error(`한 번에 최대 ${MAX_CREATE}건까지 등록을 제안할 수 있습니다 (요청 ${a.records.length}건).`);
+    return a.records.map((r, i) => {
+      try {
+        return parseFields(spec, r, true);
+      } catch (e) {
+        throw new Error(`records[${i}]: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    });
+  }
+  return [parseFields(spec, a.fields, true)];
+}
+
+export function makeEntityTools(specs: EntitySpec[]): ChatTool<{ spec: EntitySpec; refs?: string[]; data?: Record<string, unknown>; records?: Record<string, unknown>[] }>[] {
   const guide = (op: "create" | "update" | "delete") =>
     specs.filter((s) => s.ops[op]).map((s) => (op === "delete" ? `${s.key}(${s.label}, 대상: ${s.refFields.join("/")})` : `${s.key}(${s.label}): ${s.fields.map(fieldGuide).join(", ")}`)).join(" / ");
   const entityProp = (op: "create" | "update" | "delete") => ({ type: "string", enum: specs.filter((s) => s.ops[op]).map((s) => s.key) });
@@ -153,22 +173,47 @@ export function makeEntityTools(specs: EntitySpec[]): ChatTool<{ spec: EntitySpe
   return [
     {
       name: "propose_create_record",
-      description: `여러 메뉴의 등록을 제안한다 (실행 안 됨, 확인 카드). * 는 필수. 전용 도구가 있는 TASK·이슈·고객이슈·협의요청·주간보고 항목은 그 도구를 쓴다. ${guide("create")}`,
-      parameters: { type: "object", properties: { entity: entityProp("create"), fields: { type: "object" } }, required: ["entity", "fields"], additionalProperties: false },
+      description: `여러 메뉴의 등록을 제안한다 (실행 안 됨, 확인 카드). * 는 필수. 한 건은 fields, 여러 건(기간을 나눈 일정, 사람별 · 주별 등록 등)은 records 배열로 빠짐없이 한 번에 넣는다 (최대 ${MAX_CREATE}건, 나눠서 여러 번 부르지 않는다). 전용 도구가 있는 TASK·이슈·고객이슈·협의요청·주간보고 항목은 그 도구를 쓴다. ${guide("create")}`,
+      parameters: {
+        type: "object",
+        properties: { entity: entityProp("create"), fields: { type: "object" }, records: { type: "array", items: { type: "object" } } },
+        required: ["entity"],
+        additionalProperties: false,
+      },
       kind: "write",
       parse: (args) => {
         const a = obj(args);
         const spec = getSpec(specs, a.entity, "create");
-        return { spec, data: parseFields(spec, a.fields, true) };
+        if (a.fields !== undefined && a.records !== undefined) throw new Error("fields(한 건)와 records(여러 건) 중 하나만 넣습니다.");
+        if (a.fields === undefined && a.records === undefined) throw new Error("등록할 내용(fields 또는 records)이 필요합니다.");
+        return { spec, records: parseCreateRecords(spec, a) };
       },
-      async execute(ctx, { spec, data }) {
-        const d = { ...data! };
-        const display = displayOf(spec, d);
-        const stop = await resolvePeople(spec, ctx, d, display);
-        if (stop) return stop;
-        const prepared = spec.prepareCreate ? await spec.prepareCreate(ctx, d) : d;
-        if ("error" in prepared && typeof prepared.error === "string") return { kind: "error", message: prepared.error };
-        return savePending(ctx, "entity_create", { entity: spec.key, data: prepared }, `${spec.label} 등록: ${display.map((x) => `${x.label} ${x.value}`).join(" · ")}`, display);
+      async execute(ctx, { spec, records }) {
+        const items: Record<string, unknown>[] = [];
+        const displays: { label: string; value: string }[][] = [];
+        for (const data of records!) {
+          const d = { ...data };
+          const display = displayOf(spec, d);
+          const stop = await resolvePeople(spec, ctx, d, display);
+          if (stop) return stop;
+          const prepared = spec.prepareCreate ? await spec.prepareCreate(ctx, d) : d;
+          if ("error" in prepared && typeof prepared.error === "string") return { kind: "error", message: prepared.error };
+          items.push(prepared);
+          displays.push(display);
+        }
+        const line = (display: { label: string; value: string }[]) => display.map((x) => `${x.label} ${x.value}`).join(" · ");
+        if (items.length === 1) {
+          return savePending(ctx, "entity_create", { entity: spec.key, data: items[0] }, `${spec.label} 등록: ${line(displays[0])}`, displays[0]);
+        }
+        // 여러 건: 카드에는 한 줄에 한 건, 요약에는 건수와 각 건의 앞 두 칸 (기록에서 다시 불러올 때 이 요약만 보인다)
+        const short = displays.map((d) => d.slice(0, 2).map((x) => x.value).join(" ")).join(" / ");
+        return savePending(
+          ctx,
+          "entity_create",
+          { entity: spec.key, items },
+          `${spec.label} ${items.length}건 등록: ${short.length > 400 ? `${short.slice(0, 400)}…` : short}`,
+          displays.map((d, i) => ({ label: `${i + 1}`, value: line(d) }))
+        );
       },
     },
     {
