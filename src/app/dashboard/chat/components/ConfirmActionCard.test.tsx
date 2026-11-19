@@ -80,6 +80,34 @@ describe("ConfirmActionCard 캐시 새로 고침", () => {
   });
 });
 
+describe("ConfirmActionCard 기록에서 불러온 카드", () => {
+  it("처리한 카드는 [등록] 없이 처리 결과와 결과 보기 링크를 보여 준다 (회귀: 다시 열면 질문만 남았다)", () => {
+    const f = vi.fn();
+    vi.stubGlobal("fetch", f);
+    render(<ConfirmActionCard action={{ ...action, fields: [], status: "CONFIRMED", link: "/dashboard/holidays" }} />);
+    expect(screen.getByText(/처리했습니다/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: /결과 보기/ }).getAttribute("href")).toBe("/dashboard/holidays");
+    expect(screen.queryByRole("button", { name: "등록" })).toBeNull();
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it("취소 · 시간 지남 · 실패도 그 상태로 보여 준다", () => {
+    const { unmount } = render(<ConfirmActionCard action={{ ...action, status: "CANCELLED" }} />);
+    expect(screen.getByText(/취소했습니다/)).toBeTruthy();
+    unmount();
+    const r2 = render(<ConfirmActionCard action={{ ...action, status: "EXPIRED" }} />);
+    expect(screen.getByText(/확인 시간이 지났습니다/)).toBeTruthy();
+    r2.unmount();
+    render(<ConfirmActionCard action={{ ...action, status: "FAILED", error: "제목이 필요합니다" }} />);
+    expect(screen.getByText(/제목이 필요합니다/)).toBeTruthy();
+  });
+
+  it("아직 처리 안 한 카드는 [등록] 버튼이 그대로 있다", () => {
+    render(<ConfirmActionCard action={{ ...action, status: "PENDING" }} />);
+    expect(screen.getByRole("button", { name: "등록" })).toBeTruthy();
+  });
+});
+
 describe("ConfirmActionCard danger", () => {
   it("delete card shows red 삭제 button and calls confirm", async () => {
     const f = vi.fn(async () => new Response(JSON.stringify({ status: "CONFIRMED", resultRef: "m1", link: "/dashboard/milestones" })));

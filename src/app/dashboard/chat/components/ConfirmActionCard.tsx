@@ -8,6 +8,7 @@
  * - [취소] → POST /api/chat/actions/{id}/cancel
  * - 등록이 끝나면 refreshAfterServerWrite 로 화면 캐시를 새로 고친다 (안 하면 결과 화면에 새로고침 전까지 안 보인다)
  * - 409(이미 처리됨)·410(시간 지남)·기타 오류는 문구로 보여 준다
+ * - 기록에서 다시 불러온 카드는 status(처리함 · 취소함 · 시간 지남 · 실패)로 시작한다. 처리한 카드에 다시 [등록] 버튼을 띄우지 않는다
  * - 색: bg-{색}-500/10 + text-{색}-600 dark:text-{색}-400 (파스텔 금지 규칙)
  */
 
@@ -26,13 +27,35 @@ export interface PendingActionView {
   op?: "create" | "update" | "delete";
   /** 삭제 제안 (빨간 카드·[삭제] 버튼) */
   danger?: boolean;
+  /** 기록에서 불러온 카드의 처리 상태 (GET /api/chat). 방금 받은 카드에는 없다 */
+  status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "EXPIRED" | "FAILED";
+  /** 처리한 카드의 결과 화면 주소 */
+  link?: string;
+  /** 실패한 카드의 오류 */
+  error?: string;
 }
 
 type State = { kind: "idle" | "busy" } | { kind: "done"; link: string } | { kind: "cancelled" } | { kind: "error"; message: string };
 
+/** 기록에서 불러온 카드의 처음 상태 */
+export function initialCardState(action: PendingActionView): State {
+  switch (action.status) {
+    case "CONFIRMED":
+      return { kind: "done", link: action.link ?? "/dashboard" };
+    case "CANCELLED":
+      return { kind: "cancelled" };
+    case "EXPIRED":
+      return { kind: "error", message: "확인 시간이 지났습니다. 다시 요청해 주세요." };
+    case "FAILED":
+      return { kind: "error", message: action.error ? `처리하지 못했습니다: ${action.error}` : "처리하지 못했습니다." };
+    default:
+      return { kind: "idle" };
+  }
+}
+
 export function ConfirmActionCard({ action, onComplete }: { action: PendingActionView; onComplete?: () => void }) {
-  const [state, setState] = useState<State>({ kind: "idle" });
-  const sent = useRef(false);
+  const [state, setState] = useState<State>(() => initialCardState(action));
+  const sent = useRef(action.status !== undefined && action.status !== "PENDING");
   const queryClient = useQueryClient();
 
   const send = async (op: "confirm" | "cancel") => {

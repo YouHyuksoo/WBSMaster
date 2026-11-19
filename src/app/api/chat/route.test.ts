@@ -6,6 +6,7 @@
  * 초보자 가이드:
  * - projectId 가 있으면 프로젝트 멤버만 (assertProjectAccess)
  * - AI 설정이 없는 사용자는 회사 ChatGPT(기본)로 처리한다
+ * - GET 기록은 답에 딸린 확인 카드를 처리 상태와 함께 붙인다 (회귀: 다시 열면 질문만 남았다)
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,7 +19,11 @@ vi.mock("@/lib/auth", () => ({
 const db = vi.hoisted(() => ({
   aiSetting: { findUnique: vi.fn(async () => st.settings) },
   aiPersona: { findFirst: vi.fn(async () => null) },
-  chatHistory: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "h1", ...data })) },
+  chatHistory: {
+    create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "h1", ...data })),
+    findMany: vi.fn(async (): Promise<Record<string, unknown>[]> => []),
+  },
+  chatPendingAction: { findMany: vi.fn(async (): Promise<Record<string, unknown>[]> => []) },
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 const llm = vi.hoisted(() => ({
@@ -31,7 +36,7 @@ const agent = vi.hoisted(() => ({ answerWithAgent: vi.fn(async () => ({ id: "h-a
 vi.mock("@/lib/chat-agent/handle-agent-chat", () => agent);
 vi.mock("@/lib/llm/safe-sql", () => ({ runSafeSql: vi.fn() }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 const post = (body: Record<string, unknown>) => POST(new Request("http://x/api/chat", { method: "POST", body: JSON.stringify(body) }) as never);
 
@@ -76,5 +81,23 @@ describe("POST /api/chat", () => {
     await post({ message: "열린 이슈", projectId: "p1" });
     expect(llm.resolveLLMConfig.mock.calls[0][0]).toMatchObject({ provider: "chatgpt" });
     expect(agent.answerWithAgent).toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/chat", () => {
+  it("답에 딸린 확인 카드를 처리 상태 · 결과 주소와 함께 붙인다", async () => {
+    db.chatHistory.findMany.mockResolvedValue([
+      { id: "m2", role: "assistant", content: "아래 내용으로 진행할까요?", pendingActionId: "act-9" },
+      { id: "m1", role: "user", content: "12월 상주 등록해줘", pendingActionId: null },
+    ]);
+    db.chatPendingAction.findMany.mockResolvedValue([
+      { id: "act-9", userId: "u1", kind: "entity_create", args: { entity: "holiday" }, summary: "일정 등록: 제목 오창 상주", status: "CONFIRMED", error: null, expiresAt: new Date(Date.now() + 60_000) },
+    ]);
+    const res = await GET(new Request("http://x/api/chat?projectId=p1&limit=10") as never);
+    const rows = await res.json();
+    expect(rows.map((r: { id: string }) => r.id)).toEqual(["m1", "m2"]);
+    expect(rows[0].pendingAction).toBeUndefined();
+    expect(rows[1].pendingAction).toMatchObject({ id: "act-9", status: "CONFIRMED", link: "/dashboard/holidays", summary: "일정 등록: 제목 오창 상주" });
+    expect(db.chatPendingAction.findMany).toHaveBeenCalledWith({ where: { id: { in: ["act-9"] }, userId: "u1" } });
   });
 });

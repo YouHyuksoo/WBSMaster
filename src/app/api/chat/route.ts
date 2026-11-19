@@ -7,7 +7,7 @@
  * 초보자 가이드:
  * 1. **POST /api/chat**: 채팅 메시지 처리
  *    - 메시지 → LLM(SQL 생성) → SQL 실행 → LLM(결과 분석) → 응답
- * 2. **GET /api/chat**: 채팅 기록 조회
+ * 2. **GET /api/chat**: 채팅 기록 조회 (답에 딸린 확인 카드는 pendingAction 으로 처리 상태와 함께 붙인다)
  *
  * 파이프라인:
  * 1. 사용자 질문 수신
@@ -20,6 +20,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { pendingActionViews } from "@/lib/chat-tools/action-view";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { processChatMessage, resolveLLMConfig, createLLMClient, LLMConfig, SystemPromptConfig } from "@/lib/llm";
@@ -60,7 +61,14 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    return NextResponse.json(recent.reverse());
+    // 답에 딸린 확인 카드를 처리 상태와 함께 붙인다 (안 붙이면 다시 열었을 때 질문만 남는다)
+    const views = await pendingActionViews(
+      recent.map((m) => m.pendingActionId).filter((id): id is string => !!id),
+      user!.id
+    );
+    return NextResponse.json(
+      recent.reverse().map((m) => (m.pendingActionId && views.has(m.pendingActionId) ? { ...m, pendingAction: views.get(m.pendingActionId) } : m))
+    );
   } catch (error) {
     console.error("채팅 기록 조회 실패:", error);
     return NextResponse.json(

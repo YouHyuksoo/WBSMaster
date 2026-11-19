@@ -18,19 +18,12 @@ import { createDiscussionItem, updateDiscussionItem } from "@/lib/services/discu
 import { updateWbsItems } from "@/lib/services/wbsService";
 import { ENTITY_SPECS, executeEntityAction } from "./entities";
 import { executeWeeklyAction } from "./weekly-report-execute";
+import { actionLink } from "./action-view";
 
 export type ActionOutcome = { ok: true; resultRef: string; link: string } | { ok: false; error: string; status: number };
 
 type PendingAction = { kind: string; projectId: string; args: unknown };
 type ServiceOut = { success: boolean; data?: { id: string }; task?: { id: string }; error?: string; status?: number };
-
-const LINKS: Record<string, string> = {
-  task: "/dashboard/kanban",
-  issue: "/dashboard/issues",
-  field_issue: "/dashboard/field-issues",
-  discussion_item: "/dashboard/discussion-items",
-  wbs: "/dashboard/wbs",
-};
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- args 는 제안 도구가 검증·정규화해 저장한 서비스 입력 */
 export async function executePendingAction(action: PendingAction, user: AuthUser): Promise<ActionOutcome> {
@@ -80,5 +73,5 @@ export async function executePendingAction(action: PendingAction, user: AuthUser
   /* eslint-enable @typescript-eslint/no-explicit-any */
   if (!out.success) return { ok: false, error: out.error || "실행에 실패했습니다.", status: out.status ?? 500 };
   const id = out.data?.id ?? out.task?.id ?? "";
-  return { ok: true, resultRef: id, link: LINKS[action.kind.replace(/^(create|update)_/, "")] ?? "/dashboard" };
+  return { ok: true, resultRef: id, link: actionLink(action.kind, action.args) };
 }
