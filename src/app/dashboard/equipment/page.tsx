@@ -23,6 +23,8 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { utils, writeFile } from "xlsx";
 import { useProject } from "@/contexts";
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshAfterServerWrite } from "@/lib/query-refresh";
 import { Equipment, EquipmentStatus, EquipmentType } from "@/lib/api";
 import { useEquipment, useEquipmentLines } from "./hooks/useEquipment";
 import { useEquipmentConnections } from "./hooks/useEquipmentConnections";
@@ -126,6 +128,7 @@ export default function EquipmentPage() {
 
   // 라인 목록 조회 (프로젝트 전체 라인)
   const { data: lineData } = useEquipmentLines(selectedProjectId || undefined);
+  const queryClient = useQueryClient();
 
   // 설비 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
   const equipmentFilters = useMemo(
@@ -671,7 +674,8 @@ export default function EquipmentPage() {
                         method: "DELETE",
                       });
                       if (res.ok) {
-                        // 데이터 다시 로드 (React Query 자동 처리)
+                        // 직접 fetch 라 React Query 가 모른다: 화면 캐시를 새로 고친다
+                        await refreshAfterServerWrite(queryClient);
                         alert("설비가 삭제되었습니다.");
                       } else {
                         const error = await res.json();
@@ -690,7 +694,8 @@ export default function EquipmentPage() {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ status: newStatus }),
                     });
-                    if (!res.ok) {
+                    if (res.ok) await refreshAfterServerWrite(queryClient);
+                    else {
                       const error = await res.json();
                       alert(`상태 변경 실패: ${error.message || "알 수 없는 오류"}`);
                     }

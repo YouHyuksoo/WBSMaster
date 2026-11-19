@@ -17,6 +17,8 @@
 
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshAfterServerWrite } from "@/lib/query-refresh";
 import { useState, useCallback, useMemo } from "react";
 import { utils, writeFile } from "xlsx";
 import { Icon, Button, Input, useToast, ConfirmModal } from "@/components/ui";
@@ -88,6 +90,7 @@ export default function InterviewsPage() {
   const [isTransferring, setIsTransferring] = useState(false);
 
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   // 필터 객체 메모이제이션
   const queryFilters = useMemo(
@@ -285,6 +288,8 @@ export default function InterviewsPage() {
         id: transferringInterview.id,
         data: { transferStatus: "TRANSFERRED" },
       });
+      // 이관 대상 목록(다른 화면)은 직접 fetch 로 만들었으니 화면 캐시를 새로 고친다
+      await refreshAfterServerWrite(queryClient);
 
       const transferTypeLabel = TRANSFER_TYPE_CONFIG[transferType].label;
       toast.success(`${transferTypeLabel}으로 이관되었습니다. (${createdItem.code || ""})`);

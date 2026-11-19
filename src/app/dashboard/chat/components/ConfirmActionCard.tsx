@@ -6,6 +6,7 @@
  * 초보자 가이드:
  * - [등록] → POST /api/chat/actions/{id}/confirm (한 번만, 누르는 즉시 버튼 잠금) → 성공하면 "결과 보기" 링크
  * - [취소] → POST /api/chat/actions/{id}/cancel
+ * - 등록이 끝나면 refreshAfterServerWrite 로 화면 캐시를 새로 고친다 (안 하면 결과 화면에 새로고침 전까지 안 보인다)
  * - 409(이미 처리됨)·410(시간 지남)·기타 오류는 문구로 보여 준다
  * - 색: bg-{색}-500/10 + text-{색}-600 dark:text-{색}-400 (파스텔 금지 규칙)
  */
@@ -14,6 +15,8 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshAfterServerWrite } from "@/lib/query-refresh";
 
 export interface PendingActionView {
   id: string;
@@ -30,6 +33,7 @@ type State = { kind: "idle" | "busy" } | { kind: "done"; link: string } | { kind
 export function ConfirmActionCard({ action, onComplete }: { action: PendingActionView; onComplete?: () => void }) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const sent = useRef(false);
+  const queryClient = useQueryClient();
 
   const send = async (op: "confirm" | "cancel") => {
     if (sent.current) return;
@@ -40,6 +44,8 @@ export function ConfirmActionCard({ action, onComplete }: { action: PendingActio
       const body = await res.json().catch(() => ({}));
       if (res.ok) {
         setState(op === "confirm" ? { kind: "done", link: body.link ?? "/dashboard" } : { kind: "cancelled" });
+        // 서버에서 등록 · 수정 · 삭제됐으니 다른 화면(일정 달력 등)의 캐시를 새로 고친다
+        if (op === "confirm") await refreshAfterServerWrite(queryClient);
         onComplete?.();
         return;
       }

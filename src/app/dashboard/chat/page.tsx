@@ -21,6 +21,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Icon, Button } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshAfterServerWrite } from "@/lib/query-refresh";
 import { useProject } from "@/contexts";
 import { api, AiPersona } from "@/lib/api";
 import { providerBadge } from "@/lib/llm/config";
@@ -47,6 +49,7 @@ type FeedbackRating = "POSITIVE" | "NEGATIVE" | "NEUTRAL" | null;
  */
 export default function ChatPage() {
   const toast = useToast();
+  const queryClient = useQueryClient();
   /** 답변 자동 읽기 (OpenAI 음성, 이 브라우저에만 저장) */
   const [autoSpeak, setAutoSpeak] = useAutoSpeak();
   const { speak: speakAnswer } = useSpeaker(); // 모듈 함수라 렌더마다 같다
@@ -453,6 +456,7 @@ export default function ChatPage() {
           };
           setMessages((prev) => [...prev, assistantMessage]);
           toast.success(`${result.success}건 등록 완료!`);
+          await refreshAfterServerWrite(queryClient);
         } else {
           toast.error(result.error || "등록에 실패했습니다.");
         }
@@ -467,7 +471,7 @@ export default function ChatPage() {
         setSuggestedMappings({});
       }
     },
-    [excelParseResult, selectedProjectId, targetType, toast, setSelectedFile]
+    [excelParseResult, selectedProjectId, targetType, toast, setSelectedFile, queryClient]
   );
 
   /**

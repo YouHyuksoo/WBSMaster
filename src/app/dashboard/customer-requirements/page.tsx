@@ -23,6 +23,8 @@
 
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshAfterServerWrite } from "@/lib/query-refresh";
 import { useState, useCallback, useMemo } from "react";
 import { VoiceIntakeModal } from "@/components/voice";
 import { utils, writeFile } from "xlsx";
@@ -88,6 +90,7 @@ export default function CustomerRequirementsPage() {
   const [isTransferring, setIsTransferring] = useState(false);
 
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   // 필터 객체 메모이제이션 (불필요한 쿼리 재실행 방지)
   const queryFilters = useMemo(
@@ -338,6 +341,8 @@ export default function CustomerRequirementsPage() {
 
       // 원본 요구사항 삭제
       await deleteMutation.mutateAsync(transferringRequirement.id);
+      // 이관 대상 목록(다른 화면)은 직접 fetch 로 만들었으니 화면 캐시를 새로 고친다
+      await refreshAfterServerWrite(queryClient);
 
       toast.success(`협의요청으로 이관되었습니다. (${createdItem.code})`);
       setShowTransferConfirm(false);

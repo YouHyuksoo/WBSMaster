@@ -32,6 +32,8 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshAfterServerWrite } from "@/lib/query-refresh";
 import { utils, writeFile } from "xlsx";
 import { Icon, Button } from "@/components/ui";
 
@@ -123,6 +125,7 @@ export function ImportExcelModal({
 
   // 파일 input 참조
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   /**
    * 템플릿 엑셀 파일 다운로드
@@ -251,6 +254,8 @@ export function ImportExcelModal({
           stats: data.stats,
         };
         setResult(importResult);
+        // 가져온 데이터가 목록에 바로 보이게 화면 캐시를 새로 고친다
+        await refreshAfterServerWrite(queryClient);
         onSuccess(importResult);
       } else {
         setError(data.error || "가져오기에 실패했습니다.");

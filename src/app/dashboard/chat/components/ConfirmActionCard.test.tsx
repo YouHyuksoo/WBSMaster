@@ -6,9 +6,12 @@
  * 초보자 가이드:
  * - [등록] 은 한 번만 호출되고 버튼이 잠긴다. 성공하면 결과 링크, 409 면 "이미 처리됨".
  * - 후보 버튼을 누르면 그 이름을 다음 메시지로 보낸다.
+ * - 등록이 끝나면 다른 화면의 캐시가 새로 고쳐진다 (회귀: AI 로 일정 등록 후 달력에 새로고침 전까지 안 보였다).
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfirmActionCard } from "./ConfirmActionCard";
 import { CandidatePicker } from "./CandidatePicker";
@@ -16,6 +19,11 @@ import { CandidatePicker } from "./CandidatePicker";
 const action = { id: "act-1", summary: "TASK 등록: 제목 설비점검", fields: [{ label: "제목", value: "설비점검" }, { label: "담당", value: "강승훈" }] };
 
 afterEach(() => vi.unstubAllGlobals());
+
+/** 앱처럼 QueryClientProvider 안에서 그린다 */
+function render(ui: ReactElement, client = new QueryClient()) {
+  return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 
 describe("ConfirmActionCard", () => {
   it("confirm calls API once and disables buttons", async () => {
@@ -47,6 +55,28 @@ describe("ConfirmActionCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "취소" }));
     expect(await screen.findByText(/취소했습니다/)).toBeTruthy();
     expect((f.mock.calls[0] as unknown as [string])[0]).toBe("/api/chat/actions/act-1/cancel");
+  });
+});
+
+describe("ConfirmActionCard 캐시 새로 고침", () => {
+  it("등록 성공 후 떠 있지 않은 화면 캐시는 지우고 떠 있는 조회는 다시 받는다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ status: "CONFIRMED", link: "/dashboard/holidays" }))));
+    const client = new QueryClient();
+    client.setQueryData(["holidays", "list", undefined], [{ id: "old" }]);
+    render(<ConfirmActionCard action={action} />, client);
+    fireEvent.click(screen.getByRole("button", { name: "등록" }));
+    await screen.findByRole("link", { name: /결과 보기/ });
+    expect(client.getQueryData(["holidays", "list", undefined])).toBeUndefined();
+  });
+
+  it("취소는 캐시를 건드리지 않는다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ status: "CANCELLED" }))));
+    const client = new QueryClient();
+    client.setQueryData(["holidays", "list", undefined], [{ id: "old" }]);
+    render(<ConfirmActionCard action={action} />, client);
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+    await screen.findByText(/취소했습니다/);
+    expect(client.getQueryData(["holidays", "list", undefined])).toEqual([{ id: "old" }]);
   });
 });
 

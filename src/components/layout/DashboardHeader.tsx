@@ -23,6 +23,7 @@ import Link from "next/link";
 import { FavoriteMenuDropdown } from "./FavoriteMenuDropdown";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { refreshAfterServerWrite } from "@/lib/query-refresh";
 import { Icon, Button, Input, ImageCropper, useToast } from "@/components/ui";
 import { useProject } from "@/contexts/ProjectContext";
 import { TodayStatsScroller } from "@/components/dashboard/TodayStatsScroller";
@@ -505,6 +506,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
       const newUserData = { ...user, name: updatedUser.name, avatar: updatedUser.avatar };
       localStorage.setItem("user", JSON.stringify(newUserData));
       setUser(newUserData);
+      // 구성원 목록 등 다른 화면에 보이는 이름 · 사진도 새로 받게 한다
+      await refreshAfterServerWrite(queryClient);
 
       toast.success("프로필이 수정되었습니다.");
       setShowProfileModal(false);
