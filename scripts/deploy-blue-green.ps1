@@ -7,6 +7,7 @@
   - 폴더 두 개: A = D:\Project\WBSMaster (원래 저장소), B = D:\Project\WBSMaster-b (A 의 git worktree).
     지금 서비스 중인 폴더는 D:\Project\wbs-active-slot.txt 에 적혀 있다 (없으면 A).
   - 서비스 중인 폴더는 건드리지 않는다. 쉬고 있는 폴더에서 코드 받기 → npm ci → 마이그레이션 확인 → prisma generate → 빌드
+    (npm ci 는 그 폴더에 마지막으로 설치한 package-lock · node 버전이 같으면 건너뛴다. 3천 개 패키지를 지우고 다시 까는 데 10분 넘게 걸린다)
     → 다른 포트(3021)로 띄워 /login 응답 확인(사전 점검)까지 끝낸 뒤에만 PM2 를 그 폴더로 옮긴다.
   - 옮긴 뒤 3020 이 응답하지 않으면 이전 폴더로 자동으로 되돌리고 실패로 끝낸다.
   - 끊기는 시간은 PM2 를 옮기는 순간(약 10초)뿐이다. 그동안 IIS 가 점검 안내 페이지(maintenance.html)를 보여 준다.
@@ -82,7 +83,19 @@ if ($target -ne $SlotA) { Copy-Item (Join-Path $SlotA '.env.local') (Join-Path $
 # ── 3. 의존성 · 마이그레이션 확인 · 빌드 (서비스는 계속 A/B 중 다른 쪽이 한다) ──
 Push-Location $target
 try {
-  Invoke-Native npm @('ci')
+  # 설치 표시: 성공한 npm ci 뒤에만 node_modules 안에 쓴다. npm ci 는 시작할 때 node_modules 를 지우므로
+  # 설치가 중간에 실패한 폴더에는 표시가 남지 않아 다음 배포에서 다시 설치한다.
+  $depsStamp = 'node_modules\.wbs-deps-stamp'
+  # 해시는 .NET 으로 계산한다 (Get-FileHash 는 모듈 경로에 따라 5.1 에서 못 찾을 때가 있다)
+  $lockBytes = [IO.File]::ReadAllBytes((Join-Path $target 'package-lock.json'))
+  $lockHash = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($lockBytes)) -replace '-', ''
+  $depsKey = "$lockHash node $(& node --version)"
+  if ((Test-Path $depsStamp) -and ((Get-Content $depsStamp -Raw).Trim() -eq $depsKey)) {
+    Write-Host "의존성 그대로 (package-lock · node 버전이 지난 설치와 같음) → npm ci 건너뜀"
+  } else {
+    Invoke-Native npm @('ci', '--no-audit', '--no-fund')
+    Set-Content -Path $depsStamp -Value $depsKey -Encoding ASCII
+  }
   # 운영 DB 에 아직 없는 마이그레이션이 있으면 여기서 멈춘다 (서비스는 그대로)
   Invoke-Native npx @('prisma', 'migrate', 'status')
   Invoke-Native npx @('prisma', 'generate')

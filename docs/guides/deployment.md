@@ -67,7 +67,7 @@ git push origin main → GitHub Actions 트리거 → 서버 자동 배포
 순서:
 1. `git fetch origin main` (서비스 중인 폴더의 파일은 그대로)
 2. 배포할 커밋에서 `scripts/deploy-blue-green.ps1` 을 꺼내 실행 (스크립트는 UTF-8 BOM 필수: PowerShell 5.1)
-3. 쉬는 폴더: `git checkout --force --detach <커밋>` → `npm ci` → `prisma migrate status`(운영 DB 에 없는 마이그레이션이 있으면 **여기서 멈춤, 서비스 영향 없음**) → `prisma generate` → `npm run build`
+3. 쉬는 폴더: `git checkout --force --detach <커밋>` → `npm ci --no-audit --no-fund`(그 폴더에 마지막으로 설치한 `package-lock.json` 해시 · node 버전이 같으면 건너뜀. 표시 파일 `node_modules\.wbs-deps-stamp`, 지우면 다음 배포에서 다시 설치) → `prisma migrate status`(운영 DB 에 없는 마이그레이션이 있으면 **여기서 멈춤, 서비스 영향 없음**) → `prisma generate` → `npm run build`
 4. 사전 점검: 쉬는 폴더를 3021 포트로 띄워 `/login` 200 확인 후 끈다
 5. 전환: `pm2 delete wbs-master` → 새 폴더의 `ecosystem.config.js` 로 `pm2 start` → 3020 `/login` 200 확인 → 표시 파일 갱신 → `pm2 save`
 6. 3020 이 응답하지 않으면 이전 폴더로 자동 되돌리고 실패로 끝난다
