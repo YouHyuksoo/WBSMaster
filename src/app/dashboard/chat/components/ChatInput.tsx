@@ -10,6 +10,7 @@
  * - 예시 질문 팝오버
  * - 음성 입력 (녹음 → OpenAI 전사, 기준 설정 > 음성 인식 의 OpenAI 키)
  * 초보자 가이드: 제안은 입력만 하고 전송은 프로젝트 준비·한글 조합 종료 후 실행합니다.
+ * - 대화 기록을 불러오는 중에는 입력만 받고 전송하지 않는다 (기록이 도착하면서 방금 보낸 질문을 덮어썼다).
  */
 
 import React, { memo, useState, useRef, useCallback, useEffect } from "react";
@@ -29,6 +30,8 @@ interface ChatInputProps {
   isLoading: boolean;
   isUploadingExcel: boolean;
   selectedProjectId: string;
+  /** 대화 기록을 불러오는 중 (입력은 받고 전송만 막는다) */
+  isLoadingHistory?: boolean;
   /** 동적 제안 질문 (외부에서 전달, 없으면 기본값 사용) */
   suggestions?: ExampleGroup[];
   /** 제안 새로고침 함수 */
@@ -56,6 +59,7 @@ const ChatInput = memo(function ChatInput({
   isLoading,
   isUploadingExcel,
   selectedProjectId,
+  isLoadingHistory = false,
   suggestions = EXAMPLE_GROUPS,
   onRefreshSuggestions,
   isRefreshingSuggestions = false,
@@ -96,10 +100,10 @@ const ChatInput = memo(function ChatInput({
 
   /** 전송 가능한 상태에서만 입력을 소비한다. */
   const handleSendMessage = useCallback(() => {
-    if (!inputMessage.trim() || isLoading || isUploadingExcel || (selectedFile && targetType !== "intake") || !selectedProjectId) return;
+    if (!inputMessage.trim() || isLoading || isLoadingHistory || isUploadingExcel || (selectedFile && targetType !== "intake") || !selectedProjectId) return;
     onSendMessage(inputMessage);
     setInputMessage("");
-  }, [inputMessage, isLoading, isUploadingExcel, selectedFile, targetType, selectedProjectId, onSendMessage]);
+  }, [inputMessage, isLoading, isLoadingHistory, isUploadingExcel, selectedFile, targetType, selectedProjectId, onSendMessage]);
 
   /** 한글 조합 종료 Enter는 전송에서 제외한다. */
   const handleKeyDown = useCallback(
@@ -283,7 +287,7 @@ const ChatInput = memo(function ChatInput({
           <Button
             variant="primary"
             onClick={handleSendMessage}
-            disabled={!inputMessage.trim() || isLoading || !selectedProjectId}
+            disabled={!inputMessage.trim() || isLoading || isLoadingHistory || !selectedProjectId}
             leftIcon={isLoading ? "progress_activity" : "send"}
           >
             전송

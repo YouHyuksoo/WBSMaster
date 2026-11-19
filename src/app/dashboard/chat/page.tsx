@@ -230,7 +230,8 @@ export default function ChatPage() {
    */
   const handleSendMessage = useCallback(
     async (inputMessage: string) => {
-      if (!inputMessage.trim() || isLoading) return;
+      // 기록을 불러오는 중에 보내면 도착한 기록이 방금 보낸 질문을 덮어쓴다 (후보 버튼 · 정리 명령도 여기로 온다)
+      if (!inputMessage.trim() || isLoading || isLoadingHistory) return;
       // 프로젝트를 불러오기 전에는 보내지 않는다 (서버도 projectId 없으면 400)
       if (!selectedProjectId) {
         toast.error("프로젝트 정보를 불러오는 중입니다. 잠시 후 다시 보내 주세요.");
@@ -327,7 +328,7 @@ export default function ChatPage() {
         setIsLoading(false);
       }
     },
-    [isLoading, selectedProjectId, selectedPersonaId, toast, autoSpeak, speakAnswer, selectedFile, setSelectedFile, targetType, intake]
+    [isLoading, isLoadingHistory, selectedProjectId, selectedPersonaId, toast, autoSpeak, speakAnswer, selectedFile, setSelectedFile, targetType, intake]
   );
 
   /**
@@ -811,6 +812,7 @@ export default function ChatPage() {
         onTargetTypeChange={setTargetType}
         onExcelUpload={handleExcelUpload}
         isLoading={isLoading}
+        isLoadingHistory={isLoadingHistory}
         isUploadingExcel={isUploadingExcel}
         selectedProjectId={selectedProjectId}
         suggestions={suggestions}
