@@ -143,7 +143,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
                     const isInline = !className;
                     return isInline ? (
                       <code
-                        className="px-1.5 py-0.5 rounded bg-background-dark text-primary text-sm"
+                        className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-sm font-normal box-decoration-clone break-all"
                         {...props}
                       >
                         {children}
