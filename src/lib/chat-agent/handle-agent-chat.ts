@@ -75,7 +75,8 @@ export async function answerWithAgent(opts: {
       userQuery: message,
       processingTimeMs: processingTime,
       personaId: opts.personaId || null,
-      toolSummary: json(result.toolSummary.length ? result.toolSummary : null),
+      // 빈 목록도 저장한다: "도구 없이 답함"과 예전 기록(정보 없음)을 구분하려고
+      toolSummary: result.toolSummary as unknown as Prisma.InputJsonValue,
       pendingActionId: result.pendingAction?.id ?? null,
       intakeDraftId: result.intake?.id ?? null,
     },
@@ -92,6 +93,7 @@ export async function answerWithAgent(opts: {
     pendingAction: result.pendingAction,
     candidates: result.candidates,
     usedFallback: result.usedFallback,
+    toolSummary: result.toolSummary,
     intake: result.intake,
   };
 }

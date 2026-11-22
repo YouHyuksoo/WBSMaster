@@ -22,6 +22,7 @@ import ChartRenderer from "./ChartRenderer";
 import MindmapRenderer, { MindmapNode } from "./MindmapRenderer";
 import { ConfirmActionCard, type PendingActionView } from "./ConfirmActionCard";
 import { CandidatePicker, type CandidatesView } from "./CandidatePicker";
+import { AnswerSourceBadges } from "./AnswerSourceBadges";
 
 /**
  * 피드백 타입
@@ -55,6 +56,8 @@ export interface ChatMessage {
   candidates?: CandidatesView;
   /** 회사 ChatGPT 대신 대체 모델로 답했는지 */
   usedFallback?: boolean;
+  /** 결과를 돌려준 도구 목록. 답 근거 방식(온톨로지 · 지식 그래프 · 업무 DB) 표시에 쓴다 */
+  toolSummary?: { tool: string; summary?: string }[] | null;
 }
 
 interface ChatMessageItemProps {
@@ -345,6 +348,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
                     대체 모델로 답함
                   </span>
                 )}
+                <AnswerSourceBadges toolSummary={message.toolSummary} sqlQuery={message.sqlQuery} />
               </div>
               {/* 상세 피드백 입력 (부정적 피드백 시 표시) */}
               {message.feedback?.rating === "NEGATIVE" && (

@@ -309,6 +309,7 @@ export default function ChatPage() {
             pendingAction: data.intake ? undefined : data.pendingAction,
             candidates: data.candidates,
             usedFallback: data.usedFallback,
+            toolSummary: data.toolSummary,
           };
           setMessages((prev) => [...prev, assistantMessage]);
           if (autoSpeak) {
