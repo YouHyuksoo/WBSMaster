@@ -6,6 +6,7 @@
  * 초보자 가이드:
  * - 새 도구는 여기서 defaultRegistry.register(...) 한 줄로 추가한다.
  * - search_knowledge는 지성지식관리의 의미·관계 검색을 호출하는 기본 도구다.
+ * - ONTOLOGY_TOOLS 는 지성지식관리 업무 사전(온톨로지)으로 WBS 데이터를 조회 · 관계 탐색 · 규칙 검사하는 도구다.
  */
 
 import { defaultRegistry } from "./registry";
@@ -18,6 +19,7 @@ import { ENTITY_TOOLS } from "./entities";
 import { WEEKLY_REPORT_TOOLS } from "./weekly-report";
 import { MEETING_TOOLS } from "./meeting-items";
 import { searchKnowledgeTool, listKnowledgeDocumentsTool } from "./knowledge";
+import { ONTOLOGY_TOOLS } from "./ontology";
 import { TO_BE_TOOLS } from "./to-be";
 import { listProcessVerificationTool, processVerificationStatsTool } from "./process-verification";
 
@@ -27,7 +29,7 @@ import type { ChatTool } from "./types";
 const ALL = [
   listProcessVerificationTool, processVerificationStatsTool,
   findPeopleTool, wbsScheduleStatsTool, listWbsTool, ...Object.values(LIST_TOOLS), getRecordTool,
-  ...Object.values(PROPOSAL_TOOLS), ...ENTITY_TOOLS, ...WEEKLY_REPORT_TOOLS, ...MEETING_TOOLS, ...TO_BE_TOOLS, runReadonlySqlTool, searchKnowledgeTool, listKnowledgeDocumentsTool,
+  ...Object.values(PROPOSAL_TOOLS), ...ENTITY_TOOLS, ...WEEKLY_REPORT_TOOLS, ...MEETING_TOOLS, ...TO_BE_TOOLS, runReadonlySqlTool, searchKnowledgeTool, listKnowledgeDocumentsTool, ...ONTOLOGY_TOOLS,
 ] as unknown as ChatTool[];
 
 for (const tool of ALL) {
