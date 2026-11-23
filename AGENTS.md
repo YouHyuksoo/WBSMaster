@@ -13,7 +13,7 @@
 - npm 사용 (`package-lock.json`). `npm run start` 는 `0.0.0.0` 에서 서빙한다.
 - `prisma/schema.prisma` 변경 후 `npx prisma generate` 필수 (`npm run build` 와 `postinstall` 은 자동 실행).
 - 새 Enum 값 추가 후 `prisma db push` + `prisma generate` 하고 **개발 서버를 재시작**해야 한다. 안 하면 `Value 'X' not found in enum` 오류.
-- 환경 변수: `.env.example` 을 복사해 `.env.local` 에 둔다. `DATABASE_URL`, `DIRECT_URL`(마이그레이션용) 필수, `UPLOAD_DIR` 선택(기본 `<프로젝트>/uploads`).
+- 환경 변수: `.env.example` 을 복사해 `.env.local` 에 둔다. `DATABASE_URL`, `DIRECT_URL`(마이그레이션용), `SESSION_SECRET`(로그인 쿠키 서명 키, 32자 이상) 필수, `UPLOAD_DIR` 선택(기본 `<프로젝트>/uploads`).
 - `scripts/` 의 import/seed/backup/repair 유틸은 런타임 앱 코드에서 import 하지 않는다.
 
 ## Git·배포
@@ -21,7 +21,7 @@
 - 브랜치는 `main` 하나 (원격 `origin/main`).
 - `main` 에 push 하면 GitHub Actions(self-hosted, 지성 IDC 서버)가 자동 배포한다. 자세한 내용: `docs/guides/deployment.md`.
 - 운영 배포는 폴더 두 개(A `D:\Project\WBSMaster`, B `D:\Project\WBSMaster-b`)를 번갈아 쓴다 (`scripts/deploy-blue-green.ps1`). 쉬는 폴더에서 빌드 · 사전 점검 후 PM2 만 옮겨 끊김이 수 초다. 운영 환경 변수는 A 의 `.env.local` 만 고친다(배포 때 B 로 복사). 업로드 · 백업은 `UPLOAD_DIR` · `BACKUP_DIR` 절대 경로로 공유한다.
-- husky pre-push 가 `npm ci --dry-run`(lock 동기화)과 `npx tsc --noEmit` 을 돌린다. 타입 오류나 lock 불일치가 있으면 push 가 막힌다. pre-commit 은 검증 없음.
+- husky pre-push 가 `npm ci --dry-run`(lock 동기화), `npx tsc --noEmit`, `npx vitest run` 을 돌린다. 타입 오류 · lock 불일치 · 테스트 실패가 있으면 push 가 막힌다. pre-commit 은 검증 없음.
 - 커밋 메시지: Conventional Commit 접두사(`feat:`, `fix:`, `docs:`, `ci:`, `refactor:`) + 한국어 요약, 한 커밋에 한 변경.
 - PR 에는 요약, 관련 이슈/태스크, 테스트 결과, Prisma 변경 시 마이그레이션 노트, 화면 변경 시 스크린샷을 넣는다.
 
@@ -32,6 +32,9 @@
 - import 는 `@/*` 별칭 사용. 컴포넌트 `PascalCase`, 훅 `use*`.
 - 테스트는 Vitest(jsdom), 파일명 `*.test.ts(x)`, 소스 옆에 둔다.
 - 인증이 필요한 API: `@/lib/auth` 의 `const { user, error } = await requireAuth(); if (error) return error;`, 프로젝트 권한은 `assertProjectAccess(projectId, user)`. 공개 API(예: `GET /api/uploads/[...path]`)만 예외.
+- 로그인 쿠키는 서명된 세션 토큰이다. 쿠키는 `src/lib/session-cookie.ts` 만 읽고 쓰며(다른 파일은 `next/headers` 를 import 하지 않는다), 비밀번호 저장 · 비교는 `src/lib/password.ts` 의 `hashPassword` · `verifyPassword` 만 거친다. `session-cookie.test.ts` · `password.test.ts` 가 검사한다.
+- 모든 API 핸들러는 범위 확인(프로젝트 멤버 · 소유자 · 본인 한정 · ADMIN 전용)이 있어야 한다. AS-IS 분석처럼 `projectId` 칼럼이 없는 하위 표는 요청으로 받은 부모 id 를 `assertAsIsAccess(종류, id, user)`(`src/lib/as-is-access.ts`)에 넘긴다. 범위 확인이 필요 없으면 `src/app/api/route-auth.test.ts` 의 `NO_SCOPE` 에 이유를 적는다. husky pre-push 가 `vitest run` 을 돌려 이 검사가 실패하면 push 가 막힌다.
+- 비밀 값(키 · 토큰 · 웹훅 주소) 칼럼을 새로 만들면 그 테이블을 `src/lib/llm/safe-sql.ts` 의 `HIDDEN_TABLES` 에 넣는다 (채팅 SQL 에서 가림, `safe-sql.test.ts` 가 스키마를 읽어 검사). 서버가 요청을 보내는 주소를 사용자에게 받을 때는 호스트를 고정해 검사한다 (예: `isSlackWebhookUrl`).
 - `[id]` Route Handler 의 `params` 는 Promise 이므로 `await params` 로 쓴다 (Next.js 16).
 - React Flow 의 `selectionMode`/`connectionMode` 는 문자열 리터럴이 아니라 `SelectionMode`, `ConnectionMode` enum 을 import 해서 쓴다.
 

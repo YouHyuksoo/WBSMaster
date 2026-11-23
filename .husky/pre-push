@@ -1,6 +1,6 @@
 #!/bin/sh
 # pre-push: push 전 로컬 검증
-# package-lock.json 동기화 + TypeScript 타입 오류 차단
+# package-lock.json 동기화 + TypeScript 타입 오류 + 테스트 실패 차단
 
 echo "🔍 [pre-push] package-lock.json 동기화 확인..."
 npm ci --dry-run --ignore-scripts 2>/dev/null
@@ -18,3 +18,12 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 echo "✅ TypeScript OK"
+
+# 권한 · 세션 · 비밀번호 · 채팅 SQL 구조 검사가 여기 들어 있다 (route-auth.test.ts 등). 실패하면 push 를 막는다
+echo "🔍 [pre-push] 테스트 (vitest)..."
+npx vitest run --reporter=dot
+if [ $? -ne 0 ]; then
+  echo "❌ 테스트가 실패했습니다. 수정 후 다시 push하세요."
+  exit 1
+fi
+echo "✅ 테스트 OK"
