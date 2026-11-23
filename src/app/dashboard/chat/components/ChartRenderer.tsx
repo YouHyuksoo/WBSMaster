@@ -153,15 +153,20 @@ const renderLegend = (props: { payload?: Array<{ value: string; color: string }>
 /**
  * Recharts 기반 차트 렌더링 컴포넌트
  */
-const ChartRenderer = memo(function ChartRenderer({
-  chartType,
-  chartData,
-}: ChartRendererProps) {
-  // 데이터 유효성 검사
-  if (!chartData || chartData.length === 0) {
+const ChartRenderer = memo(function ChartRenderer(props: ChartRendererProps) {
+  // 데이터 유효성 검사. 훅(useMemo)을 부르기 전에 돌아가면 훅 순서가 깨지므로 실제 그리기는 ChartBody 가 한다
+  if (!props.chartData || props.chartData.length === 0) {
     console.warn("[ChartRenderer] chartData가 비어있음");
     return null;
   }
+  return <ChartBody {...props} />;
+});
+
+/** 차트 본문 (chartData 가 비어 있지 않을 때만 그린다) */
+function ChartBody({
+  chartType,
+  chartData,
+}: ChartRendererProps) {
 
   // 유효한 데이터만 필터링 (name과 value가 있는 것만)
   const validData = useMemo(() => {
@@ -494,6 +499,6 @@ const ChartRenderer = memo(function ChartRenderer({
       <div className="relative z-10">{renderChart()}</div>
     </div>
   );
-});
+}
 
 export default ChartRenderer;

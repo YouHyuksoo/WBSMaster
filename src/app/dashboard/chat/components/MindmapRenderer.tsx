@@ -75,11 +75,17 @@ const addColorToNodes = (node: MindmapNode): MindmapNode => {
 /**
  * 마인드맵 렌더링 컴포넌트
  */
-const MindmapRenderer = memo(function MindmapRenderer({
+const MindmapRenderer = memo(function MindmapRenderer(props: MindmapRendererProps) {
+  // 훅(useMemo)을 부르기 전에 돌아가면 훅 순서가 깨지므로 실제 그리기는 MindmapBody 가 한다
+  if (!props.data) return null;
+  return <MindmapBody {...props} />;
+});
+
+/** 마인드맵 본문 (data 가 있을 때만 그린다) */
+function MindmapBody({
   data,
   isFullscreen = false,
 }: MindmapRendererProps) {
-  if (!data) return null;
 
   // 노드 수에 따라 초기 깊이 조절 - useMemo로 캐싱
   const { totalNodes, initialDepth, coloredData } = useMemo(() => {
@@ -250,6 +256,6 @@ const MindmapRenderer = memo(function MindmapRenderer({
       opts={{ renderer: "canvas" }}
     />
   );
-});
+}
 
 export default MindmapRenderer;

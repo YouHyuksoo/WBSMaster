@@ -64,10 +64,6 @@ export function WeekCarousel({
   // 캐로셀 스크롤 위치
   const [carouselOffset, setCarouselOffset] = useState(0);
 
-  if (!projectStartDate) {
-    return null;
-  }
-
   /** 주차별 제출 상태 조회 */
   const getWeekStatus = (weekNum: number) => {
     const found = weekSubmitStatuses.find((s) => s.weekNumber === weekNum);
@@ -78,6 +74,7 @@ export function WeekCarousel({
    * 캐로셀에 표시할 5개 주차 계산
    */
   const carouselWeeks = useMemo(() => {
+    if (!projectStartDate) return [];
     const weeks = [];
     for (let i = -2; i <= 2; i++) {
       const weekNum = currentWeekInfo.week + carouselOffset + i;
@@ -95,6 +92,11 @@ export function WeekCarousel({
     }
     return weeks;
   }, [currentWeekInfo, projectStartDate, carouselOffset]);
+
+  // 훅(useMemo)을 모두 부른 뒤에 돌아간다 (앞에서 돌아가면 훅 순서가 깨진다)
+  if (!projectStartDate) {
+    return null;
+  }
 
   /** 주차 선택 핸들러 */
   const handleSelectWeek = (week: (typeof carouselWeeks)[0]) => {

@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     >();
 
     // 미할당 통계
-    let unassigned = {
+    const unassigned = {
       total: 0,
       draft: 0,
       approved: 0,
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
     };
 
     // 전체 통계
-    let totalStats = {
+    const totalStats = {
       total: requirements.length,
       draft: 0,
       approved: 0,

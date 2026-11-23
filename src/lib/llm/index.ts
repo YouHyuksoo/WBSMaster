@@ -900,7 +900,7 @@ export async function processChatMessage(
 
   // 2. SQL 검증 및 실행
   let results: unknown[] | null = null;
-  let validatedSql: string | null = sql;
+  const validatedSql: string | null = sql;
   let totalCount: number | undefined;
   let displayedCount: number | undefined;
 

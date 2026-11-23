@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
     >();
 
     // 미할당 통계 (담당자가 없는 말단 항목)
-    let unassigned = {
+    const unassigned = {
       total: unassignedItems.length,
       completed: 0,
       inProgress: 0,
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
     };
 
     // 전체 통계 (담당자 배정된 항목 + 미할당 말단 항목)
-    let totalStats = {
+    const totalStats = {
       total: wbsItems.length + unassignedItems.length,
       completed: 0,
       inProgress: 0,

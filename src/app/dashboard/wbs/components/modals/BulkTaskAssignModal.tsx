@@ -46,6 +46,9 @@ export function BulkTaskAssignModal({
   onClose,
   isLoading = false,
 }: BulkTaskAssignModalProps) {
+  /** 선택된 담당자 ID (담당자 없는 항목에 배정). 훅은 아래 조기 반환보다 먼저 불러야 한다 */
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   /** 담당자가 없는 항목 수 */
@@ -57,9 +60,6 @@ export function BulkTaskAssignModal({
   const itemsWithAssignee = selectedItems.filter(
     (item) => item.assignees && item.assignees.length > 0
   );
-
-  /** 선택된 담당자 ID (담당자 없는 항목에 배정) */
-  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string | null>(null);
 
   /** 배정 핸들러 */
   const handleAssign = () => {

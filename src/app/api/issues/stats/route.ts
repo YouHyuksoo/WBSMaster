@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     const categoryStats = new Map<string, { resolved: number; unresolved: number }>();
 
     // 전체 통계
-    let totalStats = {
+    const totalStats = {
       total: issues.length,
       resolved: 0,   // RESOLVED + CLOSED
       unresolved: 0, // OPEN + IN_PROGRESS
