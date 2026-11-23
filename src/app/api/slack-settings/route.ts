@@ -5,13 +5,16 @@
  * Slack 웹훅 설정의 조회(GET), 생성/수정(POST)을 처리합니다.
  *
  * 초보자 가이드:
- * 1. **GET /api/slack-settings**: 현재 Slack 설정 조회 (인증 필요, webhookUrl 포함)
+ * 1. **GET /api/slack-settings**: 현재 Slack 설정 조회 (webhookUrl 포함)
  * 2. **POST /api/slack-settings**: Slack 설정 생성 또는 수정
+ * - 인증: 둘 다 ADMIN 만 (아니면 403). 설정은 전체 프로젝트가 함께 쓰는 값 하나이고 웹훅 주소는 비밀 값이다.
+ *   회귀: 로그인만 하면 누구나 웹훅 주소를 보고 바꿀 수 있었다.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { isSlackWebhookUrl } from "@/lib/slack";
 
 /**
  * Slack 설정 조회
@@ -19,9 +22,12 @@ import { requireAuth } from "@/lib/auth";
  */
 export async function GET(request: NextRequest) {
   try {
-    // 인증 확인 (webhookUrl 이 들어 있어 로그인 사용자만)
-    const { error } = await requireAuth();
+    // 인증 확인 (webhookUrl 이 들어 있어 관리자만)
+    const { user, error } = await requireAuth();
     if (error) return error;
+    if (user!.role !== "ADMIN") {
+      return NextResponse.json({ error: "관리자만 사용할 수 있습니다." }, { status: 403 });
+    }
 
     // 설정은 하나만 존재 (첫 번째 레코드 조회)
     const settings = await prisma.slackSettings.findFirst({
@@ -65,9 +71,12 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // 인증 확인
+    // 인증 확인 (전체가 함께 쓰는 설정이라 관리자만)
     const { user, error } = await requireAuth();
     if (error) return error;
+    if (user!.role !== "ADMIN") {
+      return NextResponse.json({ error: "관리자만 사용할 수 있습니다." }, { status: 403 });
+    }
 
     const body = await request.json();
     const {
@@ -95,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 웹훅 URL 형식 검증
-    if (!webhookUrl.startsWith("https://hooks.slack.com/")) {
+    if (!isSlackWebhookUrl(webhookUrl)) {
       return NextResponse.json(
         { error: "유효하지 않은 Slack 웹훅 URL입니다." },
         { status: 400 }

@@ -72,6 +72,8 @@ export default function SlackSettingsPage() {
           ...data,
           notifyRequirementCreated: data.notifyRequirementCreated ?? false,
         });
+      } else if (response.status === 403) {
+        toast.error("Slack 설정은 관리자만 볼 수 있습니다.");
       }
     } catch (error) {
       console.error("Slack 설정 조회 실패:", error);

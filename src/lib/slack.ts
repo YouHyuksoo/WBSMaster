@@ -119,6 +119,21 @@ interface RequirementCreatedData {
 }
 
 /**
+ * Slack 수신 웹훅 주소인지 확인한다 (https://hooks.slack.com/... 만 허용).
+ * 서버가 이 주소로 요청을 보내므로, 다른 호스트를 허용하면 내부망 주소를 대신 찔러 보는 통로(SSRF)가 된다.
+ * 저장 · 테스트 · 전송 직전에 모두 이 함수로 확인한다.
+ */
+export function isSlackWebhookUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname === "hooks.slack.com" && url.port === "" && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * DB에서 Slack 설정 조회
  * 캐싱 없이 항상 최신 설정 반환
  */
@@ -142,8 +157,8 @@ async function getSlackSettings(): Promise<SlackSettings | null> {
 export async function sendSlackNotification(message: string): Promise<boolean> {
   const settings = await getSlackSettings();
 
-  if (!settings || !settings.isEnabled || !settings.webhookUrl) {
-    console.warn("[Slack] 설정이 없거나 비활성화 상태입니다.");
+  if (!settings || !settings.isEnabled || !isSlackWebhookUrl(settings.webhookUrl)) {
+    console.warn("[Slack] 설정이 없거나 비활성화 상태이거나 웹훅 주소가 올바르지 않습니다.");
     return false;
   }
 
@@ -188,6 +203,10 @@ export async function sendSlackBlockMessage(
       return false;
     }
     url = settings.webhookUrl;
+  }
+  if (!isSlackWebhookUrl(url)) {
+    console.warn("[Slack] 웹훅 주소가 올바르지 않아 보내지 않습니다.");
+    return false;
   }
 
   try {
