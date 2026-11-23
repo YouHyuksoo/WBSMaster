@@ -1,18 +1,21 @@
 /**
  * @file src/lib/llm/safe-sql.test.ts
  * @description
- * 임의 SQL 실행 경로(runSafeSql)의 비밀번호 차단 규칙과, 다른 곳에서 $queryRawUnsafe 를 직접 쓰지 못하게 하는 구조 검사입니다.
+ * 임의 SQL 실행 경로(runSafeSql)의 비밀번호 · API 키 차단 규칙과, 다른 곳에서 $queryRawUnsafe 를 직접 쓰지 못하게 하는 구조 검사입니다.
  *
  * 초보자 가이드:
  * - findSensitiveSqlReference: password·스키마 지정 users·search_path 우회를 거절하는지
  * - redactSensitive: 중첩된 결과에서도 password 키를 지우는지
  * - 구조 검사: src 안에서 $queryRawUnsafe 는 safe-sql.ts 에만 있어야 한다. 실패하면 runSafeSql 을 쓰도록 바꾼다.
+ * - 구조 검사: prisma/schema.prisma 의 비밀 값 칼럼(password · apiKey · secret · token · webhook)은 모두 가려져 있어야 한다.
+ *   회귀: 가드가 password 만 막아 `SELECT "openaiApiKey" FROM ai_settings` 가 그대로 통과했다.
+ *   실패하면 그 테이블을 safe-sql.ts 의 HIDDEN_TABLES 에 넣는다 (users 칼럼이면 SAFE_USER_COLUMNS 에 넣지 않는다).
  */
 
 import { describe, expect, it, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-import { findSensitiveSqlReference, redactSensitive, runSafeSql, SAFE_USER_COLUMNS } from "./safe-sql";
+import { findSensitiveSqlReference, HIDDEN_TABLES, redactSensitive, runSafeSql, SAFE_USER_COLUMNS, SENSITIVE_NAME } from "./safe-sql";
 
 describe("findSensitiveSqlReference", () => {
   it.each([
@@ -23,6 +26,17 @@ describe("findSensitiveSqlReference", () => {
     `SELECT * FROM public/**/./**/users`,
     `SELECT set_config('search_path', 'public', false)`,
     `SELECT * FROM U&"publi\\0063".users`,
+    `SELECT "userId", "openaiApiKey", "openrouterApiKey" FROM ai_settings`,
+    `SELECT * FROM "ai_settings"`,
+    `SELECT "webhookUrl" FROM slack_settings`,
+    `SELECT s.* FROM Slack_Settings s`,
+    `SELECT query_to_xml('select pass'||'word from pub'||'lic.users', true, false, '')`,
+    `SELECT "query_to_xml" ('select * from ai_'||'settings', true, false, '')`,
+    `SELECT table_to_xml(('pub'||'lic.users')::regclass, true, false, '')`,
+    `SELECT schema_to_xml('public', true, false, '')`,
+    `SELECT * FROM ts_stat('select pass'||'word::tsvector from pub'||'lic.users')`,
+    `SELECT * FROM dblink('dbname=wbsmaster', 'select 1') AS t(n int)`,
+    `SELECT pg_read_file('.env.local')`,
   ])("거절: %s", (sql) => {
     expect(findSensitiveSqlReference(sql)).not.toBeNull();
   });
@@ -45,6 +59,10 @@ describe("redactSensitive", () => {
   it("Date·원시값은 그대로 둔다", () => {
     const d = new Date("2026-11-09T00:00:00Z");
     expect(redactSensitive([{ d, n: 1, s: "a", z: null }])).toEqual([{ d, n: 1, s: "a", z: null }]);
+  });
+
+  it("apiKey · webhookUrl 키도 지운다", () => {
+    expect(redactSensitive([{ id: "1", openaiApiKey: "k", webhookUrl: "u", nested: { api_key: "k", name: "n" } }])).toEqual([{ id: "1", nested: { name: "n" } }]);
   });
 
   it("안전 컬럼 목록에 password 가 없다", () => {
@@ -73,9 +91,14 @@ describe("runSafeSql", () => {
     const { prisma, calls } = fakePrisma([{ n: 1 }]);
     await runSafeSql(prisma as never, `SELECT 1 AS n`);
     expect(calls[0]).toMatch(/^CREATE OR REPLACE TEMP VIEW "users"/);
-    expect(calls[1]).toBe("SET TRANSACTION READ ONLY");
-    expect(calls[2]).toBe("SET LOCAL statement_timeout = '10s'");
-    expect(calls[3]).toBe("QUERY:SELECT 1 AS n");
+    // 숨긴 테이블마다 빈 뷰 (READ ONLY 로 바꾸기 전에 만들어야 한다)
+    const hidden = calls.slice(1, 1 + HIDDEN_TABLES.length);
+    expect(hidden).toEqual(HIDDEN_TABLES.map((t) => `CREATE OR REPLACE TEMP VIEW "${t}" AS SELECT NULL::text AS "hidden" WHERE false`));
+    expect(calls.slice(1 + HIDDEN_TABLES.length)).toEqual([
+      "SET TRANSACTION READ ONLY",
+      "SET LOCAL statement_timeout = '10s'",
+      "QUERY:SELECT 1 AS n",
+    ]);
     expect(calls.some((c) => /\bDROP\b/i.test(c))).toBe(false);
   });
 
@@ -109,5 +132,45 @@ describe("구조: 임의 SQL 실행은 runSafeSql 하나로만", () => {
     };
     walk(root);
     expect(hits, `$queryRawUnsafe 대신 @/lib/llm/safe-sql 의 runSafeSql 을 쓰세요: ${hits.join(", ")}`).toEqual([]);
+  });
+});
+
+/** schema.prisma 에서 "테이블.칼럼" 목록을 읽는다 (테이블은 @@map 이름, 없으면 모델 이름) */
+function schemaColumns(schema: string): { table: string; column: string }[] {
+  return [...schema.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)].flatMap(([, model, body]) => {
+    const table = body.match(/@@map\("([^"]+)"\)/)?.[1] ?? model;
+    return body
+      .split(/\r?\n/)
+      .map((line) => line.match(/^\s+(\w+)\s+[A-Z]\w*[?\[\]]*/)?.[1])
+      .filter((column): column is string => !!column)
+      .map((column) => ({ table, column }));
+  });
+}
+
+/** 비밀 값 칼럼 중 채팅 SQL 에서 가려지지 않은 것 */
+function exposedSensitiveColumns(schema: string, hiddenTables: readonly string[], safeUserColumns: readonly string[]): string[] {
+  return schemaColumns(schema)
+    .filter(({ column }) => SENSITIVE_NAME.test(column))
+    .filter(({ table, column }) => !hiddenTables.includes(table) && !(table === "users" && !safeUserColumns.includes(column)))
+    .map(({ table, column }) => `${table}.${column}`);
+}
+
+describe("구조: 비밀 값 칼럼은 채팅 SQL 에서 가려져 있다", () => {
+  const schema = fs.readFileSync(path.resolve(__dirname, "../../../prisma/schema.prisma"), "utf8");
+
+  it("검사 규칙이 예전 상태(가린 테이블 없음)를 잡는다", () => {
+    const exposed = exposedSensitiveColumns(schema, [], SAFE_USER_COLUMNS);
+    expect(exposed).toContain("ai_settings.openaiApiKey");
+    expect(exposed).toContain("slack_settings.webhookUrl");
+    expect(exposedSensitiveColumns(schema, HIDDEN_TABLES, [...SAFE_USER_COLUMNS, "password"])).toContain("users.password");
+  });
+
+  it("schema.prisma 의 비밀 값 칼럼이 모두 가려져 있다", () => {
+    expect(exposedSensitiveColumns(schema, HIDDEN_TABLES, SAFE_USER_COLUMNS), "그 테이블을 safe-sql.ts 의 HIDDEN_TABLES 에 넣으세요").toEqual([]);
+  });
+
+  it("users 뷰의 칼럼이 모두 실제로 있다 (없는 칼럼이 있으면 뷰를 만들지 못해 채팅 SQL 전체가 실패한다)", () => {
+    const userColumns = schemaColumns(schema).filter((c) => c.table === "users").map((c) => c.column);
+    expect(SAFE_USER_COLUMNS.filter((c) => !userColumns.includes(c))).toEqual([]);
   });
 });
