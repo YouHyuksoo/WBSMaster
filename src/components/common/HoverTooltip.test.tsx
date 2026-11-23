@@ -59,6 +59,19 @@ describe("HoverTooltip", () => {
     fireEvent.mouseEnter(screen.getByText("짧음칸").parentElement!);
     expect(screen.queryByRole("tooltip")).toBeNull();
   });
+
+  it("포커스로 열고 툴팁 안의 스크롤을 허용하며 Escape로 닫는다", () => {
+    render(<HoverTooltip label="등록 정보" content="문서 설명" interactive>파일</HoverTooltip>);
+    const trigger = screen.getByText("파일");
+    expect(trigger.tabIndex).toBe(0);
+    fireEvent.focus(trigger);
+    const tip = screen.getByRole("tooltip");
+    expect(trigger.getAttribute("aria-describedby")).toBe(tip.id);
+    fireEvent.scroll(tip);
+    expect(screen.getByRole("tooltip")).toBe(tip);
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
 });
 
 describe("예전 칸 안 툴팁 금지", () => {

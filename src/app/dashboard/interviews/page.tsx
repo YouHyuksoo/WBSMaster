@@ -30,6 +30,7 @@ import {
   useDeleteInterview,
 } from "@/hooks";
 import { InterviewTable, InterviewModal } from "./components";
+import { InterviewStats } from "./components/InterviewStats";
 import { VoiceIntakeModal, usePendingVoiceDraft } from "@/components/voice";
 import type { VoiceIntakeStatus } from "@/lib/api";
 import { interviewDraftToForm } from "./voiceDraft";
@@ -440,63 +441,7 @@ export default function InterviewsPage() {
 
       {selectedProjectId && (
         <>
-          {/* 통계 카드 (list-page-style 6열 그리드: 카드 4개라도 회의록 · 이슈 화면과 같은 크기) */}
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-            {/* 완료율 카드 (이관 완료 비율) */}
-            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name="speed" size="xs" className="text-primary" />
-                <span className="text-xs font-semibold text-primary">이관율</span>
-              </div>
-              <p className="text-2xl font-bold text-primary mb-1">{stats.completionRate}%</p>
-              <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                  style={{ width: `${stats.completionRate}%` }}
-                />
-              </div>
-            </div>
-
-            {/* 전체 */}
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="list_alt" size="xs" className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-sm text-text-secondary">전체</p>
-                </div>
-              </div>
-            </div>
-
-            {/* 미이관 */}
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <Icon name="pending" size="xs" className="text-warning" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.notTransferred}</p>
-                  <p className="text-sm text-text-secondary">미이관</p>
-                </div>
-              </div>
-            </div>
-
-            {/* 이관완료 */}
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                  <Icon name="check_circle" size="xs" className="text-success" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.transferred}</p>
-                  <p className="text-sm text-text-secondary">이관완료</p>
-                </div>
-              </div>
-            </div>
-
-          </div>
+          <InterviewStats {...stats} />
 
           {/* 탭 및 필터 */}
           <div className="flex flex-wrap items-center gap-4">

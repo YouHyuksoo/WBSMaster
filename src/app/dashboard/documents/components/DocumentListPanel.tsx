@@ -17,6 +17,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Icon, Button, Input, ConfirmModal, useToast } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatFileSize } from "@/lib/document-file-rules";
+import { DocumentMetadataTooltip } from "./DocumentMetadataTooltip";
 import {
   useDocuments,
   useToggleFavorite,
@@ -99,7 +100,7 @@ export function DocumentListPanel({
 
   // 필터링된 문서
   const filteredDocuments = useMemo(() => {
-    let filtered = documents.filter((doc) => {
+    const filtered = documents.filter((doc) => {
       const matchesCategory = filterCategory === "all" || doc.category === filterCategory;
       const matchesSourceType = filterSourceType === "all" || doc.sourceType === filterSourceType;
       const matchesFavorite = !showFavoritesOnly || doc.isFavorite;
@@ -335,7 +336,7 @@ export function DocumentListPanel({
                     </button>
 
                     {/* 내용 */}
-                    <div className="flex-1 min-w-0">
+                    <DocumentMetadataTooltip document={doc}>
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${categoryConfig.bgColor} ${categoryConfig.color}`}>
                           <Icon name={categoryConfig.icon} size="xs" />
@@ -371,7 +372,7 @@ export function DocumentListPanel({
                           })}
                         </span>
                       </div>
-                    </div>
+                    </DocumentMetadataTooltip>
 
                     {/* 액션 버튼 */}
                     <div className="flex items-center gap-1">

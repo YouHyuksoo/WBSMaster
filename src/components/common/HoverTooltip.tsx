@@ -13,7 +13,7 @@
  */
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 interface HoverTooltipProps {
@@ -25,6 +25,8 @@ interface HoverTooltipProps {
   enabled?: boolean;
   /** 본문을 굵게 (제목류) */
   strong?: boolean;
+  /** 키보드 포커스로 열고, 툴팁 안의 긴 내용은 스크롤해서 읽을 수 있게 함 */
+  interactive?: boolean;
   /** 감싸는 칸의 클래스 (기본 min-w-0: 그리드 칸 안 truncate 유지) */
   className?: string;
   children: ReactNode;
@@ -46,47 +48,70 @@ const GAP = 8;
 /** 칸 위치로 툴팁 위치 계산 (테스트에서도 쓴다) */
 export function computeTooltipPosition(
   rect: Pick<DOMRect, "left" | "top" | "bottom">,
-  viewport: { width: number; height: number }
+  viewport: { width: number; height: number },
+  gap = GAP,
 ): TooltipPosition {
   const width = Math.min(MAX_WIDTH, viewport.width - MARGIN * 2);
   const left = Math.min(Math.max(MARGIN, rect.left), viewport.width - width - MARGIN);
   const spaceAbove = rect.top - MARGIN;
   const spaceBelow = viewport.height - rect.bottom - MARGIN;
   const placement = spaceAbove > spaceBelow ? "above" : "below";
-  const maxHeight = Math.max(120, (placement === "above" ? spaceAbove : spaceBelow) - GAP);
-  const top = placement === "above" ? rect.top - GAP : rect.bottom + GAP;
+  const maxHeight = Math.max(120, (placement === "above" ? spaceAbove : spaceBelow) - gap);
+  const top = placement === "above" ? rect.top - gap : rect.bottom + gap;
   return { left, top, width, maxHeight, placement };
 }
 
-export function HoverTooltip({ label, content, enabled = true, strong = false, className = "min-w-0", children }: HoverTooltipProps) {
+export function HoverTooltip({ label, content, enabled = true, strong = false, interactive = false, className = "min-w-0", children }: HoverTooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const tooltip = useRef<HTMLDivElement>(null);
+  const id = useId();
   const [pos, setPos] = useState<TooltipPosition | null>(null);
 
   const show = useCallback(() => {
     if (!enabled || !ref.current) return;
-    setPos(computeTooltipPosition(ref.current.getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight }));
-  }, [enabled]);
+    setPos(computeTooltipPosition(ref.current.getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight }, interactive ? 0 : GAP));
+  }, [enabled, interactive]);
   const hide = useCallback(() => setPos(null), []);
 
   // 고정 위치라 스크롤 · 창 크기 변경을 따라가지 않으므로 닫는다
   useEffect(() => {
     if (!pos) return;
-    window.addEventListener("scroll", hide, true);
-    window.addEventListener("resize", hide);
-    return () => {
-      window.removeEventListener("scroll", hide, true);
-      window.removeEventListener("resize", hide);
+    const onScroll = (event: Event) => {
+      if (interactive && event.target instanceof Node && tooltip.current?.contains(event.target)) return;
+      hide();
     };
-  }, [pos, hide]);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") hide();
+    };
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", hide);
+    if (interactive) window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", hide);
+      if (interactive) window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [pos, hide, interactive]);
 
   return (
-    <div ref={ref} className={className} onMouseEnter={show} onMouseLeave={hide}>
+    <div
+      ref={ref}
+      className={className}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      tabIndex={interactive && enabled ? 0 : undefined}
+      aria-describedby={interactive && pos ? id : undefined}
+      onFocus={interactive ? show : undefined}
+      onBlur={interactive ? hide : undefined}
+    >
       {children}
       {pos &&
         createPortal(
           <div
+            ref={tooltip}
+            id={interactive ? id : undefined}
             role="tooltip"
-            className="fixed z-[100] pointer-events-none overflow-hidden rounded-lg border border-slate-700 bg-slate-900 p-3 text-white shadow-xl"
+            className={`fixed z-[100] rounded-lg border border-slate-700 bg-slate-900 p-3 text-white shadow-xl ${interactive ? "overflow-auto overscroll-contain" : "pointer-events-none overflow-hidden"}`}
             style={{
               left: pos.left,
               top: pos.top,
