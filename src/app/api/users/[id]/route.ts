@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -148,7 +149,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(role !== undefined && { role }),
         ...(avatar !== undefined && { avatar }),
         ...(affiliation !== undefined && { affiliation }),
-        ...(password !== undefined && password.trim() !== "" && { password }),
+        ...(typeof password === "string" && password.trim() !== "" && { password: await hashPassword(password) }),
       },
       select: {
         id: true,

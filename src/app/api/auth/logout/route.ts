@@ -2,18 +2,18 @@
  * @file src/app/api/auth/logout/route.ts
  * @description
  * 로그아웃 API 엔드포인트입니다.
- * userId 쿠키를 삭제하여 세션을 종료합니다.
+ * 세션 쿠키를 삭제하여 세션을 종료합니다.
  *
  * 초보자 가이드:
  * 1. **POST /api/auth/logout**: 로그아웃 처리
- * 2. **동작**: userId 쿠키 삭제
+ * 2. **동작**: 세션 쿠키 삭제 (예전 userId 쿠키도 함께 지운다)
  *
  * @example
  * POST /api/auth/logout
  */
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { clearSessionCookie } from "@/lib/session-cookie";
 
 /**
  * POST /api/auth/logout
@@ -21,8 +21,7 @@ import { cookies } from "next/headers";
  */
 export async function POST() {
   try {
-    const cookieStore = await cookies();
-    cookieStore.delete("userId");
+    await clearSessionCookie();
 
     return NextResponse.json({
       message: "로그아웃 성공",

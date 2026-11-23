@@ -78,6 +78,10 @@ if (-not ((& git config --global --get-all safe.directory) -contains $safe)) {
   Invoke-Native git @('config', '--global', '--add', 'safe.directory', $safe)
 }
 Invoke-Native git @('-C', $target, 'checkout', '--force', '--detach', $Sha)
+# 로그인 세션 서명 키(SESSION_SECRET)가 없으면 새 버전은 로그인이 모두 실패하므로 빌드 전에 멈춘다 (서비스는 그대로)
+if (-not (Select-String -Path (Join-Path $SlotA '.env.local') -Pattern '^\s*SESSION_SECRET\s*=\s*"?[^"\s]{32,}' -Quiet)) {
+  throw "A 의 .env.local 에 32자 이상의 SESSION_SECRET 이 없습니다 (.env.example 참고). 전환하지 않음"
+}
 if ($target -ne $SlotA) { Copy-Item (Join-Path $SlotA '.env.local') (Join-Path $target '.env.local') -Force }
 
 # ── 3. 의존성 · 마이그레이션 확인 · 빌드 (서비스는 계속 A/B 중 다른 쪽이 한다) ──

@@ -2,7 +2,7 @@
  * @file src/lib/session.ts
  * @description
  * 클라이언트 세션 만료 처리 공용 함수입니다.
- * 서버 인증은 쿠키 `userId`, 화면의 로그인 표시는 localStorage `user` 라서
+ * 서버 인증은 서명된 세션 쿠키(src/lib/session-cookie.ts), 화면의 로그인 표시는 localStorage `user` 라서
  * 쿠키만 없어지면(만료 7일, 다른 탭 로그아웃) 화면은 로그인 상태인데 API 는 401 이 됩니다.
  *
  * 초보자 가이드:

@@ -3,12 +3,14 @@
  * @description
  * 로그인 API 엔드포인트입니다.
  * users 테이블에서 이메일/비밀번호를 체크하여 인증합니다.
- * 인증 성공 시 userId 쿠키를 설정합니다.
+ * 인증 성공 시 서명된 세션 쿠키를 설정합니다 (src/lib/session-cookie.ts).
  *
  * 초보자 가이드:
  * 1. **POST /api/auth/login**: 이메일/비밀번호로 로그인
- * 2. **응답**: 성공 시 사용자 정보 반환 + userId 쿠키 설정
- * 3. **쿠키**: httpOnly 쿠키로 7일간 유지
+ * 2. **응답**: 성공 시 사용자 정보 반환 + 세션 쿠키 설정
+ * 3. **쿠키**: httpOnly 쿠키로 7일간 유지. 값은 서명된 토큰이라 사용자 ID 를 알아도 만들 수 없다
+ * 4. **시도 제한**: 15분 안에 여러 번 틀리면 429 로 막는다 (src/lib/login-throttle.ts)
+ * 5. **비밀번호**: 해시와 비교한다 (src/lib/password.ts). 예전 평문 행은 로그인에 성공하면 그 자리에서 해시로 바꿔 저장한다
  *
  * @example
  * POST /api/auth/login
@@ -16,8 +18,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { verifyPassword, hashPassword } from "@/lib/password";
+import { setSessionCookie } from "@/lib/session-cookie";
+import { clearLoginFailures, clientIp, loginBlockedSeconds, recordLoginFailure } from "@/lib/login-throttle";
 
 /**
  * POST /api/auth/login
@@ -29,10 +33,20 @@ export async function POST(request: NextRequest) {
     const { email, password } = body;
 
     // 필수 필드 체크
-    if (!email || !password) {
+    if (!email || !password || typeof email !== "string" || typeof password !== "string") {
       return NextResponse.json(
         { error: "이메일과 비밀번호를 입력해주세요." },
         { status: 400 }
+      );
+    }
+
+    // 비밀번호를 계속 넣어 보는 시도 막기
+    const ip = clientIp(request);
+    const wait = loginBlockedSeconds(ip, email);
+    if (wait > 0) {
+      return NextResponse.json(
+        { error: `로그인 시도가 너무 많습니다. ${Math.ceil(wait / 60)}분 뒤에 다시 시도해 주세요.` },
+        { status: 429, headers: { "Retry-After": String(wait) } }
       );
     }
 
@@ -51,23 +65,23 @@ export async function POST(request: NextRequest) {
     });
 
     // 사용자가 없거나 비밀번호가 틀린 경우
-    if (!user || user.password !== password) {
+    const check = user ? await verifyPassword(password, user.password) : { ok: false, needsRehash: false };
+    if (!user || !check.ok) {
+      recordLoginFailure(ip, email);
       return NextResponse.json(
         { error: "이메일 또는 비밀번호가 올바르지 않습니다." },
         { status: 401 }
       );
     }
 
-    // 쿠키에 userId 저장 (7일간 유지)
-    const isSecure = request.url.startsWith("https://");
-    const cookieStore = await cookies();
-    cookieStore.set("userId", user.id, {
-      httpOnly: true,
-      secure: isSecure, // HTTPS 접속 시에만 Secure 적용
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7일
-      path: "/",
-    });
+    // 서명된 세션 쿠키 저장 (7일간 유지). SESSION_SECRET 이 없으면 여기서 실패한다
+    await setSessionCookie(user.id, request.url.startsWith("https://"));
+    clearLoginFailures(ip, email);
+
+    // 예전 평문 비밀번호는 로그인에 성공한 지금 해시로 바꿔 둔다
+    if (check.needsRehash) {
+      await prisma.user.update({ where: { id: user.id }, data: { password: await hashPassword(password) } });
+    }
 
     // 비밀번호 제외하고 반환
     const { password: _, ...userWithoutPassword } = user;

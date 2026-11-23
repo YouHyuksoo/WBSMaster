@@ -2,10 +2,10 @@
  * @file src/lib/auth.ts
  * @description
  * 인증 관련 헬퍼 함수들입니다.
- * 쿠키 기반 자체 인증 시스템을 사용합니다.
+ * 쿠키 기반 자체 인증 시스템을 사용합니다. 쿠키는 서명된 세션 토큰이며 src/lib/session-cookie.ts 만 읽고 쓴다.
  *
  * 초보자 가이드:
- * 1. **getUser**: 현재 로그인한 사용자 정보 조회 (쿠키에서 userId 읽음)
+ * 1. **getUser**: 현재 로그인한 사용자 정보 조회 (서명을 확인한 세션 쿠키에서 userId 를 얻음)
  * 2. **requireAuth**: 인증 필수 API에서 사용자 검증
  * 3. **getUserOrNull**: 인증 선택적 API에서 사용
  *
@@ -20,9 +20,9 @@
  * }
  */
 
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { clearSessionCookie, readSessionUserId } from "@/lib/session-cookie";
 
 /** 사용자 타입 (DB User 기반) */
 export type AuthUser = {
@@ -41,14 +41,13 @@ export type AuthResult = {
 
 /**
  * 현재 로그인한 사용자 조회
- * 쿠키에서 userId를 읽어서 DB에서 사용자 정보 조회
+ * 세션 쿠키의 서명을 확인해 userId 를 얻고 DB 에서 사용자 정보 조회
  *
  * @returns 사용자 객체 또는 null
  */
 export async function getUser(): Promise<AuthUser | null> {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("userId")?.value;
+    const userId = await readSessionUserId();
 
     if (!userId) {
       return null;
@@ -106,8 +105,7 @@ export async function getSession() {
  * 로그아웃 (쿠키 삭제)
  */
 export async function signOut() {
-  const cookieStore = await cookies();
-  cookieStore.delete("userId");
+  await clearSessionCookie();
 }
 
 /**

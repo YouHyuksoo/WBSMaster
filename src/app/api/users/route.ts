@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUser, requireAuth } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
 
 /**
  * 사용자 목록 조회
@@ -104,6 +105,9 @@ export async function POST(request: NextRequest) {
     // 회원가입은 공개. 역할 · ID · 기본 비밀번호는 관리자만 지정할 수 있다 (자가 ADMIN 가입 방지)
     const requester = await getUser();
     const isAdmin = requester?.role === "ADMIN";
+    if (password !== undefined && password !== null && typeof password !== "string") {
+      return NextResponse.json({ error: "비밀번호 형식이 올바르지 않습니다." }, { status: 400 });
+    }
     if (!isAdmin && (!password || String(password).trim() === "")) {
       return NextResponse.json({ error: "비밀번호는 필수입니다." }, { status: 400 });
     }
@@ -141,7 +145,7 @@ export async function POST(request: NextRequest) {
       data: {
         ...(isAdmin && id && { id }),
         email,
-        password: password || "admin123", // 기본 비밀번호
+        password: await hashPassword(password || "admin123"), // 해시로 저장 (관리자가 비워 두면 기본 비밀번호)
         name: name || email.split("@")[0],
         avatar,
         role: isAdmin ? role || "USER" : "USER", // 시스템 역할 (관리자만 지정, 기본: USER)
