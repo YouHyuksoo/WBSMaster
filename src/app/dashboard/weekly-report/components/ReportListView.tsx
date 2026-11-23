@@ -19,7 +19,15 @@ import { Icon, Button } from "@/components/ui";
 import { useWeeklyReports, useCurrentUser, useMembers } from "@/hooks";
 import { useProject } from "@/contexts";
 import { ReportWithRelations, WeekInfo } from "../types";
-import { REPORT_STATUS_MAP, formatShortDate, getProjectWeekInfo, getProjectTotalWeeks } from "../constants";
+import {
+  REPORT_STATUS_MAP,
+  formatShortDate,
+  formatWeekOptionLabel,
+  getProjectWeekInfo,
+  getProjectTotalWeeks,
+  getProjectWeekDateRange,
+  getWeekDateRange,
+} from "../constants";
 
 interface ReportListViewProps {
   /** 보고서 선택 시 콜백 (상세 화면으로 전환) */
@@ -53,13 +61,14 @@ export function ReportListView({ onSelectReport, onCreateNew, memberFilter, onMe
   const [weekFilter, setWeekFilter] = useState<number | "all">("all");
 
   // 프로젝트가 바뀔 때만 금주로 필터 초기화 (사용자가 수동 변경한 값을 덮어쓰지 않음)
+  // 프로젝트 ID 는 저장값에서 먼저 복원되고 시작일(프로젝트 목록)은 나중에 오므로,
+  // 금주를 계산할 수 있을 때까지는 "초기화 완료"로 표시하지 않는다.
   const prevProjectIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (selectedProjectId && selectedProjectId !== prevProjectIdRef.current) {
+    if (!selectedProjectId || !currentProjectWeek) return;
+    if (selectedProjectId !== prevProjectIdRef.current) {
       prevProjectIdRef.current = selectedProjectId;
-      if (currentProjectWeek) {
-        setWeekFilter(currentProjectWeek.week);
-      }
+      setWeekFilter(currentProjectWeek.week);
     }
   }, [selectedProjectId, currentProjectWeek]);
 
@@ -124,20 +133,27 @@ export function ReportListView({ onSelectReport, onCreateNew, memberFilter, onMe
     return [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
   }, []);
 
-  // 주차 옵션 생성 (프로젝트 기준: 1주차 ~ 현재주차+4)
+  // 주차 옵션 생성 (프로젝트 기준: 1주차 ~ 현재주차+4), 라벨에 주 기간(월~일) 표시
   const weekOptions = useMemo(() => {
     if (!selectedProject?.startDate) {
-      // 프로젝트가 없으면 기본 1~53주
-      return Array.from({ length: 53 }, (_, i) => i + 1);
+      // 프로젝트가 없으면 기본 1~53주 (선택 연도의 ISO 주차)
+      return Array.from({ length: 53 }, (_, i) => {
+        const { start, end } = getWeekDateRange(yearFilter, i + 1);
+        return { week: i + 1, label: formatWeekOptionLabel(i + 1, start, end) };
+      });
     }
+    const projectStart = new Date(selectedProject.startDate);
     const totalWeeks = getProjectTotalWeeks(
-      new Date(selectedProject.startDate),
+      projectStart,
       selectedProject.endDate ? new Date(selectedProject.endDate) : undefined
     );
     // 현재 주차 + 4주 여유 (미래 주차 작성 가능)
     const maxWeek = Math.max(totalWeeks + 4, currentProjectWeek?.week || 1);
-    return Array.from({ length: maxWeek }, (_, i) => i + 1);
-  }, [selectedProject?.startDate, selectedProject?.endDate, currentProjectWeek?.week]);
+    return Array.from({ length: maxWeek }, (_, i) => {
+      const { start, end } = getProjectWeekDateRange(projectStart, i + 1);
+      return { week: i + 1, label: formatWeekOptionLabel(i + 1, start, end) };
+    });
+  }, [selectedProject?.startDate, selectedProject?.endDate, currentProjectWeek?.week, yearFilter]);
 
   /** 새 보고서 작성 핸들러 */
   const handleCreateNew = () => {
@@ -217,9 +233,9 @@ export function ReportListView({ onSelectReport, onCreateNew, memberFilter, onMe
             className="px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="all">전체 주차</option>
-            {weekOptions.map((week) => (
+            {weekOptions.map(({ week, label }) => (
               <option key={week} value={week}>
-                {week}주차
+                {label}
               </option>
             ))}
           </select>

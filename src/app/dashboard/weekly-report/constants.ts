@@ -105,6 +105,14 @@ export function formatShortDate(date: Date | string | null | undefined): string 
 }
 
 /**
+ * 주차 드롭다운 라벨 생성: "12주차 (3/30 ~ 4/5)"
+ */
+export function formatWeekOptionLabel(week: number, start: Date, end: Date): string {
+  const md = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
+  return `${week}주차 (${md(start)} ~ ${md(end)})`;
+}
+
+/**
  * 프로젝트 시작일 기반 주차 정보 계산
  * 프로젝트 시작일이 속한 주의 월요일을 1주차 시작으로 계산합니다.
  *
