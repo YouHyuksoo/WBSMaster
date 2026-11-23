@@ -8,6 +8,9 @@
  *   (DELETE /api/admin/cleanup-tasks 는 로그인 없이 전체 프로젝트의 태스크를 지울 수 있었다)
  * - 규칙: route.ts 에서 export 한 GET/POST/PUT/PATCH/DELETE 마다 본문에 requireAuth( 가 있어야 한다.
  * - 예외는 아래 PUBLIC 목록에만, 이유와 함께 적는다. 새 라우트를 만들면 이 테스트가 자동으로 검사한다.
+ * - 회귀 2: AS-IS 분석 목록 · 생성 라우트 28개와 Slack 설정 라우트 3개는 로그인만 확인했다. 본문에 projectId 라는 글자가 없고
+ *   경로가 [id] 도 아니어서 아래 두 검사를 모두 빠져나갔다. 그래서 "모든 핸들러" 검사를 둔다:
+ *   범위 확인(프로젝트 멤버 · 소유자 · 본인 한정 · ADMIN 전용)이 없으면 NO_SCOPE 에 이유를 적어야 통과한다.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -115,6 +118,32 @@ describe("API 라우트 로그인 확인", () => {
       .filter((c) => !RECORD_GUARD.test(c.body) && !c.helpers.some((h) => c.body.includes(`${h}(`)))
       .map((c) => c.key);
     expect(missing, "레코드를 찾은 뒤 assertProjectAccess(record.projectId, user) — 파일 안 도우미로 묶어도 된다").toEqual([]);
+  });
+
+  it("모든 핸들러는 범위를 확인하거나(프로젝트 멤버 · 소유자 · 본인 한정 · ADMIN 전용) NO_SCOPE 에 이유가 있다", () => {
+    // 범위 확인이 필요 없는 핸들러 ("경로 METHOD": 이유). 다른 사람 · 다른 프로젝트의 자료를 다루면 여기 넣지 말고 가드를 넣는다.
+    const NO_SCOPE: Record<string, string> = {
+      "ai-settings/audio GET": "본인 설정만 (load(user.id))",
+      "excel/parse POST": "올린 파일을 읽어 돌려줄 뿐 DB 를 쓰지 않는다",
+      "menu/favorites GET": "본인 즐겨찾기만 (getFavorites(user.id))",
+      "menu/favorites PUT": "본인 즐겨찾기만 (syncFavorites(user.id))",
+      "menu/favorites/folders GET": "본인 폴더만 (getFolders(user.id))",
+      "menu/favorites/folders POST": "본인 폴더만 (createFolder(user.id))",
+      "menu/me GET": "본인 역할의 허용 메뉴",
+      "menu/tree GET": "모든 로그인 사용자가 같은 메뉴 배치를 본다",
+      "projects POST": "새 프로젝트 생성 (만든 사람이 OWNER 가 된다)",
+      "users GET": "팀 멤버 추가용 사용자 검색 (이름 · 이메일 · 역할, 비밀번호 미포함)",
+      "users/[id] GET": "로그인 사용자 누구나 다른 사용자 프로필(이름 · 소속)을 본다 (비밀번호 미포함)",
+      "users/[id] PATCH": "본인 또는 ADMIN 만 (isAdmin · me.id !== id 403), 역할 · 소속은 ADMIN 만",
+    };
+    const SCOPE_GUARD = new RegExp(`${RECORD_GUARD.source}|assertAsIsAccess\\(|adminOnly\\(`);
+    const keys = new Set(cases.map((c) => c.key));
+    expect(Object.keys(NO_SCOPE).filter((k) => !keys.has(k)), "지운 핸들러가 NO_SCOPE 에 남아 있다").toEqual([]);
+    const missing = cases
+      .filter((c) => !PUBLIC[c.key] && !NO_SCOPE[c.key])
+      .filter((c) => !SCOPE_GUARD.test(c.body) && !c.helpers.some((h) => c.body.includes(`${h}(`)))
+      .map((c) => c.key);
+    expect(missing, "assertProjectAccess · assertAsIsAccess(부모 id) · ADMIN 확인을 넣거나, 범위 확인이 필요 없으면 NO_SCOPE 에 이유를 적는다").toEqual([]);
   });
 
   it("요청 본문을 읽기 전에 로그인부터 확인한다 (비로그인이 400 · 404 로 내부를 엿보지 못하게)", () => {

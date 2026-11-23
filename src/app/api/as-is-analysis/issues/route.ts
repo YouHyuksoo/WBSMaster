@@ -7,11 +7,13 @@
  * 초보자 가이드:
  * - GET: 단위업무 분석에 속한 이슈 목록 조회
  * - POST: 새 이슈 항목 생성
+ * - 인증: requireAuth + assertAsIsAccess (부모 레코드가 속한 프로젝트의 멤버 · ADMIN 만)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { assertAsIsAccess } from "@/lib/as-is-access";
 
 /**
  * GET /api/as-is-analysis/issues
@@ -20,7 +22,7 @@ import { requireAuth } from "@/lib/auth";
 export async function GET(request: NextRequest) {
   try {
     // 인증 확인
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) return error;
 
     // 쿼리 파라미터
@@ -33,6 +35,10 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // 프로젝트 멤버 확인 (단위업무 분석 → 총괄 항목 → 총괄표 → 프로젝트)
+    const accessError = await assertAsIsAccess("unitAnalysis", unitAnalysisId, user!);
+    if (accessError) return accessError;
 
     // 이슈 목록 조회
     const issues = await prisma.asIsIssue.findMany({
@@ -57,7 +63,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // 인증 확인
-    const { error } = await requireAuth();
+    const { user, error } = await requireAuth();
     if (error) return error;
 
     const body = await request.json();
@@ -80,6 +86,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // 프로젝트 멤버 확인 (단위업무 분석 → 총괄 항목 → 총괄표 → 프로젝트)
+    const accessError = await assertAsIsAccess("unitAnalysis", unitAnalysisId, user!);
+    if (accessError) return accessError;
 
     // 단위업무 분석 존재 여부 확인
     const unitAnalysis = await prisma.asIsUnitAnalysis.findUnique({
