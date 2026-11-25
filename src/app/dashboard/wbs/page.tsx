@@ -9,13 +9,14 @@
 
 import { useState, useMemo } from "react";
 import { Icon, Button, ConfirmModal, useToast } from "@/components/ui";
-import { useWbsItems, useCreateWbsItem, useUpdateWbsItem, useDeleteWbsItem, useChangeWbsLevel, useMembers, useCreateTask } from "@/hooks";
+import { useWbsItems, useCreateWbsItem, useUpdateWbsItem, useDeleteWbsItem, useMoveWbsItem, useMembers, useCreateTask } from "@/hooks";
 import { useProject } from "@/contexts/ProjectContext";
 import type { WbsItem } from "@/lib/api";
 import type { RightPanelView } from "./types";
 import { applyCalculatedDates } from "./utils/wbsHelpers";
-import { useGanttDrag, usePanelResize, useWbsStats, useGanttChart, useScrollSync, useWbsTree, useWbsActions } from "./hooks";
-import { WbsToolbar, WbsStatsBar, WbsTreePanel, GanttChart, WbsDetailPanel, BulkAssignModal, BulkTaskAssignModal, WbsFormModal, DeliverablePreviewModal } from "./components";
+import { pathLabel, wbsPath } from "./utils/wbsPath";
+import { useGanttDrag, usePanelResize, useWbsStats, useGanttChart, useScrollSync, useWbsTree, useWbsActions, useWbsMove } from "./hooks";
+import { WbsToolbar, WbsStatsBar, WbsTreePanel, GanttChart, WbsDetailPanel, BulkAssignModal, BulkTaskAssignModal, WbsFormModal, WbsMoveModal, DeliverablePreviewModal } from "./components";
 
 /** 담당자 필터 적용 */
 function filterTreeByAssignee(items: WbsItem[], assigneeId: string): WbsItem[] {
@@ -52,7 +53,7 @@ export default function WBSPage() {
   const createWbs = useCreateWbsItem();
   const updateWbs = useUpdateWbsItem();
   const deleteWbs = useDeleteWbsItem();
-  const changeLevel = useChangeWbsLevel();
+  const moveWbs = useMoveWbsItem();
   const createTask = useCreateTask();
 
   // 데이터 가공
@@ -65,14 +66,15 @@ export default function WBSPage() {
   // 커스텀 훅
   const { panelWidth, containerRef, handleMouseDown } = usePanelResize();
   const ganttChart = useGanttChart(selectedProject);
-  const { treeListRef, ganttScrollRef } = useScrollSync(selectedItemId);
   const tree = useWbsTree(wbsTree);
+  const move = useWbsMove({ items: wbsTreeWithDates, moveWbs, setExpandedIds: tree.setExpandedIds, setSelectedItemId, toast });
+  const { treeListRef, ganttScrollRef } = useScrollSync(selectedItemId, move.movedCount);
   const { stats, scheduleStats } = useWbsStats(wbsTree, selectedProject);
   const ganttDrag = useGanttDrag({ cellWidth: ganttChart.cellWidth, updateWbs, toast });
   const actions = useWbsActions({
     selectedProjectId, selectedProject, wbsTree, rightPanelView, selectedItemId, setSelectedItemId,
     setExpandedIds: tree.setExpandedIds, checkedIds: tree.checkedIds, setCheckedIds: tree.setCheckedIds,
-    createWbs, updateWbs, deleteWbs, changeLevel, createTask, toast,
+    createWbs, updateWbs, deleteWbs, createTask, toast,
   });
 
   if (isLoading) {
@@ -148,7 +150,7 @@ export default function WBSPage() {
                 selectedItemId={selectedItemId} checkedIds={tree.checkedIds} stats={stats} treeListRef={treeListRef}
                 onToggle={tree.handleToggle} onSelect={setSelectedItemId} onCheck={tree.handleCheck}
                 onCheckAll={tree.handleCheckAll} onAddChild={actions.handleAddChild} onEdit={actions.handleEdit}
-                onDelete={actions.handleDelete} onLevelUp={actions.handleLevelUp} onLevelDown={actions.handleLevelDown}
+                onDelete={actions.handleDelete} onMove={move.open}
                 onRegisterTask={actions.handleRegisterTask} onUpdateProgress={actions.handleUpdateProgress}
                 onPreviewDeliverable={actions.setDeliverablePreviewUrl}
                 onBulkAssign={() => actions.setShowBulkAssignModal(true)}
@@ -207,7 +209,14 @@ export default function WBSPage() {
         onSubmit={actions.handleSubmit}
         onClose={() => { actions.setShowAddModal(false); actions.setEditingItem(null); }}
         isSubmitting={createWbs.isPending || updateWbs.isPending}
+        parentPath={pathLabel(wbsPath(wbsTreeWithDates, actions.newItem.parentId))}
       />
+      {move.item && move.preset && (
+        <WbsMoveModal
+          key={move.item.id} items={wbsTreeWithDates} item={move.item} preset={move.preset}
+          isSaving={moveWbs.isPending} onSubmit={move.submit} onClose={move.close}
+        />
+      )}
       <DeliverablePreviewModal url={actions.deliverablePreviewUrl} onClose={() => actions.setDeliverablePreviewUrl(null)} />
       <ConfirmModal
         isOpen={actions.showDeleteConfirm} title="WBS 항목 삭제"

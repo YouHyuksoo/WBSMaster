@@ -80,7 +80,7 @@ export {
   useCreateWbsItem,
   useUpdateWbsItem,
   useDeleteWbsItem,
-  useChangeWbsLevel,
+  useMoveWbsItem,
   useWbsStats,
   useWbsScheduleStats,
   useProjectPulse,

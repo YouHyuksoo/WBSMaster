@@ -14,13 +14,13 @@ import { WbsActionBar, findWbsItem } from "./WbsActionBar";
 const leaf = { id: "c", code: "1.1.1.1", name: "단위 작업", level: "LEVEL4", levelNumber: 4, children: [] } as unknown as WbsItem;
 const tree = [{ id: "a", code: "1", name: "분석", level: "LEVEL1", levelNumber: 1, children: [{ id: "b", code: "1.1", name: "중", level: "LEVEL2", levelNumber: 2, children: [leaf] }] }] as unknown as WbsItem[];
 
-const handlers = () => ({ onAddChild: vi.fn(), onEdit: vi.fn(), onDelete: vi.fn(), onLevelUp: vi.fn(), onLevelDown: vi.fn(), onRegisterTask: vi.fn() });
+const handlers = () => ({ onAddChild: vi.fn(), onEdit: vi.fn(), onDelete: vi.fn(), onMove: vi.fn(), onRegisterTask: vi.fn() });
 const disabled = (name: string) => (screen.getByRole("button", { name }) as HTMLButtonElement).disabled;
 
 describe("WBS 작업 버튼 줄", () => {
   it("선택이 없으면 모든 버튼이 보이되 꺼져 있다", () => {
     render(<WbsActionBar item={null} {...handlers()} />);
-    for (const name of ["하위 추가", "수정", "레벨 올리기", "레벨 내리기", "Task로 등록", "삭제"]) expect(disabled(name)).toBe(true);
+    for (const name of ["하위 추가", "수정", "이동", "레벨 올리기", "레벨 내리기", "Task로 등록", "삭제"]) expect(disabled(name)).toBe(true);
     expect(screen.getByText("행을 선택하면 작업 버튼이 켜집니다")).toBeTruthy();
   });
 
@@ -42,6 +42,13 @@ describe("WBS 작업 버튼 줄", () => {
     fireEvent.click(screen.getByRole("button", { name: "삭제" }));
     expect(h.onRegisterTask).toHaveBeenCalledWith(leaf);
     expect(h.onDelete).toHaveBeenCalledWith("c");
+  });
+
+  it("이동 · 올리기 · 내리기는 어느 버튼인지와 함께 이동 창 핸들러를 부른다", () => {
+    const h = handlers();
+    render(<WbsActionBar item={findWbsItem(tree, "b")} {...h} />);
+    for (const name of ["이동", "레벨 올리기", "레벨 내리기"]) fireEvent.click(screen.getByRole("button", { name }));
+    expect(h.onMove.mock.calls).toEqual([["b", "free"], ["b", "up"], ["b", "down"]]);
   });
 
   it("버튼 줄 높이 = 간트 줌 줄 높이 (트리 행과 간트 행 정렬)", () => {

@@ -5,10 +5,10 @@
  * 선택 툴바, 테이블 헤더, WbsTreeItem 렌더링, 하단 요약을 포함합니다.
  *
  * 초보자 가이드:
- * 0. **작업 버튼 줄**(항상 보임): 클릭해 선택한 행에 하위 추가 · 수정 · 레벨 · Task 등록 · 삭제 (WbsActionBar)
+ * 0. **작업 버튼 줄**(항상 보임): 클릭해 선택한 행에 하위 추가 · 수정 · 이동 · 레벨 · Task 등록 · 삭제 (WbsActionBar)
  * 1. **선택 툴바**: 항목 체크 시 일괄 배정/TASK 배정 버튼 표시
  * 2. **테이블 헤더**: WBS 항목, 계획기간, 실제기간, 진행률, 상태, 지연, 담당, 산출물
- * 3. **하단 요약**: 항목 수 및 레벨별 범례
+ * 3. **하단 줄**: 선택한 항목이 어느 분류 아래인지(경로), 선택이 없으면 항목 수. 오른쪽은 레벨별 범례
  */
 
 "use client";
@@ -18,6 +18,7 @@ import type { WbsLevel } from "@/lib/api";
 import type { WbsTreePanelProps } from "../types";
 import { levelNames, levelColors } from "../constants";
 import { WbsTreeItem } from "./WbsTreeItem";
+import { pathLabel, wbsPath } from "../utils/wbsPath";
 import { WbsActionBar, findWbsItem } from "./WbsActionBar";
 
 export function WbsTreePanel({
@@ -35,8 +36,7 @@ export function WbsTreePanel({
   onAddChild,
   onEdit,
   onDelete,
-  onLevelUp,
-  onLevelDown,
+  onMove,
   onRegisterTask,
   onUpdateProgress,
   onPreviewDeliverable,
@@ -45,6 +45,8 @@ export function WbsTreePanel({
   onClearChecked,
   getAllItemIds,
 }: WbsTreePanelProps) {
+  const selectedPath = wbsPath(wbsTree, selectedItemId);
+
   return (
     <div
       style={{ width: panelWidth }}
@@ -52,7 +54,7 @@ export function WbsTreePanel({
     >
       {/* 작업 버튼 줄 (항상 보임, 클릭해 선택한 행에 적용) */}
       <WbsActionBar item={findWbsItem(wbsTree, selectedItemId)} onAddChild={onAddChild} onEdit={onEdit} onDelete={onDelete}
-        onLevelUp={onLevelUp} onLevelDown={onLevelDown} onRegisterTask={onRegisterTask} />
+        onMove={onMove} onRegisterTask={onRegisterTask} />
 
       {/* 선택 툴바 (항목 선택 시 표시) */}
       {checkedIds.size > 0 && (
@@ -152,10 +154,16 @@ export function WbsTreePanel({
       </div>
       </div>
 
-      {/* 하단 요약 */}
-      <div className="h-8 border-t border-border dark:border-border-dark bg-surface dark:bg-surface-dark flex items-center justify-between px-3 text-[11px] text-text-secondary">
-        <span>{stats.total}개 항목</span>
-        <div className="flex gap-2">
+      {/* 하단 줄: 선택 항목의 경로 또는 항목 수 */}
+      <div className="h-8 border-t border-border dark:border-border-dark bg-surface dark:bg-surface-dark flex items-center justify-between gap-3 px-3 text-[11px] text-text-secondary">
+        {selectedPath.length > 0 ? (
+          <span className="min-w-0 truncate" title={pathLabel(selectedPath)}>
+            위치: <span className="font-medium text-text dark:text-white">{pathLabel(selectedPath)}</span>
+          </span>
+        ) : (
+          <span>{stats.total}개 항목</span>
+        )}
+        <div className="flex shrink-0 gap-2">
           {Object.entries(levelNames).map(([level, name]) => (
             <span key={level} className="flex items-center gap-1">
               <span className={`size-1.5 rounded-full ${levelColors[level as WbsLevel]}`} />

@@ -39,6 +39,8 @@ interface WbsFormModalProps {
   onClose: () => void;
   /** 저장 중 여부 */
   isSubmitting?: boolean;
+  /** 상위 항목 경로 ("1 업무 분석 › 1.3 소스 분석", 대분류면 빈 글자) */
+  parentPath?: string;
 }
 
 /**
@@ -53,6 +55,7 @@ export function WbsFormModal({
   onSubmit,
   onClose,
   isSubmitting = false,
+  parentPath = "",
 }: WbsFormModalProps) {
   if (!isOpen) return null;
 
@@ -72,18 +75,18 @@ export function WbsFormModal({
       <div className="bg-background-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
         {/* 모달 헤더 */}
         <div className="flex items-center justify-between p-5 border-b border-border dark:border-border-dark">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <span
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium text-white ${levelColors[formData.level]}`}
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium text-white ${levelColors[formData.level]}`}
             >
               {levelNames[formData.level]}
             </span>
-            <h2 className="text-lg font-bold text-text dark:text-white">
+            <h2 className="shrink-0 text-lg font-bold text-text dark:text-white">
               {editingItem ? "WBS 항목 수정" : `${levelNames[formData.level]} 추가`}
             </h2>
-            {formData.parentId && (
-              <span className="text-xs text-text-secondary bg-surface dark:bg-background-dark px-2 py-1 rounded">
-                상위 항목에 추가됨
+            {parentPath && (
+              <span className="min-w-0 truncate text-xs text-text-secondary bg-surface dark:bg-background-dark px-2 py-1 rounded" title={parentPath}>
+                상위: {parentPath}
               </span>
             )}
           </div>

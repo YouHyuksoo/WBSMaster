@@ -33,17 +33,17 @@ export interface UpdateWbsInput {
 const LEVEL_NUMBER: Record<WbsLevel, number> = { LEVEL1: 1, LEVEL2: 2, LEVEL3: 3, LEVEL4: 4 };
 const toDate = (v: string | Date | null | undefined) => (v ? new Date(v) : null);
 
-/** 부모 항목의 진행률을 자식 가중 평균으로 재계산 (상위로 재귀) */
-export async function updateParentProgress(parentId: string): Promise<void> {
-  const children = await prisma.wbsItem.findMany({ where: { parentId }, select: { progress: true, weight: true } });
+/** 부모 항목의 진행률을 자식 가중 평균으로 재계산 (상위로 재귀). 트랜잭션 안에서는 db 에 tx 를 넘긴다 */
+export async function updateParentProgress(parentId: string, db: Pick<typeof prisma, "wbsItem"> = prisma): Promise<void> {
+  const children = await db.wbsItem.findMany({ where: { parentId }, select: { progress: true, weight: true } });
   if (children.length === 0) return;
   const totalWeight = children.reduce((s, c) => s + c.weight, 0);
   const weighted = children.reduce((s, c) => s + c.progress * c.weight, 0);
   const avg = totalWeight > 0 ? Math.round(weighted / totalWeight) : 0;
   const status: TaskStatus = avg === 100 ? "COMPLETED" : avg > 0 ? "IN_PROGRESS" : "PENDING";
-  await prisma.wbsItem.update({ where: { id: parentId }, data: { progress: avg, status } });
-  const parent = await prisma.wbsItem.findUnique({ where: { id: parentId }, select: { parentId: true } });
-  if (parent?.parentId) await updateParentProgress(parent.parentId);
+  await db.wbsItem.update({ where: { id: parentId }, data: { progress: avg, status } });
+  const parent = await db.wbsItem.findUnique({ where: { id: parentId }, select: { parentId: true } });
+  if (parent?.parentId) await updateParentProgress(parent.parentId, db);
 }
 
 /**

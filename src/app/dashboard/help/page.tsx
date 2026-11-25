@@ -293,7 +293,7 @@ const detailedGuides: DetailedGuide[] = [
       {
         title: "트리 구조 보기",
         content:
-          "WBS는 트리 형태로 표시되어 프로젝트의 계층 구조를 직관적으로 파악할 수 있습니다. 각 노드를 클릭하면 확장/축소되며, 드래그 앤 드롭으로 구조를 변경할 수 있습니다.",
+          "WBS는 트리 형태로 표시되어 프로젝트의 계층 구조를 직관적으로 파악할 수 있습니다. 화살표를 누르면 펼치거나 접을 수 있고, 항목을 선택한 뒤 '이동' 버튼을 누르면 어느 항목 아래 몇 번째로 옮길지 골라 구조를 바꿀 수 있습니다. 선택한 항목이 어느 분류 아래인지는 트리 아래 줄에 표시됩니다.",
         tips: [
           "Shift + 클릭으로 전체 하위 항목을 한 번에 펼치거나 접을 수 있습니다",
           "더블 클릭으로 빠르게 이름을 수정할 수 있습니다",
@@ -1452,14 +1452,14 @@ export default function HelpPage() {
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="size-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                    <Icon name="drag_indicator" size="xs" className="text-blue-600 dark:text-blue-400" />
+                    <Icon name="drive_file_move" size="xs" className="text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
                     <h4 className="font-medium text-text dark:text-white mb-1">
-                      드래그 앤 드롭
+                      항목 이동
                     </h4>
                     <p className="text-sm text-text-secondary">
-                      WBS 트리에서 항목을 드래그하여 구조를 변경할 수 있습니다
+                      WBS 트리에서 항목을 선택하고 이동 버튼을 누르면 옮길 위치를 고를 수 있습니다
                     </p>
                   </div>
                 </div>

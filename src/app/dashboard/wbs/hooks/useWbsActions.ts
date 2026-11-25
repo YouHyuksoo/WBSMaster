@@ -6,7 +6,7 @@
  * 초보자 가이드:
  * 1. **모달 상태**: showAddModal, showBulkAssignModal 등
  * 2. **폼 상태**: newItem, editingItem
- * 3. **핸들러**: handleAddChild, handleEdit, handleDelete 등
+ * 3. **핸들러**: handleAddChild, handleEdit, handleDelete 등 (항목 이동은 useWbsMove)
  */
 
 "use client";
@@ -14,7 +14,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { utils, writeFile } from "xlsx";
 import type { WbsItem, WbsLevel, Project } from "@/lib/api";
-import type { useCreateWbsItem, useUpdateWbsItem, useDeleteWbsItem, useChangeWbsLevel, useCreateTask } from "@/hooks";
+import type { useCreateWbsItem, useUpdateWbsItem, useDeleteWbsItem, useCreateTask } from "@/hooks";
 import type { NewItemForm, RightPanelView } from "../types";
 import { levelNames, statusNames } from "../constants";
 import { isDelayed, getDelayDays, getDisplayStatus } from "../utils/wbsHelpers";
@@ -32,7 +32,6 @@ interface UseWbsActionsParams {
   createWbs: ReturnType<typeof useCreateWbsItem>;
   updateWbs: ReturnType<typeof useUpdateWbsItem>;
   deleteWbs: ReturnType<typeof useDeleteWbsItem>;
-  changeLevel: ReturnType<typeof useChangeWbsLevel>;
   createTask: ReturnType<typeof useCreateTask>;
   toast: { success: (msg: string, title?: string) => void; error: (msg: string, title?: string) => void };
 }
@@ -50,7 +49,6 @@ export function useWbsActions({
   createWbs,
   updateWbs,
   deleteWbs,
-  changeLevel,
   createTask,
   toast,
 }: UseWbsActionsParams) {
@@ -184,28 +182,6 @@ export function useWbsActions({
       setShowDeleteConfirm(false);
       setDeletingItemId(null);
       setDeletingItemName("");
-    }
-  };
-
-  /** 레벨 올리기 */
-  const handleLevelUp = async (id: string) => {
-    try {
-      await changeLevel.mutateAsync({ id, direction: "up" });
-      toast.success("레벨이 변경되었습니다.");
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "레벨을 올릴 수 없습니다.";
-      toast.error(msg, "레벨 변경 실패");
-    }
-  };
-
-  /** 레벨 내리기 */
-  const handleLevelDown = async (id: string) => {
-    try {
-      await changeLevel.mutateAsync({ id, direction: "down" });
-      toast.success("레벨이 변경되었습니다.");
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "레벨을 내릴 수 없습니다. 이전 형제 항목이 필요합니다.";
-      toast.error(msg, "레벨 변경 실패");
     }
   };
 
@@ -500,8 +476,6 @@ export function useWbsActions({
     handleEdit,
     handleDelete,
     handleConfirmDelete,
-    handleLevelUp,
-    handleLevelDown,
     handleUpdateProgress,
     handleRegisterTask,
     handleBulkAssign,

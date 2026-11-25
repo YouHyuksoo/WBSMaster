@@ -8,4 +8,5 @@
 export { BulkAssignModal } from "./BulkAssignModal";
 export { BulkTaskAssignModal } from "./BulkTaskAssignModal";
 export { WbsFormModal } from "./WbsFormModal";
+export { WbsMoveModal } from "./WbsMoveModal";
 export { DeliverablePreviewModal } from "./DeliverablePreviewModal";

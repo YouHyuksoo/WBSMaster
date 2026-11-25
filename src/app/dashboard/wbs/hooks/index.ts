@@ -10,3 +10,4 @@ export { useGanttChart } from "./useGanttChart";
 export { useScrollSync } from "./useScrollSync";
 export { useWbsTree } from "./useWbsTree";
 export { useWbsActions } from "./useWbsActions";
+export { useWbsMove } from "./useWbsMove";

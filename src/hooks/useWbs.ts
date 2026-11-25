@@ -10,6 +10,7 @@
  * 3. **useCreateWbsItem**: WBS 항목 생성
  * 4. **useUpdateWbsItem**: WBS 항목 수정
  * 5. **useDeleteWbsItem**: WBS 항목 삭제
+ * 6. **useMoveWbsItem**: 고른 상위 항목 아래로 이동
  *
  * @example
  * // 트리 구조로 WBS 목록 조회
@@ -28,6 +29,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { MoveTarget } from "@/lib/wbs/move-plan";
 import { api, WbsItem, WbsLevel, WbsStats, WbsScheduleStats } from "@/lib/api";
 
 /** WBS Query Keys */
@@ -178,29 +180,16 @@ export function useDeleteWbsItem() {
   });
 }
 
-/** WBS 레벨 변경 데이터 */
-interface ChangeWbsLevelData {
-  id: string;
-  direction: "up" | "down";
-}
-
 /**
- * WBS 항목 레벨 변경 Hook
- * - up: 상위 레벨로 이동 (LEVEL4 → LEVEL3)
- * - down: 하위 레벨로 이동 (LEVEL3 → LEVEL4)
+ * WBS 항목 이동 Hook (고른 상위 항목 아래, 고른 자리로)
+ * - 목록을 다시 읽을 때까지 기다린다 → 옮긴 뒤 새 위치를 펼치고 그 행으로 스크롤할 수 있다
  */
-export function useChangeWbsLevel() {
+export function useMoveWbsItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, direction }: ChangeWbsLevelData) =>
-      api.wbs.changeLevel(id, direction),
-    onSuccess: () => {
-      // 목록 캐시 전체 무효화 (구조가 변경되므로)
-      queryClient.invalidateQueries({ queryKey: wbsKeys.lists() });
-      // 상세 캐시도 무효화
-      queryClient.invalidateQueries({ queryKey: wbsKeys.details() });
-    },
+    mutationFn: ({ id, ...target }: { id: string } & MoveTarget) => api.wbs.move(id, target),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: wbsKeys.all }),
   });
 }
 

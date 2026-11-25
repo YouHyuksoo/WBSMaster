@@ -2,12 +2,12 @@
  * @file src/app/dashboard/wbs/components/WbsActionBar.tsx
  * @description
  * WBS 트리 위에 항상 보이는 "선택 항목 작업" 버튼 줄입니다.
- * 행의 ⋮ 메뉴에 숨어 있던 기능(하위 추가 · 수정 · 레벨 올리기/내리기 · Task로 등록 · 삭제)을 버튼으로 보여 줍니다.
+ * 행의 ⋮ 메뉴에 숨어 있던 기능(하위 추가 · 수정 · 이동 · 레벨 올리기/내리기 · Task로 등록 · 삭제)을 버튼으로 보여 줍니다.
  *
  * 초보자 가이드:
  * 1. 행을 클릭해 선택하면 그 항목에 버튼이 적용된다. 선택이 없으면 모든 버튼이 꺼진 채로 보인다
  * 2. 그 항목에 해당하지 않는 버튼은 꺼지고, 마우스를 올리면 이유를 보여 준다 (예: 단위업무는 하위 추가 불가)
- * 3. 버튼이 부르는 동작은 행 메뉴와 같은 핸들러다 (삭제는 확인 창을 거친다)
+ * 3. 이동 · 올리기 · 내리기는 모두 이동 창을 연다. 올리기 · 내리기는 위치만 미리 골라 두며 바로 옮기지 않는다 (삭제도 확인 창을 거친다)
  * 4. 폭은 패널 너비 기준(container query): 넓으면 선택 항목 이름까지, 보통 너비는 짧은 글자 버튼(올리기 · 내리기 · Task 등록),
  *    아주 좁으면 아이콘 버튼만. 전체 이름은 aria-label · 마우스 툴팁으로 항상 알 수 있다
  * 5. 높이는 오른쪽 간트의 줌 줄(h-8)과 같다 → 왼쪽 트리 행과 간트 행의 세로 위치가 맞는다. 높이를 바꾸면 GanttChart 줌 줄도 같이 바꾼다
@@ -18,18 +18,18 @@
 import { Icon } from "@/components/ui";
 import type { WbsItem, WbsLevel } from "@/lib/api";
 import { levelColors, levelNames } from "../constants";
+import type { WbsMoveKind } from "../types";
 
 interface Props {
   item: WbsItem | null;
   onAddChild: (parentId: string, level: WbsLevel) => void;
   onEdit: (item: WbsItem) => void;
   onDelete: (id: string) => void;
-  onLevelUp: (id: string) => void;
-  onLevelDown: (id: string) => void;
+  onMove: (id: string, kind: WbsMoveKind) => void;
   onRegisterTask: (item: WbsItem) => void;
 }
 
-const base = "h-6 shrink-0 inline-flex items-center gap-1 rounded-md border px-2 text-xs font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40";
+const base = "h-6 shrink-0 inline-flex items-center gap-0.5 rounded-md border px-1.5 text-xs font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40";
 const normal = `${base} border-border dark:border-border-dark bg-background-white dark:bg-surface-dark text-text dark:text-white enabled:hover:bg-surface dark:enabled:hover:bg-background-dark`;
 const danger = `${base} border-error/40 bg-background-white dark:bg-surface-dark text-error enabled:hover:bg-error/10`;
 
@@ -39,12 +39,12 @@ function ActionButton({ icon, label, short, onClick, disabled, reason, tone = "n
   return (
     <button type="button" onClick={onClick} disabled={disabled} title={disabled ? reason : label} aria-label={label} className={tone === "danger" ? danger : normal}>
       <Icon name={icon} size="xs" className={disabled ? undefined : iconClass} />
-      <span className="hidden @min-[28rem]:inline">{short ?? label}</span>
+      <span className="hidden @min-[33.75rem]:inline">{short ?? label}</span>
     </button>
   );
 }
 
-export function WbsActionBar({ item, onAddChild, onEdit, onDelete, onLevelUp, onLevelDown, onRegisterTask }: Props) {
+export function WbsActionBar({ item, onAddChild, onEdit, onDelete, onMove, onRegisterTask }: Props) {
   const none = !item;
   const level = item?.levelNumber ?? 0;
   const nextLevel = `LEVEL${level + 1}` as WbsLevel;
@@ -70,10 +70,11 @@ export function WbsActionBar({ item, onAddChild, onEdit, onDelete, onLevelUp, on
             onClick={() => item && onAddChild(item.id, nextLevel)} />
           <ActionButton icon="edit" label="수정" disabled={none} reason={pick} onClick={() => item && onEdit(item)} />
           <span className="h-5 w-px bg-border dark:bg-border-dark shrink-0" aria-hidden />
+          <ActionButton icon="drive_file_move" iconClass="text-primary" label="이동" disabled={none} reason={pick} onClick={() => item && onMove(item.id, "free")} />
           <ActionButton icon="arrow_upward" iconClass="text-blue-500" label="레벨 올리기" short="올리기" disabled={none || level <= 1}
-            reason={none ? pick : "대분류(1레벨)는 더 올릴 수 없습니다"} onClick={() => item && onLevelUp(item.id)} />
+            reason={none ? pick : "대분류(1레벨)는 더 올릴 수 없습니다"} onClick={() => item && onMove(item.id, "up")} />
           <ActionButton icon="arrow_downward" iconClass="text-orange-500" label="레벨 내리기" short="내리기" disabled={none || level >= 4}
-            reason={none ? pick : "단위업무(4레벨)는 더 내릴 수 없습니다"} onClick={() => item && onLevelDown(item.id)} />
+            reason={none ? pick : "단위업무(4레벨)는 더 내릴 수 없습니다"} onClick={() => item && onMove(item.id, "down")} />
           <span className="h-5 w-px bg-border dark:bg-border-dark shrink-0" aria-hidden />
           <ActionButton icon="assignment" iconClass="text-primary" label="Task로 등록" short="Task 등록" disabled={none || level !== 4}
             reason={none ? pick : "단위업무(4레벨)만 Task로 등록할 수 있습니다"} onClick={() => item && onRegisterTask(item)} />

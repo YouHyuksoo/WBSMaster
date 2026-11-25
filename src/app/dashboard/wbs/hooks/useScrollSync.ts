@@ -30,7 +30,8 @@ export function centerScrollTop(container: HTMLElement, row: HTMLElement): numbe
   return Math.max(0, container.scrollTop + (r.top - c.top) - container.clientHeight / 2 + r.height / 2);
 }
 
-export function useScrollSync(selectedItemId: string | null) {
+/** focusKey 가 바뀌면 같은 항목이 선택된 채여도 다시 그 행으로 스크롤한다 (항목 이동 뒤) */
+export function useScrollSync(selectedItemId: string | null, focusKey = 0) {
   const treeListRef = useRef<HTMLDivElement>(null);
   const ganttScrollRef = useRef<HTMLDivElement>(null);
 
@@ -73,11 +74,12 @@ export function useScrollSync(selectedItemId: string | null) {
       if (gantt && bar) {
         const left = parseInt(bar.style.left || "0", 10);
         const width = parseInt(bar.style.width || "0", 10);
-        gantt.scrollTo({ left: Math.max(0, left + width / 2 - gantt.clientWidth / 2), behavior: "smooth" });
+        // 간트까지 부드럽게 움직이면 세로 맞추기와 서로 끊어 트리가 몇 px 만 가고 멈춘다 (회귀 2026-11-25) → 가로는 바로 맞춘다
+        gantt.scrollLeft = Math.max(0, left + width / 2 - gantt.clientWidth / 2);
       }
     }, 100);
     return () => clearTimeout(timeoutId);
-  }, [selectedItemId]);
+  }, [selectedItemId, focusKey]);
 
   return { treeListRef, ganttScrollRef };
 }

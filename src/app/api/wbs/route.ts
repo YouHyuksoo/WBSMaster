@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { WbsLevel, Prisma } from "@prisma/client";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
+import { nextChildSlot } from "@/lib/wbs/move-plan";
 
 /** WBS 레벨별 숫자 매핑 */
 const levelToNumber: Record<WbsLevel, number> = {
@@ -155,36 +156,6 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * 다음 WBS 코드 생성
- * 부모가 있으면 부모코드.N, 없으면 N
- */
-async function generateWbsCode(
-  projectId: string,
-  parentId: string | null,
-  parentCode: string | null
-): Promise<string> {
-  // 같은 부모 아래의 마지막 항목 찾기
-  const lastSibling = await prisma.wbsItem.findFirst({
-    where: {
-      projectId,
-      parentId: parentId || null,
-    },
-    orderBy: { order: "desc" },
-    select: { code: true, order: true },
-  });
-
-  if (parentCode) {
-    // 부모가 있는 경우: 부모코드.N
-    const nextOrder = (lastSibling?.order ?? -1) + 1;
-    return `${parentCode}.${nextOrder + 1}`;
-  } else {
-    // 최상위 항목: N
-    const nextOrder = (lastSibling?.order ?? -1) + 1;
-    return `${nextOrder + 1}`;
-  }
-}
-
-/**
  * WBS 항목 생성
  * POST /api/wbs
  * (인증 필요)
@@ -276,13 +247,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // WBS 코드 생성
-    const code = await generateWbsCode(projectId, parentId || null, parentCode);
-
-    // 같은 부모 아래의 순서 결정
-    const siblingCount = await prisma.wbsItem.count({
+    // 같은 부모 아래 맨 뒤의 번호 · 순서
+    const siblings = await prisma.wbsItem.findMany({
       where: { projectId, parentId: parentId || null },
+      select: { code: true, order: true },
     });
+    const { code, order } = nextChildSlot(siblings, parentCode);
 
     // 담당자 배열 준비
     const assigneesData = Array.isArray(assigneeIds) && assigneeIds.length > 0
@@ -296,7 +266,7 @@ export async function POST(request: NextRequest) {
         name,
         description,
         level: level as WbsLevel,
-        order: siblingCount,
+        order,
         projectId,
         parentId: parentId || null,
         startDate: startDate ? new Date(startDate) : null,

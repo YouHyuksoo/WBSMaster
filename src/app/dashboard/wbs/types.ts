@@ -170,6 +170,9 @@ export interface DeliverablePreviewModalProps {
   onClose: () => void;
 }
 
+/** 이동 창을 여는 버튼: 이동(지금 위치에서 시작) · 올리기 · 내리기 (위치만 미리 골라 둔다) */
+export type WbsMoveKind = "free" | "up" | "down";
+
 /** 우측 패널 뷰 타입 */
 export type RightPanelView = "gantt" | "detail";
 
@@ -289,8 +292,7 @@ export interface WbsTreePanelProps {
   onAddChild: (parentId: string, level: WbsLevel) => void;
   onEdit: (item: WbsItem) => void;
   onDelete: (id: string) => void;
-  onLevelUp: (id: string) => void;
-  onLevelDown: (id: string) => void;
+  onMove: (id: string, kind: WbsMoveKind) => void;
   onRegisterTask: (item: WbsItem) => void;
   onUpdateProgress: (id: string, progress: number) => void;
   onPreviewDeliverable: (url: string) => void;

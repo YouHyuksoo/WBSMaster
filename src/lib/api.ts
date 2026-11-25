@@ -20,6 +20,7 @@
  */
 
 import { handleUnauthorized } from "@/lib/session";
+import type { MoveChange, MoveTarget } from "@/lib/wbs/move-plan";
 
 /** API 에러 클래스 */
 export class ApiError extends Error {
@@ -1735,9 +1736,9 @@ export const api = {
     }) => patch<WbsItem>(`/api/wbs/${id}`, data),
     /** WBS 항목 삭제 (자식도 함께 삭제됨) */
     delete: (id: string) => del<{ message: string; deletedId: string; childrenDeleted: number }>(`/api/wbs/${id}`),
-    /** WBS 레벨 변경 (up: 상위로, down: 하위로) */
-    changeLevel: (id: string, direction: "up" | "down") =>
-      patch<{ message: string; item: WbsItem }>(`/api/wbs/${id}/level`, { direction }),
+    /** WBS 항목 이동 (parentId null = 최상위, afterId 없음 = 맨 뒤 · null = 맨 앞) */
+    move: (id: string, target: MoveTarget) =>
+      patch<{ item: MoveChange; descendantCount: number; renumbered: Array<{ id: string; from: string; to: string }> }>(`/api/wbs/${id}/move`, target),
     /** WBS 단위업무 기반 담당자별 통계 조회 */
     stats: (params?: { projectId?: string }) =>
       get<WbsStats>("/api/wbs/stats", params as Record<string, string | undefined>),
