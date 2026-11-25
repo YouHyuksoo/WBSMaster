@@ -14,6 +14,7 @@
 - `prisma/schema.prisma` 변경 후 `npx prisma generate` 필수 (`npm run build` 와 `postinstall` 은 자동 실행).
 - 새 Enum 값 추가 후 `prisma db push` + `prisma generate` 하고 **개발 서버를 재시작**해야 한다. 안 하면 `Value 'X' not found in enum` 오류.
 - 환경 변수: `.env.example` 을 복사해 `.env.local` 에 둔다. `DATABASE_URL`, `DIRECT_URL`(마이그레이션용), `SESSION_SECRET`(로그인 쿠키 서명 키, 32자 이상) 필수, `UPLOAD_DIR` 선택(기본 `<프로젝트>/uploads`).
+- 개발 서버 DB: `npm run dev`(`scripts/dev.mjs`)는 `.env.local` 에 `DEV_DATABASE_URL` 이 있으면 **운영 DB** 에 직접 붙는다(시작할 때 대상 DB 를 출력). 이때 `localhost:3000` 에서 저장 · 삭제하면 운영 데이터가 바뀌므로 테스트 · 실험은 `npm run dev:local`(로컬 DB)로 한다. 파일 업로드는 막히고 지식 전송은 꺼진다. `scripts/` 와 prisma 명령은 항상 `.env.local` 의 로컬 DB 를 쓴다(`.env.local` 의 `DATABASE_URL` · `DIRECT_URL` 을 운영으로 바꾸지 않는다).
 - `scripts/` 의 import/seed/backup/repair 유틸은 런타임 앱 코드에서 import 하지 않는다.
 
 ## Git·배포

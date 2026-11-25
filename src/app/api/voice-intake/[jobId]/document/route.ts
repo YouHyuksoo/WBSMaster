@@ -14,7 +14,7 @@ import path from "path";
 import { copyFile, mkdir, stat } from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
-import { resolveUploadPath } from "@/lib/uploads";
+import { resolveUploadPath, uploadsBlockedReason } from "@/lib/uploads";
 import { documentFilePath, documentFileType, fileExtension } from "@/lib/document-files";
 import { getVoiceJob, removeVoiceJob, updateVoiceJob } from "@/lib/voice-jobs";
 
@@ -34,6 +34,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (job.documentId) return bad("이미 문서함에 등록했습니다.", 409);
   const denied = await assertProjectAccess(job.projectId, user!);
   if (denied) return denied;
+  const blocked = uploadsBlockedReason();
+  if (blocked) return bad(blocked, 409);
 
   const body = (await request.json().catch(() => ({}))) as { name?: unknown; description?: unknown; isPersonal?: unknown };
   const name = typeof body.name === "string" ? body.name.trim().slice(0, 200) : "";

@@ -4,7 +4,8 @@
   "private": true,
   "description": "프로젝트 관리를 위한 WBS(Work Breakdown Structure) 도구",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:local": "next dev",
     "build": "prisma generate && next build",
     "start": "next start -H 0.0.0.0",
     "lint": "eslint",

@@ -18,7 +18,7 @@ import { stat } from "fs/promises";
 import { Readable } from "stream";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
-import { resolveUploadPath } from "@/lib/uploads";
+import { resolveUploadPath, uploadsBlockedReason } from "@/lib/uploads";
 import {
   MAX_DOCUMENT_FILE_BYTES,
   DOCUMENT_FILE_EXTENSIONS,
@@ -59,6 +59,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { document, error } = await loadDocument(params);
     if (error) return error;
+    const blocked = uploadsBlockedReason();
+    if (blocked) return NextResponse.json({ error: blocked }, { status: 409 });
 
     let fileName = "";
     try {

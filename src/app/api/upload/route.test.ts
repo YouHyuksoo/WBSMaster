@@ -4,15 +4,20 @@
  * 초보자 가이드: 디스크·DB·AI를 목 처리하여 실제 자료를 만들지 않습니다.
  */
 import { beforeEach, expect, it, vi } from "vitest";
-const state = vi.hoisted(() => ({ denied: null as Response | null }));
+const state = vi.hoisted(() => ({ denied: null as Response | null, blocked: null as string | null }));
 vi.mock("@/lib/auth", () => ({ requireAuth: async () => ({ user: { id: "u1" }, error: null }), assertProjectAccess: vi.fn(async () => state.denied) }));
 vi.mock("@/lib/chat-intake/attachments", () => ({ uploadIntakeAttachment: vi.fn(async () => ({ attachmentId: "a1" })) }));
-vi.mock("@/lib/uploads", () => ({ IMAGE_EXTENSIONS: { "image/png": "png" }, saveUpload: vi.fn(async () => "/api/uploads/avatars/u1/a.png") }));
+vi.mock("@/lib/uploads", () => ({ IMAGE_EXTENSIONS: { "image/png": "png" }, saveUpload: vi.fn(async () => "/api/uploads/avatars/u1/a.png"), uploadsBlockedReason: () => state.blocked }));
 import { uploadIntakeAttachment } from "@/lib/chat-intake/attachments";
 import { saveUpload } from "@/lib/uploads";
 import { POST } from "./route";
 const post = (data: Record<string, unknown>) => POST({ formData: async () => ({ get: (key: string) => data[key] }) } as never);
-beforeEach(() => { vi.clearAllMocks(); state.denied = null; });
+beforeEach(() => { vi.clearAllMocks(); state.denied = null; state.blocked = null; });
+it("로컬 서버가 운영 DB에 붙어 있으면 저장하지 않고 이유를 알린다", async () => {
+  state.blocked = "운영 주소에서 올려 주세요.";
+  const res = await post({ file: { type: "image/png", size: 1, arrayBuffer: async () => new ArrayBuffer(1) } });
+  expect(res.status).toBe(409); expect((await res.json()).error).toBe(state.blocked); expect(saveUpload).not.toHaveBeenCalled();
+});
 it("프로젝트 권한이 없으면 추출·저장하지 않는다", async () => {
   state.denied = new Response("{}", { status: 403 });
   expect((await post({ purpose: "chat_intake", projectId: "other", file: new File(["sample"], "a.txt") })).status).toBe(403);

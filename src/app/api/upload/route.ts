@@ -17,7 +17,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
-import { IMAGE_EXTENSIONS, saveUpload } from "@/lib/uploads";
+import { IMAGE_EXTENSIONS, saveUpload, uploadsBlockedReason } from "@/lib/uploads";
 
 import { uploadIntakeAttachment } from "@/lib/chat-intake/attachments";
 import { IntakeError } from "@/lib/chat-intake/types";
@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
     // 인증 확인
     const { user, error: authError } = await requireAuth();
     if (authError) return authError;
+    const blocked = uploadsBlockedReason();
+    if (blocked) return NextResponse.json({ error: blocked }, { status: 409 });
 
     // FormData 파싱
     const formData = await request.formData();
