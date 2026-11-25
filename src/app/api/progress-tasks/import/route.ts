@@ -24,6 +24,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
+import { lastProgressTaskNo, progressTaskCode } from "@/lib/progress-task-code";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { STAGE_CATEGORY_REVERSE, type StageCategory } from "@/lib/stage-categories";
 
@@ -153,11 +154,8 @@ export async function POST(request: NextRequest) {
     };
 
     // 현재 최대 시퀀스 조회 (code T-001, T-002, ...)
-    const lastTask = await prisma.progressTask.findFirst({
-      where: { projectId },
-      orderBy: { order: "desc" },
-    });
-    let counter = lastTask ? lastTask.order + 1 : 0;
+    const existingTasks = await prisma.progressTask.findMany({ where: { projectId }, select: { code: true, order: true } });
+    let counter = Math.max(lastProgressTaskNo(existingTasks.map((t) => t.code)), Math.max(-1, ...existingTasks.map((t) => t.order)) + 1);
 
     // code → id 매핑 (같은 import 내 선행 task 참조용)
     const codeMap = new Map<string, string>();
@@ -179,7 +177,7 @@ export async function POST(request: NextRequest) {
 
         // 코드 생성 (T-001, T-002, ...)
         counter++;
-        const code = `T-${String(counter).padStart(3, "0")}`;
+        const code = progressTaskCode(counter);
 
         // 카테고리 + 단계명 → stageCategory / currentStageId
         const stageCategory = parseCategory(row["카테고리"]);

@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, assertProjectAccess } from "@/lib/auth";
 import { computeStageProgress } from "@/lib/stage-categories";
+import { lastProgressTaskNo, progressTaskCode } from "@/lib/progress-task-code";
 import { StageCategory } from "@prisma/client";
 
 /**
@@ -113,8 +114,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 진도 task 코드 자동 생성 (T-001, T-002, ...)
-    const existingCount = await prisma.progressTask.count({ where: { projectId } });
-    const code = `T-${String(existingCount + 1).padStart(3, "0")}`;
+    const existing = await prisma.progressTask.findMany({ where: { projectId }, select: { code: true, order: true } });
+    const code = progressTaskCode(lastProgressTaskNo(existing.map((t) => t.code)) + 1);
 
     // 선행 task 존재 확인 (존재하면)
     if (predecessorId) {
@@ -154,7 +155,7 @@ export async function POST(request: NextRequest) {
         endDate: endDt,
         predecessorId: predecessorId ?? null,
         isParallel: typeof isParallel === "boolean" ? isParallel : true,
-        order: existingCount,
+        order: Math.max(-1, ...existing.map((t) => t.order)) + 1,
         stageCategory: resolvedStageCategory as StageCategory,
         currentStageId: resolvedStageId,
         progress,
