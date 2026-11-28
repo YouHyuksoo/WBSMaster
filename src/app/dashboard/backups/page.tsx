@@ -14,7 +14,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Icon, Button } from "@/components/ui";
+import { Icon, Button, StatStrip, StatTile } from "@/components/ui";
 import { api } from "@/lib/api";
 
 /** 백업 파일 정보 타입 */
@@ -145,49 +145,12 @@ export default function BackupsPage() {
         </div>
       )}
 
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* 총 백업 수 */}
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Icon name="inventory_2" size="xs" className="text-primary" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-text dark:text-white">{backups.length}</p>
-              <p className="text-sm text-text-secondary">총 백업 수</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 최근 백업 */}
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-              <Icon name="schedule" size="xs" className="text-success" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-text dark:text-white truncate">
-                {latestBackup ? formatDate(latestBackup.createdAt) : "-"}
-              </p>
-              <p className="text-[10px] text-text-secondary">최근 백업</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 총 용량 */}
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
-              <Icon name="hard_drive" size="xs" className="text-warning" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-text dark:text-white">{formatFileSize(totalSize)}</p>
-              <p className="text-sm text-text-secondary">총 용량</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* 정보카드 */}
+      <StatStrip>
+        <StatTile icon="inventory_2" tone="text-primary" label="총 백업 수" value={backups.length} />
+        <StatTile icon="schedule" tone="text-success" label="최근 백업" value={latestBackup ? formatDate(latestBackup.createdAt) : "-"} />
+        <StatTile icon="hard_drive" tone="text-warning" label="총 용량" value={formatFileSize(totalSize)} />
+      </StatStrip>
 
       {/* 백업 목록 테이블 */}
       <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl overflow-hidden">

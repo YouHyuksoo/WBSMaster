@@ -15,7 +15,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Icon, Button } from "@/components/ui";
+import { Icon, Button, StatStrip, StatTile } from "@/components/ui";
 import { useWeeklyReports, useCurrentUser, useMembers } from "@/hooks";
 import { useProject } from "@/contexts";
 import { ReportWithRelations, WeekInfo } from "../types";
@@ -260,59 +260,12 @@ export function ReportListView({ onSelectReport, onCreateNew, memberFilter, onMe
           </span>
         </div>
       )}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* 전체 멤버 */}
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-500/10">
-              <Icon name="groups" className="text-blue-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">전체 멤버</p>
-              <p className="text-2xl font-bold text-foreground">{weeklyStats.totalMembers}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 제출 완료 */}
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-500/10">
-              <Icon name="check_circle" className="text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">제출 완료</p>
-              <p className="text-2xl font-bold text-emerald-500">{weeklyStats.submittedCount}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 작성 중 */}
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-500/10">
-              <Icon name="edit_note" className="text-amber-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">작성 중</p>
-              <p className="text-2xl font-bold text-amber-500">{weeklyStats.draftCount}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 미제출 */}
-        <div className="bg-card rounded-xl border border-border p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-red-500/10">
-              <Icon name="warning" className="text-red-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">미제출</p>
-              <p className="text-2xl font-bold text-red-500">{weeklyStats.notSubmittedCount}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <StatStrip>
+        <StatTile icon="groups" tone="text-blue-500" label="전체 멤버" value={weeklyStats.totalMembers} />
+        <StatTile icon="check_circle" tone="text-emerald-500" label="제출 완료" value={weeklyStats.submittedCount} valueTone="text-emerald-500" />
+        <StatTile icon="edit_note" tone="text-amber-500" label="작성 중" value={weeklyStats.draftCount} valueTone="text-amber-500" />
+        <StatTile icon="warning" tone="text-red-500" label="미제출" value={weeklyStats.notSubmittedCount} valueTone="text-red-500" />
+      </StatStrip>
 
       {/* 테이블 */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">

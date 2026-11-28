@@ -19,7 +19,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { utils, writeFile } from "xlsx";
-import { Icon, Button, Input, useToast, ConfirmModal } from "@/components/ui";
+import { Icon, Button, Input, useToast, ConfirmModal, StatStrip, StatTile } from "@/components/ui";
 import { useProject } from "@/contexts";
 import { DiscussionItemTable, DiscussionItemModal } from "./components";
 import {
@@ -329,88 +329,15 @@ export default function DiscussionItemsPage() {
         </div>
       )}
 
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-        {/* 완료율 */}
-        <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Icon name="speed" size="xs" className="text-primary" />
-            <span className="text-xs font-semibold text-primary">완료율</span>
-          </div>
-          <p className="text-2xl font-bold text-primary mb-1">{stats.completionRate}%</p>
-          <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-primary to-success rounded-full"
-              style={{ width: `${stats.completionRate}%` }}
-            />
-          </div>
-        </div>
-
-        {/* 전체 */}
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-slate-500/10 flex items-center justify-center">
-              <Icon name="list_alt" size="xs" className="text-slate-500" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-              <p className="text-sm text-text-secondary">전체</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 협의 중 */}
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-              <Icon name="forum" size="xs" className="text-yellow-500" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-text dark:text-white">{stats.discussing}</p>
-              <p className="text-sm text-text-secondary">협의 중</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 변환됨 */}
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <Icon name="transition_slide" size="xs" className="text-blue-500" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-text dark:text-white">{stats.converted}</p>
-              <p className="text-sm text-text-secondary">변환됨</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 보류 */}
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-gray-500/10 flex items-center justify-center">
-              <Icon name="block" size="xs" className="text-gray-500" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-text dark:text-white">{stats.blocked}</p>
-              <p className="text-sm text-text-secondary">보류</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 완료 */}
-        <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-              <Icon name="check_circle" size="xs" className="text-success" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-text dark:text-white">{stats.completed}</p>
-              <p className="text-sm text-text-secondary">완료</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* 정보카드 */}
+      <StatStrip>
+        <StatTile icon="speed" label="완료율" rate={stats.completionRate} />
+        <StatTile icon="list_alt" tone="text-slate-500" label="전체" value={stats.total} />
+        <StatTile icon="forum" tone="text-yellow-500" label="협의 중" value={stats.discussing} />
+        <StatTile icon="transition_slide" tone="text-blue-500" label="변환됨" value={stats.converted} />
+        <StatTile icon="block" tone="text-gray-500" label="보류" value={stats.blocked} />
+        <StatTile icon="check_circle" tone="text-success" label="완료" value={stats.completed} />
+      </StatStrip>
 
       {/* 필터 바 + 탭 (한 줄) */}
       <div className="flex flex-wrap items-center gap-4">

@@ -17,7 +17,7 @@ verifiedCommit: null
 <div className="p-6 space-y-6">
   {/* 1. 헤더 */}
   {/* 2. 프로젝트 미선택 안내 */}
-  {/* 3. 통계 카드 */}
+  {/* 3. 정보카드 (StatStrip · StatTile) */}
   {/* 4. 탭 */}
   {/* 5. 필터 바 */}
   {/* 6. 테이블 */}
@@ -57,52 +57,24 @@ verifiedCommit: null
 </div>
 ```
 
-## 2. 통계 카드 (6열 그리드)
+## 2. 정보카드 (통계 카드)
+
+공용 `StatStrip` · `StatTile`(`@/components/ui`)만 쓴다. **높이 36px(h-9) 한 줄**: [아이콘] 이름 ··· 값.
 
 ```tsx
-<div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-  {/* 비율 카드 (프로그레스 바 포함) */}
-  <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-    <div className="flex items-center gap-2 mb-2">
-      <Icon name="speed" size="xs" className="text-primary" />
-      <span className="text-xs font-semibold text-primary">비율명</span>
-    </div>
-    <p className="text-2xl font-bold text-primary mb-1">{rate}%</p>
-    <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-      <div className="h-full bg-gradient-to-r from-primary to-success rounded-full" style={{ width: `${rate}%` }} />
-    </div>
-  </div>
-
-  {/* 카운트 카드 */}
-  <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-    <div className="flex items-center gap-2">
-      <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-        <Icon name="아이콘" size="xs" className="text-primary" />
-      </div>
-      <div>
-        <p className="text-xl font-bold text-text dark:text-white">{count}</p>
-        <p className="text-[10px] text-text-secondary">라벨</p>
-      </div>
-    </div>
-  </div>
-
-  {/* 특수 정보 카드 (여러 항목 표시) */}
-  <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-3">
-    <div className="flex items-center gap-2 mb-2">
-      <Icon name="아이콘" size="xs" className="text-cyan-500" />
-      <span className="text-xs font-semibold text-cyan-500">카드 제목</span>
-    </div>
-    <div className="flex items-center justify-between gap-1">
-      {items.map(item => (
-        <div className="text-center flex-1">
-          <p className="text-sm font-bold text-text dark:text-white">{item.count}</p>
-          <p className="text-[8px] text-text-secondary truncate">{item.label}</p>
-        </div>
-      ))}
-    </div>
-  </div>
-</div>
+<StatStrip>
+  <StatTile icon="speed" label="완료율" rate={rate} />
+  <StatTile icon="list_alt" label="전체" value={total} />
+  <StatTile icon="check_circle" tone="text-success" label="완료" value={done} />
+  <StatTile icon="warning" tone="text-error" label="긴급" items={[{ label: "건수", value: 3 }, { label: "해결", value: 1 }]} />
+</StatStrip>
 ```
+
+- 이름 14px(`text-sm`), 값 16px 굵게(`text-base`), 아이콘은 글자색만(배경 상자 없음). 설명이 필요하면 `title`(마우스를 올리면 보임)에 적는다.
+- 카드 수가 적어도 늘리지 않는다. 내용 폭(최소 136px)으로 왼쪽부터 놓고, 이름 · 값은 잘리지 않게 한다.
+- 꼭 보여야 하는 경고 문장만 `note` 로 값 옆에 이어 쓴다.
+- 아이콘 상자 + 큰 숫자 + 아래 이름을 쌓은 두 줄 카드, 그라데이션 비율 카드를 화면에 직접 만들지 않는다 (`src/components/ui/stat-tile.test.tsx` 가 막는다).
+- 목록을 보는 데 도움이 되지 않는 숫자는 넣지 않는다.
 
 ## 3. 탭 스타일
 

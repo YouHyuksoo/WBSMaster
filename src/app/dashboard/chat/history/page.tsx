@@ -17,7 +17,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Icon, Button, Card } from "@/components/ui";
+import { Icon, Button, Card, StatStrip, StatTile } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { useProject } from "@/contexts";
 import Link from "next/link";
@@ -365,86 +365,16 @@ export default function ChatHistoryPage() {
         </div>
       </div>
 
-      {/* 통계 카드 */}
+      {/* 정보카드 */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-          {/* 전체 피드백 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-            <div className="flex items-center gap-2">
-              <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Icon name="feedback" size="xs" className="text-primary" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                <p className="text-sm text-text-secondary">전체</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 긍정률 */}
-          <div className="bg-gradient-to-br from-success/10 to-success/20 border border-success/30 rounded-xl p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon name="speed" size="xs" className="text-success" />
-              <span className="text-xs font-semibold text-success">긍정률</span>
-            </div>
-            <p className="text-2xl font-bold text-success mb-1">{stats.positiveRate}%</p>
-            <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-success to-emerald-400 rounded-full" style={{ width: `${stats.positiveRate}%` }} />
-            </div>
-          </div>
-
-          {/* 긍정 피드백 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-            <div className="flex items-center gap-2">
-              <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                <Icon name="thumb_up" size="xs" className="text-success" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-text dark:text-white">{stats.positive}</p>
-                <p className="text-sm text-text-secondary">긍정</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 부정 피드백 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-            <div className="flex items-center gap-2">
-              <div className="size-8 rounded-lg bg-error/10 flex items-center justify-center">
-                <Icon name="thumb_down" size="xs" className="text-error" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-text dark:text-white">{stats.negative}</p>
-                <p className="text-sm text-text-secondary">부정</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 평균 처리시간 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-            <div className="flex items-center gap-2">
-              <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Icon name="schedule" size="xs" className="text-primary" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-text dark:text-white">{formatTime(stats.avgProcessingTimeMs)}</p>
-                <p className="text-sm text-text-secondary">처리시간</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 평균 SQL 실행시간 */}
-          <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-            <div className="flex items-center gap-2">
-              <div className="size-8 rounded-lg bg-info/10 flex items-center justify-center">
-                <Icon name="database" size="xs" className="text-info" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-text dark:text-white">{formatTime(stats.avgSqlExecTimeMs)}</p>
-                <p className="text-sm text-text-secondary">SQL 실행</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <StatStrip>
+          <StatTile icon="feedback" tone="text-primary" label="전체" value={stats.total} />
+          <StatTile icon="speed" tone="text-success" label="긍정률" rate={stats.positiveRate} valueTone="text-success" />
+          <StatTile icon="thumb_up" tone="text-success" label="긍정" value={stats.positive} />
+          <StatTile icon="thumb_down" tone="text-error" label="부정" value={stats.negative} />
+          <StatTile icon="schedule" tone="text-primary" label="처리시간" value={formatTime(stats.avgProcessingTimeMs)} />
+          <StatTile icon="database" tone="text-info" label="SQL 실행" value={formatTime(stats.avgSqlExecTimeMs)} />
+        </StatStrip>
       )}
 
       {/* 필터 */}

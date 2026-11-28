@@ -51,7 +51,8 @@
 
 ## UI
 
-- 리스트형 페이지(헤더·통계 카드·탭·필터·그리드 테이블·상태 드롭다운) 규칙: `docs/design/list-page-style.md`. 참고 구현: `src/app/dashboard/issues/page.tsx`, `customer-requirements/page.tsx`.
+- 정보카드(통계 카드)는 공용 `StatStrip` · `StatTile`(`@/components/ui`)만 쓴다. 높이 36px 한 줄이며 두 줄 카드를 직접 만들면 `src/components/ui/stat-tile.test.tsx` 가 실패한다.
+- 리스트형 페이지(헤더·정보카드·탭·필터·그리드 테이블·상태 드롭다운) 규칙: `docs/design/list-page-style.md`. 참고 구현: `src/app/dashboard/issues/page.tsx`, `customer-requirements/page.tsx`.
 - 다크모드: `dark:` 클래스와 함께 기본 라이트 모드 색상도 명시한다.
 
 ## 메뉴 (HANES 방식, 2026-11-10)

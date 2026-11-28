@@ -5,6 +5,7 @@
  * 초보자 가이드:
  * - 회귀: 업무기능추적표 · 이슈 · 현업이슈 · 협의요청 등 통계 카드 이름이 text-[10px] 라 "글자가 너무 작다"는 신고가 나왔다.
  * - 규칙: 굵은 숫자 줄(text-lg/xl/2xl font-bold) 바로 다음 줄의 보조 글자(text-text-secondary)는 text-[9px] · text-[10px] 금지 → text-sm
+ * - 정보카드는 공용 StatTile 을 쓴다 (src/components/ui/stat-tile.test.tsx)
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";

@@ -17,7 +17,7 @@
 
 import { use, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Icon, Button, useToast } from "@/components/ui";
+import { Icon, Button, StatStrip, StatTile, useToast } from "@/components/ui";
 import { useWeeklySummary, useAnalyzeWeeklySummary } from "@/hooks";
 import { MemberSummaryData } from "@/lib/api";
 import { SummaryTable } from "../components";
@@ -179,44 +179,19 @@ export default function SummaryDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* 요약 정보 카드 */}
+        {/* 요약: 제목 · 정보카드 (한 줄) */}
         {summary && (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* 제목 카드 */}
-            <div className="col-span-2 lg:col-span-3 bg-gradient-to-br from-primary/10 to-info/10 border border-primary/20 rounded-xl p-4">
-              <h2 className="font-semibold text-text dark:text-white text-lg">
-                {summary.title}
-              </h2>
-              <p className="text-sm text-text-secondary mt-1">
-                생성일: {new Date(summary.createdAt).toLocaleDateString("ko-KR")} •
-                작성자: {summary.createdBy?.name || summary.createdBy?.email}
-              </p>
-            </div>
-
-            {/* 추진실적 건수 */}
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-              <div className="flex items-center gap-2">
-                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="task_alt" className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-primary">{previousItems.length}</p>
-                  <p className="text-xs text-text-secondary">추진실적</p>
-                </div>
-              </div>
-            </div>
-
-            {/* 실시예정 건수 */}
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4">
-              <div className="flex items-center gap-2">
-                <div className="size-10 rounded-lg bg-info/10 flex items-center justify-center">
-                  <Icon name="event_upcoming" className="text-info" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-info">{nextItems.length}</p>
-                  <p className="text-xs text-text-secondary">실시예정</p>
-                </div>
-              </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <h2 className="text-base font-semibold text-text dark:text-white">{summary.title}</h2>
+            <p className="text-sm text-text-secondary">
+              생성일: {new Date(summary.createdAt).toLocaleDateString("ko-KR")} •
+              작성자: {summary.createdBy?.name || summary.createdBy?.email}
+            </p>
+            <div className="sm:ml-auto">
+              <StatStrip>
+                <StatTile icon="task_alt" tone="text-primary" label="추진실적" value={previousItems.length} />
+                <StatTile icon="event_upcoming" tone="text-info" label="실시예정" value={nextItems.length} />
+              </StatStrip>
             </div>
           </div>
         )}

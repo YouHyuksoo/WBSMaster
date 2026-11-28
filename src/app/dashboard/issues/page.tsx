@@ -20,7 +20,7 @@
 
 import { useState } from "react";
 import { utils, writeFile } from "xlsx";
-import { Icon, Button, Input, useToast } from "@/components/ui";
+import { Icon, Button, Input, StatStrip, StatTile, useToast } from "@/components/ui";
 import {
   useIssues,
   useCreateIssue,
@@ -354,92 +354,15 @@ export default function IssuesPage() {
 
       {selectedProjectId && (
         <>
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-            {/* 해결률 카드 */}
-            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name="speed" size="xs" className="text-primary" />
-                <span className="text-xs font-semibold text-primary">해결률</span>
-              </div>
-              <p className="text-2xl font-bold text-primary mb-1">
-                {stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}%
-              </p>
-              <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                  style={{ width: stats.total > 0 ? `${(stats.resolved / stats.total) * 100}%` : "0%" }}
-                />
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="bug_report" size="xs" className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-sm text-text-secondary">전체</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-error/10 flex items-center justify-center">
-                  <Icon name="radio_button_unchecked" size="xs" className="text-error" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.open}</p>
-                  <p className="text-sm text-text-secondary">열림</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <Icon name="pending" size="xs" className="text-warning" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.inProgress}</p>
-                  <p className="text-sm text-text-secondary">진행중</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                  <Icon name="check_circle" size="xs" className="text-success" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.resolved}</p>
-                  <p className="text-sm text-text-secondary">해결됨</p>
-                </div>
-              </div>
-            </div>
-            {/* 긴급 이슈 정보 카드 */}
-            <div className="bg-error/5 border border-error/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name="warning" size="xs" className="text-error" />
-                <span className="text-xs font-semibold text-error">긴급</span>
-              </div>
-              <div className="flex items-center justify-between gap-1">
-                <div className="text-center flex-1">
-                  <p className="text-lg font-bold text-error">{criticalStats.total}</p>
-                  <p className="text-sm text-text-secondary">건수</p>
-                </div>
-                <div className="text-center flex-1">
-                  <p className="text-lg font-bold text-success">{criticalStats.resolved}</p>
-                  <p className="text-sm text-text-secondary">해결</p>
-                </div>
-                <div className="text-center flex-1">
-                  <p className={`text-lg font-bold ${criticalStats.unresolvedRate > 50 ? "text-error" : criticalStats.unresolvedRate > 0 ? "text-warning" : "text-success"}`}>
-                    {criticalStats.unresolvedRate}%
-                  </p>
-                  <p className="text-[10px] text-text-secondary">미결</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* 정보카드 */}
+          <StatStrip>
+            <StatTile icon="speed" label="해결률" rate={stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0} />
+            <StatTile icon="bug_report" tone="text-primary" label="전체" value={stats.total} />
+            <StatTile icon="radio_button_unchecked" tone="text-error" label="열림" value={stats.open} />
+            <StatTile icon="pending" tone="text-warning" label="진행중" value={stats.inProgress} />
+            <StatTile icon="check_circle" tone="text-success" label="해결됨" value={stats.resolved} />
+            <StatTile icon="warning" tone="text-error" label="긴급" items={[{ label: "건수", value: criticalStats.total, tone: "text-error" }, { label: "해결", value: criticalStats.resolved, tone: "text-success" }, { label: "미결", value: `${criticalStats.unresolvedRate}%`, tone: criticalStats.unresolvedRate > 50 ? "text-error" : criticalStats.unresolvedRate > 0 ? "text-warning" : "text-success" }]} />
+          </StatStrip>
 
           {/* 필터 및 보기 모드 전환 */}
           <div className="flex flex-wrap items-center justify-between gap-4">

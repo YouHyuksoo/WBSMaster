@@ -1,14 +1,14 @@
 /**
  * @file src/app/dashboard/progress-risk/components/KpiRow.tsx
- * @description KPI 카드 — 진도 요약 및 리스크 지표
+ * @description 진도 요약 · 리스크 정보카드 (공용 StatTile, 높이 36px 한 줄)
  *
  * 초보자 가이드:
- * 1. **요약 카드**: 일정 초과, 정상 진행(진행 중·완료 / 전체)
- * 2. **alert**: 공수 부족 또는 일정 초과 시 빨간색, 충돌 인원 시 주황색
+ * 1. **카드**: 일정 초과, 정상 진행(진행 중·완료 / 전체), 공수 부족
+ * 2. **alert**: 공수 부족 · 일정 초과 진단이 있으면 값 옆에 설명(예상 종료일 · Critical Path)을 이어 쓴다
  */
 import type { ProgressTask } from "@/lib/api";
 import type { Conflict, Diagnosis } from "@/lib/progress-calc/types";
-import { Icon } from "@/components/ui";
+import { StatStrip, StatTile } from "@/components/ui";
 
 interface Props {
   tasks: ProgressTask[];
@@ -47,135 +47,24 @@ export function KpiRow({ tasks, diagnosis, projectEndDate = null }: Props) {
   ].filter(Boolean).join(" · ");
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
-      <SummaryCard
-        total={total}
-        overrunDays={overrunDays}
-        onTrack={onTrack}
+    <StatStrip label="진도 요약">
+      <StatTile
+        icon="event_busy"
+        tone={overrunDays > 0 ? "text-error" : "text-primary"}
+        label="일정 초과"
+        value={overrunDays > 0 ? `+${overrunDays}일` : "0"}
+        valueTone={overrunDays > 0 ? "text-error" : undefined}
       />
-      <KpiCard
+      <StatTile icon="monitoring" tone="text-success" label="정상 진행" value={`${onTrack}/${total}`} />
+      <StatTile
         icon="priority_high"
-        iconClass="text-warning"
+        tone="text-warning"
         label="공수 부족"
         value={shortageMd > 0 ? `-${shortageMd.toFixed(1)} MD` : "0"}
-        warn={shortageMd > 0}
+        valueTone={shortageMd > 0 ? "text-warning" : undefined}
         role={hasDiagnosisAlert ? "alert" : undefined}
-        description={shortageDescription}
+        note={shortageDescription || undefined}
       />
-    </div>
-  );
-}
-
-interface SummaryCardProps {
-  total: number;
-  overrunDays: number;
-  onTrack: number;
-}
-
-function SummaryCard({ total, overrunDays, onTrack }: SummaryCardProps) {
-  return (
-    <div
-      className="border rounded-xl p-3 bg-background-white dark:bg-surface-dark border-border dark:border-border-dark"
-      aria-label="진도 요약"
-    >
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Icon name="monitoring" size="xs" className="text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-text dark:text-white">진도 요약</p>
-            <p className="text-[10px] text-text-secondary">핵심 지표</p>
-          </div>
-        </div>
-        <div className="grid flex-1 grid-cols-[repeat(auto-fit,minmax(72px,1fr))] gap-1.5">
-          <SummaryMetric
-            label="일정 초과"
-            value={overrunDays > 0 ? `+${overrunDays}일` : "0"}
-            tone={overrunDays > 0 ? "error" : "normal"}
-          />
-        </div>
-        <p className="whitespace-nowrap text-xs font-medium text-success">
-          정상 진행 {onTrack}/{total}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function SummaryMetric({
-  label,
-  value,
-  tone = "normal",
-}: {
-  label: string;
-  value: string;
-  tone?: "normal" | "error" | "warning";
-}) {
-  const valueColor = {
-    normal: "text-text dark:text-white",
-    error: "text-error",
-    warning: "text-warning",
-  }[tone];
-
-  return (
-    <div className="min-w-0 rounded-lg bg-surface dark:bg-background-dark px-2 py-1.5">
-      <p className={`truncate text-sm font-bold ${valueColor}`}>{value}</p>
-      <p className="text-[10px] text-text-secondary">{label}</p>
-    </div>
-  );
-}
-
-interface CardProps {
-  icon: string;
-  iconClass: string;
-  label: string;
-  value: string;
-  alert?: boolean;
-  warn?: boolean;
-  role?: "alert";
-  description?: string;
-}
-
-function KpiCard({ icon, iconClass, label, value, alert, warn, role, description }: CardProps) {
-  const variant = alert ? "alert" : warn ? "warn" : "normal";
-  const bg = {
-    alert: "bg-error/5 border-error/30",
-    warn: "bg-background-white dark:bg-surface-dark border-border dark:border-border-dark",
-    normal: "bg-background-white dark:bg-surface-dark border-border dark:border-border-dark",
-  }[variant];
-  const iconBg = {
-    alert: "bg-error/10",
-    warn: "bg-warning/10",
-    normal: "bg-primary/10",
-  }[variant];
-  const valueColor = {
-    alert: "text-error",
-    warn: "text-warning",
-    normal: "text-text dark:text-white",
-  }[variant];
-
-  return (
-    <div className={`border rounded-xl p-3 ${bg}`} role={role}>
-      <div className="flex items-center gap-3">
-        <div className={`size-8 rounded-lg ${iconBg} flex items-center justify-center`}>
-          <Icon name={icon} size="xs" className={iconClass} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <p className={`text-base font-bold ${valueColor}`}>{value}</p>
-            <p className="text-xs font-medium text-text dark:text-white">{label}</p>
-          </div>
-          {description && (
-            <p className="mt-1 truncate text-[11px] leading-snug text-text-secondary">
-              {description}
-            </p>
-          )}
-        </div>
-        {!description && (
-          <p className="text-[10px] text-text-secondary">{label}</p>
-        )}
-      </div>
-    </div>
+    </StatStrip>
   );
 }

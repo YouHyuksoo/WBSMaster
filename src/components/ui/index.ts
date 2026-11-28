@@ -14,6 +14,9 @@ export type { ButtonProps, ButtonVariant, ButtonSize } from "./Button";
 export { Card, CardHeader, CardContent, CardFooter } from "./Card";
 export type { CardProps } from "./Card";
 
+export { StatStrip, StatTile } from "./StatTile";
+export type { StatTileProps } from "./StatTile";
+
 export { Icon } from "./Icon";
 export type { IconProps, IconSize } from "./Icon";
 

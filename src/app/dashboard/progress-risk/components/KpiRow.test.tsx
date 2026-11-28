@@ -92,9 +92,7 @@ describe("KpiRow", () => {
     expect(text).not.toContain("총 공수");
     expect(text).toContain("일정 초과");
     expect(text).not.toContain("충돌 인원");
-    expect(text).toContain("정상 진행 3/3");
-    expect(screen.queryByText("정상 진행", { selector: "p.text-\\[10px\\]" })).toBeNull();
-    expect(summary.querySelector(".grid-cols-4")).toBeNull();
-    expect(summary.querySelector(".items-center")).not.toBeNull();
+    expect(text).toMatch(/정상 진행\s*3\/3/);
+    for (const tile of summary.children) expect(tile.className.split(" ")).toContain("h-9");
   });
 });

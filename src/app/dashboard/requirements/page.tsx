@@ -20,7 +20,7 @@
 
 import { useState } from "react";
 import { utils, writeFile } from "xlsx";
-import { Icon, Button, Input, useToast } from "@/components/ui";
+import { Icon, Button, Input, StatStrip, StatTile, useToast } from "@/components/ui";
 import {
   useRequirements,
   useCreateRequirement,
@@ -410,69 +410,14 @@ export default function RequirementsPage() {
 
       {selectedProjectId && (
         <>
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* 구현 진행률 카드 */}
-            <div className="bg-gradient-to-br from-primary/10 to-success/10 border border-primary/20 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name="speed" size="xs" className="text-primary" />
-                <span className="text-xs font-semibold text-primary">구현률</span>
-              </div>
-              <p className="text-2xl font-bold text-primary mb-1">
-                {stats.total > 0 ? Math.round((stats.implemented / stats.total) * 100) : 0}%
-              </p>
-              <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all"
-                  style={{ width: stats.total > 0 ? `${(stats.implemented / stats.total) * 100}%` : "0%" }}
-                />
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="checklist" size="xs" className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.total}</p>
-                  <p className="text-sm text-text-secondary">전체</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-success/10 flex items-center justify-center">
-                  <Icon name="check_circle" size="xs" className="text-success" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.approved}</p>
-                  <p className="text-sm text-text-secondary">승인</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon name="done_all" size="xs" className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.implemented}</p>
-                  <p className="text-sm text-text-secondary">구현완료</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-text-secondary/10 flex items-center justify-center">
-                  <Icon name="edit_note" size="xs" className="text-text-secondary" />
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-text dark:text-white">{stats.draft}</p>
-                  <p className="text-sm text-text-secondary">초안</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* 정보카드 */}
+          <StatStrip>
+            <StatTile icon="speed" label="구현률" rate={stats.total > 0 ? Math.round((stats.implemented / stats.total) * 100) : 0} />
+            <StatTile icon="checklist" tone="text-primary" label="전체" value={stats.total} />
+            <StatTile icon="check_circle" tone="text-success" label="승인" value={stats.approved} />
+            <StatTile icon="done_all" tone="text-primary" label="구현완료" value={stats.implemented} />
+            <StatTile icon="edit_note" tone="text-text-secondary" label="초안" value={stats.draft} />
+          </StatStrip>
 
           {/* 필터 - 검색창 + 탭 */}
           <div className="flex flex-wrap items-center gap-4">

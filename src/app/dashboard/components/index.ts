@@ -4,8 +4,6 @@
  * 대시보드 컴포넌트 모듈 내보내기
  */
 
-export { default as StatCard } from "./StatCard";
-export type { StatCardProps } from "./StatCard";
 
 export { default as ProjectCard } from "./ProjectCard";
 export type { ProjectCardProps, ProjectWithWbs, OrgMember } from "./ProjectCard";

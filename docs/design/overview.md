@@ -46,8 +46,7 @@ verifiedCommit: null
 - 페이지 부제목(한글): text-slate-400 text-sm font-normal ml-1 ("/ 한글 제목" 형태)
 - 섹션 제목: text-lg font-bold text-text dark:text-white
 - 본문: text-sm
-- 카드 대형 숫자: text-2xl font-bold
-- 카드 라벨: text-[10px] text-text-secondary
+- 정보카드: 이름 text-sm, 값 text-base font-bold (공용 StatTile, 높이 36px 한 줄)
 - 배지/태그: text-xs font-medium
 - 테이블 헤더: text-xs font-semibold text-text-secondary uppercase
 
@@ -83,7 +82,7 @@ verifiedCommit: null
 【리스트 페이지 레이아웃 (필수 순서)】
 1. 헤더 영역 (제목 그라데이션 + 프로젝트 배지 + 액션 버튼들)
 2. 프로젝트 미선택 안내 (조건부)
-3. 통계 카드 (grid grid-cols-2 lg:grid-cols-6 gap-3)
+3. 정보카드 (StatStrip · StatTile, 높이 36px 한 줄)
 4. 탭 바 (bg-surface dark:bg-background-dark rounded-lg, 활성: text-primary shadow-sm)
 5. 필터 바 (검색 Input + select 드롭다운)
 6. 데이터 테이블 (CSS Grid, gridTemplateColumns inline 스타일)
@@ -728,7 +727,7 @@ toast.info("정보입니다.");
 <div className="p-6 space-y-6">
   {/* 1. 헤더 영역 */}
   {/* 2. 프로젝트 미선택 안내 */}
-  {/* 3. 통계 카드 (6열 그리드) */}
+  {/* 3. 정보카드 (StatStrip · StatTile) */}
   {/* 4. 탭 바 */}
   {/* 5. 필터 바 */}
   {/* 6. 테이블 */}
@@ -767,45 +766,9 @@ toast.info("정보입니다.");
 </div>
 ```
 
-### 9.3 통계 카드 그리드
+### 9.3 정보카드
 
-```tsx
-<div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-```
-
-#### 비율 카드 (프로그레스 바 포함)
-
-```tsx
-<div className="bg-gradient-to-br from-primary/10 to-success/10
-  border border-primary/20 rounded-xl p-3">
-  <div className="flex items-center gap-2 mb-2">
-    <Icon name="speed" size="xs" className="text-primary" />
-    <span className="text-xs font-semibold text-primary">비율명</span>
-  </div>
-  <p className="text-2xl font-bold text-primary mb-1">{rate}%</p>
-  <div className="h-1.5 bg-white/50 dark:bg-black/20 rounded-full overflow-hidden">
-    <div className="h-full bg-gradient-to-r from-primary to-success rounded-full"
-      style={{ width: `${rate}%` }} />
-  </div>
-</div>
-```
-
-#### 카운트 카드
-
-```tsx
-<div className="bg-background-white dark:bg-surface-dark
-  border border-border dark:border-border-dark rounded-xl p-3">
-  <div className="flex items-center gap-2">
-    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-      <Icon name="아이콘" size="xs" className="text-primary" />
-    </div>
-    <div>
-      <p className="text-xl font-bold text-text dark:text-white">{count}</p>
-      <p className="text-[10px] text-text-secondary">라벨</p>
-    </div>
-  </div>
-</div>
-```
+공용 `StatStrip` · `StatTile`만 쓴다. 높이 36px 한 줄이며 규칙과 예시는 `list-page-style.md` 2장을 따른다.
 
 ### 9.4 탭 스타일
 
@@ -885,7 +848,9 @@ toast.info("정보입니다.");
 
 ## 10. 그리드 시스템
 
-### 10.1 통계 카드 그리드
+### 10.1 카드 그리드
+
+정보카드는 이 그리드 대신 `StatStrip` 을 쓴다.
 
 ```tsx
 // 6열 (데스크탑) / 2열 (모바일)
@@ -914,7 +879,7 @@ style={{ gridTemplateColumns: "80px 100px 1fr 80px 50px" }}
 
 | 용도 | 클래스 | 크기 |
 |------|--------|------|
-| 통계 카드 간격 | `gap-3` | 12px |
+| 정보카드 간격 (`StatStrip`) | `gap-2` | 8px |
 | 섹션 간격 | `space-y-6` | 24px |
 | 필터 항목 간격 | `gap-4` | 16px |
 | 버튼 그룹 간격 | `gap-3` | 12px |
@@ -1020,23 +985,9 @@ transition-all duration-200
 | `CardContent` | 없음 |
 | `CardFooter` | `mt-4` |
 
-### 12.2 통계 카드 (인라인)
+### 12.2 정보카드
 
-Card 컴포넌트 대신 직접 스타일링하는 경우가 많습니다:
-
-```tsx
-// 기본 통계 카드
-<div className="bg-background-white dark:bg-surface-dark
-  border border-border dark:border-border-dark
-  rounded-xl p-3">
-
-// 그라데이션 강조 카드
-<div className="bg-gradient-to-br from-primary/10 to-success/10
-  border border-primary/20 rounded-xl p-3">
-
-// 특수 색상 카드
-<div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-3">
-```
+직접 스타일링하지 않는다. `StatStrip` · `StatTile`(`@/components/ui`)을 쓴다. `list-page-style.md` 2장 참고.
 
 ---
 
@@ -1136,8 +1087,8 @@ className="bg-white dark:bg-slate-900"
 // 헤더: 모바일 세로 → 데스크탑 가로
 "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
 
-// 통계 카드: 2열 → 6열
-"grid grid-cols-2 lg:grid-cols-6 gap-3"
+// 정보카드: StatStrip 이 줄바꿈까지 처리
+<StatStrip>…</StatStrip>
 
 // 사이드바: 모바일 오버레이 → 데스크탑 고정
 "fixed lg:static"

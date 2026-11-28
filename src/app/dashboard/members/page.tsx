@@ -18,7 +18,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Icon, Button, Input, ImageCropper, useToast, ConfirmModal } from "@/components/ui";
+import { Icon, Button, Input, ImageCropper, StatStrip, StatTile, useToast, ConfirmModal } from "@/components/ui";
 import {
   useMembers,
   useInviteMember,
@@ -431,45 +431,13 @@ export default function MembersPage() {
       {/* ========== 전체 사용자 뷰 ========== */}
       {!activeProjectId && (
         <>
-          {/* 통계 */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
-              <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Icon name="group" size="md" className="text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{userStats.total}</p>
-                <p className="text-sm text-text-secondary">전체 사용자</p>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
-              <div className="size-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                <Icon name="admin_panel_settings" size="md" className="text-purple-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{userStats.executives}</p>
-                <p className="text-sm text-text-secondary">경영/총괄</p>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
-              <div className="size-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <Icon name="manage_accounts" size="md" className="text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{userStats.pms}</p>
-                <p className="text-sm text-text-secondary">PM/PL</p>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
-              <div className="size-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-                <Icon name="person" size="md" className="text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{userStats.members}</p>
-                <p className="text-sm text-text-secondary">멤버</p>
-              </div>
-            </div>
-          </div>
+          {/* 정보카드 */}
+          <StatStrip>
+            <StatTile icon="group" tone="text-primary" label="전체 사용자" value={userStats.total} />
+            <StatTile icon="admin_panel_settings" tone="text-purple-500" label="경영/총괄" value={userStats.executives} />
+            <StatTile icon="manage_accounts" tone="text-blue-500" label="PM/PL" value={userStats.pms} />
+            <StatTile icon="person" tone="text-green-500" label="멤버" value={userStats.members} />
+          </StatStrip>
 
           {/* 필터 */}
           <div className="flex flex-wrap gap-4">
@@ -572,45 +540,13 @@ export default function MembersPage() {
       {/* ========== 프로젝트 멤버 뷰 ========== */}
       {activeProjectId && (
         <>
-          {/* 통계 */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
-              <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Icon name="group" size="md" className="text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{memberStats.total}</p>
-                <p className="text-sm text-text-secondary">전체 멤버</p>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
-              <div className="size-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                <Icon name="admin_panel_settings" size="md" className="text-purple-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{memberStats.owners}</p>
-                <p className="text-sm text-text-secondary">소유자</p>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
-              <div className="size-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <Icon name="manage_accounts" size="md" className="text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{memberStats.managers}</p>
-                <p className="text-sm text-text-secondary">관리자</p>
-              </div>
-            </div>
-            <div className="bg-background-white dark:bg-surface-dark border border-border dark:border-border-dark rounded-xl p-4 flex items-center gap-4">
-              <div className="size-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-                <Icon name="person" size="md" className="text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-text dark:text-white">{memberStats.members}</p>
-                <p className="text-sm text-text-secondary">멤버</p>
-              </div>
-            </div>
-          </div>
+          {/* 정보카드 */}
+          <StatStrip>
+            <StatTile icon="group" tone="text-primary" label="전체 멤버" value={memberStats.total} />
+            <StatTile icon="admin_panel_settings" tone="text-purple-500" label="소유자" value={memberStats.owners} />
+            <StatTile icon="manage_accounts" tone="text-blue-500" label="관리자" value={memberStats.managers} />
+            <StatTile icon="person" tone="text-green-500" label="멤버" value={memberStats.members} />
+          </StatStrip>
 
           {/* 필터 */}
           <div className="flex flex-wrap gap-4">
